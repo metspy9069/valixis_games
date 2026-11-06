@@ -3,7 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Soul Ember: Survivors - Fullscreen Dungeon Edition</title>
+  <title>VALIXIS Games &mdash; Soul Ember: Survivors</title>
+  <meta name="description" content="Play Soul Ember: Survivors — official 2D top-down roguelite survival dungeon crawler by VALIXIS Gaming Studio. Zero dependencies, 100% browser-native performance." />
+  <link rel="canonical" href="https://games.valixis.tech/" />
+  
+  <!-- Open Graph / Meta -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="VALIXIS Games" />
+  <meta property="og:title" content="VALIXIS Games — Soul Ember: Survivors" />
+  <meta property="og:description" content="Official browser-native action roguelite survival dungeon crawler by VALIXIS Gaming Studio." />
+  <meta property="og:url" content="https://games.valixis.tech/" />
+  <meta property="og:image" content="https://games.valixis.tech/icon-512.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="VALIXIS Games — Soul Ember: Survivors" />
+  <meta name="twitter:description" content="Official browser-native action roguelite survival dungeon crawler by VALIXIS Gaming Studio." />
+
+  <!-- Icons & Favicon Suite -->
+  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#05030a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Valixis Games">
   <style>
     :root {
       --primary: #ff6a00;
@@ -87,6 +113,60 @@
       background: linear-gradient(90deg, #2b7fff, #00f2fe);
       transition: width 0.12s ease-out;
     }
+    .stamina-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00f2fe, #43e97b);
+      transition: width 0.06s ease-out;
+    }
+    #vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(4,2,8,0.78) 100%);
+      z-index: 5;
+    }
+    #damage-flash {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 60px rgba(255, 30, 60, 0);
+      transition: box-shadow 0.12s ease-out;
+      z-index: 6;
+    }
+    .merchant-card {
+      background: #181326;
+      border: 2px solid #ffd700;
+      border-radius: 14px;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .merchant-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.45);
+      background: #271d3d;
+    }
+    .merchant-icon { font-size: 34px; margin-bottom: 6px; }
+    .merchant-name { font-size: 14px; font-weight: 800; color: #ffea6c; margin-bottom: 4px; }
+    .merchant-desc { font-size: 11px; color: #a49bb5; line-height: 1.4; margin-bottom: 12px; flex-grow: 1; }
+    .merchant-buy {
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #000;
+      font-weight: 900;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 18px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .merchant-buy:hover:not(:disabled) { transform: scale(1.05); }
+    .merchant-buy:disabled { background: #443c57; color: #888; cursor: not-allowed; }
     .bar-label {
       position: absolute;
       width: 100%;
@@ -269,10 +349,18 @@
 
     /* HERO SELECTOR */
     .hero-grid {
-      display: flex;
-      gap: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
       justify-content: center;
       margin-bottom: 22px;
+    }
+    @media (max-width: 700px) {
+      .hero-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-height: 280px;
+        overflow-y: auto;
+      }
     }
     .hero-card {
       flex: 1;
@@ -460,6 +548,8 @@
 <body>
 
 <canvas id="game-canvas"></canvas>
+<div id="vignette"></div>
+<div id="damage-flash"></div>
 
 <!-- HUD LAYER -->
 <div class="hud-layer">
@@ -473,16 +563,23 @@
         <div id="xp-bar" class="xp-fill"></div>
         <div id="xp-text" class="bar-label">LVL 1 (0%)</div>
       </div>
+      <div class="bar-shell" style="height: 11px;">
+        <div id="stamina-bar" class="stamina-fill"></div>
+        <div id="stamina-text" class="bar-label" style="line-height: 11px; font-size: 8px;">ROLL STAMINA: 100%</div>
+      </div>
     </div>
 
     <div class="pills-group">
+      <div id="biome-pill" class="pill" style="border-color: #7c3fe4;">🏰 <span id="biome-text">The Crypt</span></div>
       <div class="pill">⏱️ <span id="hud-time">00:00</span></div>
       <div class="pill">💀 <span id="hud-kills">0</span></div>
       <div class="pill">🪙 <span id="hud-gold" class="gold-text">0</span></div>
       <div class="pill">⚡ <span id="hud-dash">READY</span></div>
+      <div id="combo-pill" class="pill" style="display:none; background: linear-gradient(135deg, #ff6a00, #ff0080); border-color: #ff6a00;">⚡ <span id="combo-text">x1</span></div>
       <button id="music-btn" class="hud-btn">🔊 MUSIC</button>
       <button id="pause-btn" class="hud-btn">⏸️ PAUSE</button>
       <button id="fs-btn" class="hud-btn">⛶ FULL</button>
+      <a href="https://valixis.tech" target="_blank" rel="noopener" class="hud-btn" style="text-decoration:none; color:#00f2fe; display:inline-flex; align-items:center; gap:4px;">🌐 VALIXIS</a>
     </div>
   </div>
 
@@ -496,7 +593,9 @@
 </div>
 
 <div id="alert-banner">⚠️ BOSS APPROACHING: MALAKOR AWAKENS ⚠️</div>
-<div class="controls-hint">[WASD / Arrows] Move | [Space] Dash | [P] Pause | [T] Test Cheats | Auto-Attack Active</div>
+<div id="biome-banner" style="display:none; position:fixed; top:125px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg, #7c3fe4, #00f2fe); color:#fff; font-weight:900; letter-spacing:2px; padding:10px 36px; border-radius:30px; z-index:25; box-shadow:0 0 40px rgba(0,242,254,0.7); animation:alertAnim 0.7s infinite alternate;"></div>
+<div id="achieve-notif" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;padding:10px 24px;border-radius:24px;font-size:14px;z-index:50;letter-spacing:1px;box-shadow:0 0 30px rgba(255,215,0,0.6);"></div>
+<div class="controls-hint">[WASD / Arrows] Move | [Space] Dodge Roll | [E] Merchant | [P] Pause | [T] Cheats | Auto-Attack Active</div>
 
 <!-- TOUCH CONTROLS (Mobile) -->
 <div id="touch-controls">
@@ -508,7 +607,11 @@
 
 <!-- START SCREEN -->
 <div id="start-modal" class="modal-overlay" style="display: flex;">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width: 750px;">
+    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; padding: 4px 14px; background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 20px; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; color: #00f2fe; font-weight: 800;">
+      <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#00f2fe; box-shadow:0 0 8px #00f2fe;"></span>
+      VALIXIS GAMING STUDIO &bull; GAMES.VALIXIS.TECH
+    </div>
     <h1 class="modal-title">🔥 Soul Ember</h1>
     <p class="modal-desc" style="color: #ffaa42; font-weight: 700; margin-bottom: 6px;">DUNGEON SURVIVORS EDITION</p>
     <p class="modal-desc">
@@ -532,6 +635,31 @@
         <div class="hero-name">Void Rogue</div>
         <div class="hero-trait">⚡ Chain Lightning & High Speed</div>
       </div>
+      <div class="hero-card" onclick="selectHero('necro', this)">
+        <div class="hero-icon">🧟</div>
+        <div class="hero-name">Necromancer</div>
+        <div class="hero-trait">🧟 Raises undead minions & drains life</div>
+      </div>
+      <div class="hero-card" onclick="selectHero('paladin', this)">
+        <div class="hero-icon">⚚</div>
+        <div class="hero-name">Paladin</div>
+        <div class="hero-trait">⚚ Holy shield, AoE smite & aura heals</div>
+      </div>
+      <div class="hero-card" onclick="selectHero('archer', this)">
+        <div class="hero-icon">🏹</div>
+        <div class="hero-name">Archer</div>
+        <div class="hero-trait">🏹 Rapid-fire piercing arrows & traps</div>
+      </div>
+      <div class="hero-card" onclick="selectHero('warlock', this)">
+        <div class="hero-icon">👁️</div>
+        <div class="hero-name">Warlock</div>
+        <div class="hero-trait">👁️ Curses enemies & void eruptions</div>
+      </div>
+      <div class="hero-card" onclick="selectHero('bard', this)">
+        <div class="hero-icon">🎵</div>
+        <div class="hero-name">Bard</div>
+        <div class="hero-trait">🎵 AoE sonic blasts & speed auras</div>
+      </div>
     </div>
 
     <div style="margin-bottom: 18px; font-size: 14px; color: #ffd700; font-weight: 800;">
@@ -540,6 +668,15 @@
 
     <button id="start-btn" class="btn">ENTER THE DUNGEON</button>
     <button id="armory-btn" class="btn btn-secondary">SOUL FORGE (ARMORY)</button>
+    <button id="achieve-btn" class="btn btn-secondary">🏆 ACHIEVEMENTS</button>
+
+    <div style="margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 16px; justify-content: center; align-items: center; font-size: 12px; color: #a49bb5; flex-wrap: wrap;">
+      <a href="https://valixis.tech" target="_blank" rel="noopener" style="color: #00f2fe; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🌐 valixis.tech</a>
+      <span style="opacity: 0.35;">&bull;</span>
+      <a href="https://portal.valixis.tech" target="_blank" rel="noopener" style="color: #a49bb5; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">⚡ portal.valixis.tech</a>
+      <span style="opacity: 0.35;">&bull;</span>
+      <span style="color: #6d6480;">&copy; 2026 VALIXIS Technologies</span>
+    </div>
   </div>
 </div>
 
@@ -596,6 +733,28 @@
   </div>
 </div>
 
+<!-- ACHIEVEMENTS MODAL -->
+<div id="achieve-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:700px;">
+    <h2 class="modal-title" style="color:#ffd700;">🏆 ACHIEVEMENTS</h2>
+    <div id="achieve-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;text-align:left;max-height:400px;overflow-y:auto;padding-right:6px;"></div>
+    <button class="btn" onclick="document.getElementById('achieve-modal').style.display='none';document.getElementById('start-modal').style.display='flex';">BACK</button>
+  </div>
+</div>
+
+<!-- WANDERING MERCHANT MODAL -->
+<div id="merchant-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width: 680px; border-color: #ffd700; box-shadow: 0 0 50px rgba(255, 215, 0, 0.4);">
+    <h2 class="modal-title" style="color: #ffd700;">🧙‍♂️ MORTHAK'S RELIC EMPORIUM</h2>
+    <p class="modal-desc">Spend gold gathered from this run on ancient relics to survive deeper chambers.</p>
+    <div style="font-size: 15px; font-weight: 800; color: #ffd700; margin-bottom: 16px;">
+      Current Run Gold: <span id="merchant-gold-text">0</span> 🪙
+    </div>
+    <div id="merchant-relics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;"></div>
+    <button class="btn btn-secondary" onclick="closeMerchantModal()">CONTINUE JOURNEY</button>
+  </div>
+</div>
+
 <script>
 /* ==========================================================================
    1. META-PROGRESSION PERSISTENCE
@@ -604,12 +763,21 @@ const MetaStore = {
   data: {
     gold: 0,
     totalKills: 0,
+    bossKills: 0,
+    maxStreak: 0,
+    eliteKills: 0,
+    heroesPlayed: ['pyro'],
+    achievements: [],
     upgrades: { hp: 0, might: 0, speed: 0, magnet: 0, greed: 0 }
   },
   load() {
     try {
       const s = localStorage.getItem('soul_ember_fullscreen_v1');
-      if (s) this.data = Object.assign(this.data, JSON.parse(s));
+      if (s) {
+        this.data = Object.assign(this.data, JSON.parse(s));
+        if (!this.data.achievements) this.data.achievements = [];
+        if (!this.data.heroesPlayed) this.data.heroesPlayed = ['pyro'];
+      }
     } catch(e) {}
     this.refreshDisplays();
   },
@@ -625,6 +793,79 @@ const MetaStore = {
   }
 };
 MetaStore.load();
+
+/* ==========================================================================
+   ACHIEVEMENTS SYSTEM
+   ========================================================================== */
+const ACHIEVEMENTS = [
+  { id: 'first_blood', name: 'First Blood', icon: '🩸', desc: 'Kill your first enemy', check: () => (MetaStore.data.totalKills || 0) >= 1, earned: false },
+  { id: 'kill100', name: 'Century Kill', icon: '💀', desc: 'Kill 100 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 100, earned: false },
+  { id: 'kill1000', name: 'Void Reaper', icon: '☠️', desc: 'Kill 1000 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 1000, earned: false },
+  { id: 'survive5', name: 'Survivor', icon: '⏱️', desc: 'Survive 5 minutes in one run', check: () => gameTime >= 300, earned: false },
+  { id: 'rich', name: 'Dragon Hoard', icon: '🪙', desc: 'Bank 500 gold total', check: () => (MetaStore.data.gold || 0) >= 500, earned: false },
+  { id: 'bossslayer', name: 'Lich Bane', icon: '👑', desc: 'Defeat the Void Lich', check: () => (MetaStore.data.bossKills || 0) >= 1, earned: false },
+  { id: 'combo10', name: 'Combo King', icon: '⚡', desc: 'Get a 10-kill streak', check: () => (MetaStore.data.maxStreak || 0) >= 10, earned: false },
+  { id: 'allheroes', name: 'Soul Collector', icon: '🎭', desc: 'Play as all 8 hero classes', check: () => (MetaStore.data.heroesPlayed || []).length >= 8, earned: false },
+  { id: 'elite', name: 'Elite Hunter', icon: '✨', desc: 'Kill your first Elite enemy', check: () => (MetaStore.data.eliteKills || 0) >= 1, earned: false },
+  { id: 'maxlevel', name: 'Ascendant', icon: '🌟', desc: 'Reach level 20 in one run', check: () => player.lvl >= 20, earned: false },
+];
+
+ACHIEVEMENTS.forEach(ach => {
+  if (MetaStore.data.achievements && MetaStore.data.achievements.includes(ach.id)) {
+    ach.earned = true;
+  }
+});
+
+function checkAchievements() {
+  if (!MetaStore.data.achievements) MetaStore.data.achievements = [];
+  let newlyEarned = false;
+  ACHIEVEMENTS.forEach(ach => {
+    if (!ach.earned && ach.check()) {
+      ach.earned = true;
+      if (!MetaStore.data.achievements.includes(ach.id)) {
+        MetaStore.data.achievements.push(ach.id);
+        newlyEarned = true;
+      }
+      showAchievementNotif(ach);
+    }
+  });
+  if (newlyEarned) {
+    MetaStore.save();
+  }
+}
+
+function showAchievementNotif(ach) {
+  const el = document.getElementById('achieve-notif');
+  if (!el) return;
+  el.textContent = `🏆 Achievement Unlocked: ${ach.icon} ${ach.name}!`;
+  el.style.display = 'block';
+  el.style.opacity = '1';
+  el.style.transition = 'opacity 0.4s ease';
+  AudioSys.playChest();
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; }, 400);
+  }, 3000);
+}
+
+function renderAchievements() {
+  const grid = document.getElementById('achieve-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  ACHIEVEMENTS.forEach(ach => {
+    const isUnlocked = ach.earned || (MetaStore.data.achievements && MetaStore.data.achievements.includes(ach.id));
+    const card = document.createElement('div');
+    card.style.cssText = `background: ${isUnlocked ? 'rgba(255, 215, 0, 0.12)' : 'rgba(255, 255, 255, 0.04)'}; border: 1px solid ${isUnlocked ? '#ffd700' : 'rgba(255, 255, 255, 0.1)'}; padding: 12px 14px; border-radius: 12px; display: flex; align-items: center; gap: 12px; opacity: ${isUnlocked ? '1' : '0.55'};`;
+    card.innerHTML = `
+      <div style="font-size: 28px; filter: ${isUnlocked ? 'none' : 'grayscale(100%)'};">${ach.icon}</div>
+      <div style="flex: 1;">
+        <div style="font-weight: 800; font-size: 14px; color: ${isUnlocked ? '#ffd700' : '#888'};">${ach.name} ${isUnlocked ? '✓' : '🔒'}</div>
+        <div style="font-size: 11px; color: #a49bb5; margin-top: 2px;">${ach.desc}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
 
 /* ==========================================================================
    2. WORLD, WALLS, AND PILLARS CONFIGURATION
@@ -654,7 +895,7 @@ const WORLD = {
 };
 
 // Check circle collision against all walls and pillars
-function checkWorldCollision(circleX, circleY, radius) {
+function checkWorldCollision(circleX, circleY, radius, ignorePillars = false) {
   // 1. Perimeter Walls
   const minX = WORLD.wallThick + radius;
   const maxX = WORLD.width - WORLD.wallThick - radius;
@@ -665,24 +906,26 @@ function checkWorldCollision(circleX, circleY, radius) {
   let resolvedY = Math.max(minY, Math.min(maxY, circleY));
 
   // 2. Pillars (Box-Circle Collision & Slide)
-  WORLD.pillars.forEach(p => {
-    // Find closest point on pillar rect
-    const closestX = Math.max(p.x, Math.min(p.x + p.w, resolvedX));
-    const closestY = Math.max(p.y, Math.min(p.y + p.h, resolvedY));
-    const dx = resolvedX - closestX;
-    const dy = resolvedY - closestY;
-    const dist = Math.hypot(dx, dy);
+  if (!ignorePillars) {
+    WORLD.pillars.forEach(p => {
+      // Find closest point on pillar rect
+      const closestX = Math.max(p.x, Math.min(p.x + p.w, resolvedX));
+      const closestY = Math.max(p.y, Math.min(p.y + p.h, resolvedY));
+      const dx = resolvedX - closestX;
+      const dy = resolvedY - closestY;
+      const dist = Math.hypot(dx, dy);
 
-    if (dist < radius) {
-      const overlap = radius - dist;
-      if (dist === 0) {
-        resolvedX += radius; // push out default
-      } else {
-        resolvedX += (dx / dist) * overlap;
-        resolvedY += (dy / dist) * overlap;
+      if (dist < radius) {
+        const overlap = radius - dist;
+        if (dist === 0) {
+          resolvedX += radius; // push out default
+        } else {
+          resolvedX += (dx / dist) * overlap;
+          resolvedY += (dy / dist) * overlap;
+        }
       }
-    }
-  });
+    });
+  }
 
   return { x: resolvedX, y: resolvedY };
 }
@@ -751,83 +994,61 @@ const SpriteEngine = {
       ]
     ];
 
-    // Pyromancer
-    this.cache.pyro = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#2b1b3d', 'h': '#57337a', 'S': '#ffd599', 'B': '#ffffff', 'E': '#151522',
-        'R': '#ff6a00', 'r': '#b83b00', 'W': '#6d4c3d', 'G': '#ffe042', 'F': '#ff3c00'
-      }, 2);
-      return c;
-    });
-    // Duplicate frames to have 4 frames for simple animation cycles
-    this.cache.pyro = this.cache.pyro.concat(this.cache.pyro);
-
-    // Cryomancer
-    this.cache.cryo = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#132840', 'h': '#1e528a', 'S': '#ffe0bd', 'B': '#cce7ff', 'E': '#002b4d',
-        'R': '#00c3ff', 'r': '#007eb3', 'W': '#5b6b80', 'G': '#c7f6ff', 'F': '#ffffff'
-      }, 2);
-      return c;
-    });
-    this.cache.cryo = this.cache.cryo.concat(this.cache.cryo);
-
-    // Void Rogue
-    this.cache.rogue = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#1c1524', 'h': '#39284f', 'S': '#d9a982', 'B': '#2e1c42', 'E': '#ffd700',
-        'R': '#6a2cb8', 'r': '#431978', 'W': '#3b3b45', 'G': '#00ffc4', 'F': '#ffe600'
-      }, 2);
-      return c;
-    });
-    this.cache.rogue = this.cache.rogue.concat(this.cache.rogue);
-
-    const animMap = [
-      [
-        "...hhhhh........", "..hhhhhhh.......", "..hSSShhh.......", "..hSEEEh........",
-        "...SSBBBW.G.....", "...SBBBBWGF.....", "..rRRRRRW.......", ".rRRRRRRW.......",
-        ".rRRRRRRW.......", "..rRRRR.W.......", "...RRRR.........", "...RR.RR........",
-        "...h...h........", "..hh..hh........"
-      ],
-      [
-        "...hhhhh........", "..hhhhhhh.......", "..hSSShhh.......", "..hSEEEh........",
-        "...SSBBBW.G.....", "...SBBBBWFG.....", "..rRRRRRW.......", ".rRRRRRRW.......",
-        ".rRRRRRRW.......", "..rRRRR.W.......", "...RRRR.........", "....RR..........",
-        "...hh.hh........", "...h...h........"
-      ]
-    ];
+    const bakeHero = (palette) => {
+      const frames = animMap.map(f => {
+        const c = this.createCanvas(32, 32);
+        this.drawPixels(c.getContext('2d'), f, palette, 2);
+        return c;
+      });
+      return frames.concat(frames);
+    };
 
     // Pyromancer
-    this.cache.pyro = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#2b1b3d', 'h': '#57337a', 'S': '#ffd599', 'B': '#ffffff', 'E': '#151522',
-        'R': '#ff6a00', 'r': '#b83b00', 'W': '#6d4c3d', 'G': '#ffe042', 'F': '#ff3c00'
-      }, 2);
-      return c;
+    this.cache.pyro = bakeHero({
+      'H': '#2b1b3d', 'h': '#57337a', 'S': '#ffd599', 'B': '#ffffff', 'E': '#151522',
+      'R': '#ff6a00', 'r': '#b83b00', 'W': '#6d4c3d', 'G': '#ffe042', 'F': '#ff3c00'
     });
 
     // Cryomancer
-    this.cache.cryo = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#132840', 'h': '#1e528a', 'S': '#ffe0bd', 'B': '#cce7ff', 'E': '#002b4d',
-        'R': '#00c3ff', 'r': '#007eb3', 'W': '#5b6b80', 'G': '#c7f6ff', 'F': '#ffffff'
-      }, 2);
-      return c;
+    this.cache.cryo = bakeHero({
+      'H': '#132840', 'h': '#1e528a', 'S': '#ffe0bd', 'B': '#cce7ff', 'E': '#002b4d',
+      'R': '#00c3ff', 'r': '#007eb3', 'W': '#5b6b80', 'G': '#c7f6ff', 'F': '#ffffff'
     });
 
     // Void Rogue
-    this.cache.rogue = animMap.map(f => {
-      const c = this.createCanvas(32, 32);
-      this.drawPixels(c.getContext('2d'), f, {
-        'H': '#1c1524', 'h': '#39284f', 'S': '#d9a982', 'B': '#2e1c42', 'E': '#ffd700',
-        'R': '#6a2cb8', 'r': '#431978', 'W': '#3b3b45', 'G': '#00ffc4', 'F': '#ffe600'
-      }, 2);
-      return c;
+    this.cache.rogue = bakeHero({
+      'H': '#1c1524', 'h': '#39284f', 'S': '#d9a982', 'B': '#2e1c42', 'E': '#ffd700',
+      'R': '#6a2cb8', 'r': '#431978', 'W': '#3b3b45', 'G': '#00ffc4', 'F': '#ffe600'
+    });
+
+    // Necromancer
+    this.cache.necro = bakeHero({
+      'H': '#2a1540', 'h': '#2a1540', 'S': '#e8e4f0', 'B': '#e8e4f0', 'E': '#00ff88',
+      'R': '#7c3fe4', 'r': '#4a1fa0', 'W': '#4a1fa0', 'G': '#00ff88', 'F': '#7c3fe4'
+    });
+
+    // Paladin
+    this.cache.paladin = bakeHero({
+      'H': '#c0a000', 'h': '#c0a000', 'S': '#ffe0bd', 'B': '#f8f8ff', 'E': '#fff44f',
+      'R': '#ffd700', 'r': '#b8860b', 'W': '#ffd700', 'G': '#fff44f', 'F': '#ffd700'
+    });
+
+    // Archer
+    this.cache.archer = bakeHero({
+      'H': '#1a4d1a', 'h': '#1a4d1a', 'S': '#ffd599', 'B': '#8b6914', 'E': '#ffd700',
+      'R': '#228b22', 'r': '#145214', 'W': '#8b6914', 'G': '#ffd700', 'F': '#228b22'
+    });
+
+    // Warlock
+    this.cache.warlock = bakeHero({
+      'H': '#3d0000', 'h': '#3d0000', 'S': '#d9a982', 'B': '#2d0a2d', 'E': '#ff00ff',
+      'R': '#8b0000', 'r': '#5c0000', 'W': '#2d0a2d', 'G': '#ff00ff', 'F': '#8b0000'
+    });
+
+    // Bard
+    this.cache.bard = bakeHero({
+      'H': '#0040a0', 'h': '#0040a0', 'S': '#ffd599', 'B': '#ffd700', 'E': '#00ffcc',
+      'R': '#1e90ff', 'r': '#0050a0', 'W': '#ffd700', 'G': '#00ffcc', 'F': '#ffd700'
     });
   },
 
@@ -886,43 +1107,56 @@ const SpriteEngine = {
   },
 
   bakeDungeonTiles() {
-    // Floor (64x64)
-    const cFloor = this.createCanvas(64, 64);
-    const fCtx = cFloor.getContext('2d');
-    fCtx.fillStyle = '#100d1c';
-    fCtx.fillRect(0, 0, 64, 64);
-    fCtx.strokeStyle = '#1b152d';
-    fCtx.lineWidth = 1;
-    for (let y = 0; y < 64; y += 16) {
-      fCtx.beginPath(); fCtx.moveTo(0, y); fCtx.lineTo(64, y); fCtx.stroke();
-      const offset = (y / 16) % 2 === 0 ? 0 : 16;
-      for (let x = offset; x < 64; x += 32) {
-        fCtx.beginPath(); fCtx.moveTo(x, y); fCtx.lineTo(x, y + 16); fCtx.stroke();
+    const createFloor = (bgColor, strokeColor, speckColor) => {
+      const c = this.createCanvas(64, 64);
+      const fCtx = c.getContext('2d');
+      fCtx.fillStyle = bgColor;
+      fCtx.fillRect(0, 0, 64, 64);
+      fCtx.strokeStyle = strokeColor;
+      fCtx.lineWidth = 1;
+      for (let y = 0; y < 64; y += 16) {
+        fCtx.beginPath(); fCtx.moveTo(0, y); fCtx.lineTo(64, y); fCtx.stroke();
+        const offset = (y / 16) % 2 === 0 ? 0 : 16;
+        for (let x = offset; x < 64; x += 32) {
+          fCtx.beginPath(); fCtx.moveTo(x, y); fCtx.lineTo(x, y + 16); fCtx.stroke();
+        }
       }
-    }
-    fCtx.fillStyle = 'rgba(255,255,255,0.02)';
-    fCtx.fillRect(8, 8, 2, 2);
-    fCtx.fillRect(36, 24, 2, 2);
-    this.cache.floor = cFloor;
+      fCtx.fillStyle = speckColor;
+      fCtx.fillRect(8, 8, 2, 2);
+      fCtx.fillRect(36, 24, 2, 2);
+      return c;
+    };
 
-    // Wall Brick (64x64)
-    const cWall = this.createCanvas(64, 64);
-    const wCtx = cWall.getContext('2d');
-    wCtx.fillStyle = '#1c152a';
-    wCtx.fillRect(0, 0, 64, 64);
-    wCtx.strokeStyle = '#322547';
-    wCtx.lineWidth = 2;
-    for (let y = 0; y < 64; y += 20) {
-      wCtx.beginPath(); wCtx.moveTo(0, y); wCtx.lineTo(64, y); wCtx.stroke();
-      const offset = (y / 20) % 2 === 0 ? 0 : 20;
-      for (let x = offset; x < 64; x += 32) {
-        wCtx.beginPath(); wCtx.moveTo(x, y); wCtx.lineTo(x, y + 20); wCtx.stroke();
+    const createWall = (baseColor, brickStroke, topGlow) => {
+      const c = this.createCanvas(64, 64);
+      const wCtx = c.getContext('2d');
+      wCtx.fillStyle = baseColor;
+      wCtx.fillRect(0, 0, 64, 64);
+      wCtx.strokeStyle = brickStroke;
+      wCtx.lineWidth = 2;
+      for (let y = 0; y < 64; y += 20) {
+        wCtx.beginPath(); wCtx.moveTo(0, y); wCtx.lineTo(64, y); wCtx.stroke();
+        const offset = (y / 20) % 2 === 0 ? 0 : 20;
+        for (let x = offset; x < 64; x += 32) {
+          wCtx.beginPath(); wCtx.moveTo(x, y); wCtx.lineTo(x, y + 20); wCtx.stroke();
+        }
       }
-    }
-    // Top highlight edge
-    wCtx.fillStyle = '#483563';
-    wCtx.fillRect(0, 0, 64, 4);
-    this.cache.wall = cWall;
+      wCtx.fillStyle = topGlow;
+      wCtx.fillRect(0, 0, 64, 4);
+      return c;
+    };
+
+    // 1. Obsidian Crypt (Dungeon)
+    this.cache.floor = createFloor('#100d1c', '#1b152d', 'rgba(255,255,255,0.02)');
+    this.cache.wall = createWall('#1c152a', '#322547', '#483563');
+
+    // 2. Cursed Viridian Grove (Forest)
+    this.cache.floor_forest = createFloor('#07170e', '#103320', 'rgba(0,255,136,0.06)');
+    this.cache.wall_forest = createWall('#0c2415', '#1a4e2e', '#00ff88');
+
+    // 3. Infernal Magma Chasm (Inferno)
+    this.cache.floor_inferno = createFloor('#1a0805', '#38120a', 'rgba(255,106,0,0.08)');
+    this.cache.wall_inferno = createWall('#290d07', '#561a0d', '#ff5500');
   }
 };
 SpriteEngine.init();
@@ -1158,11 +1392,33 @@ const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key === ' ' && gameState === 'PLAYING') player.tryDash();
+  if (e.key.toLowerCase() === 'e' && gameState === 'PLAYING') {
+    if (wanderingMerchant && Math.hypot(player.x - wanderingMerchant.x, player.y - wanderingMerchant.y) < 75) {
+      openMerchantModal();
+    }
+  }
   if (e.key.toLowerCase() === 'p') togglePause();
   if (e.key.toLowerCase() === 't') togglePause(); // open test cheats panel
   if (e.key.toLowerCase() === 'f') toggleFullscreen();
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener('pointerdown', e => {
+  if (gameState !== 'PLAYING') return;
+  const rect = canvas.getBoundingClientRect();
+  const screenX = e.clientX - rect.left;
+  const screenY = e.clientY - rect.top;
+  const worldX = screenX + camera.x;
+  const worldY = screenY + camera.y;
+
+  if (wanderingMerchant) {
+    const distToMerchant = Math.hypot(worldX - wanderingMerchant.x, worldY - wanderingMerchant.y);
+    const playerDist = Math.hypot(player.x - wanderingMerchant.x, player.y - wanderingMerchant.y);
+    if (distToMerchant < 55 && playerDist < 120) {
+      openMerchantModal();
+    }
+  }
+});
 
 function togglePause() {
   if (gameState === 'PLAYING') {
@@ -1229,7 +1485,10 @@ const UPGRADE_POOL = [
   { id: 'shield', name: 'Orbiting Spark', icon: '🛡️', desc: 'Spawns a spinning barrier orb that pulverizes oncoming mobs.' },
   { id: 'speed', name: 'Windstride Boots', icon: '👟', desc: 'Increases hero movement speed by +18%.' },
   { id: 'firerate', name: 'Arcane Quickening', icon: '✨', desc: 'Reduces all spell attack cooldowns by +22%.' },
-  { id: 'vitality', name: 'Lifebloom Heart', icon: '❤️', desc: 'Instantly heals 50 HP and raises maximum health by +30.' }
+  { id: 'vitality', name: 'Lifebloom Heart', icon: '❤️', desc: 'Instantly heals 50 HP and raises maximum health by +30.' },
+  { id: 'poison', name: 'Void Miasma', icon: '👁️', desc: 'Unleashes toxic curses that poison enemies over time.' },
+  { id: 'smite', name: 'Divine Smite', icon: '⚚', desc: 'Holy smite strikes nearby foes and radiates healing energy.' },
+  { id: 'necro', name: 'Spectral Thralls', icon: '🧟', desc: 'Summons orbiting undead minions that slice enemies and siphon health.' }
 ];
 
 /* Player Object */
@@ -1266,10 +1525,29 @@ const player = {
   orbitOrbs: 0,
   orbitAngle: 0,
 
-  dashCooldown: 2.8,
+  hasNecroMinions: false,
+  necroTimer: 0,
+  minionAngle: 0,
+
+  hasSmite: false,
+  smiteTimer: 0,
+
+  hasPoison: false,
+  poisonTimer: 0,
+
+  stamina: 100,
+  maxStamina: 100,
+  staminaRegen: 28,
+  staminaCost: 33,
+  isInvulnerable: false,
+  relics: {},
+  hasRelic(id) { return !!this.relics[id]; },
+  killsSinceHeal: 0,
+
+  dashCooldown: 0.1,
   dashTimer: 0,
   isDashing: false,
-  dashDuration: 0.18,
+  dashDuration: 0.24,
   dashTimeLeft: 0,
   dashDx: 0,
   dashDy: 0,
@@ -1282,6 +1560,11 @@ const player = {
     this.xpNeed = 10;
     this.walkTimer = 0;
     this.animFrame = 0;
+    this.stamina = 100;
+    this.maxStamina = 100;
+    this.isInvulnerable = false;
+    this.relics = {};
+    this.killsSinceHeal = 0;
 
     const u = MetaStore.data.upgrades;
     this.maxHp = 100 + (u.hp * 15);
@@ -1295,6 +1578,9 @@ const player = {
     this.hasFrostNova = false;
     this.hasPuddle = false;
     this.orbitOrbs = 0;
+    this.hasNecroMinions = false;
+    this.hasSmite = false;
+    this.hasPoison = false;
 
     if (currentHeroType === 'pyro') {
       this.fireCooldown = 0.75;
@@ -1305,6 +1591,29 @@ const player = {
     } else if (currentHeroType === 'rogue') {
       this.speed += 0.5;
       this.hasLightning = true;
+    } else if (currentHeroType === 'necro') {
+      this.fireCooldown = 1.0;
+      this.hasNecroMinions = true;  // skeleton minions (draw 2 small skeletons orbiting)
+      this.necroTimer = 0;
+    } else if (currentHeroType === 'paladin') {
+      this.fireCooldown = 0.9;
+      this.orbitOrbs = 2; // starts with 2 holy orbs
+      this.hasFrostNova = false;
+      this.hasSmite = true;
+      this.smiteTimer = 0;
+    } else if (currentHeroType === 'archer') {
+      this.fireCooldown = 0.4; // very fast attack
+      this.projectilesPerShot = 2;
+      this.speed += 0.3;
+    } else if (currentHeroType === 'warlock') {
+      this.fireCooldown = 1.2;
+      this.hasPuddle = true;
+      this.hasPoison = true;
+      this.poisonTimer = 0;
+    } else if (currentHeroType === 'bard') {
+      this.speed += 0.6;
+      this.fireCooldown = 0.6;
+      this.hasFrostNova = true; // sonic wave acts like frost nova
     }
 
     this.dashTimer = 0;
@@ -1312,32 +1621,69 @@ const player = {
   },
 
   tryDash() {
-    if (this.dashTimer <= 0) {
-      let dx = touchMove.dx;
-      let dy = touchMove.dy;
-
-      if (dx === 0 && dy === 0) {
-        if (keys['w'] || keys['arrowup']) dy -= 1;
-        if (keys['s'] || keys['arrowdown']) dy += 1;
-        if (keys['a'] || keys['arrowleft']) dx -= 1;
-        if (keys['d'] || keys['arrowright']) dx += 1;
-      }
-
-      if (dx === 0 && dy === 0) dx = this.facingRight ? 1 : -1;
-      const len = Math.hypot(dx, dy) || 1;
-      this.dashDx = (dx / len) * 9.5;
-      this.dashDy = (dy / len) * 9.5;
-      this.isDashing = true;
-      this.dashTimeLeft = this.dashDuration;
-      this.dashTimer = this.dashCooldown;
-      AudioSys.playDash();
-
-      for (let i = 0; i < 15; i++) particles.push(new Particle(this.x, this.y, '#ffaa33', 3));
+    if (this.isDashing) return;
+    if (this.stamina < this.staminaCost) {
+      damageTexts.push(new DamageNumber(this.x, this.y - 14, 'LOW STAMINA! ⚡', '#ff3b30'));
+      return;
     }
+    this.stamina -= this.staminaCost;
+
+    let dx = touchMove.dx;
+    let dy = touchMove.dy;
+
+    if (dx === 0 && dy === 0) {
+      if (keys['w'] || keys['arrowup']) dy -= 1;
+      if (keys['s'] || keys['arrowdown']) dy += 1;
+      if (keys['a'] || keys['arrowleft']) dx -= 1;
+      if (keys['d'] || keys['arrowright']) dx += 1;
+    }
+
+    if (dx === 0 && dy === 0) dx = this.facingRight ? 1 : -1;
+    const len = Math.hypot(dx, dy) || 1;
+    this.dashDx = (dx / len) * 11.2;
+    this.dashDy = (dy / len) * 11.2;
+    this.isDashing = true;
+    this.isInvulnerable = true;
+    this.dashTimeLeft = this.dashDuration;
+    AudioSys.playDash();
+
+    // Check Perfect Parry Window (dodging an enemy strike in close proximity)
+    let parried = false;
+    enemies.forEach(e => {
+      const d = Math.hypot(e.x - this.x, e.y - this.y);
+      if (d < e.radius + this.radius + 36) {
+        parried = true;
+        e.applyStatus('stun', { duration: 1.5 });
+        e.takeDamage(52 * this.damageMult, true);
+        for (let i = 0; i < 6; i++) particles.push(new Particle(e.x, e.y, '#ffd700', 3.5));
+      }
+    });
+
+    if (parried) {
+      this.stamina = Math.min(this.maxStamina, this.stamina + 25);
+      shockwaves.push(new Shockwave(this.x, this.y, 140, '#ffd700'));
+      damageTexts.push(new DamageNumber(this.x, this.y - 24, '⚡ PERFECT PARRY!', '#ffd700'));
+      addTrauma(0.35);
+      AudioSys.playLightning();
+    }
+
+    // Chronos Relic: freeze nearby enemies on roll
+    if (this.hasRelic('chronos')) {
+      shockwaves.push(new Shockwave(this.x, this.y, 180, '#00f2fe'));
+      enemies.forEach(e => {
+        if (Math.hypot(e.x - this.x, e.y - this.y) < 220) {
+          e.applyStatus('freeze', { slowFactor: 0.25, duration: 2.8 });
+        }
+      });
+    }
+
+    for (let i = 0; i < 15; i++) particles.push(new Particle(this.x, this.y, '#00f2fe', 3));
   },
 
   update(dt) {
-    if (this.dashTimer > 0) this.dashTimer -= dt;
+    if (!this.isDashing && this.stamina < this.maxStamina) {
+      this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegen * dt);
+    }
 
     let targetX = this.x;
     let targetY = this.y;
@@ -1346,7 +1692,20 @@ const player = {
       targetX += this.dashDx;
       targetY += this.dashDy;
       this.dashTimeLeft -= dt;
-      if (this.dashTimeLeft <= 0) this.isDashing = false;
+      if (Math.random() < 0.7) {
+        playerGhosts.push({
+          x: this.x,
+          y: this.y,
+          animFrame: this.animFrame,
+          facingRight: this.facingRight,
+          hero: currentHeroType,
+          alpha: 0.65
+        });
+      }
+      if (this.dashTimeLeft <= 0) {
+        this.isDashing = false;
+        this.isInvulnerable = false;
+      }
     } else {
       let dx = touchMove.dx;
       let dy = touchMove.dy;
@@ -1425,6 +1784,63 @@ const player = {
         });
       }
     }
+
+    // Necromancer Minions
+    if (this.hasNecroMinions) {
+      this.minionAngle = (this.minionAngle || 0) + dt * 2.8;
+      const mDist = 44;
+      for (let i = 0; i < 2; i++) {
+        const ma = this.minionAngle + (i * Math.PI);
+        const mx = this.x + Math.cos(ma) * mDist;
+        const my = this.y + Math.sin(ma) * mDist;
+        enemies.forEach(e => {
+          if (Math.hypot(mx - e.x, my - e.y) < 16 + e.radius) {
+            e.takeDamage(1.8 * this.damageMult, false);
+            if (Math.random() < 0.08 && this.hp < this.maxHp) {
+              this.hp = Math.min(this.maxHp, this.hp + 1);
+              updateHUD();
+            }
+          }
+        });
+      }
+    }
+
+    // Paladin Smite
+    if (this.hasSmite) {
+      this.smiteTimer = (this.smiteTimer || 0) + dt;
+      if (this.smiteTimer >= 3.2) {
+        this.smiteTimer = 0;
+        if (enemies.length > 0) {
+          const sorted = [...enemies].sort((a, b) => Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y));
+          const target = sorted[0];
+          shockwaves.push(new Shockwave(target.x, target.y, 110, '#ffd700'));
+          enemies.forEach(e => {
+            if (Math.hypot(e.x - target.x, e.y - target.y) < 110) {
+              e.takeDamage(42 * this.damageMult, true);
+              e.applyStatus('burn', { damage: 6, duration: 2 });
+            }
+          });
+          this.hp = Math.min(this.maxHp, this.hp + 4);
+          updateHUD();
+          damageTexts.push(new DamageNumber(this.x, this.y - 18, '+4 HP ⚚', '#00ff88'));
+        }
+      }
+    }
+
+    // Warlock Poison Curse
+    if (this.hasPoison) {
+      this.poisonTimer = (this.poisonTimer || 0) + dt;
+      if (this.poisonTimer >= 2.0) {
+        this.poisonTimer = 0;
+        if (enemies.length > 0) {
+          const sorted = [...enemies].sort((a, b) => Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y));
+          sorted.slice(0, 3).forEach(e => {
+            e.applyStatus('poison', { damage: 10 * this.damageMult, duration: 4 });
+            for (let i = 0; i < 4; i++) particles.push(new Particle(e.x, e.y, '#00ff88', 2));
+          });
+        }
+      }
+    }
   },
 
   shootFireballs() {
@@ -1462,7 +1878,7 @@ const player = {
     enemies.forEach(e => {
       if (Math.hypot(e.x - this.x, e.y - this.y) < burstRadius) {
         e.takeDamage(36 * this.damageMult, false);
-        e.speed *= 0.45;
+        e.applyStatus('freeze', { slowFactor: 0.3, duration: 3 });
       }
     });
   },
@@ -1475,15 +1891,21 @@ const player = {
       this.lvl++;
       this.xpNeed = Math.floor(this.xpNeed * 1.4 + 6);
       showLevelUpScreen();
+      checkAchievements();
     }
     updateHUD();
   },
 
   takeDamage(amount) {
-    if (this.isDashing || isGodMode) return;
+    if (this.isDashing || this.isInvulnerable || isGodMode) return;
     this.hp -= amount;
     AudioSys.playHit();
-    screenShake = 6;
+    addTrauma(0.35);
+    const df = document.getElementById('damage-flash');
+    if (df) {
+      df.style.boxShadow = 'inset 0 0 60px rgba(255, 30, 60, 0.75)';
+      setTimeout(() => { if (df) df.style.boxShadow = 'inset 0 0 60px rgba(255, 30, 60, 0)'; }, 150);
+    }
     damageTexts.push(new DamageNumber(this.x, this.y - 14, Math.round(amount), '#ff3b30'));
     if (this.hp <= 0) {
       this.hp = 0;
@@ -1514,6 +1936,28 @@ const player = {
         ctx.shadowBlur = 12;
         ctx.fill();
         ctx.shadowBlur = 0;
+      }
+    }
+
+    // Necromancer Minions
+    if (this.hasNecroMinions) {
+      const mDist = 44;
+      const mAngle = this.minionAngle || 0;
+      for (let i = 0; i < 2; i++) {
+        const ma = mAngle + (i * Math.PI);
+        const mx = this.x + Math.cos(ma) * mDist;
+        const my = this.y + Math.sin(ma) * mDist;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(mx, my, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#7c3fe4';
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(mx - 3, my - 2, 2, 2);
+        ctx.fillRect(mx + 1, my - 2, 2, 2);
+        ctx.restore();
       }
     }
 
@@ -1639,6 +2083,7 @@ class Enemy {
 
     this.animTimer = 0;
     this.animFrame = 0;
+    this.statusEffects = {};
 
     if (type === 'bat') {
       this.hp = 22 + gameTime * 0.45;
@@ -1658,6 +2103,65 @@ class Enemy {
       this.radius = 20;
       this.xpValue = 5;
       this.dmg = 28;
+    } else if (type === 'wraith') {
+      this.hp = 35 + gameTime * 0.5;
+      this.speed = 2.8;
+      this.radius = 11;
+      this.xpValue = 2;
+      this.dmg = 14;
+      this.teleportTimer = 0;
+    } else if (type === 'spider') {
+      this.hp = 18 + gameTime * 0.3;
+      this.speed = 3.2;
+      this.radius = 10;
+      this.xpValue = 1;
+      this.dmg = 8;
+      this.zigzagTimer = Math.random() * 10;
+    } else if (type === 'demon') {
+      this.hp = 95 + gameTime * 1.2;
+      this.speed = 1.6;
+      this.radius = 18;
+      this.xpValue = 4;
+      this.dmg = 24;
+      this.chargeTimer = 0;
+      this.isCharging = false;
+      this.chargeTimeLeft = 0;
+    } else if (type === 'gargoyle') {
+      this.hp = 140 + gameTime * 1.4;
+      this.speed = 0.6;
+      this.radius = 22;
+      this.xpValue = 6;
+      this.dmg = 30;
+      this.stoneCycleTimer = 0;
+      this.stoneMode = false;
+      this.stoneDuration = 0;
+    } else if (type === 'mimic') {
+      this.hp = 60 + gameTime * 0.8;
+      this.speed = 0;
+      this.radius = 14;
+      this.xpValue = 8;
+      this.dmg = 20;
+      this.activated = false;
+    } else if (type === 'vampire') {
+      this.hp = 75 + gameTime * 0.9;
+      this.speed = 1.9;
+      this.radius = 16;
+      this.xpValue = 5;
+      this.dmg = 20;
+    } else if (type === 'shadow') {
+      this.hp = 45 + gameTime * 0.6;
+      this.speed = 2.5;
+      this.radius = 13;
+      this.xpValue = 3;
+      this.dmg = 16;
+      this.hasCloned = false;
+    } else if (type === 'phoenix') {
+      this.hp = 200 + gameTime * 2;
+      this.speed = 1.4;
+      this.radius = 20;
+      this.xpValue = 10;
+      this.dmg = 32;
+      this.hasRevived = false;
     } else if (type === 'lich') {
       this.hp = 1100;
       this.maxHp = 1100;
@@ -1667,85 +2171,147 @@ class Enemy {
       this.dmg = 35;
       this.spellTimer = 0;
     }
+
+    // Elite Enemy System (10% chance)
+    this.isElite = Math.random() < 0.10 && type !== 'lich' && !type.includes('small');
+    if (this.isElite) {
+      this.hp *= 2.5;
+      this.speed *= 1.5;
+      this.dmg *= 1.8;
+      this.xpValue *= 2;
+    }
+    this.initialHp = this.hp;
+  }
+
+  applyStatus(type, params) {
+    this.statusEffects[type] = { ...params, timer: 0 };
   }
 
   update(dt) {
-    // Basic direction towards player
-    const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
-    let targetX = this.x + Math.cos(baseAngle) * this.speed;
-    let targetY = this.y + Math.sin(baseAngle) * this.speed;
-
-    // Type‑specific behaviours
-    if (this.type === 'bat') {
-      // Occasionally dive‑bomb straight downwards
-      if (Math.random() < 0.02) {
-        targetY += 4.5; // fast downward dash
+    // Process Status Effects
+    let speedMult = 1.0;
+    if (this.statusEffects.stun) {
+      this.statusEffects.stun.duration -= dt;
+      speedMult = 0;
+      if (this.statusEffects.stun.duration <= 0) delete this.statusEffects.stun;
+    }
+    if (this.statusEffects.freeze) {
+      this.statusEffects.freeze.duration -= dt;
+      speedMult *= (this.statusEffects.freeze.slowFactor !== undefined ? this.statusEffects.freeze.slowFactor : 0.5);
+      if (this.statusEffects.freeze.duration <= 0) delete this.statusEffects.freeze;
+    }
+    if (this.statusEffects.burn) {
+      this.statusEffects.burn.duration -= dt;
+      this.statusEffects.burn.timer = (this.statusEffects.burn.timer || 0) + dt;
+      if (this.statusEffects.burn.timer >= 0.5) {
+        this.statusEffects.burn.timer = 0;
+        this.takeDamage(this.statusEffects.burn.damage, false);
+        if (Math.random() < 0.6) particles.push(new Particle(this.x, this.y, '#ff6a00', 2));
       }
+      if (this.statusEffects.burn.duration <= 0) delete this.statusEffects.burn;
+    }
+    if (this.statusEffects.poison) {
+      this.statusEffects.poison.duration -= dt;
+      this.statusEffects.poison.timer = (this.statusEffects.poison.timer || 0) + dt;
+      if (this.statusEffects.poison.timer >= 1.0) {
+        this.statusEffects.poison.timer = 0;
+        this.takeDamage(this.statusEffects.poison.damage, false);
+        if (Math.random() < 0.6) particles.push(new Particle(this.x, this.y, '#00ff66', 2));
+      }
+      if (this.statusEffects.poison.duration <= 0) delete this.statusEffects.poison;
+    }
+
+    // Direction towards player
+    const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+    let currentSpeed = this.speed * speedMult;
+    let targetX = this.x + Math.cos(baseAngle) * currentSpeed;
+    let targetY = this.y + Math.sin(baseAngle) * currentSpeed;
+
+    // Type-specific behaviours
+    if (this.type === 'bat') {
+      if (Math.random() < 0.02) targetY += 4.5;
     } else if (this.type === 'skeleton') {
-      // Charge attack when close
       const dist = Math.hypot(this.x - player.x, this.y - player.y);
       if (dist < 120 && !this.chargeCooldown) {
-        this.speed *= 2.2; // burst speed
-        this.chargeCooldown = 1.2; // seconds
+        this.speed *= 2.2;
+        this.chargeCooldown = 1.2;
       }
       if (this.chargeCooldown) {
         this.chargeCooldown -= dt;
-        if (this.chargeCooldown <= 0) this.speed = 1.35; // reset speed
+        if (this.chargeCooldown <= 0) this.speed = 1.35;
       }
-      // Shield block chance (randomly ignore damage for next hit)
       if (!this.shielded && Math.random() < 0.08) this.shielded = true;
     } else if (this.type === 'brute') {
-      // Ground slam AoE on timer
       this.slamTimer = (this.slamTimer || 0) + dt;
       if (this.slamTimer >= 4.0) {
         this.slamTimer = 0;
-        // Create a shockwave centered on brute
         shockwaves.push(new Shockwave(this.x, this.y, 200, '#ff8800'));
-        // Push player if too close
         const d = Math.hypot(this.x - player.x, this.y - player.y);
         if (d < 120) {
-          const push = 30;
-          player.x += Math.cos(baseAngle) * push;
-          player.y += Math.sin(baseAngle) * push;
+          player.x += Math.cos(baseAngle) * 30;
+          player.y += Math.sin(baseAngle) * 30;
         }
       }
-    } else if (this.type === 'wisp') {
-      // Hovering movement (slow circling)
-      this.wispAngle = (this.wispAngle || 0) + dt * 0.8;
-      targetX = this.x + Math.cos(this.wispAngle) * 0.5;
-      targetY = this.y + Math.sin(this.wispAngle) * 0.5;
-      // Shoot homing projectile occasionally
-      this.wispShoot = (this.wispShoot || 0) + dt;
-      if (this.wispShoot >= 2.5) {
-        this.wispShoot = 0;
-        const projAngle = Math.atan2(player.y - this.y, player.x - this.x);
-        projectiles.push(new Projectile(this.x, this.y, projAngle, 22));
+    } else if (this.type === 'wraith') {
+      this.teleportTimer = (this.teleportTimer || 0) + dt;
+      if (this.teleportTimer >= 5.0) {
+        this.teleportTimer = 0;
+        const ang = Math.random() * Math.PI * 2;
+        this.x = player.x + Math.cos(ang) * 90;
+        this.y = player.y + Math.sin(ang) * 90;
+        targetX = this.x;
+        targetY = this.y;
+        for (let i = 0; i < 8; i++) particles.push(new Particle(this.x, this.y, '#9c59d1', 2));
       }
-    } else if (this.type === 'golem') {
-      // Slow heavy enemy, burst radial attack
-      this.golemTimer = (this.golemTimer || 0) + dt;
-      if (this.golemTimer >= 6.0) {
-        this.golemTimer = 0;
-        // Emit radial projectiles
-        for (let i = 0; i < 12; i++) {
-          const angle = (i / 12) * Math.PI * 2;
-          projectiles.push(new Projectile(this.x, this.y, angle, 18));
+    } else if (this.type === 'spider' || this.type === 'spider_small') {
+      this.zigzagTimer = (this.zigzagTimer || 0) + dt * 6;
+      const perpAngle = baseAngle + Math.PI / 2;
+      const zigzagOffset = Math.sin(this.zigzagTimer) * 2.2;
+      targetX += Math.cos(perpAngle) * zigzagOffset;
+      targetY += Math.sin(perpAngle) * zigzagOffset;
+    } else if (this.type === 'demon') {
+      this.chargeTimer = (this.chargeTimer || 0) + dt;
+      if (this.chargeTimer >= 3.0) {
+        this.chargeTimer = 0;
+        this.isCharging = true;
+        this.chargeTimeLeft = 1.0;
+      }
+      if (this.isCharging) {
+        targetX += Math.cos(baseAngle) * currentSpeed;
+        targetY += Math.sin(baseAngle) * currentSpeed;
+        this.chargeTimeLeft -= dt;
+        if (this.chargeTimeLeft <= 0) this.isCharging = false;
+        if (Math.random() < 0.3) particles.push(new Particle(this.x, this.y, '#ff2200', 2));
+      }
+    } else if (this.type === 'gargoyle') {
+      this.stoneCycleTimer = (this.stoneCycleTimer || 0) + dt;
+      if (!this.stoneMode && this.stoneCycleTimer >= 4.0) {
+        this.stoneMode = true;
+        this.stoneDuration = 1.5;
+        this.stoneCycleTimer = 0;
+      }
+      if (this.stoneMode) {
+        this.stoneDuration -= dt;
+        targetX = this.x;
+        targetY = this.y;
+        if (this.stoneDuration <= 0) {
+          this.stoneMode = false;
+          this.speed = Math.max(this.speed, 1.4);
         }
-        shockwaves.push(new Shockwave(this.x, this.y, 180, '#aa00ff'));
       }
-    }
-
-    // Collision with world (walls & pillars)
-    const resolved = checkWorldCollision(targetX, targetY, this.radius);
-    this.x = resolved.x;
-    this.y = resolved.y;
-
-    // Animation timer
-    this.animTimer += dt * 6;
-    this.animFrame = Math.floor(this.animTimer) % 2;
-
-    // Boss specific handling (unchanged)
-    if (this.type === 'lich') {
+    } else if (this.type === 'mimic') {
+      if (!this.activated) {
+        const dist = Math.hypot(this.x - player.x, this.y - player.y);
+        if (dist < 100) {
+          this.activated = true;
+          this.speed = 2.4;
+          damageTexts.push(new DamageNumber(this.x, this.y - 12, 'MIMIC!', '#ff0055'));
+        } else {
+          targetX = this.x;
+          targetY = this.y;
+        }
+      }
+    } else if (this.type === 'lich') {
       this.spellTimer += dt;
       if (this.spellTimer >= 2.2) {
         this.spellTimer = 0;
@@ -1755,16 +2321,28 @@ class Enemy {
       document.getElementById('boss-fill').style.width = `${pct}%`;
     }
 
+    // World Collision (Wraith phases through pillars)
+    const ignorePillars = (this.type === 'wraith');
+    const resolved = checkWorldCollision(targetX, targetY, this.radius, ignorePillars);
+    this.x = resolved.x;
+    this.y = resolved.y;
+
+    // Animation timer
+    this.animTimer += dt * 6;
+    this.animFrame = Math.floor(this.animTimer) % 2;
+
     // Contact damage to player
     const dist = Math.hypot(this.x - player.x, this.y - player.y);
     if (dist < this.radius + player.radius) {
-      // Skeleton shield can block one hit
       if (this.type === 'skeleton' && this.shielded) {
-        this.shielded = false; // consume shield
+        this.shielded = false;
       } else {
         player.takeDamage(this.dmg);
+        if (this.type === 'vampire') {
+          this.hp = Math.min(this.initialHp || 75, this.hp + this.dmg * 0.25);
+          particles.push(new Particle(this.x, this.y, '#ff0033', 2));
+        }
       }
-      // Push back a bit on collision
       this.x -= Math.cos(baseAngle) * 12;
       this.y -= Math.sin(baseAngle) * 12;
     }
@@ -1777,27 +2355,109 @@ class Enemy {
   }
 
   takeDamage(amount, isCrit = false) {
+    if (this.type === 'gargoyle' && this.stoneMode) {
+      damageTexts.push(new DamageNumber(this.x, this.y - 12, 'IMMUNE 🪨', '#a49bb5'));
+      return;
+    }
+
     this.hp -= amount;
     const isCritical = isCrit || Math.random() < 0.15;
     const finalDmg = isCritical ? amount * 1.5 : amount;
     damageTexts.push(new DamageNumber(this.x, this.y - 12, Math.round(finalDmg), isCritical ? '#ffcc00' : '#ffffff'));
+
+    // Shadow clone
+    if (this.type === 'shadow' && !this.hasCloned && this.hp < this.initialHp * 0.5 && this.hp > 0) {
+      this.hasCloned = true;
+      const clone = new Enemy('shadow');
+      clone.x = this.x + 16;
+      clone.y = this.y + 16;
+      clone.hp = this.hp;
+      clone.hasCloned = true;
+      clone.isElite = false;
+      enemies.push(clone);
+      damageTexts.push(new DamageNumber(this.x, this.y - 14, 'CLONE!', '#bb00ff'));
+    }
+
+    // Phoenix revival
+    if (this.type === 'phoenix' && !this.hasRevived && this.hp <= 0) {
+      this.hasRevived = true;
+      this.hp = this.initialHp * 0.5;
+      shockwaves.push(new Shockwave(this.x, this.y, 160, '#ff4400'));
+      for (let i = 0; i < 16; i++) particles.push(new Particle(this.x, this.y, '#ff6600', 4));
+      damageTexts.push(new DamageNumber(this.x, this.y - 16, 'REBIRTH! 🔥', '#ffaa00'));
+      return;
+    }
+
     if (this.hp <= 0) this.die();
   }
 
   die() {
     this.markedForDeath = true;
     killCount++;
-    MetaStore.data.totalKills++;
+    MetaStore.data.totalKills = (MetaStore.data.totalKills || 0) + 1;
     document.getElementById('hud-kills').textContent = killCount;
 
-    gems.push(new SoulGem(this.x, this.y, this.xpValue));
+    // Elite tracking
+    if (this.isElite) {
+      MetaStore.data.eliteKills = (MetaStore.data.eliteKills || 0) + 1;
+    }
 
-    const greedBonus = MetaStore.data.upgrades.greed * 0.2;
-    if (Math.random() < (0.25 + greedBonus)) {
-      coins.push(new GoldCoin(this.x, this.y));
+    // Combo system
+    killStreak++;
+    streakTimer = 2.0;
+    comboMult = Math.min(8, 1 + Math.floor(killStreak / 5) * 0.5);
+    if (killStreak > (MetaStore.data.maxStreak || 0)) {
+      MetaStore.data.maxStreak = killStreak;
+    }
+    if (killStreak === 5 || killStreak === 10 || killStreak === 15 || killStreak === 20 || killStreak === 25 || killStreak === 30) {
+      damageTexts.push(new DamageNumber(player.x, player.y - 25, `${killStreak} COMBO! x${comboMult.toFixed(1)} ⚡`, '#ffd700'));
+    }
+
+    // Blood Chalice Relic (vampiric heal on kills)
+    if (player.hasRelic && player.hasRelic('chalice')) {
+      player.killsSinceHeal = (player.killsSinceHeal || 0) + 1;
+      if (player.killsSinceHeal >= 3) {
+        player.killsSinceHeal = 0;
+        player.hp = Math.min(player.maxHp, player.hp + 2);
+        damageTexts.push(new DamageNumber(player.x, player.y - 18, '+2 HP 🍷', '#ff3366'));
+        updateHUD();
+      }
+    }
+
+    // XP Gem drop (multiplied by comboMult)
+    gems.push(new SoulGem(this.x, this.y, Math.round(this.xpValue * comboMult)));
+
+    // Gold drop (multiplied by comboMult, elite bonus, and Midas relic)
+    const greedBonus = (MetaStore.data.upgrades.greed || 0) * 0.2;
+    const midasExtra = (player.hasRelic && player.hasRelic('midas_crown')) ? 2 : 0;
+    const numCoins = (this.isElite ? 3 : 1) + midasExtra;
+    const coinVal = Math.max(1, Math.round(1 * comboMult));
+    if (Math.random() < (0.25 + greedBonus) || this.isElite || midasExtra > 0) {
+      for (let i = 0; i < numCoins; i++) {
+        coins.push(new GoldCoin(this.x + (Math.random() - 0.5) * 16, this.y + (Math.random() - 0.5) * 16, coinVal));
+      }
+    }
+
+    // Spider spawns 2 smaller spiders on death
+    if (this.type === 'spider' && !this.isSmall) {
+      for (let i = 0; i < 2; i++) {
+        const sm = new Enemy('spider');
+        sm.x = this.x + (i === 0 ? -12 : 12);
+        sm.y = this.y + (Math.random() - 0.5) * 12;
+        sm.hp = 9 + gameTime * 0.15;
+        sm.initialHp = sm.hp;
+        sm.radius = 7;
+        sm.dmg = 5;
+        sm.speed = 3.4;
+        sm.xpValue = 1;
+        sm.isSmall = true;
+        sm.isElite = false;
+        enemies.push(sm);
+      }
     }
 
     if (this.type === 'lich') {
+      MetaStore.data.bossKills = (MetaStore.data.bossKills || 0) + 1;
       chests.push(new TreasureChest(this.x, this.y));
       document.getElementById('boss-hud').style.display = 'none';
       activeBoss = null;
@@ -1809,6 +2469,7 @@ class Enemy {
     }
 
     for (let i = 0; i < 9; i++) particles.push(new Particle(this.x, this.y, '#9c59d1', 3));
+    checkAchievements();
   }
 
   draw() {
@@ -1819,6 +2480,31 @@ class Enemy {
     ctx.fill();
 
     ctx.translate(this.x, this.y);
+
+    // Elite golden ring
+    if (this.isElite) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Freeze ring
+    if (this.statusEffects.freeze) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (player.x < this.x) ctx.scale(-1, 1);
 
     if (this.type === 'bat') {
@@ -1831,6 +2517,147 @@ class Enemy {
       ctx.drawImage(SpriteEngine.cache.brute, -18, -18);
     } else if (this.type === 'lich') {
       ctx.drawImage(SpriteEngine.cache.lich, -32, -32);
+    } else if (this.type === 'wraith') {
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#6a1b9a';
+      ctx.shadowColor = '#ab47bc';
+      ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.fillStyle = '#ea80fc';
+      ctx.beginPath();
+      ctx.arc(3, -2, 2.5, 0, Math.PI * 2);
+      ctx.arc(-3, -2, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (this.type === 'spider' || this.type === 'spider_small') {
+      ctx.save();
+      ctx.fillStyle = '#2d1810';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff0033';
+      ctx.fillRect(2, -3, 2, 2);
+      ctx.fillRect(-4, -3, 2, 2);
+      ctx.strokeStyle = '#3e2723';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 4; i++) {
+        const yOff = -4 + i * 3;
+        ctx.beginPath();
+        ctx.moveTo(-this.radius + 2, yOff);
+        ctx.lineTo(-this.radius - 6, yOff + (i % 2 === 0 ? -3 : 3));
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(this.radius - 2, yOff);
+        ctx.lineTo(this.radius + 6, yOff + (i % 2 === 0 ? -3 : 3));
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (this.type === 'demon') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#8b0000';
+      ctx.shadowColor = '#ff2200';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.fillStyle = '#220000';
+      ctx.beginPath();
+      ctx.moveTo(-this.radius * 0.6, -this.radius * 0.3);
+      ctx.lineTo(-this.radius * 0.9, -this.radius * 1.2);
+      ctx.lineTo(-this.radius * 0.2, -this.radius * 0.7);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(this.radius * 0.6, -this.radius * 0.3);
+      ctx.lineTo(this.radius * 0.9, -this.radius * 1.2);
+      ctx.lineTo(this.radius * 0.2, -this.radius * 0.7);
+      ctx.fill();
+      ctx.fillStyle = '#ffff00';
+      ctx.fillRect(-4, -2, 3, 2);
+      ctx.fillRect(2, -2, 3, 2);
+      ctx.restore();
+    } else if (this.type === 'gargoyle') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      if (this.stoneMode) {
+        ctx.fillStyle = '#4a4a55';
+        ctx.strokeStyle = '#a49bb5';
+        ctx.lineWidth = 3;
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#2f3542';
+        ctx.fill();
+        ctx.fillStyle = '#ff00ff';
+        ctx.fillRect(-4, -3, 2.5, 2.5);
+        ctx.fillRect(2, -3, 2.5, 2.5);
+      }
+      ctx.restore();
+    } else if (this.type === 'mimic') {
+      ctx.save();
+      if (!this.activated && SpriteEngine.cache.chest) {
+        ctx.drawImage(SpriteEngine.cache.chest, -12, -12);
+      } else {
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-12, -10, 24, 20);
+        ctx.fillStyle = '#ff1744';
+        ctx.fillRect(-9, -4, 18, 8);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-8, -4); ctx.lineTo(-6, 0); ctx.lineTo(-4, -4);
+        ctx.moveTo(0, -4); ctx.lineTo(2, 0); ctx.lineTo(4, -4);
+        ctx.moveTo(-6, 4); ctx.lineTo(-4, 0); ctx.lineTo(-2, 4);
+        ctx.moveTo(2, 4); ctx.lineTo(4, 0); ctx.lineTo(6, 4);
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (this.type === 'vampire') {
+      ctx.save();
+      ctx.fillStyle = '#1a001a';
+      ctx.beginPath();
+      ctx.moveTo(-this.radius - 4, this.radius);
+      ctx.lineTo(0, -this.radius - 4);
+      ctx.lineTo(this.radius + 4, this.radius);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#66001a';
+      ctx.shadowColor = '#cc0033';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.fillStyle = '#ff0044';
+      ctx.fillRect(-4, -2, 2.5, 2.5);
+      ctx.fillRect(2, -2, 2.5, 2.5);
+      ctx.restore();
+    } else if (this.type === 'shadow') {
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0515';
+      ctx.shadowColor = '#3d1a78';
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-4, -2, 3, 1.5);
+      ctx.fillRect(2, -2, 3, 1.5);
+      ctx.restore();
+    } else if (this.type === 'phoenix') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff4500';
+      ctx.shadowColor = '#ffaa00';
+      ctx.shadowBlur = 18;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffff66';
+      ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -1894,8 +2721,9 @@ class SoulGem {
 }
 
 class GoldCoin {
-  constructor(x, y) {
+  constructor(x, y, value = 1) {
     this.x = x; this.y = y;
+    this.value = value;
     this.radius = 8;
     this.magnet = false;
   }
@@ -1907,12 +2735,13 @@ class GoldCoin {
       this.x += Math.cos(a) * 9.2;
       this.y += Math.sin(a) * 9.2;
       if (dist < player.radius + this.radius) {
-        runGold += 1;
-        MetaStore.data.gold += 1;
+        runGold += this.value;
+        MetaStore.data.gold += this.value;
         document.getElementById('hud-gold').textContent = runGold;
-        damageTexts.push(new DamageNumber(this.x, this.y - 12, '+1 🪙', '#ffd700'));
+        damageTexts.push(new DamageNumber(this.x, this.y - 12, `+${this.value} 🪙`, '#ffd700'));
         AudioSys.playCoin();
         this.collected = true;
+        checkAchievements();
       }
     }
   }
@@ -1967,6 +2796,217 @@ class TreasureChest {
   }
 }
 
+/* ==========================================================================
+   WANDERING MERCHANT & IN-RUN RELICS (PHASE 2)
+   ========================================================================== */
+const MERCHANT_RELICS = [
+  { id: 'chalice', name: 'Blood Chalice', icon: '🍷', desc: 'Siphon: Restores +2 HP every 3 enemy kills.', cost: 35 },
+  { id: 'chronos', name: 'Chronos Hourglass', icon: '⏳', desc: 'Time Stasis: Freeze all nearby mobs on dodge roll.', cost: 45 },
+  { id: 'magnet_ring', name: 'Astral Singularity', icon: '💍', desc: 'Attraction: Doubles pickup magnet speed & radius.', cost: 30 },
+  { id: 'midas_crown', name: 'Midas Diadem', icon: '👑', desc: 'Transmutation: Doubles gold coins dropped by enemies.', cost: 50 },
+  { id: 'colossus_heart', name: 'Titan Core', icon: '💎', desc: 'Fortitude: +80 Max HP and immediately restore full HP.', cost: 40 }
+];
+
+class MerchantNPC {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 24;
+    this.rot = 0;
+    this.promptShown = false;
+  }
+  update(dt) {
+    this.rot += dt * 1.8;
+    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+    if (dist < 48) {
+      if (!this.promptShown) {
+        damageTexts.push(new DamageNumber(this.x, this.y - 28, '💬 [E] OPEN SHOP', '#ffd700'));
+        this.promptShown = true;
+      }
+    } else {
+      this.promptShown = false;
+    }
+  }
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    
+    // Rotating golden rune summoning circle
+    ctx.beginPath();
+    ctx.arc(0, 0, 36, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (let i = 0; i < 4; i++) {
+      const a = this.rot + (i * Math.PI / 2);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(Math.cos(a) * 36 - 2.5, Math.sin(a) * 36 - 2.5, 5, 5);
+    }
+
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(0, 14, 16, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fill();
+
+    // Cloaked merchant body
+    ctx.fillStyle = '#1c1032';
+    ctx.beginPath();
+    ctx.moveTo(-12, 14);
+    ctx.lineTo(0, -18);
+    ctx.lineTo(12, 14);
+    ctx.fill();
+
+    // Cowl & Eyes
+    ctx.fillStyle = '#392261';
+    ctx.beginPath();
+    ctx.arc(0, -12, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glowing eyes
+    ctx.fillStyle = '#00f2fe';
+    ctx.shadowColor = '#00f2fe';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(-4, -13, 2.5, 2.5);
+    ctx.fillRect(2, -13, 2.5, 2.5);
+    ctx.shadowBlur = 0;
+
+    // Floating gem staff
+    ctx.strokeStyle = '#8d6e63';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(14, 14);
+    ctx.lineTo(14, -22);
+    ctx.stroke();
+    ctx.fillStyle = '#ffaa00';
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(14, -24, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+function openMerchantModal() {
+  if (gameState !== 'PLAYING') return;
+  gameState = 'SHOP';
+  document.getElementById('merchant-gold-text').textContent = runGold;
+  renderMerchantRelics();
+  document.getElementById('merchant-modal').style.display = 'flex';
+  AudioSys.playChest();
+}
+
+function closeMerchantModal() {
+  document.getElementById('merchant-modal').style.display = 'none';
+  gameState = 'PLAYING';
+  lastTimestamp = performance.now();
+}
+
+function renderMerchantRelics() {
+  const container = document.getElementById('merchant-relics-grid');
+  container.innerHTML = '';
+  document.getElementById('merchant-gold-text').textContent = runGold;
+
+  MERCHANT_RELICS.forEach(relic => {
+    const isOwned = player.hasRelic(relic.id);
+    const canAfford = runGold >= relic.cost && !isOwned;
+    const card = document.createElement('div');
+    card.className = 'merchant-card';
+    card.innerHTML = `
+      <div class="merchant-icon">${relic.icon}</div>
+      <div class="merchant-name">${relic.name}</div>
+      <div class="merchant-desc">${relic.desc}</div>
+      <button class="merchant-buy" ${!canAfford ? 'disabled' : ''} onclick="buyMerchantRelic('${relic.id}', ${relic.cost})">
+        ${isOwned ? 'OWNED ✅' : `${relic.cost} 🪙`}
+      </button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function buyMerchantRelic(id, cost) {
+  if (runGold >= cost && !player.hasRelic(id)) {
+    runGold -= cost;
+    MetaStore.data.gold = Math.max(0, MetaStore.data.gold - cost);
+    player.relics[id] = true;
+    
+    if (id === 'colossus_heart') {
+      player.maxHp += 80;
+      player.hp = player.maxHp;
+    } else if (id === 'magnet_ring') {
+      player.magnetRadius *= 2.2;
+    }
+
+    damageTexts.push(new DamageNumber(player.x, player.y - 20, `RELIC UNLOCKED! 💎`, '#ffd700'));
+    AudioSys.playCoin();
+    updateHUD();
+    renderMerchantRelics();
+  }
+}
+
+/* ==========================================================================
+   BIOME & MULTI-WORLD SYSTEM (PHASE 2)
+   ========================================================================== */
+const BIOMES = {
+  dungeon: {
+    name: 'The Obsidian Crypt',
+    icon: '🏰',
+    floor: 'floor',
+    wall: 'wall',
+    wallFill: '#1c152a',
+    pillarFill: '#261b38',
+    pillarStroke: '#412e5c',
+    pillarRune: 'rgba(255, 170, 66, 0.4)',
+    torchColor: '#ffaa33',
+    ambientDarkness: 'rgba(5, 3, 10, 0.84)'
+  },
+  forest: {
+    name: 'Cursed Viridian Grove',
+    icon: '🌲',
+    floor: 'floor_forest',
+    wall: 'wall_forest',
+    wallFill: '#0c2415',
+    pillarFill: '#143621',
+    pillarStroke: '#276840',
+    pillarRune: 'rgba(0, 255, 136, 0.45)',
+    torchColor: '#00ff88',
+    ambientDarkness: 'rgba(2, 12, 8, 0.84)'
+  },
+  inferno: {
+    name: 'Infernal Magma Chasm',
+    icon: '🌋',
+    floor: 'floor_inferno',
+    wall: 'wall_inferno',
+    wallFill: '#290d07',
+    pillarFill: '#3d140a',
+    pillarStroke: '#752412',
+    pillarRune: 'rgba(255, 80, 0, 0.55)',
+    torchColor: '#ff4400',
+    ambientDarkness: 'rgba(16, 4, 3, 0.84)'
+  }
+};
+let currentBiome = 'dungeon';
+
+function setBiome(biomeKey) {
+  if (!BIOMES[biomeKey] || currentBiome === biomeKey) return;
+  currentBiome = biomeKey;
+  const b = BIOMES[biomeKey];
+  const biomeEl = document.getElementById('biome-text');
+  if (biomeEl) biomeEl.textContent = b.name.split(' ')[0];
+  const banner = document.getElementById('biome-banner');
+  if (banner) {
+    banner.textContent = `🌀 ENTERING: ${b.name.toUpperCase()} 🌀`;
+    banner.style.display = 'block';
+    setTimeout(() => { if (banner) banner.style.display = 'none'; }, 4000);
+  }
+  AudioSys.playChest();
+  addTrauma(0.5);
+  for (let i = 0; i < 35; i++) particles.push(new Particle(player.x, player.y, b.torchColor, 4.5));
+}
+
 /* Combat Floaters */
 class DamageNumber {
   constructor(x, y, text, color) {
@@ -2019,6 +3059,16 @@ class Particle {
 }
 
 /* Global Collections */
+let killStreak = 0;
+let streakTimer = 0;
+let comboMult = 1;
+let playerGhosts = [];
+let wanderingMerchant = null;
+let merchantSpawnedTimes = 0;
+let shakeTrauma = 0;
+function addTrauma(amount) {
+  shakeTrauma = Math.min(1.0, shakeTrauma + amount);
+}
 let projectiles = [];
 let enemies = [];
 let gems = [];
@@ -2081,7 +3131,9 @@ function applyUpgrade(id) {
   else if (id === 'vitality') {
     player.maxHp += 30;
     player.hp = Math.min(player.maxHp, player.hp + 50);
-  }
+  } else if (id === 'poison') player.hasPoison = true;
+  else if (id === 'smite') player.hasSmite = true;
+  else if (id === 'necro') player.hasNecroMinions = true;
 
   document.getElementById('lvl-modal').style.display = 'none';
   gameState = 'PLAYING';
@@ -2124,13 +3176,21 @@ function updateHUD() {
   document.getElementById('xp-bar').style.width = `${xpPct}%`;
   document.getElementById('xp-text').textContent = `LVL ${player.lvl} (${Math.round(xpPct)}%)`;
 
+  const stPct = Math.max(0, (player.stamina / player.maxStamina) * 100);
+  const stBar = document.getElementById('stamina-bar');
+  if (stBar) stBar.style.width = `${stPct}%`;
+  const stText = document.getElementById('stamina-text');
+  if (stText) stText.textContent = `ROLL STAMINA: ${Math.round(stPct)}%`;
+
   const dashEl = document.getElementById('hud-dash');
-  if (player.dashTimer <= 0) {
-    dashEl.textContent = 'READY';
-    dashEl.style.color = '#00f2fe';
-  } else {
-    dashEl.textContent = `${player.dashTimer.toFixed(1)}s`;
-    dashEl.style.color = '#888';
+  if (dashEl) {
+    if (player.stamina >= player.staminaCost) {
+      dashEl.textContent = 'READY';
+      dashEl.style.color = '#00f2fe';
+    } else {
+      dashEl.textContent = `${Math.ceil((player.staminaCost - player.stamina) / player.staminaRegen * 10) / 10}s`;
+      dashEl.style.color = '#888';
+    }
   }
 }
 
@@ -2270,15 +3330,84 @@ function loop(timestamp) {
     document.getElementById('boss-hud').style.display = 'flex';
   }
 
+  // Biome Shifts (Phase 2)
+  if (gameTime >= 140 && currentBiome !== 'inferno') {
+    setBiome('inferno');
+  } else if (gameTime >= 70 && currentBiome === 'dungeon') {
+    setBiome('forest');
+  }
+
+  // Wandering Merchant Spawns (Phase 2)
+  if (gameTime >= 45 && merchantSpawnedTimes === 0) {
+    merchantSpawnedTimes = 1;
+    const a = Math.random() * Math.PI * 2;
+    wanderingMerchant = new MerchantNPC(
+      Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(a) * 200)),
+      Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(a) * 200))
+    );
+    damageTexts.push(new DamageNumber(player.x, player.y - 30, '🧙‍♂️ WANDERING MERCHANT HAS ARRIVED!', '#ffd700'));
+  } else if (gameTime >= 135 && merchantSpawnedTimes === 1) {
+    merchantSpawnedTimes = 2;
+    const a = Math.random() * Math.PI * 2;
+    wanderingMerchant = new MerchantNPC(
+      Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(a) * 200)),
+      Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(a) * 200))
+    );
+    damageTexts.push(new DamageNumber(player.x, player.y - 30, '🧙‍♂️ WANDERING MERCHANT RETURNED!', '#ffd700'));
+  }
+
+  if (wanderingMerchant) {
+    wanderingMerchant.update(dt);
+  }
+
+  // Player Dash Ghost Trail Decay
+  playerGhosts = playerGhosts.filter(g => g.alpha > 0);
+  playerGhosts.forEach(g => {
+    g.alpha -= dt * 3.5;
+  });
+
   // Spawner
   spawnTimer += dt;
-  const spawnRate = Math.max(0.28, 1.3 - (gameTime * 0.012));
+  const spawnRate = Math.max(0.22, 1.3 - (gameTime * 0.012));
   if (spawnTimer >= spawnRate) {
     spawnTimer = 0;
     const r = Math.random();
-    if (r < 0.25 && gameTime > 30) enemies.push(new Enemy('brute'));
-    else if (r < 0.65 && gameTime > 12) enemies.push(new Enemy('skeleton'));
+    const t = gameTime;
+
+    if (t > 90 && r < 0.05) enemies.push(new Enemy('phoenix'));
+    else if (t > 75 && r < 0.10) enemies.push(new Enemy('vampire'));
+    else if (t > 60 && r < 0.15) enemies.push(new Enemy('shadow'));
+    else if (t > 50 && r < 0.20) enemies.push(new Enemy('gargoyle'));
+    else if (t > 40 && r < 0.28) enemies.push(new Enemy('mimic'));
+    else if (t > 30 && r < 0.35) enemies.push(new Enemy('demon'));
+    else if (t > 20 && r < 0.45) enemies.push(new Enemy('wraith'));
+    else if (t > 15 && r < 0.55) enemies.push(new Enemy('spider'));
+    else if (t > 25 && r < 0.60) enemies.push(new Enemy('brute'));
+    else if (t > 12 && r < 0.75) enemies.push(new Enemy('skeleton'));
     else enemies.push(new Enemy('bat'));
+  }
+
+  // Combo streak decay & HUD update
+  if (streakTimer > 0) {
+    streakTimer -= dt;
+    if (streakTimer <= 0) {
+      killStreak = 0;
+      comboMult = 1;
+    }
+  }
+  const comboPill = document.getElementById('combo-pill');
+  if (comboPill) {
+    if (comboMult > 1) {
+      comboPill.style.display = 'inline-flex';
+      document.getElementById('combo-text').textContent = `x${comboMult.toFixed(1)} (${killStreak})`;
+    } else {
+      comboPill.style.display = 'none';
+    }
+  }
+
+  // Periodic achievements check
+  if (Math.floor(gameTime) % 5 === 0) {
+    checkAchievements();
   }
 
   player.update(dt);
@@ -2291,6 +3420,11 @@ function loop(timestamp) {
     enemies.forEach(e => {
       if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) {
         e.takeDamage(p.damage);
+        if (currentHeroType === 'pyro') {
+          e.applyStatus('burn', { damage: 5, duration: 3 });
+        } else if (currentHeroType === 'warlock') {
+          e.applyStatus('poison', { damage: 6, duration: 3 });
+        }
         p.life = 0;
         particles.push(new Particle(p.x, p.y, '#ffaa00', 3));
       }
@@ -2343,14 +3477,23 @@ function loop(timestamp) {
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (screenShake > 0) {
-    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+  let totalShake = screenShake;
+  if (shakeTrauma > 0) {
+    totalShake += Math.pow(shakeTrauma, 2) * 22;
+    shakeTrauma = Math.max(0, shakeTrauma - dt * 1.25);
+  }
+  if (totalShake > 0) {
+    ctx.translate((Math.random() - 0.5) * totalShake, (Math.random() - 0.5) * totalShake);
     screenShake *= 0.85;
     if (screenShake < 0.2) screenShake = 0;
   }
 
   // Apply Camera Translation
   ctx.translate(-camera.x, -camera.y);
+
+  const curBiome = BIOMES[currentBiome] || BIOMES.dungeon;
+  const curFloor = SpriteEngine.cache[curBiome.floor] || SpriteEngine.cache.floor;
+  const curWall = SpriteEngine.cache[curBiome.wall] || SpriteEngine.cache.wall;
 
   // 1. Render Tiled Floor
   const startCol = Math.floor(camera.x / 64);
@@ -2363,13 +3506,13 @@ function loop(timestamp) {
       const tx = c * 64;
       const ty = r * 64;
       if (tx >= 0 && tx < WORLD.width && ty >= 0 && ty < WORLD.height) {
-        ctx.drawImage(SpriteEngine.cache.floor, tx, ty);
+        ctx.drawImage(curFloor, tx, ty);
       }
     }
   }
 
   // 2. Render Outer Perimeter Walls
-  ctx.fillStyle = '#1c152a';
+  ctx.fillStyle = curBiome.wallFill;
   // North Wall
   ctx.fillRect(0, 0, WORLD.width, WORLD.wallThick);
   // South Wall
@@ -2381,12 +3524,12 @@ function loop(timestamp) {
 
   // Wall tops pattern
   for (let x = 0; x < WORLD.width; x += 64) {
-    ctx.drawImage(SpriteEngine.cache.wall, x, 0);
-    ctx.drawImage(SpriteEngine.cache.wall, x, WORLD.height - WORLD.wallThick);
+    ctx.drawImage(curWall, x, 0);
+    ctx.drawImage(curWall, x, WORLD.height - WORLD.wallThick);
   }
   for (let y = 0; y < WORLD.height; y += 64) {
-    ctx.drawImage(SpriteEngine.cache.wall, 0, y);
-    ctx.drawImage(SpriteEngine.cache.wall, WORLD.width - WORLD.wallThick, y);
+    ctx.drawImage(curWall, 0, y);
+    ctx.drawImage(curWall, WORLD.width - WORLD.wallThick, y);
   }
 
   // 3. Render Inner Stone Pillars
@@ -2398,14 +3541,14 @@ function loop(timestamp) {
     ctx.fill();
 
     // Stone Pillar Block
-    ctx.fillStyle = '#261b38';
+    ctx.fillStyle = curBiome.pillarFill;
     ctx.fillRect(p.x, p.y, p.w, p.h);
-    ctx.strokeStyle = '#412e5c';
+    ctx.strokeStyle = curBiome.pillarStroke;
     ctx.lineWidth = 3;
     ctx.strokeRect(p.x, p.y, p.w, p.h);
 
     // Pillar carved rune
-    ctx.fillStyle = 'rgba(255, 170, 66, 0.4)';
+    ctx.fillStyle = curBiome.pillarRune;
     ctx.fillRect(p.x + p.w/2 - 6, p.y + p.h/2 - 6, 12, 12);
   });
 
@@ -2416,6 +3559,8 @@ function loop(timestamp) {
   potions.forEach(pt => pt.draw());
   chests.forEach(ch => ch.draw());
   shockwaves.forEach(s => s.draw());
+
+  if (wanderingMerchant) wanderingMerchant.draw();
 
   // 5. Lightning Strikes
   lightningBolts.forEach(l => {
@@ -2432,6 +3577,26 @@ function loop(timestamp) {
 
   // 6. Entities
   enemies.forEach(e => e.draw());
+
+  // Render player dodge roll ghost afterimages
+  playerGhosts.forEach(g => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, g.alpha * 0.6);
+    ctx.translate(g.x, g.y);
+    if (!g.facingRight) ctx.scale(-1, 1);
+    const heroSprites = SpriteEngine.cache[g.hero] || SpriteEngine.cache.pyro;
+    if (heroSprites) {
+      const gSpr = heroSprites[g.animFrame] || heroSprites[0];
+      ctx.drawImage(gSpr, -16, -18);
+    } else {
+      ctx.fillStyle = '#00f2fe';
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+
   player.draw();
   projectiles.forEach(p => p.draw());
   bossOrbs.forEach(b => b.draw());
@@ -2441,13 +3606,13 @@ function loop(timestamp) {
   // 7. Sconce Torches with Animated Flames
   WORLD.torches.forEach(t => {
     const flicker = Math.sin(timestamp * 0.008 + t.x * 0.05) * 2;
-    ctx.fillStyle = '#ffaa33';
+    ctx.fillStyle = curBiome.torchColor;
     ctx.beginPath();
     ctx.arc(t.x, t.y, 4 + flicker, 0, Math.PI * 2);
     ctx.fill();
 
     if (Math.random() < 0.2) {
-      particles.push(new Particle(t.x, t.y, '#ff6600', 1.5));
+      particles.push(new Particle(t.x, t.y, curBiome.torchColor, 1.5));
     }
   });
 
@@ -2457,8 +3622,8 @@ function loop(timestamp) {
   // DYNAMIC 2D LIGHTING ENGINE (Darkness Mask & Lights)
   // -------------------------------------------------------------
   lightCtx.clearRect(0, 0, lightCanvas.width, lightCanvas.height);
-  // Ambient Dungeon Darkness
-  lightCtx.fillStyle = 'rgba(5, 3, 10, 0.84)';
+  // Ambient Dungeon / Biome Darkness
+  lightCtx.fillStyle = curBiome.ambientDarkness;
   lightCtx.fillRect(0, 0, lightCanvas.width, lightCanvas.height);
 
   lightCtx.globalCompositeOperation = 'destination-out';
@@ -2501,25 +3666,42 @@ function loop(timestamp) {
     punchLight(activeBoss.x - camera.x, activeBoss.y - camera.y, 240, 0.9);
   }
 
+  // Wandering merchant holy aura
+  if (wanderingMerchant) {
+    punchLight(wanderingMerchant.x - camera.x, wanderingMerchant.y - camera.y, 190, 0.95);
+  }
+
   lightCtx.globalCompositeOperation = 'source-over';
 
   // Draw lighting mask on top of game scene
   ctx.drawImage(lightCanvas, 0, 0);
 
-  // Warm additive glow layer for torch centers
+  // Warm additive glow layer for torch centers & merchant
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
+  const glowRgba = curBiome.torchColor === '#00ff88' ? 'rgba(0, 255, 136, 0.22)' : curBiome.torchColor === '#ff4400' ? 'rgba(255, 68, 0, 0.22)' : 'rgba(255, 140, 40, 0.22)';
   WORLD.torches.forEach(t => {
     const tScreenX = t.x - camera.x;
     const tScreenY = t.y - camera.y;
     const radWarm = ctx.createRadialGradient(tScreenX, tScreenY, 0, tScreenX, tScreenY, 60);
-    radWarm.addColorStop(0, 'rgba(255, 140, 40, 0.22)');
+    radWarm.addColorStop(0, glowRgba);
     radWarm.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = radWarm;
     ctx.beginPath();
     ctx.arc(tScreenX, tScreenY, 60, 0, Math.PI * 2);
     ctx.fill();
   });
+  if (wanderingMerchant) {
+    const mScreenX = wanderingMerchant.x - camera.x;
+    const mScreenY = wanderingMerchant.y - camera.y;
+    const radGold = ctx.createRadialGradient(mScreenX, mScreenY, 0, mScreenX, mScreenY, 80);
+    radGold.addColorStop(0, 'rgba(255, 215, 0, 0.28)');
+    radGold.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = radGold;
+    ctx.beginPath();
+    ctx.arc(mScreenX, mScreenY, 80, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -2529,6 +3711,11 @@ function loop(timestamp) {
 document.getElementById('start-btn').onclick = () => {
   AudioSys.init();
   document.getElementById('start-modal').style.display = 'none';
+  if (!MetaStore.data.heroesPlayed) MetaStore.data.heroesPlayed = [];
+  if (!MetaStore.data.heroesPlayed.includes(currentHeroType)) {
+    MetaStore.data.heroesPlayed.push(currentHeroType);
+    MetaStore.save();
+  }
   player.initForRun();
   enemies = [];
   projectiles = [];
@@ -2541,6 +3728,17 @@ document.getElementById('start-btn').onclick = () => {
   damageTexts = [];
   particles = [];
   lightningBolts = [];
+  playerGhosts = [];
+  wanderingMerchant = null;
+  merchantSpawnedTimes = 0;
+  shakeTrauma = 0;
+  setBiome('dungeon');
+  killStreak = 0;
+  streakTimer = 0;
+  comboMult = 1;
+  const comboPill = document.getElementById('combo-pill');
+  if (comboPill) comboPill.style.display = 'none';
+  checkAchievements();
   gameTime = 0;
   killCount = 0;
   runGold = 0;
@@ -2551,6 +3749,12 @@ document.getElementById('start-btn').onclick = () => {
   document.getElementById('boss-hud').style.display = 'none';
   gameState = 'PLAYING';
   lastTimestamp = performance.now();
+};
+
+document.getElementById('achieve-btn').onclick = () => {
+  document.getElementById('start-modal').style.display = 'none';
+  renderAchievements();
+  document.getElementById('achieve-modal').style.display = 'flex';
 };
 
 document.getElementById('restart-btn').onclick = () => {
@@ -2589,6 +3793,8 @@ document.getElementById('quit-btn').onclick = () => {
 };
 
 requestAnimationFrame(loop);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>

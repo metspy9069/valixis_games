@@ -2,62 +2,569 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Valixis Games Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>VALIXIS Games &mdash; Browser-Native Interactive Gaming Studio</title>
+  <meta name="description" content="Official browser-native gaming portal and interactive 3D simulations by VALIXIS Technologies. Zero dependencies, pure web performance.">
+  <link rel="canonical" href="https://games.valixis.tech/">
+  
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VALIXIS Games">
+  <meta property="og:title" content="VALIXIS Games — Browser-Native Interactive Arcade">
+  <meta property="og:description" content="Play Soul Ember: Survivors and explore next-generation browser games by VALIXIS Technologies.">
+  <meta property="og:url" content="https://games.valixis.tech/">
+  <meta property="og:image" content="https://games.valixis.tech/icon-512.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="VALIXIS Games — Browser-Native Interactive Arcade">
+  <meta name="twitter:description" content="Play Soul Ember: Survivors and explore next-generation browser games by VALIXIS Technologies.">
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      color-scheme: dark;
-      --background: #111;
-      --card: #222;
-      --accent: #ff6a00;
-      --text: #eee;
+      --bg: #06090e;
+      --card-bg: rgba(14, 19, 28, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-ember: #ff6a00;
+      --accent-glow: #ff8533;
+      --accent-cyan: #00d9ff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
-      padding: 2rem;
-      background: var(--background);
-      color: var(--text);
-      font-family: system-ui, sans-serif;
-    }
-
-    h1 {
-      color: var(--accent);
-    }
-
-    .game-list {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 106, 0, 0.15), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 85% 60%, rgba(0, 217, 255, 0.08), transparent 70%);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
       display: flex;
-      flex-wrap: wrap;
-      gap: 1.5rem;
+      flex-direction: column;
     }
 
-    .game {
-      width: 260px;
-      padding: 1rem;
-      background: var(--card);
-      border-radius: 8px;
-      text-align: center;
+    /* Universal Navbar */
+    .top-nav {
+      padding: 18px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      background: rgba(6, 9, 14, 0.7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
-    .game a {
-      color: var(--accent);
-      font-weight: bold;
+    .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       text-decoration: none;
     }
 
-    .game a:hover {
-      text-decoration: underline;
+    .brand-logo {
+      height: 32px;
+      width: auto;
+    }
+
+    .arcade-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 2px;
+      color: var(--accent-ember);
+      background: rgba(255, 106, 0, 0.12);
+      border: 1px solid rgba(255, 106, 0, 0.35);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-btn {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .nav-btn-portal {
+      color: var(--accent-cyan);
+      border-color: rgba(0, 217, 255, 0.3);
+      background: rgba(0, 217, 255, 0.08);
+    }
+
+    .nav-btn-portal:hover {
+      background: rgba(0, 217, 255, 0.18);
+      box-shadow: 0 0 15px rgba(0, 217, 255, 0.25);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 24px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .hero-banner {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent-ember);
+      margin-bottom: 14px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-ember);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--accent-ember);
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #ffffff 40%, #ff8533 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Featured Game Showcase */
+    .featured-card {
+      background: linear-gradient(145deg, rgba(22, 29, 42, 0.95), rgba(12, 16, 24, 0.98));
+      border: 1px solid rgba(255, 106, 0, 0.35);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 106, 0, 0.12);
+      border-radius: 20px;
+      padding: 36px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 36px;
+      align-items: center;
+      margin-bottom: 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .featured-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 20%, rgba(255, 106, 0, 0.08), transparent 40%);
+      pointer-events: none;
+    }
+
+    .tag-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .game-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .tag-featured {
+      background: rgba(255, 106, 0, 0.15);
+      border: 1px solid rgba(255, 106, 0, 0.4);
+      color: var(--accent-glow);
+    }
+
+    .tag-engine {
+      background: rgba(0, 217, 255, 0.1);
+      border: 1px solid rgba(0, 217, 255, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    .game-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .game-summary {
+      color: #cbd5e1;
+      font-size: 0.98rem;
+      line-height: 1.65;
+      margin-bottom: 22px;
+    }
+
+    .features-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 16px;
+      margin-bottom: 28px;
+    }
+
+    .features-list li {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .features-list li span {
+      color: var(--accent-ember);
+      font-weight: bold;
+    }
+
+    .play-btn-main {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #ff6a00, #ee0979);
+      color: #fff;
+      text-decoration: none;
+      padding: 16px 36px;
+      border-radius: 12px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 30px rgba(255, 106, 0, 0.4);
+    }
+
+    .play-btn-main:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 40px rgba(255, 106, 0, 0.65);
+    }
+
+    /* Game Preview Graphic Panel */
+    .preview-panel {
+      background: rgba(6, 9, 14, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .hero-roster-preview {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .roster-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 6px;
+      text-align: center;
+      font-size: 0.72rem;
+    }
+
+    .roster-chip .icon {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .roster-chip .name {
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 0.70rem;
+    }
+
+    .telemetry-preview {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      line-height: 1.6;
+    }
+
+    .telemetry-preview .highlight {
+      color: #10b981;
+    }
+
+    /* Grid of upcoming games */
+    .section-heading {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+
+    .game-mini-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .game-mini-card:hover {
+      border-color: rgba(0, 217, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .mini-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.70rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .mini-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.25rem;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .mini-desc {
+      font-size: 0.90rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      background: rgba(6, 9, 14, 0.8);
+    }
+
+    footer a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+    }
+
+    @media (max-width: 900px) {
+      .featured-card {
+        grid-template-columns: 1fr;
+      }
+      .top-nav {
+        padding: 14px 18px;
+      }
+      .features-list {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Valixis Games</h1>
-  <p>Select a game to play:</p>
-  <div class="game-list">
-    <div class="game">
-      <h2>Soul Ember: Survivors</h2>
-      <a href="soul-ember/index.html">Play</a>
+
+  <!-- Universal Top Navigation -->
+  <header class="top-nav">
+    <a href="./" class="brand-link">
+      <img src="valixis-horizontal-lockup.png" alt="VALIXIS" class="brand-logo">
+      <span class="arcade-badge">GAMES ARCADE</span>
+    </a>
+
+    <nav class="nav-links">
+      <a href="https://valixis.tech" class="nav-btn">&larr; valixis.tech</a>
+      <a href="https://portal.valixis.tech" class="nav-btn nav-btn-portal">portal.valixis.tech &rarr;</a>
+    </nav>
+  </header>
+
+  <!-- Main Arcade Container -->
+  <main class="container">
+    
+    <div class="hero-banner">
+      <div class="hero-eyebrow">
+        <span class="pulse-dot"></span>
+        VALIXIS GAMING STUDIO &bull; SOVEREIGN RUNTIME
+      </div>
+      <h1 class="hero-title">NEXT-GEN BROWSER GAMING</h1>
+      <p class="hero-desc">
+        Zero dependencies, zero installations, 100% hardware-accelerated action. Engineered with WebGL2, HTML5 Canvas, and procedural Web Audio synthesis.
+      </p>
     </div>
-  </div>
+
+    <!-- Featured Flagship Game: Soul Ember -->
+    <article class="featured-card">
+      <div>
+        <div class="tag-row">
+          <span class="game-tag tag-featured">🔥 Flagship Release</span>
+          <span class="game-tag tag-engine">HTML5 Canvas + Web Audio</span>
+          <span class="game-tag" style="background:rgba(255,255,255,0.06); color:#cbd5e1;">PWA Ready</span>
+        </div>
+
+        <h2 class="game-title">Soul Ember: Survivors</h2>
+        <p class="game-summary">
+          A high-intensity top-down roguelite survival dungeon crawler. Choose from 8 distinct heroes, kite swarms of demonic abyss horrors around dark stone pillars, collect gold, purchase bloodline upgrades in The Soul Forge, and defeat Malakor, the Void Lich.
+        </p>
+
+        <ul class="features-list">
+          <li><span>⚔️ 8 Playable Heroes</span> (Pyromancer, Cryomancer, Rogue, Necromancer, Paladin, Archer, Warlock, Bard)</li>
+          <li><span>🪙 The Soul Forge</span> (Permanent bloodline stat progression saved locally)</li>
+          <li><span>👑 Epic Boss Fight</span> (Malakor, Void Lich arrives at 2:00 with alert banners)</li>
+          <li><span>📱 Cross-Platform</span> (Keyboard WASD + on-screen mobile touch analog joystick)</li>
+        </ul>
+
+        <a href="soul-ember/index.html" class="play-btn-main">
+          <span>Play Soul Ember Now</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        </a>
+      </div>
+
+      <div class="preview-panel">
+        <div style="font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#ff8533; letter-spacing:1px; text-transform:uppercase; font-weight:800;">
+          Hero Roster:
+        </div>
+        <div class="hero-roster-preview">
+          <div class="roster-chip"><span class="icon">🧙‍♂️</span><span class="name">Pyro</span></div>
+          <div class="roster-chip"><span class="icon">🧝‍♀️</span><span class="name">Cryo</span></div>
+          <div class="roster-chip"><span class="icon">🥷</span><span class="name">Rogue</span></div>
+          <div class="roster-chip"><span class="icon">🧟</span><span class="name">Necro</span></div>
+          <div class="roster-chip"><span class="icon">⚚</span><span class="name">Paladin</span></div>
+          <div class="roster-chip"><span class="icon">🏹</span><span class="name">Archer</span></div>
+          <div class="roster-chip"><span class="icon">👁️</span><span class="name">Warlock</span></div>
+          <div class="roster-chip"><span class="icon">🎵</span><span class="name">Bard</span></div>
+        </div>
+
+        <div class="telemetry-preview">
+          <div>ENGINE: Canvas2D Hardware Pipeline</div>
+          <div>AUDIO: Procedural Web Audio Synth [0 MP3s]</div>
+          <div>STATUS: <span class="highlight">100% ONLINE (games.valixis.tech)</span></div>
+          <div>CONTROLS: WASD / Space / Touch Analog</div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Additional Pipeline Exploration -->
+    <h3 class="section-heading">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+      VALIXIS 3D & Spatial Pipeline
+    </h3>
+
+    <div class="games-grid">
+      <div class="game-mini-card">
+        <div>
+          <div class="mini-status">WebGL2 &bull; Three.js Interactive</div>
+          <h4 class="mini-title">Hiyya Dino Mandi 3D</h4>
+          <p class="mini-desc">
+            Full spatial restaurant environment exploration featuring 3D dinosaur models, orbit camera dynamics, and interactive spatial menu systems.
+          </p>
+        </div>
+        <a href="https://valixis.tech/client-sites/hiyya-dino-mandi/" target="_blank" class="nav-btn" style="color:var(--accent-cyan); border-color:rgba(0,217,255,0.3); text-align:center;">Launch 3D Walkthrough &rarr;</a>
+      </div>
+
+      <div class="game-mini-card">
+        <div>
+          <div class="mini-status">Three.js &bull; Architectural Walkthrough</div>
+          <h4 class="mini-title">Lé Vantage 3D Concept</h4>
+          <p class="mini-desc">
+            Atmospheric courtyard and cocktail lounge spatial experience with dynamic lighting, day-to-night transitions, and low-latency asset streaming.
+          </p>
+        </div>
+        <a href="https://valixis.tech/le-vantage/" target="_blank" class="nav-btn" style="color:var(--accent-ember); border-color:rgba(255,106,0,0.3); text-align:center;">View Interactive Showcase &rarr;</a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 VALIXIS Technologies. Built by Subhash Annam &amp; Jyothsna Sri.</p>
+    <p style="margin-top: 6px; font-size: 0.78rem;">
+      <a href="https://valixis.tech">valixis.tech</a> &bull; 
+      <a href="https://portal.valixis.tech">portal.valixis.tech</a> &bull; 
+      <a href="https://games.valixis.tech">games.valixis.tech</a>
+    </p>
+  </footer>
+
 </body>
 </html>

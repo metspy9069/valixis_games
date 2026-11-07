@@ -2901,7 +2901,7 @@ const player = {
   x: WORLD.width / 2,
   y: WORLD.height / 2,
   radius: 14,
-  speed: 3.1,
+  speed: 3.85,
   hp: 100,
   maxHp: 100,
   lvl: 1,
@@ -2942,7 +2942,7 @@ const player = {
 
   stamina: 100,
   maxStamina: 100,
-  staminaRegen: 28,
+  staminaRegen: 38,
   staminaCost: 33,
   isInvulnerable: false,
   relics: {},
@@ -2981,7 +2981,7 @@ const player = {
     if (selectedDifficulty === 'casual') this.maxHp += 40;
     this.hp = this.maxHp;
     this.damageMult = 1.0 + (u.might * 0.10);
-    this.speed = (3.1 + (u.speed * 0.2)) * (selectedDifficulty === 'casual' ? 1.15 : 1.0);
+    this.speed = (3.85 + (u.speed * 0.25)) * (selectedDifficulty === "casual" ? 1.15 : 1.0);
     this.magnetRadius = 130 + (u.magnet * 25);
 
     this.projectilesPerShot = 1;
@@ -2994,8 +2994,8 @@ const player = {
     this.hasPoison = false;
 
     if (currentHeroType === 'pyro') {
-      this.fireCooldown = 0.75;
-      this.hasPuddle = true;
+      this.fireCooldown = 0.62;
+      this.hasPuddle = false;
     } else if (currentHeroType === 'cryo') {
       this.fireCooldown = 0.85;
       this.hasFrostNova = true;
@@ -3017,8 +3017,8 @@ const player = {
       this.projectilesPerShot = 2;
       this.speed += 0.3;
     } else if (currentHeroType === 'warlock') {
-      this.fireCooldown = 1.2;
-      this.hasPuddle = true;
+      this.fireCooldown = 1.0;
+      this.hasPuddle = false;
       this.hasPoison = true;
       this.poisonTimer = 0;
     } else if (currentHeroType === 'bard') {
@@ -3198,11 +3198,13 @@ const player = {
     let targetX = this.x;
     let targetY = this.y;
 
+    const moveScale = Math.min(2.0, dt * 60);
+
     if (this.isDashing) {
-      targetX += this.dashDx;
-      targetY += this.dashDy;
+      targetX += this.dashDx * moveScale;
+      targetY += this.dashDy * moveScale;
       this.dashTimeLeft -= dt;
-      if (Math.random() < 0.7) {
+      if (Math.random() < 0.5) {
         playerGhosts.push({
           x: this.x,
           y: this.y,
@@ -3230,12 +3232,12 @@ const player = {
       if (dx !== 0 || dy !== 0) {
         if (dx !== 0) this.facingRight = dx > 0;
         const len = Math.hypot(dx, dy) || 1;
-        targetX += (dx / len) * this.speed;
-        targetY += (dy / len) * this.speed;
-        this.walkTimer += dt * 8;
-      if (Math.random() < 0.25) {
-        dustPuffs.push(new DustPuff(this.x + (Math.random() - 0.5) * 8, this.y + 12));
-      }
+        targetX += (dx / len) * this.speed * moveScale;
+        targetY += (dy / len) * this.speed * moveScale;
+        this.walkTimer += dt * 9;
+        if (Math.random() < 0.20) {
+          dustPuffs.push(new DustPuff(this.x + (Math.random() - 0.5) * 8, this.y + 12));
+        }
         this.animFrame = Math.floor(this.walkTimer) % 2;
       } else {
         this.animFrame = 0;
@@ -3841,7 +3843,8 @@ class Enemy {
 
     // Direction towards player
     const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
-    let currentSpeed = this.speed * speedMult;
+    const enemyScale = Math.min(2.0, dt * 60);
+    let currentSpeed = this.speed * speedMult * enemyScale;
     let targetX = this.x + Math.cos(baseAngle) * currentSpeed;
     let targetY = this.y + Math.sin(baseAngle) * currentSpeed;
 
@@ -4024,7 +4027,7 @@ class Enemy {
 
     // Floor decal splatter
     const splatterColor = this.isElite ? '#ffd700' : currentBiome === 'inferno' ? '#ff3b10' : currentBiome === 'glacial' ? '#00f2fe' : currentBiome === 'forest' ? '#00ff88' : '#730d1a';
-    addFloorDecal(this.x, this.y, splatterColor, this.radius * 0.9);
+    // blood splatters removed
 
     // Floating soul wisps
     for (let i = 0; i < 4; i++) {
@@ -4817,12 +4820,7 @@ function spawnWorldProps(biomeKey) {
   ];
 
   destructibleProps = [];
-  const propCount = 36;
-  for (let i = 0; i < propCount; i++) {
-    const px = Math.random() * (WORLD.width - 240) + 120;
-    const py = Math.random() * (WORLD.height - 240) + 120;
-    destructibleProps.push(new DestructibleProp(px, py, biomeKey));
-  }
+  // Jars completely removed per user request for a clean, open arena
 }
 
 /* ==========================================================================
@@ -4896,7 +4894,7 @@ let selectedWorldMode = 'gauntlet';
 let selectedCompanion = 'none';
 let selectedLighting = 'balanced';
 let activeCompanion = null;
-let floorDecals = [];
+let floorDecals = []; // empty, decals removed
 
 function setDifficulty(diff, el) {
   selectedDifficulty = diff;
@@ -4922,16 +4920,7 @@ function setLightingMode(light, el) {
   el.classList.add('active');
 }
 
-function addFloorDecal(x, y, color = '#730d1a', size = 12) {
-  if (floorDecals.length > 120) floorDecals.shift();
-  floorDecals.push({
-    x, y,
-    size: size + Math.random() * 8,
-    color,
-    rot: Math.random() * Math.PI * 2,
-    alpha: 0.65
-  });
-}
+function addFloorDecal() { /* Persistent blood circles removed per user feedback */ }
 
 function showBossBanner(titleText) {
   const banner = document.getElementById('boss-banner');
@@ -5551,126 +5540,111 @@ const touchMove = { dx: 0, dy: 0 };
    ========================================================================== */
 
 // ==========================================================================
-// LIVE ATTRACT MODE BACKGROUND GAMEPLAY SIMULATION
 // ==========================================================================
-let isAttractMode = false;
-let attractSpawnTimer = 0;
+// START MENU ATMOSPHERIC DUNGEON BACKGROUND (SMOOTH, CLEAN & NO COMBAT POPUPS)
+// ==========================================================================
+let ambientEmbers = [];
 
-function updateAttractMode(dt) {
-  isAttractMode = true;
-  
-  // Ensure starting world & props exist
-  if (!destructibleProps || destructibleProps.length === 0) {
-    spawnWorldProps('dungeon');
-  }
-
-  // Maintain healthy horde of abyss monsters for background battle (14-18 mobs)
-  attractSpawnTimer += dt;
-  if (enemies.length < 16 && attractSpawnTimer > 0.45) {
-    attractSpawnTimer = 0;
-    const mobTypes = ['skeleton', 'bat', 'spider', 'wraith', 'demon'];
-    const type = mobTypes[Math.floor(Math.random() * mobTypes.length)];
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 260 + Math.random() * 220;
-    const ex = Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(angle) * dist));
-    const ey = Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(angle) * dist));
-    const mob = new Enemy(type);
-    mob.x = ex;
-    mob.y = ey;
-    enemies.push(mob);
-  }
-
-  // Find nearest monster for AI steering
-  let nearestMob = null;
-  let minDist = Infinity;
-  for (let e of enemies) {
-    const d = Math.hypot(e.x - player.x, e.y - player.y);
-    if (d < minDist) {
-      minDist = d;
-      nearestMob = e;
-    }
-  }
-
-  // Intelligent AI kiting & strafing
-  let aiDx = 0, aiDy = 0;
-  if (nearestMob) {
-    const dist = Math.hypot(nearestMob.x - player.x, nearestMob.y - player.y) || 1;
-    const ang = Math.atan2(nearestMob.y - player.y, nearestMob.x - player.x);
-    if (dist > 180) {
-      aiDx = Math.cos(ang);
-      aiDy = Math.sin(ang);
-    } else if (dist < 100) {
-      aiDx = -Math.cos(ang);
-      aiDy = -Math.sin(ang);
-      if (dist < 55 && Math.random() < 0.08) player.tryDash();
-    } else {
-      // Circle strafe
-      aiDx = -Math.sin(ang);
-      aiDy = Math.cos(ang);
-    }
-  } else {
-    const t = performance.now() * 0.001;
-    aiDx = Math.cos(t * 0.6);
-    aiDy = Math.sin(t * 0.6);
-  }
-
-  // Feed AI movement into player virtual input keys
-  keys['w'] = aiDy < -0.2;
-  keys['s'] = aiDy > 0.2;
-  keys['a'] = aiDx < -0.2;
-  keys['d'] = aiDx > 0.2;
-
-  player.hp = player.maxHp; // Godmode during attract mode
-  player.update(dt);
-  camera.update(player.x, player.y);
-
-  // Update Projectiles
-  projectiles.forEach((p, idx) => {
-    p.update(dt);
-    enemies.forEach(e => {
-      if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) {
-        e.takeDamage(p.damage);
-        p.life = 0;
-        particles.push(new Particle(p.x, p.y, '#ffaa00', 3));
-      }
+function initAmbientEmbers() {
+  ambientEmbers = [];
+  const w = canvas.width || 1200;
+  const h = canvas.height || 800;
+  for (let i = 0; i < 35; i++) {
+    ambientEmbers.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      size: Math.random() * 2.5 + 1.2,
+      vy: -(Math.random() * 24 + 14),
+      vx: (Math.random() - 0.5) * 16,
+      alpha: Math.random() * 0.7 + 0.3,
+      pulse: Math.random() * Math.PI * 2,
+      color: Math.random() < 0.65 ? '#ff7700' : Math.random() < 0.85 ? '#ffd700' : '#ff0055'
     });
-    if (p.life <= 0) projectiles.splice(idx, 1);
+  }
+}
+
+function updateStartMenuAtmosphere(dt) {
+  if (ambientEmbers.length === 0) initAmbientEmbers();
+  const w = canvas.width || 1200;
+  const h = canvas.height || 800;
+  ambientEmbers.forEach(e => {
+    e.y += e.vy * dt;
+    e.x += e.vx * dt;
+    e.pulse += dt * 3;
+    if (e.y < -15) {
+      e.y = h + 15;
+      e.x = Math.random() * w;
+    }
+    if (e.x < -15) e.x = w + 15;
+    if (e.x > w + 15) e.x = -15;
   });
+}
 
-  // Update & cull enemies
-  enemies = enemies.filter(e => !e.markedForDeath);
-  enemyGrid.clear();
-  enemies.forEach(e => {
-    e.update(dt);
-    enemyGrid.insert(e);
-  });
+function drawStartMenuAtmosphere() {
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Pickups, damage numbers, and particles update
-  gems = gems.filter(g => !g.collected);
-  gems.forEach(g => g.update());
-  coins = coins.filter(c => !c.collected);
-  coins.forEach(c => c.update());
+  // Center camera in dungeon hall
+  camera.x = WORLD.width / 2 - canvas.width / 2;
+  camera.y = WORLD.height / 2 - canvas.height / 2;
+  ctx.translate(-camera.x, -camera.y);
 
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.update();
-    if (p.alpha <= 0) {
-      particles.splice(i, 1);
-      Pool.recycleParticle(p);
+  const curBiome = BIOMES.dungeon;
+  const curFloor = SpriteEngine.cache[curBiome.floor] || SpriteEngine.cache.floor;
+  const curWall = SpriteEngine.cache[curBiome.wall] || SpriteEngine.cache.wall;
+
+  // Render Tiled Floor
+  const startCol = Math.floor(camera.x / 64);
+  const endCol = Math.ceil((camera.x + canvas.width) / 64);
+  const startRow = Math.floor(camera.y / 64);
+  const endRow = Math.ceil((camera.y + canvas.height) / 64);
+
+  for (let c = startCol; c <= endCol; c++) {
+    for (let r = startRow; r <= endRow; r++) {
+      const tx = c * 64;
+      const ty = r * 64;
+      if (tx >= 0 && tx < WORLD.width && ty >= 0 && ty < WORLD.height && curFloor) {
+        ctx.drawImage(curFloor, tx, ty);
+      }
     }
   }
-  for (let i = damageTexts.length - 1; i >= 0; i--) {
-    const d = damageTexts[i];
-    d.update(dt);
-    if (d.alpha <= 0) {
-      damageTexts.splice(i, 1);
-      Pool.recycleDamageNumber(d);
-    }
-  }
-  slashArcs = slashArcs.filter(s => s.life > 0);
-  slashArcs.forEach(s => s.update(dt));
-  dustPuffs = dustPuffs.filter(d => d.alpha > 0);
-  dustPuffs.forEach(d => d.update(dt));
+
+  // Stone Pillars
+  WORLD.pillars.forEach(p => {
+    ctx.fillStyle = curBiome.pillarFill;
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.strokeStyle = curBiome.pillarStroke;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = curBiome.pillarRune;
+    ctx.fillRect(p.x + p.w / 2 - 6, p.y + p.h / 2 - 6, 12, 12);
+  });
+
+  // Torches
+  const now = performance.now();
+  WORLD.torches.forEach(t => {
+    const flicker = Math.sin(now * 0.008 + t.x * 0.05) * 2;
+    ctx.fillStyle = curBiome.torchColor;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 5 + flicker, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+
+  // Floating ambient embers in screen space
+  ambientEmbers.forEach(e => {
+    const pAlpha = Math.max(0.2, e.alpha + Math.sin(e.pulse) * 0.25);
+    ctx.save();
+    ctx.globalAlpha = pAlpha;
+    ctx.fillStyle = e.color;
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
 }
 
 function loop(timestamp) {
@@ -5686,7 +5660,9 @@ function loop(timestamp) {
   }
 
   if (gameState === 'START') {
-    updateAttractMode(dt);
+    updateStartMenuAtmosphere(dt);
+    drawStartMenuAtmosphere();
+    return;
   } else if (gameState === 'PLAYING') {
 
   gameTime += dt;
@@ -5754,7 +5730,7 @@ function loop(timestamp) {
   slashArcs.forEach(s => s.update(dt));
   dustPuffs = dustPuffs.filter(d => d.alpha > 0);
   dustPuffs.forEach(d => d.update(dt));
-  destructibleProps = destructibleProps.filter(p => !p.markedForDeath);
+  // destructibleProps removed
 
 
   // Atmospheric weather particles (ambient floating motes)
@@ -5774,7 +5750,7 @@ function loop(timestamp) {
   // Spawner
   spawnTimer += dt;
   const spawnRate = Math.max(0.22, 1.3 - (gameTime * 0.012));
-  if (spawnTimer >= spawnRate) {
+  if (enemies.length < 30 && spawnTimer >= spawnRate) {
     spawnTimer = 0;
     const r = Math.random();
     const t = gameTime;
@@ -5938,18 +5914,7 @@ function loop(timestamp) {
     }
   }
 
-  // 1.5 Floor Decals (Persistent Blood & Elemental Scorch Splatters)
-  floorDecals.forEach(d => {
-    ctx.save();
-    ctx.translate(d.x, d.y);
-    ctx.rotate(d.rot);
-    ctx.fillStyle = d.color;
-    ctx.globalAlpha = d.alpha;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, d.size, d.size * 0.65, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
+  // Floor decals removed for 100% clean stone floors and max performance
 
   // 2. Render Outer Perimeter Walls
   ctx.fillStyle = curBiome.wallFill;
@@ -5994,7 +5959,7 @@ function loop(timestamp) {
 
   // 4. Ground Effects & Pickups
   activeShrines.forEach(sh => sh.draw());
-  destructibleProps.forEach(dp => dp.draw());
+  // destructibleProps draw removed
   puddles.forEach(pd => pd.draw());
   gems.forEach(g => g.draw());
   coins.forEach(c => c.draw());

@@ -1,4 +1,4 @@
-const CACHE = 'soul-ember-v9-stable-engine';
+const CACHE = 'soul-ember-v10-pure-flow';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Network-first for HTML page visits so game updates load immediately
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
       fetch(event.request)
@@ -40,7 +39,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Cache-first with network fallback for static assets
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
   );

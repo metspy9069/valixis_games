@@ -1344,7 +1344,7 @@
 <div id="alert-banner" style="display:none; align-items:center; justify-content:center; gap:8px;"><span id="alert-hazard-1"></span> BOSS APPROACHING: MALAKOR AWAKENS <span id="alert-hazard-2"></span></div>
 <div id="biome-banner" style="display:none; position:fixed; top:125px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg, #7c3fe4, #00f2fe); color:#fff; font-weight:900; letter-spacing:2px; padding:10px 36px; border-radius:30px; z-index:25; box-shadow:0 0 40px rgba(0,242,254,0.7); animation:alertAnim 0.7s infinite alternate;"></div>
 <div id="achieve-notif" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;padding:10px 24px;border-radius:24px;font-size:14px;z-index:50;letter-spacing:1px;box-shadow:0 0 30px rgba(255,215,0,0.6);"></div>
-<div class="controls-hint">[WASD / Arrows] Move | [Space] Dodge Roll | [R] Ultimate | [E] Shrines & Shop | [P] Pause | [T] Cheats | Auto-Attack Active</div>
+<div class="controls-hint">[WASD / Arrows] Move | [Space] Dodge Roll | [R] Ultimate | [E] Shop | [P] Pause | [T] Cheats | Auto-Attack Active</div>
 
 <!-- TOUCH CONTROLS (Mobile) -->
 <div id="touch-controls">
@@ -2403,7 +2403,7 @@ const SpriteEngine = {
       fCtx.fillStyle = bgColor;
       fCtx.fillRect(0, 0, 64, 64);
       fCtx.strokeStyle = strokeColor;
-      fCtx.lineWidth = 1;
+      fCtx.lineWidth = 1.5;
       for (let y = 0; y < 64; y += 16) {
         fCtx.beginPath(); fCtx.moveTo(0, y); fCtx.lineTo(64, y); fCtx.stroke();
         const offset = (y / 16) % 2 === 0 ? 0 : 16;
@@ -2412,8 +2412,9 @@ const SpriteEngine = {
         }
       }
       fCtx.fillStyle = speckColor;
-      fCtx.fillRect(8, 8, 2, 2);
-      fCtx.fillRect(36, 24, 2, 2);
+      fCtx.fillRect(8, 8, 3, 2);
+      fCtx.fillRect(36, 24, 3, 2);
+      fCtx.fillRect(20, 48, 2, 2);
       return c;
     };
 
@@ -2436,25 +2437,25 @@ const SpriteEngine = {
       return c;
     };
 
-    // 1. Obsidian Crypt (Dungeon)
-    this.cache.floor = createFloor('#100d1c', '#1b152d', 'rgba(255,255,255,0.03)');
-    this.cache.wall = createWall('#1c152a', '#322547', '#483563');
+    // 1. Obsidian Crypt (Dungeon) - Vibrant crisp stone slate
+    this.cache.floor = createFloor('#221d3b', '#392f59', 'rgba(255,255,255,0.07)');
+    this.cache.wall = createWall('#2e2547', '#503b75', '#7a55b8');
 
     // 2. Cursed Viridian Grove (Forest)
-    this.cache.floor_forest = createFloor('#07170e', '#103320', 'rgba(0,255,136,0.08)');
-    this.cache.wall_forest = createWall('#0c2415', '#1a4e2e', '#00ff88');
+    this.cache.floor_forest = createFloor('#142e20', '#225238', 'rgba(0,255,136,0.14)');
+    this.cache.wall_forest = createWall('#1a422b', '#2c734a', '#00ff88');
 
     // 3. Glacial Frost Abyss (Glacial)
-    this.cache.floor_glacial = createFloor('#071626', '#12314d', 'rgba(0,242,254,0.14)');
-    this.cache.wall_glacial = createWall('#0d253b', '#184770', '#00f2fe');
+    this.cache.floor_glacial = createFloor('#152e4a', '#224e7a', 'rgba(0,242,254,0.18)');
+    this.cache.wall_glacial = createWall('#1b4269', '#2d6ba8', '#00f2fe');
 
     // 4. Infernal Magma Chasm (Inferno)
-    this.cache.floor_inferno = createFloor('#1a0805', '#38120a', 'rgba(255,106,0,0.12)');
-    this.cache.wall_inferno = createWall('#290d07', '#561a0d', '#ff5500');
+    this.cache.floor_inferno = createFloor('#33150f', '#5e2316', 'rgba(255,106,0,0.18)');
+    this.cache.wall_inferno = createWall('#471a10', '#802e1b', '#ff5500');
 
     // 5. Celestial Void Sanctum (Void)
-    this.cache.floor_void = createFloor('#0b0517', '#1f0d38', 'rgba(192,64,255,0.18)');
-    this.cache.wall_void = createWall('#170a2b', '#35165e', '#c040ff');
+    this.cache.floor_void = createFloor('#241340', '#441f75', 'rgba(192,64,255,0.22)');
+    this.cache.wall_void = createWall('#311857', '#5d2b9e', '#c040ff');
   }
 };
 SpriteEngine.init();
@@ -2768,14 +2769,28 @@ resizeCanvas();
 const camera = {
   x: 0,
   y: 0,
-  update(targetX, targetY) {
-    const desiredX = targetX - canvas.width / 2;
-    const desiredY = targetY - canvas.height / 2;
-    this.x += (desiredX - this.x) * 0.1;
-    this.y += (desiredY - this.y) * 0.1;
-    // Clamp to world
-    this.x = Math.max(0, Math.min(WORLD.width - canvas.width, this.x));
-    this.y = Math.max(0, Math.min(WORLD.height - canvas.height, this.y));
+  targetLookX: 0,
+  targetLookY: 0,
+  update(targetX, targetY, dt, moveDx = 0, moveDy = 0) {
+    // Smooth cinematic lookahead in movement direction (shows path ahead)
+    const targetLookDist = 65;
+    const lookLerp = 1 - Math.exp(-5.5 * (dt || 0.016));
+    this.targetLookX += (moveDx * targetLookDist - this.targetLookX) * lookLerp;
+    this.targetLookY += (moveDy * targetLookDist - this.targetLookY) * lookLerp;
+
+    const desiredX = (targetX + this.targetLookX) - canvas.width / 2;
+    const desiredY = (targetY + this.targetLookY) - canvas.height / 2;
+
+    // Framerate-independent exponential smoothing (responsive, buttery smooth, zero rubber-banding)
+    const camLerp = 1 - Math.exp(-8.5 * (dt || 0.016));
+    this.x += (desiredX - this.x) * camLerp;
+    this.y += (desiredY - this.y) * camLerp;
+
+    // Clamp to world boundaries
+    const maxX = Math.max(0, WORLD.width - canvas.width);
+    const maxY = Math.max(0, WORLD.height - canvas.height);
+    this.x = Math.max(0, Math.min(maxX, this.x));
+    this.y = Math.max(0, Math.min(maxY, this.y));
   }
 };
 
@@ -5044,14 +5059,9 @@ let activeShrines = [];
 let destructibleProps = [];
 
 function spawnWorldProps(biomeKey) {
-  activeShrines = [
-    new Shrine(WORLD.width * 0.3, WORLD.height * 0.3, 'blood'),
-    new Shrine(WORLD.width * 0.7, WORLD.height * 0.3, 'storm'),
-    new Shrine(WORLD.width * 0.5, WORLD.height * 0.7, biomeKey === 'inferno' ? 'midas' : 'aegis')
-  ];
-
+  activeShrines = [];
   destructibleProps = [];
-  // Jars completely removed per user request for a clean, open arena
+  // Altars, shrines, and breakable jars completely removed per user request for clean, uncluttered, focused gameplay
 }
 
 /* ==========================================================================
@@ -6027,7 +6037,7 @@ function loop(timestamp) {
   }
 
   // Update and draw Shrines & Destructible Props
-  activeShrines.forEach(sh => sh.update(dt));
+  // activeShrines removed
   slashArcs = slashArcs.filter(s => s.life > 0);
   slashArcs.forEach(s => s.update(dt));
   dustPuffs = dustPuffs.filter(d => d.alpha > 0);
@@ -6094,7 +6104,20 @@ function loop(timestamp) {
   }
 
   player.update(dt);
-  camera.update(player.x, player.y);
+  let mDx = 0;
+  let mDy = 0;
+  if (touchMove.dx !== 0 || touchMove.dy !== 0) {
+    mDx = touchMove.dx;
+    mDy = touchMove.dy;
+  } else {
+    if (keys['d'] || keys['arrowright']) mDx += 1;
+    if (keys['a'] || keys['arrowleft']) mDx -= 1;
+    if (keys['s'] || keys['arrowdown']) mDy += 1;
+    if (keys['w'] || keys['arrowup']) mDy -= 1;
+    const mLen = Math.hypot(mDx, mDy);
+    if (mLen > 0) { mDx /= mLen; mDy /= mLen; }
+  }
+  camera.update(player.x, player.y, dt, mDx, mDy);
   updateHUD();
 
   // Fast Reverse Loop for Projectiles (Zero Splice Skew, Early Break on Hit)
@@ -6270,7 +6293,7 @@ function loop(timestamp) {
   });
 
   // 4. Ground Effects & Pickups
-  activeShrines.forEach(sh => sh.draw());
+  // activeShrines draw removed
   // destructibleProps draw removed
   puddles.forEach(pd => pd.draw());
   gems.forEach(g => g.draw());
@@ -6341,37 +6364,64 @@ function loop(timestamp) {
   ctx.restore();
 
   // -------------------------------------------------------------
-  // HIGH-PERFORMANCE AMBIENT LIGHTING & VIGNETTE (60 FPS on Mobile)
+  // HIGH-PERFORMANCE RADIANT LIGHTING & AMBIENT CLARITY (60 FPS)
   // -------------------------------------------------------------
+  // 1. Radiant Hero Illumination Aura (Brings full clarity and warmth around player)
+  const px = player.x - camera.x;
+  const py = player.y - camera.y;
+  const heroAuraColor = currentHeroType === 'pyro' ? 'rgba(255, 175, 75, 0.28)' :
+                        currentHeroType === 'cryo' ? 'rgba(80, 220, 255, 0.28)' :
+                        currentHeroType === 'necro' ? 'rgba(80, 255, 160, 0.25)' :
+                        currentHeroType === 'paladin' ? 'rgba(255, 235, 120, 0.30)' :
+                        currentHeroType === 'archer' ? 'rgba(255, 215, 85, 0.26)' :
+                        currentHeroType === 'rogue' ? 'rgba(200, 100, 255, 0.26)' :
+                        currentHeroType === 'bard' ? 'rgba(255, 120, 220, 0.26)' :
+                        currentHeroType === 'warlock' ? 'rgba(255, 80, 140, 0.25)' : 'rgba(255, 180, 80, 0.28)';
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Hero core light pool (reveals stone texture, enemies, and loot)
+  const playerLight = ctx.createRadialGradient(px, py, 15, px, py, 340);
+  playerLight.addColorStop(0, heroAuraColor);
+  playerLight.addColorStop(0.5, heroAuraColor.replace(/[\d.]+\)$/, '0.12)'));
+  playerLight.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = playerLight;
+  ctx.beginPath();
+  ctx.arc(px, py, 340, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Animated Torch Warm Radial Firelights (Radius 115px)
+  WORLD.torches.forEach(t => {
+    const tx = t.x - camera.x;
+    const ty = t.y - camera.y;
+    if (tx < -140 || tx > canvas.width + 140 || ty < -140 || ty > canvas.height + 140) return;
+    const flicker = Math.sin(timestamp * 0.008 + t.x) * 6;
+    const rad = 110 + flicker;
+    const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, rad);
+    grad.addColorStop(0, 'rgba(255, 175, 60, 0.38)');
+    grad.addColorStop(0.45, 'rgba(255, 110, 20, 0.16)');
+    grad.addColorStop(1, 'rgba(255, 80, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(tx, ty, rad, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+
+  // 3. Subtle Atmospheric Screen Vignette (Keeps center bright & crystal clear!)
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   const vMin = Math.min(canvas.width, canvas.height);
   const vMax = Math.max(canvas.width, canvas.height);
-  const vigRad = Math.max(vMin * 0.55, vMax * 0.45);
+  const vigRad = Math.max(vMin * 0.65, vMax * 0.55);
 
-  const ambientVig = ctx.createRadialGradient(cx, cy, vigRad * 0.65, cx, cy, vigRad * 1.25);
+  const ambientVig = ctx.createRadialGradient(cx, cy, vigRad * 0.55, cx, cy, vigRad * 1.35);
   ambientVig.addColorStop(0, 'rgba(4, 2, 8, 0)');
-  ambientVig.addColorStop(0.7, 'rgba(4, 2, 8, 0.32)');
-  ambientVig.addColorStop(1, 'rgba(4, 2, 8, 0.75)');
+  ambientVig.addColorStop(0.65, 'rgba(4, 2, 8, 0.12)');
+  ambientVig.addColorStop(1, 'rgba(4, 2, 8, 0.58)');
   ctx.fillStyle = ambientVig;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Soft torch firelight warm glows
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  WORLD.torches.forEach(t => {
-    const tx = t.x - camera.x;
-    const ty = t.y - camera.y;
-    if (tx < -80 || tx > canvas.width + 80 || ty < -80 || ty > canvas.height + 80) return;
-    const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, 65);
-    grad.addColorStop(0, 'rgba(255, 140, 40, 0.22)');
-    grad.addColorStop(1, 'rgba(255, 80, 0, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(tx, ty, 65, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.restore();
 
   // -------------------------------------------------------------
   // -------------------------------------------------------------
@@ -6460,13 +6510,7 @@ function loop(timestamp) {
     const scaleX = (mw - 16) / WORLD.width;
     const scaleY = (mh - 16) / WORLD.height;
 
-    // Shrines on minimap
-    activeShrines.forEach(sh => {
-      const sx = 8 + sh.x * scaleX;
-      const sy = 8 + sh.y * scaleY;
-      mmCtx.fillStyle = sh.used ? '#555' : sh.type === 'blood' ? '#ff0033' : sh.type === 'storm' ? '#00f2fe' : '#ffd700';
-      mmCtx.fillRect(sx - 2, sy - 2, 4, 4);
-    });
+    // Shrines removed from minimap
 
     // Merchant on minimap
     if (wanderingMerchant) {

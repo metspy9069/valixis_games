@@ -1,4 +1,4 @@
-const CACHE = 'soul-ember-v7-lvlup-fit';
+const CACHE = 'soul-ember-v9-stable-engine';
 const ASSETS = [
   './',
   './index.html',

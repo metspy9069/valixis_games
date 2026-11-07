@@ -710,17 +710,17 @@
     </div>
 
     <div class="pills-group">
-      <div id="biome-pill" class="pill" style="border-color: #7c3fe4; display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('castle', '#7c3fe4', 16)} <span id="biome-text">The Crypt</span></div>
-      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('timer', '#00f2fe', 16)} <span id="hud-time">00:00</span></div>
-      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('skull', '#ff3366', 16)} <span id="hud-kills">0</span></div>
-      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('coin', '#ffd700', 16)} <span id="hud-gold" class="gold-text">0</span></div>
-      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('spark', '#00ff88', 16)} <span id="hud-dash">READY</span></div>
-      <div id="combo-pill" class="pill" style="display:none; background: linear-gradient(135deg, #ff6a00, #ff0080); border-color: #ff6a00; display:none; align-items:center; gap:6px;">${VectorIcons.getSvg('combo', '#ffffff', 16)} <span id="combo-text">x1</span></div>
-      <button id="music-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('audio', '#c5bdd4', 14)} AUDIO</button>
-      <button id="pause-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('pause', '#c5bdd4', 14)} PAUSE</button>
-      <button id="fs-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('fullscreen', '#c5bdd4', 14)} FULL</button>
-      <a href="../" class="hud-btn" style="text-decoration:none; color:#ffd700; display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('arcade', '#ffd700', 14)} ARCADE</a>
-      <a href="https://valixis.tech" target="_blank" rel="noopener" class="hud-btn" style="text-decoration:none; color:#00f2fe; display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('valixis_gem', '#00f2fe', 14)} STUDIO</a>
+      <div id="biome-pill" class="pill" style="border-color: #7c3fe4; display:inline-flex; align-items:center; gap:6px;"><span id="hud-icon-biome"></span> <span id="biome-text">The Crypt</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;"><span id="hud-icon-timer"></span> <span id="hud-time">00:00</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;"><span id="hud-icon-skull"></span> <span id="hud-kills">0</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;"><span id="hud-icon-coin"></span> <span id="hud-gold" class="gold-text">0</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;"><span id="hud-icon-spark"></span> <span id="hud-dash">READY</span></div>
+      <div id="combo-pill" class="pill" style="display:none; background: linear-gradient(135deg, #ff6a00, #ff0080); border-color: #ff6a00; display:none; align-items:center; gap:6px;"><span id="hud-icon-combo"></span> <span id="combo-text">x1</span></div>
+      <button id="music-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;"><span id="hud-icon-audio"></span> AUDIO</button>
+      <button id="pause-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;"><span id="hud-icon-pause"></span> PAUSE</button>
+      <button id="fs-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;"><span id="hud-icon-fs"></span> FULL</button>
+      <a href="../" class="hud-btn" style="text-decoration:none; color:#ffd700; display:inline-flex; align-items:center; gap:5px;"><span id="hud-icon-arcade"></span> ARCADE</a>
+      <a href="https://valixis.tech" target="_blank" rel="noopener" class="hud-btn" style="text-decoration:none; color:#00f2fe; display:inline-flex; align-items:center; gap:5px;"><span id="hud-icon-studio"></span> STUDIO</a>
     </div>
   </div>
 
@@ -4880,13 +4880,7 @@ const touchMove = { dx: 0, dy: 0 };
    9. MAIN GAME LOOP & DYNAMIC 2D LIGHTING ENGINE
    ========================================================================== */
 function loop(timestamp) {
-  
-document.querySelectorAll('button, .hero-card, .upg-card, .pill-opt').forEach(el => {
-  el.addEventListener('mouseenter', () => AudioSys.playHover());
-  el.addEventListener('click', () => AudioSys.playClick());
-});
-
-requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 
   if (!lastTimestamp) lastTimestamp = timestamp;
   const dt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
@@ -5635,6 +5629,31 @@ function initHeroIcons() {
   });
 }
 window.addEventListener('DOMContentLoaded', initHeroIcons);
+function initHUD() {
+  const icons = [
+    ['hud-icon-biome', 'castle', '#7c3fe4', 16],
+    ['hud-icon-timer', 'timer', '#00f2fe', 16],
+    ['hud-icon-skull', 'skull', '#ff3366', 16],
+    ['hud-icon-coin', 'coin', '#ffd700', 16],
+    ['hud-icon-spark', 'spark', '#00ff88', 16],
+    ['hud-icon-combo', 'combo', '#ffffff', 16],
+    ['hud-icon-audio', 'audio', '#c5bdd4', 14],
+    ['hud-icon-pause', 'pause', '#c5bdd4', 14],
+    ['hud-icon-fs', 'fullscreen', '#c5bdd4', 14],
+    ['hud-icon-arcade', 'arcade', '#ffd700', 14],
+    ['hud-icon-studio', 'valixis_gem', '#00f2fe', 14]
+  ];
+  icons.forEach(([id, name, color, size]) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = VectorIcons.getSvg(name, color, size);
+  });
+  // Wire button sounds after DOM is ready (not inside the game loop)
+  document.querySelectorAll('button, .hero-card, .upg-card, .pill-opt').forEach(el => {
+    el.addEventListener('mouseenter', () => AudioSys.playHover());
+    el.addEventListener('click', () => AudioSys.playClick());
+  });
+}
+window.addEventListener('DOMContentLoaded', initHUD);
 
 </script>
 </body>

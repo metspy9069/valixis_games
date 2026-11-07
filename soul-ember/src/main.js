@@ -137,7 +137,6 @@ export class GameEngine {
         this.update(dt);
       }
       this.render();
-
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -158,6 +157,68 @@ export class GameEngine {
     this.grid.clear();
     for (let i = 0; i < this.enemies.length; i++) {
       this.grid.insert(this.enemies[i]);
+    }
+
+    // --- ENEMY SPAWNING (simple wave spawner) ---
+    this._spawnTimer = (this._spawnTimer || 0) + dt;
+    const spawnInterval = Math.max(0.4, 2.0 - this.runTime * 0.004);
+    if (this._spawnTimer >= spawnInterval) {
+      this._spawnTimer = 0;
+      this._spawnEnemy();
+    }
+
+    // --- ENEMY UPDATE & XP/KILL ---
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const mob = this.enemies[i];
+
+      // Move mob toward player
+      const dx = this.player.x - mob.x;
+      const dy = this.player.y - mob.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      mob.x += (dx / dist) * mob.speed * dt * 60;
+      mob.y += (dy / dist) * mob.speed * dt * 60;
+
+      // Mob hits player
+      if (dist < this.player.radius + mob.radius && mob.attackTimer <= 0) {
+        mob.attackTimer = 1.0;
+        const result = this.player.takeDamage(mob.damage);
+        if (result.dodged) {
+          this.floatingTexts.push({ x: this.player.x, y: this.player.y - 30, text: result.parried ? 'PARRY!' : 'DODGE!', color: '#00f2fe', life: 1.0 });
+        } else if (result.dead) {
+          this.state = 'DEAD';
+        }
+      }
+      if (mob.attackTimer > 0) mob.attackTimer -= dt;
+
+      // Mob is dead
+      if (mob.hp <= 0) {
+        this.killCount++;
+        this.bankedGold += this.combat.registerKill(mob.goldValue || 1);
+
+        // Drop XP gem pickup
+        this.pickups.push({ x: mob.x, y: mob.y, type: 'xp', value: mob.xpValue || 2, radius: 8 });
+
+        this.floatingTexts.push({ x: mob.x, y: mob.y - 20, text: `+${mob.xpValue || 2} XP`, color: '#00ff88', life: 0.8 });
+        this.enemies.splice(i, 1);
+      }
+    }
+
+    // --- PICKUP COLLECTION ---
+    for (let i = this.pickups.length - 1; i >= 0; i--) {
+      const pk = this.pickups[i];
+      const dx = this.player.x - pk.x;
+      const dy = this.player.y - pk.y;
+      if (Math.hypot(dx, dy) < this.player.pickupRadius) {
+        if (pk.type === 'xp') {
+          const leveled = this.player.gainXp(pk.value);
+          if (leveled) {
+            this._onLevelUp();
+          }
+        } else if (pk.type === 'gold') {
+          this.bankedGold += pk.value;
+        }
+        this.pickups.splice(i, 1);
+      }
     }
 
     // Floating combat text update
@@ -183,8 +244,56 @@ export class GameEngine {
     );
   }
 
+  _spawnEnemy() {
+    // Spawn off-screen relative to player
+    const angle = Math.random() * Math.PI * 2;
+    const spawnDist = Math.max(this.width, this.height) * 0.65;
+    const ex = Math.max(20, Math.min(WORLD.width - 20, this.player.x + Math.cos(angle) * spawnDist));
+    const ey = Math.max(20, Math.min(WORLD.height - 20, this.player.y + Math.sin(angle) * spawnDist));
+
+    // Scale difficulty with time
+    const tier = Math.min(4, Math.floor(this.runTime / 30));
+    const hp = 30 + tier * 20 + Math.random() * 20;
+    const damage = 8 + tier * 3;
+    const speed = 0.9 + tier * 0.1 + Math.random() * 0.3;
+
+    this.enemies.push({
+      x: ex, y: ey,
+      radius: 10 + tier * 1.5,
+      hp, maxHp: hp,
+      damage, speed,
+      xpValue: 2 + tier,
+      goldValue: 1,
+      attackTimer: 0,
+      color: ['#c040ff', '#ff416c', '#00f2fe', '#ffd700', '#ff0055'][tier]
+    });
+
+    // Insert into spatial grid immediately
+    this.grid.insert(this.enemies[this.enemies.length - 1]);
+  }
+
+  _onLevelUp() {
+    // Pause game during blessing selection
+    this.state = 'LEVELUP';
+    this.floatingTexts.push({
+      x: this.player.x, y: this.player.y - 50,
+      text: `LEVEL ${this.player.lvl}!`,
+      color: '#ffd700', life: 1.5
+    });
+
+    // Show upgrade modal
+    this.ui.showLevelUp(UPGRADES, (chosenUpg) => {
+      // Apply the chosen upgrade to player
+      if (chosenUpg && typeof chosenUpg.apply === 'function') {
+        chosenUpg.apply(this.player);
+      }
+      // Resume game
+      this.state = 'PLAYING';
+    });
+  }
+
   render() {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.player) return;
 
     const cameraX = this.player.x - this.width / 2;
     const cameraY = this.player.y - this.height / 2;
@@ -198,11 +307,60 @@ export class GameEngine {
     this.ctx.lineWidth = 4;
     this.ctx.strokeRect(-cameraX, -cameraY, WORLD.width, WORLD.height);
 
+    // Draw Enemies
+    this.enemies.forEach(mob => {
+      const mx = mob.x - cameraX;
+      const my = mob.y - cameraY;
+      // HP bar above enemy
+      const barW = mob.radius * 2.5;
+      const hpPct = Math.max(0, mob.hp / mob.maxHp);
+      this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      this.ctx.fillRect(mx - barW / 2, my - mob.radius - 8, barW, 4);
+      this.ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : hpPct > 0.25 ? '#ffd700' : '#ff416c';
+      this.ctx.fillRect(mx - barW / 2, my - mob.radius - 8, barW * hpPct, 4);
+      // Enemy body
+      this.ctx.fillStyle = mob.color || '#c040ff';
+      this.ctx.beginPath();
+      this.ctx.arc(mx, my, mob.radius, 0, Math.PI * 2);
+      this.ctx.fill();
+      // Glow
+      this.ctx.strokeStyle = mob.color || '#c040ff';
+      this.ctx.lineWidth = 2;
+      this.ctx.globalAlpha = 0.5;
+      this.ctx.beginPath();
+      this.ctx.arc(mx, my, mob.radius + 3, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
+    });
+
+    // Draw XP/Gold pickups
+    this.pickups.forEach(pk => {
+      const px = pk.x - cameraX;
+      const py = pk.y - cameraY;
+      this.ctx.fillStyle = pk.type === 'xp' ? '#00ff88' : '#ffd700';
+      this.ctx.beginPath();
+      this.ctx.arc(px, py, pk.radius || 6, 0, Math.PI * 2);
+      this.ctx.fill();
+      // Glow ring
+      this.ctx.strokeStyle = pk.type === 'xp' ? '#00ff88' : '#ffd700';
+      this.ctx.lineWidth = 1.5;
+      this.ctx.globalAlpha = 0.4;
+      this.ctx.beginPath();
+      this.ctx.arc(px, py, (pk.radius || 6) + 4, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
+    });
+
     // Draw Player
     this.ctx.save();
     this.ctx.translate(this.player.x - cameraX, this.player.y - cameraY);
     if (!this.player.facingRight) {
       this.ctx.scale(-1, 1);
+    }
+    // Dash glow
+    if (this.player.isDashing) {
+      this.ctx.shadowColor = this.player.heroConfig.color;
+      this.ctx.shadowBlur = 20;
     }
     const heroFrames = this.sprites.cache[this.player.heroConfig.id];
     if (heroFrames && heroFrames[this.player.animFrame]) {
@@ -212,20 +370,36 @@ export class GameEngine {
       this.ctx.beginPath();
       this.ctx.arc(0, 0, this.player.radius, 0, Math.PI * 2);
       this.ctx.fill();
+      // Player glow ring
+      this.ctx.strokeStyle = this.player.heroConfig.color;
+      this.ctx.lineWidth = 2;
+      this.ctx.globalAlpha = 0.6;
+      this.ctx.beginPath();
+      this.ctx.arc(0, 0, this.player.radius + 5, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
     }
+    this.ctx.shadowBlur = 0;
     this.ctx.restore();
 
     // Floating text rendering
     this.ctx.font = '900 13px Orbitron, sans-serif';
     this.ctx.textAlign = 'center';
     this.floatingTexts.forEach(ft => {
+      const alpha = Math.min(1, ft.life * 2);
+      this.ctx.globalAlpha = alpha;
       this.ctx.fillStyle = ft.color;
       this.ctx.fillText(ft.text, ft.x - cameraX, ft.y - cameraY);
     });
+    this.ctx.globalAlpha = 1;
 
     // Dynamic 2D Lighting pass
     this.lighting.clear();
     this.lighting.addLight(this.player.x, this.player.y, 220, this.player.heroConfig.color, 0.9);
+    // Add lights for enemies near player
+    this.enemies.slice(0, 8).forEach(mob => {
+      this.lighting.addLight(mob.x, mob.y, 80, mob.color || '#c040ff', 0.4);
+    });
     this.lighting.render(this.ctx, cameraX, cameraY);
   }
 }

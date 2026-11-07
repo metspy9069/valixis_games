@@ -23,13 +23,13 @@
   <meta name="twitter:description" content="Official browser-native action roguelite survival dungeon crawler by VALIXIS Gaming Studio." />
 
   <!-- Icons & Favicon Suite -->
-  <link rel="shortcut icon" href="./assets/favicon-CMPgg-J1.ico" />
-  <link rel="icon" type="image/x-icon" href="./assets/favicon-CMPgg-J1.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32-czffJQeV.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="./assets/icon-192-CX28ZxNX.png" />
-  <link rel="apple-touch-icon" href="./assets/apple-touch-icon-CaLlYuj_.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
-  <link rel="manifest" href="./assets/manifest-CyDErLsL.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#05030a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -412,23 +412,30 @@
         font-size: 13px !important;
       }
     }
-    @media (max-height: 720px) {
+    @media (max-height: 820px) {
       .start-modal-box {
         transform: scale(0.92);
         transform-origin: center center;
         margin: auto !important;
       }
     }
-    @media (max-height: 640px) {
+    @media (max-height: 740px) {
       .start-modal-box {
         transform: scale(0.84);
         transform-origin: center center;
         margin: auto !important;
       }
     }
-    @media (max-height: 540px) {
+    @media (max-height: 650px) {
       .start-modal-box {
         transform: scale(0.76);
+        transform-origin: center center;
+        margin: auto !important;
+      }
+    }
+    @media (max-height: 560px) {
+      .start-modal-box {
+        transform: scale(0.68);
         transform-origin: center center;
         margin: auto !important;
       }
@@ -2648,12 +2655,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 canvas.addEventListener('pointerdown', e => {
-  // LIVE BACKGROUND GAMEPLAY SIMULATION (ATTRACT MODE)
-  if (gameState === 'START') {
-    updateAttractMode(dt);
-  } else if (gameState !== 'PLAYING') {
-    return;
-  } else {
+  if (gameState !== 'PLAYING') return;
   const rect = canvas.getBoundingClientRect();
   const screenX = e.clientX - rect.left;
   const screenY = e.clientY - rect.top;
@@ -5597,130 +5599,6 @@ function updateAttractMode(dt) {
   dustPuffs.forEach(d => d.update(dt));
 }
 
-
-// ==========================================================================
-// LIVE ATTRACT MODE BACKGROUND GAMEPLAY SIMULATION
-// ==========================================================================
-let isAttractMode = false;
-let attractSpawnTimer = 0;
-
-function updateAttractMode(dt) {
-  isAttractMode = true;
-  
-  // Ensure starting world & props exist
-  if (!props || props.length === 0) {
-    spawnWorldProps('dungeon');
-  }
-
-  // Maintain healthy horde of abyss monsters for background battle (14-18 mobs)
-  attractSpawnTimer += dt;
-  if (enemies.length < 16 && attractSpawnTimer > 0.45) {
-    attractSpawnTimer = 0;
-    const mobTypes = ['skeleton', 'bat', 'spider', 'wraith', 'demon'];
-    const type = mobTypes[Math.floor(Math.random() * mobTypes.length)];
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 260 + Math.random() * 220;
-    const ex = Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(angle) * dist));
-    const ey = Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(angle) * dist));
-    const mob = new Enemy(type);
-    mob.x = ex;
-    mob.y = ey;
-    enemies.push(mob);
-  }
-
-  // Find nearest monster for AI steering
-  let nearestMob = null;
-  let minDist = Infinity;
-  for (let e of enemies) {
-    const d = Math.hypot(e.x - player.x, e.y - player.y);
-    if (d < minDist) {
-      minDist = d;
-      nearestMob = e;
-    }
-  }
-
-  // Intelligent AI kiting & strafing
-  let aiDx = 0, aiDy = 0;
-  if (nearestMob) {
-    const dist = Math.hypot(nearestMob.x - player.x, nearestMob.y - player.y) || 1;
-    const ang = Math.atan2(nearestMob.y - player.y, nearestMob.x - player.x);
-    if (dist > 180) {
-      aiDx = Math.cos(ang);
-      aiDy = Math.sin(ang);
-    } else if (dist < 100) {
-      aiDx = -Math.cos(ang);
-      aiDy = -Math.sin(ang);
-      if (dist < 55 && Math.random() < 0.08) player.tryDash();
-    } else {
-      // Circle strafe
-      aiDx = -Math.sin(ang);
-      aiDy = Math.cos(ang);
-    }
-  } else {
-    const t = performance.now() * 0.001;
-    aiDx = Math.cos(t * 0.6);
-    aiDy = Math.sin(t * 0.6);
-  }
-
-  // Feed AI movement into player virtual input keys
-  keys['w'] = aiDy < -0.2;
-  keys['s'] = aiDy > 0.2;
-  keys['a'] = aiDx < -0.2;
-  keys['d'] = aiDx > 0.2;
-
-  player.hp = player.maxHp; // Godmode during attract mode
-  player.update(dt);
-  camera.update(player.x, player.y);
-
-  // Update Projectiles
-  projectiles.forEach((p, idx) => {
-    p.update(dt);
-    enemies.forEach(e => {
-      if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) {
-        e.takeDamage(p.damage);
-        p.life = 0;
-        particles.push(new Particle(p.x, p.y, '#ffaa00', 3));
-      }
-    });
-    if (p.life <= 0) projectiles.splice(idx, 1);
-  });
-
-  // Update & cull enemies
-  enemies = enemies.filter(e => !e.markedForDeath);
-  enemyGrid.clear();
-  enemies.forEach(e => {
-    e.update(dt);
-    enemyGrid.insert(e);
-  });
-
-  // Pickups, damage numbers, and particles update
-  gems = gems.filter(g => !g.collected);
-  gems.forEach(g => g.update());
-  coins = coins.filter(c => !c.collected);
-  coins.forEach(c => c.update());
-
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.update();
-    if (p.alpha <= 0) {
-      particles.splice(i, 1);
-      Pool.recycleParticle(p);
-    }
-  }
-  for (let i = damageTexts.length - 1; i >= 0; i--) {
-    const d = damageTexts[i];
-    d.update(dt);
-    if (d.alpha <= 0) {
-      damageTexts.splice(i, 1);
-      Pool.recycleDamageNumber(d);
-    }
-  }
-  slashArcs = slashArcs.filter(s => s.life > 0);
-  slashArcs.forEach(s => s.update(dt));
-  dustPuffs = dustPuffs.filter(d => d.alpha > 0);
-  dustPuffs.forEach(d => d.update(dt));
-}
-
 function loop(timestamp) {
   requestAnimationFrame(loop);
 
@@ -5733,7 +5611,9 @@ function loop(timestamp) {
     return;
   }
 
-  if (gameState !== 'PLAYING') return;
+  if (gameState === 'START') {
+    updateAttractMode(dt);
+  } else if (gameState === 'PLAYING') {
 
   gameTime += dt;
   const mins = Math.floor(gameTime / 60);
@@ -5940,8 +5820,10 @@ function loop(timestamp) {
     if (l.life <= 0) lightningBolts.splice(idx, 1);
   });
 
-    }
 
+  } else {
+    return;
+  }
   // -------------------------------------------------------------
   // RENDERING PASS WITH CAMERA OFFSET
   // -------------------------------------------------------------

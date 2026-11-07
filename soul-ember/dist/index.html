@@ -360,11 +360,14 @@
       box-sizing: border-box;
     }
     .start-modal-box {
-      max-width: 980px !important;
-      width: 96% !important;
+      max-width: 900px !important;
+      width: 95% !important;
+      max-height: calc(100vh - 24px) !important;
+      overflow-y: auto !important;
       padding: 14px 18px !important;
-      max-height: calc(100vh - 20px) !important;
-      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 106, 0, 0.35) !important;
+      box-sizing: border-box !important;
+      margin: auto !important;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9), 0 0 35px rgba(255, 106, 0, 0.3) !important;
     }
 
     /* AUTO RESPONSIVE SCALING - FITS 100% OF SCREENS WITHOUT ZOOM OUT */
@@ -1107,6 +1110,173 @@
       display: inline-block;
       min-width: 22px;
     }
+  
+    /* DYNAMIC MOBILE TOUCH CONTROLS & ERGONOMIC ACTION BUTTONS */
+    #touch-controls {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 18;
+    }
+    .joy-base {
+      position: fixed;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, rgba(20, 14, 34, 0.6) 100%);
+      border: 2px solid rgba(255, 215, 0, 0.4);
+      box-shadow: 0 0 25px rgba(255, 106, 0, 0.25);
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .joy-thumb {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 48px;
+      height: 48px;
+      margin: -24px 0 0 -24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffaa00, #ff5500);
+      box-shadow: 0 0 16px rgba(255, 106, 0, 0.7);
+      border: 2px solid #fff;
+      pointer-events: none;
+    }
+    #touch-actions {
+      position: fixed;
+      right: 18px;
+      bottom: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 12px;
+      pointer-events: auto;
+    }
+    .touch-btn {
+      border-radius: 50%;
+      font-family: var(--font-body);
+      font-weight: 900;
+      cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .touch-btn:active {
+      transform: scale(0.92);
+    }
+    .touch-btn-dash {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.9), rgba(0, 110, 240, 0.95));
+      border-color: #00f2fe;
+      font-size: 10.5px;
+      letter-spacing: 1px;
+      box-shadow: 0 0 22px rgba(0, 242, 254, 0.45);
+    }
+    .touch-btn-ult {
+      width: 58px;
+      height: 58px;
+      background: linear-gradient(135deg, rgba(124, 63, 228, 0.85), rgba(70, 20, 150, 0.95));
+      border-color: #bb00ff;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+    .touch-btn-ult.ready {
+      background: linear-gradient(135deg, #ffd700, #ff00cc);
+      border-color: #ffd700;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.85);
+      animation: pulseUltMobile 0.75s infinite alternate;
+    }
+    .touch-btn-interact {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #ffd700, #ff8800);
+      border-color: #fff;
+      color: #000;
+      font-size: 9.5px;
+      text-align: center;
+      box-shadow: 0 0 22px rgba(255, 215, 0, 0.7);
+    }
+    @keyframes pulseUltMobile {
+      from { transform: scale(1); }
+      to { transform: scale(1.09); }
+    }
+
+    /* RESPONSIVE MOBILE HUD & MODALS */
+    @media (max-width: 768px) {
+      .hud-layer {
+        padding: 6px 10px !important;
+        gap: 4px !important;
+      }
+      .bars-wrap {
+        width: 180px !important;
+        max-width: 50vw !important;
+        gap: 3px !important;
+      }
+      .bar-shell {
+        height: 9px !important;
+      }
+      .bar-label {
+        font-size: 7px !important;
+        line-height: 9px !important;
+      }
+      .pills-group {
+        gap: 3px !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-end !important;
+      }
+      .pill {
+        padding: 2.5px 6px !important;
+        font-size: 9px !important;
+      }
+      .hud-btn {
+        padding: 2.5px 5px !important;
+        font-size: 9px !important;
+      }
+      .start-dashboard {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+      .start-modal-box {
+        width: 98% !important;
+        padding: 10px 12px !important;
+        max-height: 96vh !important;
+      }
+      .hero-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 4px !important;
+      }
+      .hero-card {
+        min-height: 46px !important;
+        padding: 3px 2px !important;
+      }
+      .hero-card-name {
+        font-size: 8.5px !important;
+      }
+      .lvl-modal-box {
+        padding: 14px 16px !important;
+        max-height: 96vh !important;
+      }
+      .cards-row {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+      .upg-card {
+        width: 100% !important;
+        max-width: 320px !important;
+        padding: 8px 12px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1178,10 +1348,22 @@
 
 <!-- TOUCH CONTROLS (Mobile) -->
 <div id="touch-controls">
-  <div id="joy-base" class="joy-base">
+  <div id="joy-base" class="joy-base" style="display:none;">
     <div id="joy-thumb" class="joy-thumb"></div>
   </div>
-  <div id="touch-dash" class="dash-touch">DASH</div>
+  <div id="touch-actions">
+    <button id="touch-ult" class="touch-btn touch-btn-ult">
+      <span style="font-size: 8px; opacity: 0.8;">ULTIMATE</span>
+      <span id="touch-ult-text">0%</span>
+    </button>
+    <button id="touch-interact" class="touch-btn touch-btn-interact" style="display:none;">
+      <span>INTERACT</span>
+    </button>
+    <button id="touch-dash" class="touch-btn touch-btn-dash">
+      <span style="font-size: 16px; line-height: 1;">✦</span>
+      <span>DODGE</span>
+    </button>
+  </div>
 </div>
 
 <!-- START SCREEN -->
@@ -1276,61 +1458,30 @@
           <div class="selector-label">CHALLENGE TIER</div>
           <div class="pill-selector" id="diff-selector">
             <div class="pill-opt" onclick="setDifficulty('casual', this)">Casual (+40 HP)</div>
-            <div class="pill-opt active" onclick="setDifficulty('adventure', this)">Adventure (Normal)</div>
-            <div class="pill-opt" onclick="setDifficulty('survivor', this)">Survivor (Hardcore)</div>
+            <div class="pill-opt active" onclick="setDifficulty('adventure', this)">Normal</div>
+            <div class="pill-opt" onclick="setDifficulty('survivor', this)">Hardcore</div>
           </div>
 
-          <div class="selector-label">STARTING REALM</div>
-          <div class="pill-selector" id="world-selector">
-            <div class="pill-opt active" onclick="setWorldMode('gauntlet', this)">5-World Gauntlet</div>
-            <div class="pill-opt" onclick="setWorldMode('dungeon', this)">The Crypt</div>
-            <div class="pill-opt" onclick="setWorldMode('forest', this)">Grove</div>
-            <div class="pill-opt" onclick="setWorldMode('glacial', this)">Glacial</div>
-            <div class="pill-opt" onclick="setWorldMode('inferno', this)">Magma</div>
-            <div class="pill-opt" onclick="setWorldMode('void', this)">Void</div>
-          </div>
-
-          <div class="options-subgroup">
-            <div>
-              <div class="selector-label">CO-OP ALLY</div>
-              <div class="pill-selector" id="comp-selector">
-                <div class="pill-opt active" onclick="setCompanion('none', this)">Solo</div>
-                <div class="pill-opt" onclick="setCompanion('knight', this)">Knight</div>
-                <div class="pill-opt" onclick="setCompanion('ranger', this)">Ranger</div>
-                <div class="pill-opt" onclick="setCompanion('sorcerer', this)">Mage</div>
-              </div>
-            </div>
-            <div>
-              <div class="selector-label">LIGHTING</div>
-              <div class="pill-selector" id="light-selector">
-                <div class="pill-opt active" onclick="setLightingMode('balanced', this)">Atmospheric</div>
-                <div class="pill-opt" onclick="setLightingMode('bright', this)">Bright</div>
-                <div class="pill-opt" onclick="setLightingMode('dark', this)">Gothic</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="vault-bar">
-            <span>BANKED GOLD:</span>
-            <span><span id="start-gold-text">0</span> GOLD</span>
+          <div class="vault-bar" style="margin-top: 8px; padding: 6px 12px; border-radius: 8px; background: rgba(0,0,0,0.4); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; letter-spacing: 1px; color: #a49bb5;">BANKED SOUL GOLD:</span>
+            <span style="font-size: 13px; font-weight: 900; color: #ffd700;"><span id="start-gold-text">0</span> GOLD</span>
           </div>
         </div>
 
-        <button id="start-btn" class="btn btn-primary-launch">ENTER THE DUNGEON</button>
+        <button id="start-btn" class="btn btn-primary-launch" style="padding: 13px 20px; font-size: 15px; letter-spacing: 1.5px; font-weight: 900; background: linear-gradient(135deg, #ff6a00, #ff8c00); box-shadow: 0 0 25px rgba(255, 106, 0, 0.5); border-radius: 12px;">ENTER THE DUNGEON</button>
 
-        <div class="actions-grid">
-          <button id="armory-btn" class="btn-sub">SOUL FORGE</button>
-          <button id="achieve-btn" class="btn-sub">ACHIEVEMENTS</button>
-          <button id="leaderboard-btn" class="btn-sub">HALL OF FAME</button>
-          <button id="daily-bounty-btn" class="btn-sub" onclick="claimDailyGold()">BOUNTY (+250)</button>
-          <button id="install-pwa-btn" class="btn-sub btn-sub-accent" onclick="triggerPwaInstall()">INSTALL APP</button>
-          <a href="../" class="btn-sub" style="text-decoration:none; color:#ffd700;">ARCADE HUB</a>
+        <div class="actions-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <button id="armory-btn" class="btn-sub" style="padding: 8px 4px; font-size: 11px;">ARMORY</button>
+          <button id="leaderboard-btn" class="btn-sub" style="padding: 8px 4px; font-size: 11px;">SCORES</button>
+          <button id="daily-bounty-btn" class="btn-sub" style="padding: 8px 4px; font-size: 11px;" onclick="claimDailyGold()">+250 GOLD</button>
         </div>
 
-        <div class="start-footer">
-          <a href="https://valixis.tech" target="_blank" rel="noopener">valixis.tech</a>
+        <div class="start-footer" style="margin-top: 6px; display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 10.5px; color: #7f7495;">
+          <button id="achieve-btn" style="background:none; border:none; color:#a49bb5; cursor:pointer; font-size:10.5px;">Achievements</button>
           <span>&bull;</span>
-          <span>&copy; 2026 VALIXIS Technologies</span>
+          <button id="install-pwa-btn" style="background:none; border:none; color:#00f2fe; cursor:pointer; font-size:10.5px;" onclick="triggerPwaInstall()">Install App</button>
+          <span>&bull;</span>
+          <a href="../" style="color:#ffd700; text-decoration:none; font-size:10.5px;">Arcade Hub</a>
         </div>
       </div>
 
@@ -3277,9 +3428,20 @@ const player = {
     // Puddle
     if (this.hasPuddle) {
       this.puddleTimer += dt;
-      if (this.puddleTimer >= 2.5) {
+      if (this.puddleTimer >= 2.2) {
         this.puddleTimer = 0;
-        puddles.push(new FirePuddle(this.x, this.y));
+        // Clean radial flame burst without persistent floor puddles
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI / 4) + Math.random() * 0.2;
+          particles.push(Pool.getParticle(this.x + Math.cos(a) * 20, this.y + Math.sin(a) * 20, '#ff7700', 3));
+        }
+        enemies.forEach(e => {
+          const dx = e.x - this.x;
+          const dy = e.y - this.y;
+          if (dx * dx + dy * dy < 75 * 75) {
+            e.takeDamage(15 * (player.damageMult || 1), false);
+          }
+        });
       }
     }
 
@@ -3453,10 +3615,52 @@ const player = {
 
   draw() {
     ctx.save();
-    // Grace period flashing opacity
-    if (this.invulnTimer > 0 && Math.floor(Date.now() / 70) % 2 === 0) {
-      ctx.globalAlpha = 0.35;
+
+    // 1. Radiant Hero Ground Halo (Permanent high-contrast circle beneath player feet)
+    const haloColor = currentHeroType === 'cryo' ? '#00f2fe' :
+                      currentHeroType === 'archer' ? '#ffd700' :
+                      currentHeroType === 'rogue' ? '#c040ff' :
+                      currentHeroType === 'necro' ? '#00ff88' :
+                      currentHeroType === 'paladin' ? '#fff44f' :
+                      currentHeroType === 'bard' ? '#ff00cc' :
+                      currentHeroType === 'warlock' ? '#ff3366' : '#ff7700';
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // Glowing ground circle (cuts through any dense swarm!)
+    ctx.beginPath();
+    ctx.arc(0, 4, 20, 0, Math.PI * 2);
+    ctx.strokeStyle = haloColor;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Subtle inner glow
+    ctx.beginPath();
+    ctx.arc(0, 4, 16, 0, Math.PI * 2);
+    ctx.fillStyle = haloColor === '#00f2fe' ? 'rgba(0, 242, 254, 0.22)' :
+                    haloColor === '#ffd700' ? 'rgba(255, 215, 0, 0.22)' :
+                    haloColor === '#c040ff' ? 'rgba(192, 64, 255, 0.22)' : 'rgba(255, 119, 0, 0.22)';
+    ctx.fill();
+
+    // 4 cardinal rotating ticks
+    const tickRot = performance.now() * 0.002;
+    for (let i = 0; i < 4; i++) {
+      const a = tickRot + (i * Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 18, 4 + Math.sin(a) * 18);
+      ctx.lineTo(Math.cos(a) * 23, 4 + Math.sin(a) * 23);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
     }
+    ctx.restore();
+
+    // 2. Invulnerability grace period flashing
+    if (this.invulnTimer > 0 && Math.floor(Date.now() / 70) % 2 === 0) {
+      ctx.globalAlpha = 0.4;
+    }
+
     // Shadow
     ctx.beginPath();
     ctx.ellipse(this.x, this.y + 12, 12, 6, 0, 0, Math.PI * 2);
@@ -3473,10 +3677,7 @@ const player = {
         ctx.beginPath();
         ctx.arc(orbX, orbY, 8, 0, Math.PI * 2);
         ctx.fillStyle = '#ffea6c';
-        ctx.shadowColor = '#ffaa00';
-        ctx.shadowBlur = 12;
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
     }
 
@@ -3492,8 +3693,6 @@ const player = {
         ctx.beginPath();
         ctx.arc(mx, my, 7, 0, Math.PI * 2);
         ctx.fillStyle = '#7c3fe4';
-        ctx.shadowColor = '#00ff88';
-        ctx.shadowBlur = 8;
         ctx.fill();
         ctx.fillStyle = '#00ff88';
         ctx.fillRect(mx - 3, my - 2, 2, 2);
@@ -3504,6 +3703,7 @@ const player = {
 
     const sprites = SpriteEngine.cache[currentHeroType] || SpriteEngine.cache.pyro;
     const spr = sprites[this.animFrame] || sprites[0];
+    ctx.save();
     ctx.translate(this.x, this.y);
     if (!this.facingRight) ctx.scale(-1, 1);
     const isMoving = (touchMove.dx !== 0 || touchMove.dy !== 0 || keys['w'] || keys['s'] || keys['a'] || keys['d'] || keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright']);
@@ -3511,6 +3711,34 @@ const player = {
     const breathe = !isMoving ? (1 + Math.sin(performance.now() * 0.005) * 0.035) : 1;
     ctx.scale(1, breathe);
     ctx.drawImage(spr, -16, -18 + bobY);
+    ctx.restore();
+
+    // 3. Overhead Radiant Hero Beacon (Floating ▼ indicator directly above player)
+    // Ensures player position is INSTANTLY identifiable even in a swarm of 30 monsters!
+    const beaconBob = Math.sin(performance.now() * 0.007) * 3;
+    const beaconY = this.y - 32 + beaconBob;
+    ctx.save();
+    ctx.translate(this.x, beaconY);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);       // bottom tip pointing at hero
+    ctx.lineTo(-5, -8);     // top-left
+    ctx.lineTo(5, -8);      // top-right
+    ctx.closePath();
+    ctx.fillStyle = '#ffd700';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Compact Floating Hero Health Bar over player
+    const hpPct = Math.max(0, this.hp / this.maxHp);
+    const hpBarW = 28;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(this.x - hpBarW / 2 - 1, this.y - 23, hpBarW + 2, 4);
+    ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : hpPct > 0.25 ? '#ffd700' : '#ff3344';
+    ctx.fillRect(this.x - hpBarW / 2, this.y - 22, hpBarW * hpPct, 2);
+
     ctx.restore();
   }
 };
@@ -4146,7 +4374,7 @@ class Enemy {
 
     // White hit flash
     if (this.flashTimer > 0) {
-      ctx.filter = 'brightness(3.2) contrast(1.5)';
+      ctx.globalAlpha = 0.65;
     }
 
     if (this.type === 'bat') {
@@ -4196,7 +4424,7 @@ class Enemy {
         ctx.drawImage(pSpr, -16, -14);
       }
     }
-    ctx.filter = 'none';
+    // filter removed
 
     // Floating mini health bar
     if (this.hp < (this.initialHp || 20) || this.isElite || this.isBoss) {
@@ -4271,6 +4499,7 @@ class SoulGem {
     }
   }
   draw() {
+    if (this.x < camera.x - 30 || this.x > camera.x + canvas.width + 30 || this.y < camera.y - 30 || this.y > camera.y + canvas.height + 30) return;
     ctx.save();
     ctx.drawImage(SpriteEngine.cache.gem, this.x - 7, this.y - 7);
     ctx.restore();
@@ -4303,6 +4532,7 @@ class GoldCoin {
     }
   }
   draw() {
+    if (this.x < camera.x - 30 || this.x > camera.x + canvas.width + 30 || this.y < camera.y - 30 || this.y > camera.y + canvas.height + 30) return;
     ctx.save();
     ctx.drawImage(SpriteEngine.cache.coin, this.x - 7, this.y - 7);
     ctx.restore();
@@ -4324,6 +4554,7 @@ class Potion {
     }
   }
   draw() {
+    if (this.x < camera.x - 30 || this.x > camera.x + canvas.width + 30 || this.y < camera.y - 30 || this.y > camera.y + canvas.height + 30) return;
     ctx.save();
     ctx.drawImage(SpriteEngine.cache.potion, this.x - 8, this.y - 8);
     ctx.restore();
@@ -5480,59 +5711,110 @@ function buyArmoryUpgrade(key, cost) {
    8. MOBILE TOUCH JOYSTICK
    ========================================================================== */
 const touchMove = { dx: 0, dy: 0 };
-(function setupTouch() {
-  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+(function setupMobileControls() {
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   if (!isTouch) return;
-  
-  document.getElementById('touch-controls').style.display = 'flex';
-  const zone = document.getElementById('joy-base');
-  const knob = document.getElementById('joy-thumb');
-  let activeTouchId = null;
-  let startX = 0, startY = 0;
 
-  zone.addEventListener('touchstart', e => {
-    const t = e.changedTouches[0];
-    activeTouchId = t.identifier;
-    const rect = zone.getBoundingClientRect();
-    startX = rect.left + rect.width / 2;
-    startY = rect.top + rect.height / 2;
-  });
+  const touchControls = document.getElementById('touch-controls');
+  if (touchControls) touchControls.style.display = 'block';
 
-  window.addEventListener('touchmove', e => {
+  const joyBase = document.getElementById('joy-base');
+  const joyThumb = document.getElementById('joy-thumb');
+  const dashBtn = document.getElementById('touch-dash');
+  const ultBtn = document.getElementById('touch-ult');
+  const interactBtn = document.getElementById('touch-interact');
+
+  let activeMoveTouchId = null;
+  let joyCenterX = 0;
+  let joyCenterY = 0;
+  const maxRadius = 45;
+
+  // Touch anywhere on left 58% of screen places virtual joystick dynamically under thumb!
+  window.addEventListener('touchstart', e => {
+    if (gameState !== 'PLAYING') return;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
-      if (t.identifier === activeTouchId) {
-        const dx = t.clientX - startX;
-        const dy = t.clientY - startY;
-        const dist = Math.hypot(dx, dy);
-        const maxDist = 42;
-        const angle = Math.atan2(dy, dx);
-        const clampedDist = Math.min(dist, maxDist);
-
-        knob.style.transform = `translate(${Math.cos(angle)*clampedDist}px, ${Math.sin(angle)*clampedDist}px)`;
-        touchMove.dx = Math.cos(angle) * (clampedDist / maxDist);
-        touchMove.dy = Math.sin(angle) * (clampedDist / maxDist);
-      }
-    }
-  });
-
-  const endTouch = e => {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === activeTouchId) {
-        activeTouchId = null;
-        knob.style.transform = `translate(0px, 0px)`;
+      if (t.clientX < window.innerWidth * 0.58 && activeMoveTouchId === null) {
+        if (e.target.closest('button, .hud-btn, .pill, #touch-actions')) continue;
+        activeMoveTouchId = t.identifier;
+        joyCenterX = t.clientX;
+        joyCenterY = t.clientY;
+        joyBase.style.left = (joyCenterX - 55) + 'px';
+        joyBase.style.top = (joyCenterY - 55) + 'px';
+        joyBase.style.display = 'block';
+        joyBase.style.opacity = '1';
+        joyThumb.style.transform = 'translate(0px, 0px)';
         touchMove.dx = 0;
         touchMove.dy = 0;
       }
     }
-  };
-  window.addEventListener('touchend', endTouch);
-  window.addEventListener('touchcancel', endTouch);
+  }, { passive: false });
 
-  document.getElementById('touch-dash').addEventListener('touchstart', e => {
-    e.preventDefault();
-    if (gameState === 'PLAYING') player.tryDash();
-  });
+  window.addEventListener('touchmove', e => {
+    if (activeMoveTouchId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === activeMoveTouchId) {
+        e.preventDefault();
+        const dx = t.clientX - joyCenterX;
+        const dy = t.clientY - joyCenterY;
+        const dist = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx);
+        const clampedDist = Math.min(dist, maxRadius);
+        const norm = clampedDist / maxRadius;
+
+        joyThumb.style.transform = 'translate(' + (Math.cos(angle) * clampedDist) + 'px, ' + (Math.sin(angle) * clampedDist) + 'px)';
+        touchMove.dx = Math.cos(angle) * norm;
+        touchMove.dy = Math.sin(angle) * norm;
+      }
+    }
+  }, { passive: false });
+
+  const endMoveTouch = e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === activeMoveTouchId) {
+        activeMoveTouchId = null;
+        touchMove.dx = 0;
+        touchMove.dy = 0;
+        joyThumb.style.transform = 'translate(0px, 0px)';
+        joyBase.style.opacity = '0.35';
+      }
+    }
+  };
+  window.addEventListener('touchend', endMoveTouch);
+  window.addEventListener('touchcancel', endMoveTouch);
+
+  if (dashBtn) {
+    dashBtn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (gameState === 'PLAYING') player.tryDash();
+    }, { passive: false });
+  }
+
+  if (ultBtn) {
+    ultBtn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (gameState === 'PLAYING') player.tryUltimate();
+    }, { passive: false });
+  }
+
+  if (interactBtn) {
+    interactBtn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (gameState === 'PLAYING') {
+        activeShrines.forEach(sh => {
+          if (Math.hypot(player.x - sh.x, player.y - sh.y) < 70) sh.activate();
+        });
+        if (wanderingMerchant && Math.hypot(player.x - wanderingMerchant.x, player.y - wanderingMerchant.y) < 80) {
+          openMerchantModal();
+        }
+      }
+    }, { passive: false });
+  }
 })();
 
 /* ==========================================================================
@@ -5584,14 +5866,14 @@ function drawStartMenuAtmosphere() {
   ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Center camera in dungeon hall
-  camera.x = WORLD.width / 2 - canvas.width / 2;
-  camera.y = WORLD.height / 2 - canvas.height / 2;
+  const now = performance.now();
+  // Cinematic slow camera drift across dungeon
+  camera.x = WORLD.width / 2 - canvas.width / 2 + Math.sin(now * 0.0003) * 90;
+  camera.y = WORLD.height / 2 - canvas.height / 2 + Math.cos(now * 0.0002) * 60;
   ctx.translate(-camera.x, -camera.y);
 
   const curBiome = BIOMES.dungeon;
   const curFloor = SpriteEngine.cache[curBiome.floor] || SpriteEngine.cache.floor;
-  const curWall = SpriteEngine.cache[curBiome.wall] || SpriteEngine.cache.wall;
 
   // Render Tiled Floor
   const startCol = Math.floor(camera.x / 64);
@@ -5620,15 +5902,35 @@ function drawStartMenuAtmosphere() {
     ctx.fillRect(p.x + p.w / 2 - 6, p.y + p.h / 2 - 6, 12, 12);
   });
 
-  // Torches
-  const now = performance.now();
+  // Animated Torches with warm light circles
   WORLD.torches.forEach(t => {
     const flicker = Math.sin(now * 0.008 + t.x * 0.05) * 2;
     ctx.fillStyle = curBiome.torchColor;
     ctx.beginPath();
-    ctx.arc(t.x, t.y, 5 + flicker, 0, Math.PI * 2);
+    ctx.arc(t.x, t.y, 6 + flicker, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warm atmospheric fire glow
+    const tGlow = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, 50);
+    tGlow.addColorStop(0, 'rgba(255, 140, 40, 0.3)');
+    tGlow.addColorStop(1, 'rgba(255, 80, 0, 0)');
+    ctx.fillStyle = tGlow;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 50, 0, Math.PI * 2);
     ctx.fill();
   });
+
+  // Ambient Hero Preview wandering in background hall
+  const heroDemoX = WORLD.width / 2 + Math.sin(now * 0.0007) * 75;
+  const heroDemoY = WORLD.height / 2 + Math.cos(now * 0.0006) * 50;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(heroDemoX, heroDemoY + 4, 18, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 120, 20, 0.25)';
+  ctx.fill();
+  const sprDemo = (SpriteEngine.cache[currentHeroType] || SpriteEngine.cache.pyro)[0];
+  if (sprDemo) ctx.drawImage(sprDemo, heroDemoX - 16, heroDemoY - 18);
+  ctx.restore();
 
   ctx.restore();
 
@@ -5795,11 +6097,20 @@ function loop(timestamp) {
   camera.update(player.x, player.y);
   updateHUD();
 
-  // Projectiles
-  projectiles.forEach((p, idx) => {
+  // Fast Reverse Loop for Projectiles (Zero Splice Skew, Early Break on Hit)
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
     p.update(dt);
-    enemies.forEach(e => {
-      if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) {
+    if (p.life <= 0) {
+      projectiles.splice(i, 1);
+      continue;
+    }
+    for (let j = 0; j < enemies.length; j++) {
+      const e = enemies[j];
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const r = p.radius + e.radius;
+      if (dx * dx + dy * dy < r * r) {
         e.takeDamage(p.damage);
         if (currentHeroType === 'pyro') {
           e.applyStatus('burn', { damage: 5, duration: 3 });
@@ -5807,11 +6118,12 @@ function loop(timestamp) {
           e.applyStatus('poison', { damage: 6, duration: 3 });
         }
         p.life = 0;
-        particles.push(new Particle(p.x, p.y, '#ffaa00', 3));
+        particles.push(Pool.getParticle(p.x, p.y, '#ffaa00', 3));
+        projectiles.splice(i, 1);
+        break; // Stop checking dead projectile against other enemies
       }
-    });
-    if (p.life <= 0) projectiles.splice(idx, 1);
-  });
+    }
+  }
 
   bossOrbs.forEach((b, idx) => {
     b.update(dt);
@@ -6029,115 +6341,47 @@ function loop(timestamp) {
   ctx.restore();
 
   // -------------------------------------------------------------
-  // DYNAMIC 2D LIGHTING ENGINE (Expanded High-Clarity Viewport)
+  // HIGH-PERFORMANCE AMBIENT LIGHTING & VIGNETTE (60 FPS on Mobile)
   // -------------------------------------------------------------
-  lightCtx.clearRect(0, 0, lightCanvas.width, lightCanvas.height);
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const vMin = Math.min(canvas.width, canvas.height);
+  const vMax = Math.max(canvas.width, canvas.height);
+  const vigRad = Math.max(vMin * 0.55, vMax * 0.45);
 
-  let auraRadius = 440;
-  let darknessAlpha = 0.44;
-  if (selectedLighting === 'bright') {
-    auraRadius = 620;
-    darknessAlpha = 0.16;
-  } else if (selectedLighting === 'dark') {
-    auraRadius = 280;
-    darknessAlpha = 0.70;
-  }
+  const ambientVig = ctx.createRadialGradient(cx, cy, vigRad * 0.65, cx, cy, vigRad * 1.25);
+  ambientVig.addColorStop(0, 'rgba(4, 2, 8, 0)');
+  ambientVig.addColorStop(0.7, 'rgba(4, 2, 8, 0.32)');
+  ambientVig.addColorStop(1, 'rgba(4, 2, 8, 0.75)');
+  ctx.fillStyle = ambientVig;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  lightCtx.fillStyle = `rgba(6, 4, 12, ${darknessAlpha})`;
-  lightCtx.fillRect(0, 0, lightCanvas.width, lightCanvas.height);
-
-  lightCtx.globalCompositeOperation = 'destination-out';
-
-  // Helper to punch light hole
-  function punchLight(screenX, screenY, radius, intensity = 1.0) {
-    if (screenX < -radius || screenX > canvas.width + radius ||
-        screenY < -radius || screenY > canvas.height + radius) return;
-
-    const radGlow = lightCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, radius);
-    radGlow.addColorStop(0, `rgba(0, 0, 0, ${intensity})`);
-    radGlow.addColorStop(0.55, `rgba(0, 0, 0, ${intensity * 0.75})`);
-    radGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    lightCtx.fillStyle = radGlow;
-    lightCtx.beginPath();
-    lightCtx.arc(screenX, screenY, radius, 0, Math.PI * 2);
-    lightCtx.fill();
-  }
-
-  // Player staff aura
-  const pScreenX = player.x - camera.x;
-  const pScreenY = player.y - camera.y;
-  punchLight(pScreenX, pScreenY, auraRadius + Math.sin(timestamp * 0.005) * 8, 1.0);
-
-  // Companion aura
-  if (activeCompanion) {
-    punchLight(activeCompanion.x - camera.x, activeCompanion.y - camera.y, 220, 0.95);
-  }
-
-  // Torches lights (Expanded to 260px)
-  WORLD.torches.forEach(t => {
-    const tScreenX = t.x - camera.x;
-    const tScreenY = t.y - camera.y;
-    const flicker = Math.sin(timestamp * 0.01 + t.x) * 8;
-    punchLight(tScreenX, tScreenY, 260 + flicker, 0.95);
-  });
-
-  // Projectiles glow
-  projectiles.forEach(p => {
-    punchLight(p.x - camera.x, p.y - camera.y, 75, 0.85);
-  });
-
-  // Boss dark aura glow
-  if (activeBoss) {
-    punchLight(activeBoss.x - camera.x, activeBoss.y - camera.y, 280, 0.95);
-  }
-
-  // Wandering merchant holy aura
-  if (wanderingMerchant) {
-    punchLight(wanderingMerchant.x - camera.x, wanderingMerchant.y - camera.y, 300, 0.98);
-  }
-
-  lightCtx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(lightCanvas, 0, 0);
-
-  // Warm additive glow layer for torch centers & merchant
+  // Soft torch firelight warm glows
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const glowRgba = curBiome.torchColor === '#00ff88' ? 'rgba(0, 255, 136, 0.24)' : curBiome.torchColor === '#ff4400' ? 'rgba(255, 68, 0, 0.24)' : curBiome.torchColor === '#00f2fe' ? 'rgba(0, 242, 254, 0.24)' : curBiome.torchColor === '#c040ff' ? 'rgba(192, 64, 255, 0.24)' : 'rgba(255, 140, 40, 0.24)';
   WORLD.torches.forEach(t => {
-    const tScreenX = t.x - camera.x;
-    const tScreenY = t.y - camera.y;
-    const radWarm = ctx.createRadialGradient(tScreenX, tScreenY, 0, tScreenX, tScreenY, 70);
-    radWarm.addColorStop(0, glowRgba);
-    radWarm.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = radWarm;
+    const tx = t.x - camera.x;
+    const ty = t.y - camera.y;
+    if (tx < -80 || tx > canvas.width + 80 || ty < -80 || ty > canvas.height + 80) return;
+    const grad = ctx.createRadialGradient(tx, ty, 0, tx, ty, 65);
+    grad.addColorStop(0, 'rgba(255, 140, 40, 0.22)');
+    grad.addColorStop(1, 'rgba(255, 80, 0, 0)');
+    ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(tScreenX, tScreenY, 70, 0, Math.PI * 2);
+    ctx.arc(tx, ty, 65, 0, Math.PI * 2);
     ctx.fill();
   });
-  if (wanderingMerchant) {
-    const mScreenX = wanderingMerchant.x - camera.x;
-    const mScreenY = wanderingMerchant.y - camera.y;
-    const radGold = ctx.createRadialGradient(mScreenX, mScreenY, 0, mScreenX, mScreenY, 90);
-    radGold.addColorStop(0, 'rgba(255, 215, 0, 0.32)');
-    radGold.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = radGold;
-    ctx.beginPath();
-    ctx.arc(mScreenX, mScreenY, 90, 0, Math.PI * 2);
-    ctx.fill();
-  }
   ctx.restore();
 
   // -------------------------------------------------------------
-  // THREAT COMPASS & RADAR POINTERS (Boss, Merchant, Elites)
+  // -------------------------------------------------------------
+  // THREAT COMPASS & RADAR POINTERS (Boss & Shop Direction Indicators)
   // -------------------------------------------------------------
   const centerScreenX = canvas.width / 2;
   const centerScreenY = canvas.height / 2;
   const radarTargets = [];
-  if (activeBoss) radarTargets.push({ x: activeBoss.x, y: activeBoss.y, label: 'BOSS', type: 'boss', color: '#ff0055' });
-  if (wanderingMerchant) radarTargets.push({ x: wanderingMerchant.x, y: wanderingMerchant.y, label: 'SHOP', type: 'shop', color: '#ffd700' });
-  enemies.forEach(e => {
-    if (e.isElite) radarTargets.push({ x: e.x, y: e.y, label: 'ELITE', type: 'elite', color: '#ffaa00' });
-  });
+  if (activeBoss) radarTargets.push({ x: activeBoss.x, y: activeBoss.y, label: 'BOSS', color: '#ff0055' });
+  if (wanderingMerchant) radarTargets.push({ x: wanderingMerchant.x, y: wanderingMerchant.y, label: 'SHOP', color: '#ffd700' });
 
   radarTargets.forEach(t => {
     const sx = t.x - camera.x;
@@ -6151,30 +6395,29 @@ function loop(timestamp) {
 
       ctx.save();
       ctx.translate(edgeX, edgeY);
-      ctx.beginPath();
-      ctx.arc(0, 0, 16, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(14, 8, 24, 0.88)';
-      ctx.strokeStyle = t.color;
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = t.color;
-      ctx.shadowBlur = 10;
-      ctx.fill(); ctx.stroke();
 
-      ctx.font = '13px sans-serif';
+      // Clean compact badge
+      ctx.fillStyle = 'rgba(14, 8, 24, 0.9)';
+      ctx.strokeStyle = t.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-24, -14, 48, 28, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(t.icon, 0, -1);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.label, 0, -4);
 
-      ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-      ctx.fillStyle = '#fff';
-      ctx.shadowBlur = 4;
-      ctx.fillText(distMeters + 'm', 0, 20);
+      ctx.font = '8px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(distMeters + 'm', 0, 6);
       ctx.restore();
     }
   });
 
-
-  // -------------------------------------------------------------
   // GAMEPAD CONTROLLER SUPPORT (API INTEGRATION)
   // -------------------------------------------------------------
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];

@@ -44,8 +44,12 @@
     <div id="speedometer" class="panel"><div class="label">SPEED</div><span id="speed">0</span> <span class="unit">KM/H</span><div class="needle"><i id="speedNeedle"></i></div></div>
     <div id="hint">A / D or ARROWS: CHANGE LANES &nbsp; SPACE: BOOST</div>
   </div>
+  <script type="importmap">
+    { "imports": { "three": "../node_modules/three/build/three.module.js" } }
+  </script>
   <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.165.0/build/three.module.js';
+    import * as THREE from '../node_modules/three/build/three.module.js';
+    import { GLTFLoader } from '../node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 
     const canvas = document.querySelector('#game');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -84,11 +88,75 @@
     const segments = [], traffic = [], obstacles = [], powerups = [], particles = [], pedestrians = [];
     const keys = new Set();
     const state = { running: false, distance: 0, score: 0, hull: 100, speed: 20, spawn: 0, obstacle: 1.5, powerup: 1.8, shake: 0, boosts: 0, shield: 0, pickups: 0, dodges: 0 };
-    const audio = { context: null, engine: null, gain: null };
+    const audio = { context: null, engine: null, gain: null, clips: {}, engineClip: null };
+    const gltfLoader = new GLTFLoader();
+    const assetPrototypes = {};
+    const assetFiles = {
+      player: './assets/player.glb',
+      sports: './assets/sports.glb',
+      suv: './assets/suv.glb',
+      van: './assets/van.glb',
+      buildingA: './assets/building-a.glb',
+      buildingB: './assets/building-b.glb',
+      treeLarge: './assets/tree-large.glb',
+      treeSmall: './assets/tree-small.glb',
+      cone: './assets/construction-cone.glb',
+      barrier: './assets/construction-barrier.glb',
+      coin: './assets/coin-gold.glb'
+    };
     const ui = { status: document.querySelector('#status'), start: document.querySelector('#start'), distance: document.querySelector('#distance'), score: document.querySelector('#score'), hull: document.querySelector('#hull'), speed: document.querySelector('#speed'), speedNeedle: document.querySelector('#speedNeedle') };
 
     function material(color, emissive = 0, metalness = .25, roughness = .5) {
       return new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: emissive ? 1.8 : 0, metalness, roughness });
+    }
+    function loadAsset(name, url) {
+      return new Promise(resolve => gltfLoader.load(url, result => { assetPrototypes[name] = result.scene; resolve(result.scene); }, undefined, () => resolve(null)));
+    }
+    function assetInstance(name, targetLength = 3.8, role = 'prop', paint = null) {
+      const source = assetPrototypes[name];
+      if (!source) return null;
+      const model = source.clone(true);
+      model.traverse(node => {
+        if (!node.isMesh) return;
+        node.castShadow = true;
+        node.receiveShadow = true;
+        if (role === 'vehicle') {
+          node.material = Array.isArray(node.material) ? node.material.map(item => item.clone()) : node.material.clone();
+          const preserve = /wheel|tire|rubber|glass|window|light|lamp|chrome|mirror/i.test(node.name);
+          if (!preserve) {
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(item => {
+              if (item.color) item.color.setHex(paint);
+              if (item.emissive && paint) item.emissive.setHex(0x000000);
+            });
+          }
+        }
+      });
+      const bounds = new THREE.Box3().setFromObject(model);
+      const size = bounds.getSize(new THREE.Vector3());
+      const longest = Math.max(size.x, size.y, size.z) || 1;
+      model.scale.setScalar(targetLength / longest);
+      if (role === 'vehicle') model.rotation.y = 0;
+      return model;
+    }
+    function attachImportedDecor() {
+      segments.forEach((segment, i) => {
+        const leftBuilding = assetInstance(i % 2 ? 'buildingA' : 'buildingB', 11);
+        const rightBuilding = assetInstance(i % 2 ? 'buildingB' : 'buildingA', 11);
+        const leftTree = assetInstance(i % 2 ? 'treeSmall' : 'treeLarge', 3.8);
+        const rightTree = assetInstance(i % 3 ? 'treeLarge' : 'treeSmall', 3.8);
+        if (leftBuilding) { leftBuilding.position.set(-18, 0, -2); segment.add(leftBuilding); }
+        if (rightBuilding) { rightBuilding.position.set(18, 0, 2); segment.add(rightBuilding); }
+        if (leftTree) { leftTree.position.set(-11.4, 0, -3.8); segment.add(leftTree); }
+        if (rightTree) { rightTree.position.set(11.4, 0, 3.8); segment.add(rightTree); }
+      });
+    }
+    function loadGameAssets() {
+      Promise.all(Object.entries(assetFiles).map(([name, url]) => loadAsset(name, url))).then(() => {
+        const importedPlayer = assetInstance('player', 4.1, 'vehicle', 0x19b9ff);
+        if (importedPlayer) { player.children.forEach(child => { if (child.isMesh) child.visible = false; }); player.add(importedPlayer); }
+        attachImportedDecor();
+      });
     }
     function box(w, h, d, color, emissive = 0) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(color, emissive));
@@ -145,10 +213,25 @@
       [-.72, .72].forEach(z => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .12, 14), material(0x10151c, 0, .05, .9)); wheel.rotation.z = Math.PI / 2; wheel.position.set(0, .42, z); group.add(wheel); });
       const rider = box(.34, .72, .3, 0x9b8cff); rider.position.set(0, 1.1, .1); group.add(rider); return group;
     }
-    function trafficVehicle(color) { const roll = Math.random(); return roll < .18 ? truck(color) : roll < .42 ? van(color) : roll < .58 ? bike(color) : sportsCar(color, true); }
+    function trafficVehicle(color) {
+      const roll = Math.random();
+      const imported = roll < .26 ? assetInstance('van', 4, 'vehicle', color) : roll < .58 ? assetInstance('suv', 4, 'vehicle', color) : assetInstance('sports', 4, 'vehicle', color);
+      return imported || (roll < .18 ? truck(color) : roll < .42 ? van(color) : roll < .58 ? bike(color) : sportsCar(color, true));
+    }
     function startAudio() {
+      if (!audio.engineClip) {
+        audio.engineClip = new Audio('./assets/audio/engine.ogg');
+        audio.engineClip.loop = true;
+        audio.engineClip.volume = .18;
+        audio.clips.pickup = './assets/audio/pickup.wav';
+        audio.clips.boost = './assets/audio/boost.wav';
+        audio.clips.collision = './assets/audio/crash.wav';
+      }
+      audio.engineClip.play().catch(() => {});
       if (!audio.context) {
-        audio.context = new AudioContext();
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        audio.context = new AudioContextClass();
         audio.engine = audio.context.createOscillator();
         audio.gain = audio.context.createGain();
         audio.engine.type = 'sawtooth';
@@ -160,6 +243,8 @@
       if (audio.context.state === 'suspended') audio.context.resume();
     }
     function sound(type) {
+      const clipUrl = audio.clips[type];
+      if (clipUrl) { const clip = new Audio(clipUrl); clip.volume = type === 'collision' ? .28 : .24; clip.play().catch(() => {}); }
       if (!audio.context) return;
       const now = audio.context.currentTime;
       const oscillator = audio.context.createOscillator();
@@ -173,11 +258,14 @@
       oscillator.connect(gain).connect(audio.context.destination); oscillator.start(now); oscillator.stop(now + .22);
     }
     function updateEngineSound() {
+      if (audio.engineClip) audio.engineClip.playbackRate = THREE.MathUtils.clamp(.82 + state.speed / 42, .82, 1.55);
       if (!audio.context) return;
       audio.engine.frequency.setTargetAtTime(54 + state.speed * 3.2, audio.context.currentTime, .06);
       audio.gain.gain.setTargetAtTime(state.running ? .018 : .0001, audio.context.currentTime, .08);
     }
     function coneObstacle(lane) {
+      const imported = assetInstance('cone', 1.8);
+      if (imported) { imported.position.set(lane, 0, -130); scene.add(imported); return imported; }
       const group = new THREE.Group();
       const base = box(.9, .18, .9, 0x252b38); base.position.y = .1; group.add(base);
       const cone = new THREE.Mesh(new THREE.ConeGeometry(.38, 1.05, 10), material(0xff7b28, 0xff3512, .15, .55)); cone.position.y = .68; group.add(cone);
@@ -185,6 +273,8 @@
       group.position.set(lane, 0, -130); scene.add(group); return group;
     }
     function barrierObstacle(lane) {
+      const imported = assetInstance('barrier', 3.2);
+      if (imported) { imported.position.set(lane, 0, -130); scene.add(imported); return imported; }
       const group = new THREE.Group();
       const base = box(2.1, .38, .55, 0x263244); base.position.y = .2; group.add(base);
       const board = box(1.9, .55, .16, 0xf05a42, 0x5d0d10); board.position.y = .7; group.add(board);
@@ -219,6 +309,7 @@
 
     const player = sportsCar(0x19b9ff); player.position.set(0, 0, -8); player.scale.setScalar(1.12); scene.add(player);
     const exhaust = new THREE.PointLight(0xff6a00, 2, 8); exhaust.position.set(0, .5, 2.1); player.add(exhaust);
+    loadGameAssets();
 
     function updateHud() { const kmh = Math.round(state.speed * 3.6); ui.distance.textContent = Math.floor(state.distance); ui.score.textContent = state.score; ui.hull.style.width = `${Math.max(0, state.hull)}%`; ui.speed.textContent = kmh; ui.speedNeedle.style.width = `${Math.min(100, kmh / 1.8)}%`; }
     function reset() { startAudio(); traffic.splice(0).forEach(item => scene.remove(item.mesh)); obstacles.splice(0).forEach(item => scene.remove(item.mesh)); powerups.splice(0).forEach(item => scene.remove(item.mesh)); Object.assign(state, { running: true, distance: 0, score: 0, hull: 100, speed: 20, spawn: 0, obstacle: 1.5, powerup: 1.5, shake: 0, pickups: 0, dodges: 0, boosts: 0, shield: 0 }); player.position.x = 0; ui.start.textContent = 'START RUN'; ui.status.classList.add('hidden'); updateHud(); sound('boost'); }
@@ -242,7 +333,13 @@
       const mesh = Math.random() < .62 ? coneObstacle(lane) : barrierObstacle(lane);
       obstacles.push({ mesh, lane, hit: false });
     }
-    function spawnPowerup() { const types = [{ type: 'boost', color: 0x40eaff }, { type: 'shield', color: 0x9b7dff }, { type: 'repair', color: 0x65ff9a }]; const data = types[Math.floor(Math.random() * types.length)]; const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(.58), material(data.color, data.color)); mesh.position.set([-6, -3, 0, 3, 6][Math.floor(Math.random() * 5)], 1, -130); scene.add(mesh); powerups.push({ mesh, type: data.type }); }
+    function spawnPowerup() {
+      const types = [{ type: 'boost', color: 0x40eaff }, { type: 'shield', color: 0x9b7dff }, { type: 'repair', color: 0x65ff9a }];
+      const data = types[Math.floor(Math.random() * types.length)];
+      const mesh = assetInstance('coin', 1.15) || new THREE.Mesh(new THREE.OctahedronGeometry(.58), material(data.color, data.color));
+      mesh.position.set([-6, 0, 6][Math.floor(Math.random() * 3)], 1, -130);
+      scene.add(mesh); powerups.push({ mesh, type: data.type, color: data.color });
+    }
     function burst(position, color) { for (let i = 0; i < 9; i++) { const mesh = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 6), new THREE.MeshBasicMaterial({ color })); mesh.position.copy(position); scene.add(mesh); particles.push({ mesh, life: .5, velocity: new THREE.Vector3((Math.random() - .5) * 9, Math.random() * 6, (Math.random() - .5) * 9) }); } }
     function update(dt) {
       const steer = (keys.has('ArrowLeft') || keys.has('a') ? -1 : 0) + (keys.has('ArrowRight') || keys.has('d') ? 1 : 0);
@@ -259,7 +356,7 @@
       obstacles.forEach(item => { item.mesh.position.z += state.speed * dt; if (!item.hit && Math.abs(item.mesh.position.z - player.position.z) < 2.1 && Math.abs(item.mesh.position.x - player.position.x) < 1.65) { item.hit = true; if (!state.shield) state.hull -= 12; state.shake = .18; sound('collision'); burst(item.mesh.position, 0xff8a3d); } });
       for (let i = obstacles.length - 1; i >= 0; i--) if (obstacles[i].mesh.position.z > 18) { if (!obstacles[i].hit && obstacles[i].mesh.position.z > player.position.z + 2) state.dodges++; scene.remove(obstacles[i].mesh); obstacles.splice(i, 1); }
       powerups.forEach(item => { item.mesh.position.z += state.speed * dt; item.mesh.rotation.y += dt * 4; });
-      for (let i = powerups.length - 1; i >= 0; i--) { const item = powerups[i]; if (item.mesh.position.distanceTo(player.position) < 2.4) { state.pickups++; if (item.type === 'boost') state.boosts = 2.5; if (item.type === 'shield') state.shield = 5; if (item.type === 'repair') state.hull = Math.min(100, state.hull + 25); sound(item.type === 'boost' ? 'boost' : 'pickup'); burst(item.mesh.position, item.mesh.material.color.getHex()); scene.remove(item.mesh); powerups.splice(i, 1); } else if (item.mesh.position.z > 18) { scene.remove(item.mesh); powerups.splice(i, 1); } }
+      for (let i = powerups.length - 1; i >= 0; i--) { const item = powerups[i]; if (item.mesh.position.distanceTo(player.position) < 2.4) { state.pickups++; if (item.type === 'boost') state.boosts = 2.5; if (item.type === 'shield') state.shield = 5; if (item.type === 'repair') state.hull = Math.min(100, state.hull + 25); sound(item.type === 'boost' ? 'boost' : 'pickup'); burst(item.mesh.position, item.color); scene.remove(item.mesh); powerups.splice(i, 1); } else if (item.mesh.position.z > 18) { scene.remove(item.mesh); powerups.splice(i, 1); } }
       particles.forEach(item => { item.life -= dt; item.mesh.position.addScaledVector(item.velocity, dt); item.velocity.y -= 9 * dt; item.mesh.material.transparent = true; item.mesh.material.opacity = Math.max(0, item.life * 2); }); for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) { scene.remove(particles[i].mesh); particles.splice(i, 1); }
       pedestrians.forEach(person => { const stride = Math.sin(state.distance * .22 + person.userData.phase) * .28; person.children[2].rotation.x = stride; person.children[3].rotation.x = -stride; person.children[4].rotation.x = -stride; person.children[5].rotation.x = stride; });
       state.shake = Math.max(0, state.shake - dt); camera.position.x += (player.position.x * .35 - camera.position.x) * dt * 4; camera.position.y = 7.4 + (Math.random() - .5) * state.shake; camera.lookAt(player.position.x * .12, .9, -10); updateEngineSound(); updateHud(); if (state.hull <= 0) gameOver();

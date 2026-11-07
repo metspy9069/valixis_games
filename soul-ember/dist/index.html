@@ -294,41 +294,428 @@
       to { transform: translateX(-50%) scale(1.04); }
     }
 
-    /* MODAL OVERLAYS */
+    /* MODAL OVERLAYS - FULLSCREEN FIT & SMOOTH SCROLL */
     .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(6, 4, 12, 0.86);
-      backdrop-filter: blur(10px);
+      background: rgba(6, 4, 12, 0.88);
+      backdrop-filter: blur(12px);
       display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
       z-index: 30;
-      padding: 20px;
+      padding: 16px;
+      box-sizing: border-box;
     }
     .modal-box {
+      margin: auto;
       background: var(--card-bg);
       border: 1px solid rgba(255, 215, 0, 0.32);
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 45px rgba(255, 106, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      border-radius: 24px;
-      padding: 36px 30px;
+      border-radius: 20px;
+      padding: 24px 26px;
       text-align: center;
       max-width: 620px;
-      width: 92%;
+      width: 95%;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      box-sizing: border-box;
       backdrop-filter: blur(20px);
       animation: modalEntrance 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
-    @keyframes modalEntrance {
-      from { transform: scale(0.92) translateY(18px); opacity: 0; }
-      to { transform: scale(1) translateY(0); opacity: 1; }
+    .modal-box::-webkit-scrollbar {
+      width: 6px;
     }
+    .modal-box::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 4px;
+    }
+    .modal-box::-webkit-scrollbar-thumb {
+      background: rgba(255, 215, 0, 0.3);
+      border-radius: 4px;
+    }
+    .modal-box::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 215, 0, 0.6);
+    }
+
+    /* WIDESCREEN DASHBOARD (NO ZOOM-OUT REQUIRED) */
+    .start-modal-box {
+      max-width: 1020px !important;
+      width: 96% !important;
+      padding: 18px 22px !important;
+      max-height: calc(100vh - 24px) !important;
+    }
+    .start-dashboard {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+      align-items: stretch;
+      text-align: left;
+    }
+    @media (max-width: 860px) {
+      .start-dashboard {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+    }
+    .start-col-left, .start-col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .start-header {
+      margin-bottom: 2px;
+    }
+    .studio-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      border-radius: 16px;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: #00f2fe;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .studio-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00f2fe;
+      box-shadow: 0 0 6px #00f2fe;
+    }
+    .start-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff, #ffd700, #ffaa00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+      line-height: 1.1;
+      text-transform: uppercase;
+      filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.4));
+      margin: 0;
+    }
+    .start-subtitle {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #ffaa42;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      color: #ffaa42;
+      text-transform: uppercase;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* COMPACT 4x2 HERO GRID */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .hero-card {
+      background: linear-gradient(145deg, #181226, #100b1c);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 6px 4px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      text-align: center;
+      min-height: 56px;
+    }
+    .hero-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 215, 0, 0.5);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    }
+    .hero-card.selected {
+      border-color: #ffd700;
+      background: linear-gradient(145deg, #2c1b4a, #1a102d);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.45), inset 0 0 10px rgba(255, 215, 0, 0.15);
+      transform: translateY(-2px) scale(1.03);
+    }
+    .hero-card-badge {
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      border: 1px solid;
+      background: rgba(0, 0, 0, 0.35);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .hero-card .hero-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 1px 0;
+    }
+    .hero-card-name {
+      font-size: 10px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    /* INTERACTIVE SELECTED HERO SHOWCASE */
+    .hero-showcase {
+      background: rgba(18, 12, 30, 0.9);
+      border: 1px solid rgba(255, 215, 0, 0.28);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+    .showcase-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .showcase-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px rgba(255, 215, 0, 0.25);
+      flex-shrink: 0;
+    }
+    .showcase-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .showcase-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 1px;
+    }
+    .showcase-name {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+    .showcase-badge {
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(255, 106, 0, 0.2);
+      border: 1px solid #ff6a00;
+      color: #ffaa42;
+      text-transform: uppercase;
+    }
+    .showcase-trait {
+      font-size: 10px;
+      color: #c5bdd4;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .showcase-ult {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(192, 64, 255, 0.25);
+      border-radius: 8px;
+      padding: 5px 8px;
+    }
+    .ult-label {
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      color: #ffd700;
+      margin-right: 4px;
+    }
+    .ult-name {
+      font-size: 10px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .ult-desc {
+      font-size: 9px;
+      color: #a49bb5;
+      margin-top: 1px;
+      line-height: 1.25;
+    }
+    .showcase-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stat-name {
+      font-size: 8px;
+      font-weight: 800;
+      color: #ffaa42;
+      letter-spacing: 0.5px;
+    }
+    .stat-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .stat-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff6a00, #ffd700);
+      border-radius: 2px;
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* RIGHT COLUMN STYLES */
+    .config-card {
+      background: rgba(18, 12, 30, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pill-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 1px;
+    }
+    .pill-opt {
+      background: #191329;
+      border: 1px solid #36294e;
+      color: #b5a9cc;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pill-opt:hover {
+      background: #2a1f42;
+      border-color: #ffaa42;
+      color: #fff;
+    }
+    .pill-opt.active {
+      background: linear-gradient(135deg, rgba(255, 106, 0, 0.35), rgba(238, 9, 121, 0.35));
+      border-color: #ffaa42;
+      color: #ffd700;
+      box-shadow: 0 0 10px rgba(255, 106, 0, 0.4);
+    }
+    .options-subgroup {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .vault-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px;
+      background: rgba(255, 215, 0, 0.06);
+      border: 1px solid rgba(255, 215, 0, 0.22);
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #ffd700;
+    }
+    .btn-primary-launch {
+      width: 100%;
+      margin: 2px 0 !important;
+      padding: 11px 18px !important;
+      font-size: 14px !important;
+      letter-spacing: 2px !important;
+      box-shadow: 0 0 25px rgba(255, 106, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+    .btn-sub {
+      background: rgba(26, 20, 38, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #d8cfe6;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 6px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.15s;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .btn-sub:hover {
+      background: #392b54;
+      border-color: #ffaa42;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .btn-sub-accent {
+      border-color: rgba(0, 242, 254, 0.35);
+      color: #00f2fe;
+    }
+    .btn-sub-accent:hover {
+      border-color: #00f2fe;
+      background: rgba(0, 242, 254, 0.15);
+    }
+    .start-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      font-size: 9px;
+      color: #7b738c;
+      margin-top: 2px;
+    }
+    .start-footer a {
+      color: #00f2fe;
+      text-decoration: none;
+    }
+
     .modal-title {
       font-family: var(--font-display);
-      font-size: 36px;
+      font-size: 32px;
       font-weight: 900;
       background: linear-gradient(135deg, #fff, #ffd700, #ffaa00);
       -webkit-background-clip: text;
@@ -339,10 +726,10 @@
       filter: drop-shadow(0 2px 14px rgba(255, 215, 0, 0.45));
     }
     .modal-desc {
-      font-size: 14px;
+      font-size: 13px;
       color: #a49bb5;
-      margin-bottom: 22px;
-      line-height: 1.5;
+      margin-bottom: 16px;
+      line-height: 1.4;
     }
     .btn {
       position: relative;
@@ -350,8 +737,8 @@
       background: linear-gradient(135deg, #ff6a00 0%, #ee0979 50%, #ff8c00 100%);
       color: #fff;
       border: 1px solid rgba(255, 255, 255, 0.22);
-      padding: 13px 34px;
-      font-size: 14px;
+      padding: 10px 24px;
+      font-size: 13px;
       font-weight: 800;
       font-family: var(--font-body);
       border-radius: 30px;
@@ -360,7 +747,7 @@
       outline: none;
       letter-spacing: 1px;
       text-transform: uppercase;
-      margin: 6px;
+      margin: 4px;
       box-shadow: 0 6px 20px rgba(255, 106, 0, 0.35);
     }
     .btn::after {
@@ -392,58 +779,6 @@
     .btn-danger {
       background: #c81f3b;
     }
-
-    /* HERO SELECTOR */
-    .hero-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 22px;
-    }
-    @media (max-width: 700px) {
-      .hero-grid {
-        grid-template-columns: repeat(2, 1fr);
-        max-height: 280px;
-        overflow-y: auto;
-      }
-    }
-    .hero-card {
-      flex: 1;
-      background: linear-gradient(145deg, #181226, #100b1c);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 16px 10px;
-      cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-    }
-    .hero-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(255, 215, 0, 0.4);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    }
-    .hero-card.selected {
-      border-color: #ffd700;
-      background: linear-gradient(145deg, #281a42, #18102a);
-      box-shadow: 0 0 30px rgba(255, 215, 0, 0.45), inset 0 0 15px rgba(255, 215, 0, 0.15);
-      transform: translateY(-5px) scale(1.02);
-    }
-    .role-badge {
-      font-size: 8px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      padding: 2px 7px;
-      border-radius: 10px;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .hero-icon { font-size: 36px; margin-bottom: 6px; }
-    .hero-name { font-size: 15px; font-weight: 800; }
-    .hero-trait { font-size: 11px; color: #a49bb5; margin-top: 4px; line-height: 1.3; }
 
     /* UPGRADE CARDS */
     .cards-row {
@@ -756,117 +1091,156 @@
 
 <!-- START SCREEN -->
 <div id="start-modal" class="modal-overlay" style="display: flex;">
-  <div class="modal-box" style="max-width: 750px;">
-    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; padding: 4px 14px; background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: 20px; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; color: #00f2fe; font-weight: 800;">
-      <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#00f2fe; box-shadow:0 0 8px #00f2fe;"></span>
-      VALIXIS GAMING STUDIO &bull; GAMES.VALIXIS.TECH
-    </div>
-    <h1 class="modal-title">Soul Ember</h1>
-    <p class="modal-desc" style="color: #ffaa42; font-weight: 700; margin-bottom: 6px;">DUNGEON SURVIVORS EDITION</p>
-    <p class="modal-desc">
-      Explore the dark stone halls, kite abyss monsters around pillars, illuminate the darkness, and triumph over the Void Lich.
-    </p>
+  <div class="modal-box start-modal-box">
+    <div class="start-dashboard">
 
-    <div style="font-size: 13px; color: #ffaa42; font-weight: 800; margin-bottom: 8px;">CHOOSE YOUR HERO:</div>
-    <div class="hero-grid">
-      <div class="hero-card selected" onclick="selectHero('pyro', this)">
-        <span class="role-badge" style="background:rgba(255,106,0,0.2); color:#ffaa42; border:1px solid #ff6a00;">BURST DPS</span>
-        <div class="hero-icon" id="hero-icon-pyro"></div>
-        <div class="hero-name">Pyromancer</div>
-        <div class="hero-trait">Fireballs &amp; Consecration<br><span style="color:#ffd700;font-size:10px;">Ult: Cataclysm Nova</span></div>
+      <!-- LEFT COLUMN: HERO COMMAND & INTERACTIVE SHOWCASE -->
+      <div class="start-col-left">
+        <div class="start-header">
+          <div class="studio-pill">
+            <span class="studio-dot"></span>
+            VALIXIS GAMING STUDIO &bull; GAMES.VALIXIS.TECH
+          </div>
+          <h1 class="start-title">Soul Ember</h1>
+          <div class="start-subtitle">DUNGEON SURVIVORS EDITION</div>
+        </div>
+
+        <div class="section-title">CHOOSE YOUR HERO</div>
+        <div class="hero-grid">
+          <div class="hero-card selected" onclick="selectHero('pyro', this)" data-hero="pyro">
+            <span class="hero-card-badge" style="color:#ffaa42; border-color:#ff6a00;">BURST</span>
+            <div class="hero-icon" id="hero-icon-pyro"></div>
+            <div class="hero-card-name">Pyromancer</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('cryo', this)" data-hero="cryo">
+            <span class="hero-card-badge" style="color:#00f2fe; border-color:#00f2fe;">FREEZE</span>
+            <div class="hero-icon" id="hero-icon-cryo"></div>
+            <div class="hero-card-name">Cryomancer</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('rogue', this)" data-hero="rogue">
+            <span class="hero-card-badge" style="color:#c040ff; border-color:#c040ff;">ASSASSIN</span>
+            <div class="hero-icon" id="hero-icon-rogue"></div>
+            <div class="hero-card-name">Void Rogue</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('necro', this)" data-hero="necro">
+            <span class="hero-card-badge" style="color:#00ff88; border-color:#00ff88;">SUMMON</span>
+            <div class="hero-icon" id="hero-icon-necro"></div>
+            <div class="hero-card-name">Necromancer</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('paladin', this)" data-hero="paladin">
+            <span class="hero-card-badge" style="color:#ffd700; border-color:#ffd700;">PALADIN</span>
+            <div class="hero-icon" id="hero-icon-paladin"></div>
+            <div class="hero-card-name">Paladin</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('archer', this)" data-hero="archer">
+            <span class="hero-card-badge" style="color:#ffb700; border-color:#ffb700;">SNIPER</span>
+            <div class="hero-icon" id="hero-icon-archer"></div>
+            <div class="hero-card-name">Archer</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('warlock', this)" data-hero="warlock">
+            <span class="hero-card-badge" style="color:#ff3366; border-color:#ff0055;">CURSE</span>
+            <div class="hero-icon" id="hero-icon-warlock"></div>
+            <div class="hero-card-name">Warlock</div>
+          </div>
+          <div class="hero-card" onclick="selectHero('bard', this)" data-hero="bard">
+            <span class="hero-card-badge" style="color:#ff00cc; border-color:#ff00cc;">FRENZY</span>
+            <div class="hero-icon" id="hero-icon-bard"></div>
+            <div class="hero-card-name">Bard</div>
+          </div>
+        </div>
+
+        <!-- INTERACTIVE SELECTED HERO SHOWCASE -->
+        <div id="hero-showcase" class="hero-showcase">
+          <div class="showcase-header">
+            <div id="showcase-icon" class="showcase-icon-box"></div>
+            <div class="showcase-meta">
+              <div class="showcase-title-row">
+                <span id="showcase-name" class="showcase-name">Pyromancer</span>
+                <span id="showcase-badge" class="showcase-badge">BURST DPS</span>
+              </div>
+              <div id="showcase-trait" class="showcase-trait">Fireballs &amp; Sanctified Consecration puddles</div>
+            </div>
+          </div>
+          <div class="showcase-ult">
+            <span class="ult-label">ULTIMATE [R]:</span>
+            <span id="showcase-ult-name" class="ult-name">Cataclysm Nova</span>
+            <div id="showcase-ult-desc" class="ult-desc">Detonates apocalyptic radial inferno waves vaporizing all abyss hordes.</div>
+          </div>
+          <div class="showcase-stats">
+            <div class="stat-item"><span class="stat-name">HP</span><div class="stat-bar"><div id="stat-hp" class="stat-fill" style="width:75%;"></div></div></div>
+            <div class="stat-item"><span class="stat-name">SPD</span><div class="stat-bar"><div id="stat-spd" class="stat-fill" style="width:70%;"></div></div></div>
+            <div class="stat-item"><span class="stat-name">ATK</span><div class="stat-bar"><div id="stat-atk" class="stat-fill" style="width:85%;"></div></div></div>
+            <div class="stat-item"><span class="stat-name">DEF</span><div class="stat-bar"><div id="stat-def" class="stat-fill" style="width:55%;"></div></div></div>
+          </div>
+        </div>
       </div>
-      <div class="hero-card" onclick="selectHero('cryo', this)">
-        <span class="role-badge" style="background:rgba(0,242,254,0.2); color:#00f2fe; border:1px solid #00f2fe;">CROWD CONTROL</span>
-        <div class="hero-icon" id="hero-icon-cryo"></div>
-        <div class="hero-name">Cryomancer</div>
-        <div class="hero-trait">Frost Nova &amp; Shards<br><span style="color:#00f2fe;font-size:10px;">Ult: Absolute Zero</span></div>
+
+      <!-- RIGHT COLUMN: EXPEDITION CONTROLS & ACTION HUB -->
+      <div class="start-col-right">
+        <div class="config-card">
+          <div class="selector-label">CHALLENGE TIER</div>
+          <div class="pill-selector" id="diff-selector">
+            <div class="pill-opt" onclick="setDifficulty('casual', this)">Casual (+40 HP)</div>
+            <div class="pill-opt active" onclick="setDifficulty('adventure', this)">Adventure (Normal)</div>
+            <div class="pill-opt" onclick="setDifficulty('survivor', this)">Survivor (Hardcore)</div>
+          </div>
+
+          <div class="selector-label">STARTING REALM</div>
+          <div class="pill-selector" id="world-selector">
+            <div class="pill-opt active" onclick="setWorldMode('gauntlet', this)">5-World Gauntlet</div>
+            <div class="pill-opt" onclick="setWorldMode('dungeon', this)">The Crypt</div>
+            <div class="pill-opt" onclick="setWorldMode('forest', this)">Grove</div>
+            <div class="pill-opt" onclick="setWorldMode('glacial', this)">Glacial</div>
+            <div class="pill-opt" onclick="setWorldMode('inferno', this)">Magma</div>
+            <div class="pill-opt" onclick="setWorldMode('void', this)">Void</div>
+          </div>
+
+          <div class="options-subgroup">
+            <div>
+              <div class="selector-label">CO-OP ALLY</div>
+              <div class="pill-selector" id="comp-selector">
+                <div class="pill-opt active" onclick="setCompanion('none', this)">Solo</div>
+                <div class="pill-opt" onclick="setCompanion('knight', this)">Knight</div>
+                <div class="pill-opt" onclick="setCompanion('ranger', this)">Ranger</div>
+                <div class="pill-opt" onclick="setCompanion('sorcerer', this)">Mage</div>
+              </div>
+            </div>
+            <div>
+              <div class="selector-label">LIGHTING</div>
+              <div class="pill-selector" id="light-selector">
+                <div class="pill-opt active" onclick="setLightingMode('balanced', this)">Atmospheric</div>
+                <div class="pill-opt" onclick="setLightingMode('bright', this)">Bright</div>
+                <div class="pill-opt" onclick="setLightingMode('dark', this)">Gothic</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="vault-bar">
+            <span>BANKED GOLD:</span>
+            <span><span id="start-gold-text">0</span> GOLD</span>
+          </div>
+        </div>
+
+        <button id="start-btn" class="btn btn-primary-launch">ENTER THE DUNGEON</button>
+
+        <div class="actions-grid">
+          <button id="armory-btn" class="btn-sub">SOUL FORGE</button>
+          <button id="achieve-btn" class="btn-sub">ACHIEVEMENTS</button>
+          <button id="leaderboard-btn" class="btn-sub">HALL OF FAME</button>
+          <button id="daily-bounty-btn" class="btn-sub" onclick="claimDailyGold()">BOUNTY (+250)</button>
+          <button id="install-pwa-btn" class="btn-sub btn-sub-accent" onclick="triggerPwaInstall()">INSTALL APP</button>
+          <a href="../" class="btn-sub" style="text-decoration:none; color:#ffd700;">ARCADE HUB</a>
+        </div>
+
+        <div class="start-footer">
+          <a href="https://valixis.tech" target="_blank" rel="noopener">valixis.tech</a>
+          <span>&bull;</span>
+          <a href="https://portal.valixis.tech" target="_blank" rel="noopener">portal</a>
+          <span>&bull;</span>
+          <span>&copy; 2026 VALIXIS Technologies</span>
+        </div>
       </div>
-      <div class="hero-card" onclick="selectHero('rogue', this)">
-        <span class="role-badge" style="background:rgba(192,64,255,0.2); color:#c040ff; border:1px solid #c040ff;">ASSASSIN</span>
-        <div class="hero-icon" id="hero-icon-rogue"></div>
-        <div class="hero-name">Void Rogue</div>
-        <div class="hero-trait">Chain Shurikens &amp; Speed<br><span style="color:#c040ff;font-size:10px;">Ult: Thousand Blades</span></div>
-      </div>
-      <div class="hero-card" onclick="selectHero('necro', this)">
-        <span class="role-badge" style="background:rgba(0,255,136,0.2); color:#00ff88; border:1px solid #00ff88;">SUMMONER</span>
-        <div class="hero-icon" id="hero-icon-necro"></div>
-        <div class="hero-name">Necromancer</div>
-        <div class="hero-trait">Spectral Minions &amp; Drain<br><span style="color:#00ff88;font-size:10px;">Ult: Reaper's Army</span></div>
-      </div>
-      <div class="hero-card" onclick="selectHero('paladin', this)">
-        <span class="role-badge" style="background:rgba(255,215,0,0.2); color:#ffd700; border:1px solid #ffd700;">TANK &bull; PALADIN</span>
-        <div class="hero-icon" id="hero-icon-paladin"></div>
-        <div class="hero-name">Paladin</div>
-        <div class="hero-trait">Holy Shield &amp; Smite<br><span style="color:#ffd700;font-size:10px;">Ult: Heavenly Judgment</span></div>
-      </div>
-      <div class="hero-card" onclick="selectHero('archer', this)">
-        <span class="role-badge" style="background:rgba(255,180,0,0.2); color:#ffb700; border:1px solid #ffb700;">SNIPER</span>
-        <div class="hero-icon" id="hero-icon-archer"></div>
-        <div class="hero-name">Archer</div>
-        <div class="hero-trait">Rapid Pierce Arrows<br><span style="color:#ffb700;font-size:10px;">Ult: Rain of Arrows</span></div>
-      </div>
-      <div class="hero-card" onclick="selectHero('warlock', this)">
-        <span class="role-badge" style="background:rgba(255,0,85,0.2); color:#ff3366; border:1px solid #ff0055;">CURSE &bull; VORTEX</span>
-        <div class="hero-icon" id="hero-icon-warlock"></div>
-        <div class="hero-name">Warlock</div>
-        <div class="hero-trait">Miasma &amp; Toxic Puddles<br><span style="color:#ff3366;font-size:10px;">Ult: Void Singularity</span></div>
-      </div>
-      <div class="hero-card" onclick="selectHero('bard', this)">
-        <span class="role-badge" style="background:rgba(255,0,200,0.2); color:#ff00cc; border:1px solid #ff00cc;">SUPPORT FRENZY</span>
-        <div class="hero-icon" id="hero-icon-bard"></div>
-        <div class="hero-name">Bard</div>
-        <div class="hero-trait">Sonic Notes &amp; Haste<br><span style="color:#ff00cc;font-size:10px;">Ult: Grand Crescendo</span></div>
-      </div></div>
 
-    <div class="selector-label">CHALLENGE TIER:</div>
-    <div class="pill-selector" id="diff-selector">
-      <div class="pill-opt" onclick="setDifficulty('casual', this)">Casual (0.55× Dmg, +40 HP)</div>
-      <div class="pill-opt active" onclick="setDifficulty('adventure', this)">Adventure (Balanced)</div>
-      <div class="pill-opt" onclick="setDifficulty('survivor', this)">Survivor (Hardcore)</div>
-    </div>
-
-    <div class="selector-label">STARTING REALM:</div>
-    <div class="pill-selector" id="world-selector">
-      <div class="pill-opt active" onclick="setWorldMode('gauntlet', this)">5-World Gauntlet</div>
-      <div class="pill-opt" onclick="setWorldMode('dungeon', this)">The Crypt</div>
-      <div class="pill-opt" onclick="setWorldMode('forest', this)">Whispering Grove</div>
-      <div class="pill-opt" onclick="setWorldMode('glacial', this)">Glacial Spire</div>
-      <div class="pill-opt" onclick="setWorldMode('inferno', this)">Magma Caverns</div>
-      <div class="pill-opt" onclick="setWorldMode('void', this)">Void Citadel</div>
-    </div>
-
-    <div class="selector-label">CO-OP ALLY SUMMON:</div>
-    <div class="pill-selector" id="comp-selector">
-      <div class="pill-opt active" onclick="setCompanion('none', this)">Solo Hunter</div>
-      <div class="pill-opt" onclick="setCompanion('knight', this)">Sir Valen (Knight)</div>
-      <div class="pill-opt" onclick="setCompanion('ranger', this)">Lyra (Ranger)</div>
-      <div class="pill-opt" onclick="setCompanion('sorcerer', this)">Zephyr (Mage)</div>
-    </div>
-
-    <div class="selector-label">ARENA LIGHTING &amp; CLARITY:</div>
-    <div class="pill-selector" id="light-selector">
-      <div class="pill-opt active" onclick="setLightingMode('balanced', this)">Balanced (Atmospheric Glow)</div>
-      <div class="pill-opt" onclick="setLightingMode('bright', this)">High Clarity (Bright Arena)</div>
-      <div class="pill-opt" onclick="setLightingMode('dark', this)">Gothic (Dim Dungeon)</div>
-    </div>
-
-    <div style="margin-bottom: 18px; font-size: 14px; color: #ffd700; font-weight: 800;">
-      Banked Gold: <span id="start-gold-text">0</span> GOLD
-    </div>
-
-    <button id="start-btn" class="btn">ENTER THE DUNGEON</button>
-    <button id="armory-btn" class="btn btn-secondary">SOUL FORGE (ARMORY)</button>
-    <button id="achieve-btn" class="btn btn-secondary">ACHIEVEMENTS</button>
-    <button id="leaderboard-btn" class="btn btn-secondary">HALL OF FAME</button>
-    <button id="daily-bounty-btn" class="btn btn-secondary" onclick="claimDailyGold()">DAILY BOUNTY (+250 GOLD)</button>
-    <button id="install-pwa-btn" class="btn btn-secondary" style="border-color:#00f2fe; color:#00f2fe;" onclick="triggerPwaInstall()">INSTALL APP</button>
-
-    <div style="margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 16px; justify-content: center; align-items: center; font-size: 12px; color: #a49bb5; flex-wrap: wrap;">
-      <a href="https://valixis.tech" target="_blank" rel="noopener" style="color: #00f2fe; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">valixis.tech</a>
-      <span style="opacity: 0.35;">&bull;</span>
-      <a href="https://portal.valixis.tech" target="_blank" rel="noopener" style="color: #a49bb5; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">portal.valixis.tech</a>
-      <span style="opacity: 0.35;">&bull;</span>
-      <span style="color: #6d6480;">&copy; 2026 VALIXIS Technologies</span>
     </div>
   </div>
 </div>
@@ -2218,10 +2592,134 @@ function toggleFullscreen() {
   }
 }
 
+const HERO_SHOWCASE_DATA = {
+  pyro: {
+    name: 'Pyromancer',
+    role: 'BURST DPS',
+    color: '#ff6a00',
+    icon: 'crest_pyro',
+    trait: 'Salvo Fireballs & Sanctified Consecration puddles',
+    ultName: 'Cataclysm Nova',
+    ultDesc: 'Detonates apocalyptic radial inferno waves vaporizing all hordes.',
+    stats: { hp: 75, spd: 70, atk: 85, def: 55 }
+  },
+  cryo: {
+    name: 'Cryomancer',
+    role: 'CROWD CONTROL',
+    color: '#00f2fe',
+    icon: 'crest_cryo',
+    trait: 'Freezing Nova pulses & Piercing Icicle Shards',
+    ultName: 'Absolute Zero',
+    ultDesc: 'Freezes entire arena in cryogenic stasis, shattering frozen targets.',
+    stats: { hp: 70, spd: 65, atk: 80, def: 65 }
+  },
+  rogue: {
+    name: 'Void Rogue',
+    role: 'ASSASSIN',
+    color: '#c040ff',
+    icon: 'crest_rogue',
+    trait: 'Chain Shurikens, High Movement Speed & Storm Conduit',
+    ultName: 'Thousand Blades',
+    ultDesc: 'Blinks in rapid blade tempest slicing through all enemies.',
+    stats: { hp: 60, spd: 95, atk: 90, def: 40 }
+  },
+  necro: {
+    name: 'Necromancer',
+    role: 'SUMMONER',
+    color: '#00ff88',
+    icon: 'crest_necro',
+    trait: 'Orbiting Undead Minions & HP Life Siphon Drain',
+    ultName: "Reaper's Army",
+    ultDesc: 'Awakens legion of shadow reapers executing weakened enemies.',
+    stats: { hp: 68, spd: 60, atk: 75, def: 70 }
+  },
+  paladin: {
+    name: 'Paladin',
+    role: 'TANK & SMITE',
+    color: '#ffd700',
+    icon: 'crest_paladin',
+    trait: 'Dual Holy Barrier Orbs & Divine Radiance Smite',
+    ultName: 'Heavenly Judgment',
+    ultDesc: 'Calls down radiant pillars of holy light healing hero & smiting evil.',
+    stats: { hp: 100, spd: 55, atk: 70, def: 95 }
+  },
+  archer: {
+    name: 'Archer',
+    role: 'SNIPER DPS',
+    color: '#ffb700',
+    icon: 'crest_ranger',
+    trait: 'Rapid Dual Salvo (0.4s cadence) & Piercing Flight',
+    ultName: 'Rain of Arrows',
+    ultDesc: 'Unleashes 60 celestial arrows piercing all lines of sight.',
+    stats: { hp: 65, spd: 80, atk: 95, def: 45 }
+  },
+  warlock: {
+    name: 'Warlock',
+    role: 'CURSE & VORTEX',
+    color: '#ff3366',
+    icon: 'crest_warlock',
+    trait: 'Abyssal Miasma & Neurotoxic Persistent Puddles',
+    ultName: 'Void Singularity',
+    ultDesc: 'Tears a gravitational singularity pulling and crushing monsters.',
+    stats: { hp: 78, spd: 65, atk: 85, def: 60 }
+  },
+  bard: {
+    name: 'Bard',
+    role: 'SUPPORT FRENZY',
+    color: '#ff00cc',
+    icon: 'crest_bard',
+    trait: 'Sonic Shockwaves & Maximum Agility (+0.6 Speed)',
+    ultName: 'Grand Crescendo',
+    ultDesc: 'Emits hypnotic musical blast hasting speed and stunning all foes.',
+    stats: { hp: 70, spd: 100, atk: 70, def: 50 }
+  }
+};
+
+function updateHeroShowcase(type) {
+  const d = HERO_SHOWCASE_DATA[type];
+  if (!d) return;
+  const nameEl = document.getElementById('showcase-name');
+  const badgeEl = document.getElementById('showcase-badge');
+  const traitEl = document.getElementById('showcase-trait');
+  const ultNameEl = document.getElementById('showcase-ult-name');
+  const ultDescEl = document.getElementById('showcase-ult-desc');
+  const iconEl = document.getElementById('showcase-icon');
+  const hpEl = document.getElementById('stat-hp');
+  const spdEl = document.getElementById('stat-spd');
+  const atkEl = document.getElementById('stat-atk');
+  const defEl = document.getElementById('stat-def');
+
+  if (nameEl) nameEl.textContent = d.name;
+  if (badgeEl) {
+    badgeEl.textContent = d.role;
+    badgeEl.style.color = d.color;
+    badgeEl.style.borderColor = d.color;
+    badgeEl.style.background = d.color + '22';
+  }
+  if (traitEl) traitEl.textContent = d.trait;
+  if (ultNameEl) ultNameEl.textContent = d.ultName;
+  if (ultDescEl) ultDescEl.textContent = d.ultDesc;
+  if (iconEl && typeof VectorIcons !== 'undefined') {
+    iconEl.innerHTML = VectorIcons.getSvg(d.icon, d.color, 32);
+    iconEl.style.borderColor = d.color;
+    iconEl.style.boxShadow = '0 0 16px ' + d.color + '44';
+  }
+  if (hpEl) hpEl.style.width = d.stats.hp + '%';
+  if (spdEl) spdEl.style.width = d.stats.spd + '%';
+  if (atkEl) atkEl.style.width = d.stats.atk + '%';
+  if (defEl) defEl.style.width = d.stats.def + '%';
+}
+
 function selectHero(type, cardEl) {
   currentHeroType = type;
   document.querySelectorAll('.hero-card').forEach(c => c.classList.remove('selected'));
-  cardEl.classList.add('selected');
+  if (cardEl) {
+    cardEl.classList.add('selected');
+  } else {
+    const el = document.querySelector('.hero-card[data-hero="' + type + '"]');
+    if (el) el.classList.add('selected');
+  }
+  updateHeroShowcase(type);
 }
 
 // Test / Cheat actions for developer testing
@@ -5628,7 +6126,10 @@ function initHeroIcons() {
     }
   });
 }
-window.addEventListener('DOMContentLoaded', initHeroIcons);
+window.addEventListener('DOMContentLoaded', () => {
+  initHeroIcons();
+  selectHero(currentHeroType || 'pyro');
+});
 function initHUD() {
   const icons = [
     ['hud-icon-biome', 'castle', '#7c3fe4', 16],

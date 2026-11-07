@@ -1,4 +1,4 @@
-const CACHE = 'soul-ember-v13-radiant-clarity';
+const CACHE = 'soul-ember-v14-victory-shop';
 const ASSETS = [
   './',
   './index.html',

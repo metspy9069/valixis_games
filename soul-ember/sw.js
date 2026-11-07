@@ -1,4 +1,4 @@
-const CACHE = 'soul-ember-v6-attract-fit';
+const CACHE = 'soul-ember-v7-lvlup-fit';
 const ASSETS = [
   './',
   './index.html',

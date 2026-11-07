@@ -1,0 +1,15 @@
+{
+  "name": "valixis-games-arcade",
+  "version": "2.0.0",
+  "private": true,
+  "description": "VALIXIS GAMES STUDIO - Official Web Arcade and Next-Gen Browser Game Engines",
+  "scripts": {
+    "dev:soul-ember": "npm --prefix soul-ember run dev",
+    "build:soul-ember": "npm --prefix soul-ember run build",
+    "test:soul-ember": "npm --prefix soul-ember run test",
+    "test": "node soul-ember/test/test_suite.js"
+  },
+  "workspaces": [
+    "soul-ember"
+  ]
+}

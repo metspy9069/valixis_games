@@ -710,38 +710,38 @@
     </div>
 
     <div class="pills-group">
-      <div id="biome-pill" class="pill" style="border-color: #7c3fe4;">🏰 <span id="biome-text">The Crypt</span></div>
-      <div class="pill">⏱️ <span id="hud-time">00:00</span></div>
-      <div class="pill">💀 <span id="hud-kills">0</span></div>
-      <div class="pill">🪙 <span id="hud-gold" class="gold-text">0</span></div>
-      <div class="pill">⚡ <span id="hud-dash">READY</span></div>
-      <div id="combo-pill" class="pill" style="display:none; background: linear-gradient(135deg, #ff6a00, #ff0080); border-color: #ff6a00;">⚡ <span id="combo-text">x1</span></div>
-      <button id="music-btn" class="hud-btn">🔊 MUSIC</button>
-      <button id="pause-btn" class="hud-btn">⏸️ PAUSE</button>
-      <button id="fs-btn" class="hud-btn">⛶ FULL</button>
-      <a href="../" class="hud-btn" style="text-decoration:none; color:#ffd700; display:inline-flex; align-items:center; gap:4px;">🕹️ ARCADE</a>
-      <a href="https://valixis.tech" target="_blank" rel="noopener" class="hud-btn" style="text-decoration:none; color:#00f2fe; display:inline-flex; align-items:center; gap:4px;">🌐 VALIXIS</a>
+      <div id="biome-pill" class="pill" style="border-color: #7c3fe4; display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('castle', '#7c3fe4', 16)} <span id="biome-text">The Crypt</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('timer', '#00f2fe', 16)} <span id="hud-time">00:00</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('skull', '#ff3366', 16)} <span id="hud-kills">0</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('coin', '#ffd700', 16)} <span id="hud-gold" class="gold-text">0</span></div>
+      <div class="pill" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('spark', '#00ff88', 16)} <span id="hud-dash">READY</span></div>
+      <div id="combo-pill" class="pill" style="display:none; background: linear-gradient(135deg, #ff6a00, #ff0080); border-color: #ff6a00; display:none; align-items:center; gap:6px;">${VectorIcons.getSvg('combo', '#ffffff', 16)} <span id="combo-text">x1</span></div>
+      <button id="music-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('audio', '#c5bdd4', 14)} AUDIO</button>
+      <button id="pause-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('pause', '#c5bdd4', 14)} PAUSE</button>
+      <button id="fs-btn" class="hud-btn" style="display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('fullscreen', '#c5bdd4', 14)} FULL</button>
+      <a href="../" class="hud-btn" style="text-decoration:none; color:#ffd700; display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('arcade', '#ffd700', 14)} ARCADE</a>
+      <a href="https://valixis.tech" target="_blank" rel="noopener" class="hud-btn" style="text-decoration:none; color:#00f2fe; display:inline-flex; align-items:center; gap:5px;">${VectorIcons.getSvg('valixis_gem', '#00f2fe', 14)} STUDIO</a>
     </div>
   </div>
 
   <!-- BOSS ANNOUNCEMENT BANNER -->
   <div id="boss-banner" style="display:none; position:fixed; top:28%; left:0; width:100vw; text-align:center; pointer-events:none; z-index:100;">
     <div style="display:inline-block; background:rgba(12, 5, 22, 0.94); border-top:2px solid #ff0055; border-bottom:2px solid #ff0055; padding:16px 48px; box-shadow:0 0 60px rgba(255,0,85,0.7); backdrop-filter:blur(8px);">
-      <div style="font-size:12px; letter-spacing:4px; color:#ff99aa; text-transform:uppercase; margin-bottom:4px; font-weight:800;">⚠️ SUPREME ENTITY AWAKENED ⚠️</div>
+      <div style="font-size:12px; letter-spacing:4px; color:#ff99aa; text-transform:uppercase; margin-bottom:4px; font-weight:800;">SUPREME ENTITY AWAKENED</div>
       <div style="font-size:28px; font-weight:900; color:#fff; text-shadow:0 0 20px #ff0055; letter-spacing:2px;" id="boss-banner-title">THE VOID LICH HAS AWAKENED</div>
     </div>
   </div>
 
   <!-- BOSS HP BAR -->
   <div id="boss-hud">
-    <div class="boss-name">👑 Malakor, Void Lich</div>
+    <div class="boss-name" style="display:inline-flex; align-items:center; gap:6px;">${VectorIcons.getSvg('crown', '#ffd700', 18)} Malakor, Void Lich</div>
     <div class="boss-bar">
       <div id="boss-fill" class="boss-fill"></div>
     </div>
   </div>
 </div>
 
-<div id="alert-banner">⚠️ BOSS APPROACHING: MALAKOR AWAKENS ⚠️</div>
+<div id="alert-banner" style="display:none; align-items:center; justify-content:center; gap:8px;">${VectorIcons.getSvg('hazard', '#ff0055', 18)} BOSS APPROACHING: MALAKOR AWAKENS ${VectorIcons.getSvg('hazard', '#ff0055', 18)}</div>
 <div id="biome-banner" style="display:none; position:fixed; top:125px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg, #7c3fe4, #00f2fe); color:#fff; font-weight:900; letter-spacing:2px; padding:10px 36px; border-radius:30px; z-index:25; box-shadow:0 0 40px rgba(0,242,254,0.7); animation:alertAnim 0.7s infinite alternate;"></div>
 <div id="achieve-notif" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:900;padding:10px 24px;border-radius:24px;font-size:14px;z-index:50;letter-spacing:1px;box-shadow:0 0 30px rgba(255,215,0,0.6);"></div>
 <div class="controls-hint">[WASD / Arrows] Move | [Space] Dodge Roll | [R] Ultimate | [E] Shrines & Shop | [P] Pause | [T] Cheats | Auto-Attack Active</div>
@@ -761,7 +761,7 @@
       <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#00f2fe; box-shadow:0 0 8px #00f2fe;"></span>
       VALIXIS GAMING STUDIO &bull; GAMES.VALIXIS.TECH
     </div>
-    <h1 class="modal-title">🔥 Soul Ember</h1>
+    <h1 class="modal-title">Soul Ember</h1>
     <p class="modal-desc" style="color: #ffaa42; font-weight: 700; margin-bottom: 6px;">DUNGEON SURVIVORS EDITION</p>
     <p class="modal-desc">
       Explore the dark stone halls, kite abyss monsters around pillars, illuminate the darkness, and triumph over the Void Lich.
@@ -771,101 +771,100 @@
     <div class="hero-grid">
       <div class="hero-card selected" onclick="selectHero('pyro', this)">
         <span class="role-badge" style="background:rgba(255,106,0,0.2); color:#ffaa42; border:1px solid #ff6a00;">BURST DPS</span>
-        <div class="hero-icon">🧙‍♂️</div>
+        <div class="hero-icon" id="hero-icon-pyro"></div>
         <div class="hero-name">Pyromancer</div>
-        <div class="hero-trait">🔥 Fireballs &amp; Consecration<br><span style="color:#ffd700;font-size:10px;">⚡ Ult: Cataclysm</span></div>
+        <div class="hero-trait">Fireballs &amp; Consecration<br><span style="color:#ffd700;font-size:10px;">Ult: Cataclysm Nova</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('cryo', this)">
         <span class="role-badge" style="background:rgba(0,242,254,0.2); color:#00f2fe; border:1px solid #00f2fe;">CROWD CONTROL</span>
-        <div class="hero-icon">🧝‍♀️</div>
+        <div class="hero-icon" id="hero-icon-cryo"></div>
         <div class="hero-name">Cryomancer</div>
-        <div class="hero-trait">❄️ Frost Nova &amp; Shards<br><span style="color:#00f2fe;font-size:10px;">⚡ Ult: Absolute Zero</span></div>
+        <div class="hero-trait">Frost Nova &amp; Shards<br><span style="color:#00f2fe;font-size:10px;">Ult: Absolute Zero</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('rogue', this)">
         <span class="role-badge" style="background:rgba(192,64,255,0.2); color:#c040ff; border:1px solid #c040ff;">ASSASSIN</span>
-        <div class="hero-icon">🥷</div>
+        <div class="hero-icon" id="hero-icon-rogue"></div>
         <div class="hero-name">Void Rogue</div>
-        <div class="hero-trait">⚡ Chain Shurikens &amp; Speed<br><span style="color:#c040ff;font-size:10px;">⚡ Ult: Omni-Slash</span></div>
+        <div class="hero-trait">Chain Shurikens &amp; Speed<br><span style="color:#c040ff;font-size:10px;">Ult: Thousand Blades</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('necro', this)">
         <span class="role-badge" style="background:rgba(0,255,136,0.2); color:#00ff88; border:1px solid #00ff88;">SUMMONER</span>
-        <div class="hero-icon">🧟</div>
+        <div class="hero-icon" id="hero-icon-necro"></div>
         <div class="hero-name">Necromancer</div>
-        <div class="hero-trait">🧟 Spectral Minions &amp; Drain<br><span style="color:#00ff88;font-size:10px;">⚡ Ult: Reaper's Army</span></div>
+        <div class="hero-trait">Spectral Minions &amp; Drain<br><span style="color:#00ff88;font-size:10px;">Ult: Reaper's Army</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('paladin', this)">
         <span class="role-badge" style="background:rgba(255,215,0,0.2); color:#ffd700; border:1px solid #ffd700;">TANK &bull; PALADIN</span>
-        <div class="hero-icon">⚚</div>
+        <div class="hero-icon" id="hero-icon-paladin"></div>
         <div class="hero-name">Paladin</div>
-        <div class="hero-trait">⚚ Holy Shield &amp; Smite<br><span style="color:#ffd700;font-size:10px;">⚡ Ult: Judgment Ray</span></div>
+        <div class="hero-trait">Holy Shield &amp; Smite<br><span style="color:#ffd700;font-size:10px;">Ult: Heavenly Judgment</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('archer', this)">
         <span class="role-badge" style="background:rgba(255,180,0,0.2); color:#ffb700; border:1px solid #ffb700;">SNIPER</span>
-        <div class="hero-icon">🏹</div>
+        <div class="hero-icon" id="hero-icon-archer"></div>
         <div class="hero-name">Archer</div>
-        <div class="hero-trait">🏹 Rapid Pierce Arrows<br><span style="color:#ffb700;font-size:10px;">⚡ Ult: Arrow Storm</span></div>
+        <div class="hero-trait">Rapid Pierce Arrows<br><span style="color:#ffb700;font-size:10px;">Ult: Rain of Arrows</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('warlock', this)">
         <span class="role-badge" style="background:rgba(255,0,85,0.2); color:#ff3366; border:1px solid #ff0055;">CURSE &bull; VORTEX</span>
-        <div class="hero-icon">👁️</div>
+        <div class="hero-icon" id="hero-icon-warlock"></div>
         <div class="hero-name">Warlock</div>
-        <div class="hero-trait">👁️ Miasma &amp; Toxic Puddles<br><span style="color:#ff3366;font-size:10px;">⚡ Ult: Black Hole</span></div>
+        <div class="hero-trait">Miasma &amp; Toxic Puddles<br><span style="color:#ff3366;font-size:10px;">Ult: Void Singularity</span></div>
       </div>
       <div class="hero-card" onclick="selectHero('bard', this)">
         <span class="role-badge" style="background:rgba(255,0,200,0.2); color:#ff00cc; border:1px solid #ff00cc;">SUPPORT FRENZY</span>
-        <div class="hero-icon">🎵</div>
+        <div class="hero-icon" id="hero-icon-bard"></div>
         <div class="hero-name">Bard</div>
-        <div class="hero-trait">🎵 Sonic Notes &amp; Haste<br><span style="color:#ff00cc;font-size:10px;">⚡ Ult: Symphony</span></div>
-      </div>
-    </div>
+        <div class="hero-trait">Sonic Notes &amp; Haste<br><span style="color:#ff00cc;font-size:10px;">Ult: Grand Crescendo</span></div>
+      </div></div>
 
-    <div class="selector-label">⚔️ DIFFICULTY:</div>
+    <div class="selector-label">CHALLENGE TIER:</div>
     <div class="pill-selector" id="diff-selector">
-      <div class="pill-opt" onclick="setDifficulty('casual', this)">🟢 Casual (0.55× Dmg, +40 HP)</div>
-      <div class="pill-opt active" onclick="setDifficulty('adventure', this)">🟡 Adventure (Balanced)</div>
-      <div class="pill-opt" onclick="setDifficulty('survivor', this)">🔴 Survivor (Hardcore)</div>
+      <div class="pill-opt" onclick="setDifficulty('casual', this)">Casual (0.55× Dmg, +40 HP)</div>
+      <div class="pill-opt active" onclick="setDifficulty('adventure', this)">Adventure (Balanced)</div>
+      <div class="pill-opt" onclick="setDifficulty('survivor', this)">Survivor (Hardcore)</div>
     </div>
 
-    <div class="selector-label">🌍 STARTING REALM:</div>
+    <div class="selector-label">STARTING REALM:</div>
     <div class="pill-selector" id="world-selector">
-      <div class="pill-opt active" onclick="setWorldMode('gauntlet', this)">🌀 5-World Gauntlet</div>
-      <div class="pill-opt" onclick="setWorldMode('dungeon', this)">🏰 Crypt</div>
-      <div class="pill-opt" onclick="setWorldMode('forest', this)">🌲 Grove</div>
-      <div class="pill-opt" onclick="setWorldMode('glacial', this)">❄️ Glacial</div>
-      <div class="pill-opt" onclick="setWorldMode('inferno', this)">🌋 Inferno</div>
-      <div class="pill-opt" onclick="setWorldMode('void', this)">🌌 Void</div>
+      <div class="pill-opt active" onclick="setWorldMode('gauntlet', this)">5-World Gauntlet</div>
+      <div class="pill-opt" onclick="setWorldMode('dungeon', this)">The Crypt</div>
+      <div class="pill-opt" onclick="setWorldMode('forest', this)">Whispering Grove</div>
+      <div class="pill-opt" onclick="setWorldMode('glacial', this)">Glacial Spire</div>
+      <div class="pill-opt" onclick="setWorldMode('inferno', this)">Magma Caverns</div>
+      <div class="pill-opt" onclick="setWorldMode('void', this)">Void Citadel</div>
     </div>
 
-    <div class="selector-label">🤝 CO-OP ALLY SUMMON:</div>
+    <div class="selector-label">CO-OP ALLY SUMMON:</div>
     <div class="pill-selector" id="comp-selector">
-      <div class="pill-opt active" onclick="setCompanion('none', this)">🚫 Solo Hunter</div>
-      <div class="pill-opt" onclick="setCompanion('knight', this)">🛡️ Sir Valen (Knight)</div>
-      <div class="pill-opt" onclick="setCompanion('ranger', this)">🏹 Lyra (Ranger)</div>
-      <div class="pill-opt" onclick="setCompanion('sorcerer', this)">🔮 Zephyr (Mage)</div>
+      <div class="pill-opt active" onclick="setCompanion('none', this)">Solo Hunter</div>
+      <div class="pill-opt" onclick="setCompanion('knight', this)">Sir Valen (Knight)</div>
+      <div class="pill-opt" onclick="setCompanion('ranger', this)">Lyra (Ranger)</div>
+      <div class="pill-opt" onclick="setCompanion('sorcerer', this)">Zephyr (Mage)</div>
     </div>
 
-    <div class="selector-label">💡 LIGHTING & ARENA CLARITY:</div>
+    <div class="selector-label">ARENA LIGHTING &amp; CLARITY:</div>
     <div class="pill-selector" id="light-selector">
-      <div class="pill-opt active" onclick="setLightingMode('balanced', this)">💡 Balanced (Wide & Atmospheric)</div>
-      <div class="pill-opt" onclick="setLightingMode('bright', this)">☀️ High Clarity (Bright View)</div>
-      <div class="pill-opt" onclick="setLightingMode('dark', this)">🌑 Gothic (Dim Dungeon)</div>
+      <div class="pill-opt active" onclick="setLightingMode('balanced', this)">Balanced (Atmospheric Glow)</div>
+      <div class="pill-opt" onclick="setLightingMode('bright', this)">High Clarity (Bright Arena)</div>
+      <div class="pill-opt" onclick="setLightingMode('dark', this)">Gothic (Dim Dungeon)</div>
     </div>
 
     <div style="margin-bottom: 18px; font-size: 14px; color: #ffd700; font-weight: 800;">
-      Banked Gold: <span id="start-gold-text">0</span> 🪙
+      Banked Gold: <span id="start-gold-text">0</span> GOLD
     </div>
 
     <button id="start-btn" class="btn">ENTER THE DUNGEON</button>
     <button id="armory-btn" class="btn btn-secondary">SOUL FORGE (ARMORY)</button>
-    <button id="achieve-btn" class="btn btn-secondary">🏆 ACHIEVEMENTS</button>
-    <button id="leaderboard-btn" class="btn btn-secondary">🥇 HALL OF FAME</button>
-    <button id="daily-bounty-btn" class="btn btn-secondary" onclick="claimDailyGold()">🎁 DAILY BOUNTY (+250 🪙)</button>
-    <button id="install-pwa-btn" class="btn btn-secondary" style="border-color:#00f2fe; color:#00f2fe;" onclick="triggerPwaInstall()">📲 INSTALL APP</button>
+    <button id="achieve-btn" class="btn btn-secondary">ACHIEVEMENTS</button>
+    <button id="leaderboard-btn" class="btn btn-secondary">HALL OF FAME</button>
+    <button id="daily-bounty-btn" class="btn btn-secondary" onclick="claimDailyGold()">DAILY BOUNTY (+250 GOLD)</button>
+    <button id="install-pwa-btn" class="btn btn-secondary" style="border-color:#00f2fe; color:#00f2fe;" onclick="triggerPwaInstall()">INSTALL APP</button>
 
     <div style="margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 16px; justify-content: center; align-items: center; font-size: 12px; color: #a49bb5; flex-wrap: wrap;">
-      <a href="https://valixis.tech" target="_blank" rel="noopener" style="color: #00f2fe; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">🌐 valixis.tech</a>
+      <a href="https://valixis.tech" target="_blank" rel="noopener" style="color: #00f2fe; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">valixis.tech</a>
       <span style="opacity: 0.35;">&bull;</span>
-      <a href="https://portal.valixis.tech" target="_blank" rel="noopener" style="color: #a49bb5; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">⚡ portal.valixis.tech</a>
+      <a href="https://portal.valixis.tech" target="_blank" rel="noopener" style="color: #a49bb5; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">portal.valixis.tech</a>
       <span style="opacity: 0.35;">&bull;</span>
       <span style="color: #6d6480;">&copy; 2026 VALIXIS Technologies</span>
     </div>
@@ -879,7 +878,7 @@
     <p class="modal-desc">Permanently upgrade your bloodline stats using collected Gold.</p>
     
     <div style="font-size: 15px; font-weight: 800; color: #ffd700; margin-bottom: 16px;">
-      Gold: <span id="shop-gold-text">0</span> 🪙
+      Gold: <span id="shop-gold-text">0</span> GOLD
     </div>
 
     <div class="shop-grid" id="shop-items-wrap"></div>
@@ -904,12 +903,12 @@
     <button id="quit-btn" class="btn btn-secondary">QUIT TO MENU</button>
 
     <div class="test-panel">
-      <div style="width: 100%; font-size: 12px; color: #00f2fe; font-weight: 800; margin-bottom: 4px;">🧪 TEST CONSOLE (INSTANT TESTING):</div>
-      <button class="test-btn" onclick="testCheat('gold')">+100 Gold 🪙</button>
-      <button class="test-btn" onclick="testCheat('lvl')">Instant Level-Up ⚡</button>
-      <button class="test-btn" onclick="testCheat('boss')">Spawn Boss Now 👑</button>
-      <button class="test-btn" onclick="testCheat('god')">Toggle God Mode 🛡️</button>
-      <button class="test-btn" onclick="testCheat('clear')">Kill All Mobs 💀</button>
+      <div style="width: 100%; font-size: 12px; color: #00f2fe; font-weight: 800; margin-bottom: 4px;">TEST CONSOLE (INSTANT TESTING):</div>
+      <button class="test-btn" onclick="testCheat('gold')">+100 Gold</button>
+      <button class="test-btn" onclick="testCheat('lvl')">Instant Level-Up</button>
+      <button class="test-btn" onclick="testCheat('boss')">Spawn Boss Now</button>
+      <button class="test-btn" onclick="testCheat('god')">Toggle God Mode</button>
+      <button class="test-btn" onclick="testCheat('clear')">Kill All Mobs</button>
     </div>
   </div>
 </div>
@@ -928,7 +927,7 @@
 <!-- ACHIEVEMENTS MODAL -->
 <div id="achieve-modal" class="modal-overlay">
   <div class="modal-box" style="max-width:700px;">
-    <h2 class="modal-title" style="color:#ffd700;">🏆 ACHIEVEMENTS</h2>
+    <h2 class="modal-title" style="color:#ffd700;">ACHIEVEMENTS</h2>
     <div id="achieve-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;text-align:left;max-height:400px;overflow-y:auto;padding-right:6px;"></div>
     <button class="btn" onclick="document.getElementById('achieve-modal').style.display='none';document.getElementById('start-modal').style.display='flex';">BACK</button>
   </div>
@@ -937,10 +936,10 @@
 <!-- WANDERING MERCHANT MODAL -->
 <div id="merchant-modal" class="modal-overlay">
   <div class="modal-box" style="max-width: 680px; border-color: #ffd700; box-shadow: 0 0 50px rgba(255, 215, 0, 0.4);">
-    <h2 class="modal-title" style="color: #ffd700;">🧙‍♂️ MORTHAK'S RELIC EMPORIUM</h2>
+    <h2 class="modal-title" style="color: #ffd700;">MORTHAK'S RELIC EMPORIUM</h2>
     <p class="modal-desc">Spend gold gathered from this run on ancient relics to survive deeper chambers.</p>
     <div style="font-size: 15px; font-weight: 800; color: #ffd700; margin-bottom: 16px;">
-      Current Run Gold: <span id="merchant-gold-text">0</span> 🪙
+      Current Run Gold: <span id="merchant-gold-text">0</span> GOLD
     </div>
     <div id="merchant-relics-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;"></div>
     <button class="btn btn-secondary" onclick="closeMerchantModal()">CONTINUE JOURNEY</button>
@@ -950,7 +949,7 @@
 <!-- HALL OF FAME / LEADERBOARD MODAL -->
 <div id="leaderboard-modal" class="modal-overlay">
   <div class="modal-box" style="max-width: 720px; border-color: #00f2fe; box-shadow: 0 0 50px rgba(0, 242, 254, 0.35);">
-    <h2 class="modal-title" style="color: #00f2fe;">🥇 HALL OF FAME</h2>
+    <h2 class="modal-title" style="color: #00f2fe;">HALL OF FAME</h2>
     <p class="modal-desc">Top dungeon survivors across all realms. Vanquish abyss monsters to claim your throne.</p>
     <div style="max-height: 360px; overflow-y: auto; margin-bottom: 18px;">
       <table class="lead-table">
@@ -973,6 +972,304 @@
 </div>
 
 <script>
+/* --- VALIXIS PROCEDURAL VECTOR ICONOGRAPHY ENGINE (ZERO EMOJIS, ZERO IMAGES) --- */
+/**
+ * VALIXIS GAMES STUDIO - VECTOR ICONOGRAPHY ENGINE
+ * 100% Procedural SVG & Vector Graphics.
+ * ZERO EMOJIS. ZERO EXTERNAL RASTER IMAGES.
+ */
+
+const VECTOR_ICONS_MAP = {
+  // --- HUD & CONTROLS ---
+  heart: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${c}"/>
+    <path d="M12 6.5c-1-1.5-2.5-2-4.5-2-2.5 0-4 1.8-4 4 0 2.8 2.5 5.2 6.5 8.9L12 19l2-1.6C18 13.7 20.5 11.3 20.5 8.5c0-2.2-1.5-4-4-4-2 0-3.5.5-4.5 2z" fill="#ffffff" fill-opacity="0.28"/>
+  </svg>`,
+
+  spark: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M13 2L3 14h9l-2 8 11-13h-8l3-7z" fill="${c}"/>
+    <path d="M12 4L5 13h7l-1 6 8-10h-7l2-5z" fill="#ffffff" fill-opacity="0.35"/>
+  </svg>`,
+
+  skull: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M12 2C7.58 2 4 5.58 4 10c0 2.65 1.29 5 3.29 6.46V19c0 .55.45 1 1 1h7.42c.55 0 1-.45 1-1v-2.54C18.71 15 20 12.65 20 10c0-4.42-3.58-8-8-8z" fill="${c}"/>
+    <circle cx="8.5" cy="11.5" r="2" fill="#0d0a14"/>
+    <circle cx="15.5" cy="11.5" r="2" fill="#0d0a14"/>
+    <path d="M11 16h2v3h-2zm-3-1h2v3H8zm6 0h2v3h-2z" fill="#0d0a14"/>
+  </svg>`,
+
+  coin: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <circle cx="12" cy="12" r="10" stroke="${c}" stroke-width="2" fill="#1b120c"/>
+    <circle cx="12" cy="12" r="7.5" stroke="${c}" stroke-width="1" stroke-dasharray="2 2" fill="none"/>
+    <path d="M12 6.5l1.6 3.3 3.6.5-2.6 2.6.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.6 3.6-.5z" fill="${c}"/>
+  </svg>`,
+
+  timer: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <circle cx="12" cy="13" r="8" stroke="${c}" stroke-width="2" fill="#0d0a14"/>
+    <path d="M12 5V2m-3 0h6m-3 8v3l2.5 1.5" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12" cy="13" r="1.5" fill="${c}"/>
+  </svg>`,
+
+  castle: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M3 21h18V9l-3-3v3h-2V6l-3-3-3 3v3H8V6L5 9v12z" stroke="${c}" stroke-width="1.8" fill="#120d1f"/>
+    <path d="M10 21v-4a2 2 0 014 0v4H10z" fill="${c}"/>
+    <path d="M6 12h2v3H6zm10 0h2v3h-2z" fill="${c}"/>
+  </svg>`,
+
+  pause: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <rect x="6" y="4" width="4" height="16" rx="1.5" fill="${c}"/>
+    <rect x="14" y="4" width="4" height="16" rx="1.5" fill="${c}"/>
+  </svg>`,
+
+  play: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M7 4.5v15l12-7.5-12-7.5z" fill="${c}"/>
+  </svg>`,
+
+  audio: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M4 9v6h4l5 5V4L8 9H4z" fill="${c}"/>
+    <path d="M16.5 7.5a5.5 5.5 0 010 9m2.5-11.5a9 9 0 010 14" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  audio_muted: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M4 9v6h4l5 5V4L8 9H4z" fill="${c}"/>
+    <path d="M17 9l6 6m0-6l-6 6" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  fullscreen: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  arcade: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M5 3h14l-2 18H7L5 3z" stroke="${c}" stroke-width="1.8" fill="#130b1c"/>
+    <rect x="7" y="6" width="10" height="6" rx="1" fill="#050308" stroke="${c}" stroke-width="1"/>
+    <circle cx="10" cy="16" r="1.5" fill="${c}"/>
+    <path d="M14 15.5h3m-3 2h2" stroke="${c}" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  valixis_gem: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M12 2l8 5-8 15L4 7l8-5z" stroke="${c}" stroke-width="1.8" fill="#180c26"/>
+    <path d="M4 7h16M12 2v20M8 7l4 15M16 7l-4 15" stroke="${c}" stroke-width="1" stroke-opacity="0.7"/>
+  </svg>`,
+
+  crown: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M3 18l2-11 5 4 4-6 4 6 5-4 2 11H3z" stroke="${c}" stroke-width="1.8" fill="#201505"/>
+    <circle cx="5" cy="7" r="1" fill="${c}"/>
+    <circle cx="10" cy="11" r="1" fill="${c}"/>
+    <circle cx="14" cy="5" r="1" fill="${c}"/>
+    <circle cx="19" cy="7" r="1" fill="${c}"/>
+    <path d="M4 19h16v2H4z" fill="${c}"/>
+  </svg>`,
+
+  hazard: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M12 2.5L1.5 21h21L12 2.5z" stroke="${c}" stroke-width="2" fill="#240c0c"/>
+    <path d="M12 9v5m0 3h.01" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  flame: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M12 2c0 3-4 6-4 11a6 6 0 0012 0c0-6-8-9-8-11z" fill="${c}"/>
+    <path d="M12 9c0 2-2 4-2 6.5a4 4 0 008 0c0-3.5-6-5-6-6.5z" fill="#ffd700"/>
+  </svg>`,
+
+  combo: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M6 4l12 16M18 4L6 20" stroke="${c}" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="3" fill="#ff0055"/>
+  </svg>`,
+
+  trophy: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-icon">
+    <path d="M7 4h10v6c0 3-2 5.5-5 5.5S7 13 7 10V4z" fill="${c}"/>
+    <path d="M4 6h3v3c0 2-1 3-3 3V6zm16 0h-3v3c0 2 1 3 3 3V6zm-8 9.5V19m-4 2h8" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  // --- HERO CLASS CRESTS (8 HEROES) ---
+  crest_pyro: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M16 2C16 2 8 10 8 18a8 8 0 0016 0c0-8-8-16-8-16z" fill="${c}"/>
+    <path d="M16 11c0 0-4 4-4 8a4 4 0 008 0c0-4-4-8-4-8z" fill="#ffd700"/>
+    <circle cx="16" cy="22" r="2" fill="#ffffff"/>
+  </svg>`,
+
+  crest_cryo: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M16 3v26M3 16h26M7 7l18 18M7 25L25 7" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="16" cy="16" r="3.5" fill="${c}"/>
+    <path d="M13 5l3-2 3 2M13 27l3 2 3-2M5 13l-2 3 2 3M27 13l2 3-2 3" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  crest_rogue: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M6 6l11 11-3 3-11-11 3-3zM26 6L15 17l3 3 11-11-3-3z" fill="${c}"/>
+    <path d="M16 3l3 7-7-3 4-4zm0 26l-3-7 7 3-4 4z" fill="${c}"/>
+    <circle cx="16" cy="16" r="2.5" fill="#ffffff"/>
+  </svg>`,
+
+  crest_necro: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M6 28L24 6c3 3 4 8 2 12l-2-2c1-3 0-6-2-8L8 28H6z" fill="${c}"/>
+    <circle cx="10" cy="10" r="2.2" fill="#00ff88"/>
+    <circle cx="22" cy="20" r="2.5" fill="#00ff88"/>
+    <circle cx="18" cy="24" r="1.5" fill="#00ff88"/>
+  </svg>`,
+
+  crest_paladin: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M16 3L6 7v10c0 7 10 12 10 12s10-5 10-12V7l-10-4z" stroke="${c}" stroke-width="2" fill="#1b1605"/>
+    <path d="M16 8v14M11 13h10" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`,
+
+  crest_ranger: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M8 5c6 7 6 15 0 22M8 5l16 11L8 27" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M4 16h22M22 13l4 3-4 3" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  crest_warlock: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M4 16c4-7 20-7 24 0-4 7-20 7-24 0z" stroke="${c}" stroke-width="2" fill="#17041a"/>
+    <circle cx="16" cy="16" r="4.5" fill="${c}"/>
+    <circle cx="16" cy="16" r="2" fill="#000"/>
+    <path d="M16 4v4m0 16v4M4 8l3 3m18-3l-3 3M4 24l3-3m18 3l-3-3" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  crest_bard: (c, s) => `<svg viewBox="0 0 32 32" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-crest">
+    <path d="M9 7c0 10 3 17 7 17s7-7 7-17" stroke="${c}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M7 6h18M13 7v17M16 7v17M19 7v17" stroke="${c}" stroke-width="1.8"/>
+    <circle cx="16" cy="27" r="2.5" fill="${c}"/>
+  </svg>`,
+
+  // --- UPGRADES & BLESSINGS ---
+  multishot: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M12 2l3 6h-6l3-6zM4 8l6 3-2 5-6-4 2-4zM20 8l-6 3 2 5 6-4-2-4z" fill="${c}"/>
+    <circle cx="12" cy="17" r="2.5" fill="${c}"/>
+  </svg>`,
+
+  lightning: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M13 2L4 13h7l-2 9 11-12h-8l3-8z" fill="${c}"/>
+  </svg>`,
+
+  frostnova: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <circle cx="12" cy="12" r="3" fill="${c}"/>
+    <path d="M12 2v6m0 8v6M2 12h6m8 0h6M5 5l4 4m6 6l4 4M5 19l4-4m6-6l4-4" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  puddle: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M10 3h4v4h-4zM6 19c0-4 6-10 6-10s6 6 6 10a6 6 0 01-12 0z" fill="${c}"/>
+    <circle cx="11" cy="17" r="1.5" fill="#fff" fill-opacity="0.4"/>
+  </svg>`,
+
+  shield: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M12 3L4 7v6c0 5.5 8 8 8 8s8-2.5 8-8V7l-8-4z" stroke="${c}" stroke-width="2" fill="#131620"/>
+    <circle cx="12" cy="11" r="3" fill="${c}"/>
+  </svg>`,
+
+  speed: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M3 14h6l4-7 5 3-3 4h4c1 0 2 1 1.5 2.5L18 20H8l-5-6z" fill="${c}"/>
+    <path d="M2 9h5M1 12h4" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  firerate: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <circle cx="12" cy="12" r="7" stroke="${c}" stroke-width="2" stroke-dasharray="3 3"/>
+    <path d="M12 8v4l3 2" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M19 4l2 3M5 4L3 7" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  vitality: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="${c}"/>
+    <path d="M12 8v6M9 11h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  poison: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M9 3h6v3H9zM7 8h10l3 12H4L7 8z" stroke="${c}" stroke-width="2" fill="#0b1c0e"/>
+    <circle cx="10" cy="15" r="1.5" fill="${c}"/>
+    <circle cx="14" cy="13" r="2" fill="${c}"/>
+  </svg>`,
+
+  crit: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M19 5l-10 10-3-1-2 4 4-2-1-3L17 3l2 2z" fill="${c}"/>
+    <path d="M16 11l4-2-1 4 3 2-4 1-1 4-2-4z" fill="#fff"/>
+  </svg>`,
+
+  magnet: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M4 5v7a8 8 0 0016 0V5h-4v7a4 4 0 01-8 0V5H4z" fill="${c}"/>
+    <path d="M4 5h4v3H4zM16 5h4v3h-4z" fill="#fff"/>
+  </svg>`,
+
+  drain: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M6 4h12v5c0 4-3 7-6 7s-6-3-6-7V4zm6 12v5m-4 0h8" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M12 7c-2 2-3 3-3 4.5a3 3 0 006 0c0-1.5-1-2.5-3-4.5z" fill="#ff0044"/>
+  </svg>`,
+
+  dragon: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M4 18l5-6 6 1 5-8-2 10-4 1-3 5-7-3z" fill="${c}"/>
+    <circle cx="10" cy="11" r="1" fill="#fff"/>
+    <path d="M18 14c2 0 4 2 4 4s-3 3-5 3" stroke="#ff3b00" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  nova: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <circle cx="12" cy="12" r="4" fill="${c}"/>
+    <path d="M12 2l2 4 4-2-1 4 4 1-3 3 3 3-4 1 1 4-4-2-2 4-2-4-4 2 1-4-4-1 3-3-3-3 4-1-1-4 4 2z" stroke="${c}" stroke-width="1.5" fill="none"/>
+  </svg>`,
+
+  pierce: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M3 12h18m-4-4l4 4-4 4" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M10 6v12M14 6v12" stroke="#fff" stroke-width="1.5" stroke-dasharray="2 2"/>
+  </svg>`,
+
+  explosion: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <circle cx="11" cy="13" r="7" fill="${c}"/>
+    <path d="M15 8l3-3m-1 0l3 1" stroke="#ff8800" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="20" cy="5" r="1.5" fill="#fff"/>
+  </svg>`,
+
+  parry: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M5 5l14 14M19 5L5 19" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="5" stroke="#fff" stroke-width="1.5" stroke-dasharray="2 2"/>
+  </svg>`,
+
+  blizzard: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M12 3a9 9 0 018 5m-16 0a9 9 0 0113-3M5 14a8 8 0 0013 4m-15-5a8 8 0 0010 6" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12" cy="12" r="2.5" fill="${c}"/>
+  </svg>`,
+
+  thorns: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M3 12h18M6 8l3 4-3 4M18 8l-3 4 3 4M12 5l-2 7 2 7" stroke="${c}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  berserk: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M4 8l4-4 4 3 4-3 4 4-2 10-6 3-6-3L4 8z" stroke="${c}" stroke-width="2" fill="#2d0505"/>
+    <path d="M9 11l2 2m4-2l-2 2m-3 3h4" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  gold_rush: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M4 9h16v10H4z" stroke="${c}" stroke-width="2" fill="#241a06"/>
+    <path d="M4 9l8-5 8 5" stroke="${c}" stroke-width="2"/>
+    <circle cx="12" cy="14" r="2.5" fill="${c}"/>
+  </svg>`,
+
+  ultimate_cooldown: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M21 12a9 9 0 11-2.6-6.4L21 8m0-5v5h-5" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  banish: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <circle cx="12" cy="12" r="9" stroke="${c}" stroke-width="2"/>
+    <path d="M6 6l12 12" stroke="${c}" stroke-width="2.2"/>
+  </svg>`,
+
+  relic_dice: (c, s) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" xmlns="http://www.w3.org/2000/svg" class="v-upg">
+    <path d="M12 2l8 5v10l-8 5-8-5V7l8-5z" stroke="${c}" stroke-width="1.8" fill="#1b1226"/>
+    <path d="M12 2v20M4 7l8 5 8-5M4 17l8-5 8 5" stroke="${c}" stroke-width="1.2"/>
+  </svg>`
+};
+
+const VectorIcons = {
+  getSvg(name, color = '#ffd700', size = 24) {
+    if (ICONS[name]) {
+      return ICONS[name](color, size);
+    }
+    // Fallback vector rune
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" stroke="${color}" stroke-width="2"/><path d="M12 7v10M7 12h10" stroke="${color}" stroke-width="2"/></svg>`;
+  },
+
+  inject(element, name, color, size) {
+    if (element) {
+      element.innerHTML = this.getSvg(name, color, size);
+    }
+  }
+};
+
+
 /* ==========================================================================
    1. META-PROGRESSION PERSISTENCE
    ========================================================================== */
@@ -1015,16 +1312,16 @@ MetaStore.load();
    ACHIEVEMENTS SYSTEM
    ========================================================================== */
 const ACHIEVEMENTS = [
-  { id: 'first_blood', name: 'First Blood', icon: '🩸', desc: 'Kill your first enemy', check: () => (MetaStore.data.totalKills || 0) >= 1, earned: false },
-  { id: 'kill100', name: 'Century Kill', icon: '💀', desc: 'Kill 100 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 100, earned: false },
-  { id: 'kill1000', name: 'Void Reaper', icon: '☠️', desc: 'Kill 1000 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 1000, earned: false },
-  { id: 'survive5', name: 'Survivor', icon: '⏱️', desc: 'Survive 5 minutes in one run', check: () => gameTime >= 300, earned: false },
-  { id: 'rich', name: 'Dragon Hoard', icon: '🪙', desc: 'Bank 500 gold total', check: () => (MetaStore.data.gold || 0) >= 500, earned: false },
-  { id: 'bossslayer', name: 'Lich Bane', icon: '👑', desc: 'Defeat the Void Lich', check: () => (MetaStore.data.bossKills || 0) >= 1, earned: false },
-  { id: 'combo10', name: 'Combo King', icon: '⚡', desc: 'Get a 10-kill streak', check: () => (MetaStore.data.maxStreak || 0) >= 10, earned: false },
-  { id: 'allheroes', name: 'Soul Collector', icon: '🎭', desc: 'Play as all 8 hero classes', check: () => (MetaStore.data.heroesPlayed || []).length >= 8, earned: false },
-  { id: 'elite', name: 'Elite Hunter', icon: '✨', desc: 'Kill your first Elite enemy', check: () => (MetaStore.data.eliteKills || 0) >= 1, earned: false },
-  { id: 'maxlevel', name: 'Ascendant', icon: '🌟', desc: 'Reach level 20 in one run', check: () => player.lvl >= 20, earned: false },
+  { id: 'first_blood', name: 'First Blood', icon: 'crit', desc: 'Kill your first enemy', check: () => (MetaStore.data.totalKills || 0) >= 1, earned: false },
+  { id: 'kill100', name: 'Century Kill', icon: 'skull', desc: 'Kill 100 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 100, earned: false },
+  { id: 'kill1000', name: 'Void Reaper', icon: 'crest_necro', desc: 'Kill 1000 enemies total', check: () => (MetaStore.data.totalKills || 0) >= 1000, earned: false },
+  { id: 'survive5', name: 'Survivor', icon: 'timer', desc: 'Survive 5 minutes in one run', check: () => gameTime >= 300, earned: false },
+  { id: 'rich', name: 'Dragon Hoard', icon: 'coin', desc: 'Bank 500 gold total', check: () => (MetaStore.data.gold || 0) >= 500, earned: false },
+  { id: 'bossslayer', name: 'Lich Bane', icon: 'crown', desc: 'Defeat the Void Lich', check: () => (MetaStore.data.bossKills || 0) >= 1, earned: false },
+  { id: 'combo10', name: 'Combo King', icon: 'combo', desc: 'Get a 10-kill streak', check: () => (MetaStore.data.maxStreak || 0) >= 10, earned: false },
+  { id: 'allheroes', name: 'Soul Collector', icon: 'trophy', desc: 'Play as all 8 hero classes', check: () => (MetaStore.data.heroesPlayed || []).length >= 8, earned: false },
+  { id: 'elite', name: 'Elite Hunter', icon: 'spark', desc: 'Kill your first Elite enemy', check: () => (MetaStore.data.eliteKills || 0) >= 1, earned: false },
+  { id: 'maxlevel', name: 'Ascendant', icon: 'crest_pyro', desc: 'Reach level 20 in one run', check: () => player.lvl >= 20, earned: false },
 ];
 
 ACHIEVEMENTS.forEach(ach => {
@@ -1054,7 +1351,7 @@ function checkAchievements() {
 function showAchievementNotif(ach) {
   const el = document.getElementById('achieve-notif');
   if (!el) return;
-  el.textContent = `🏆 Achievement Unlocked: ${ach.icon} ${ach.name}!`;
+  el.textContent = `Achievement Unlocked: ${ach.name}!`;
   el.style.display = 'block';
   el.style.opacity = '1';
   el.style.transition = 'opacity 0.4s ease';
@@ -1076,7 +1373,7 @@ function renderAchievements() {
     card.innerHTML = `
       <div style="font-size: 28px; filter: ${isUnlocked ? 'none' : 'grayscale(100%)'};">${ach.icon}</div>
       <div style="flex: 1;">
-        <div style="font-weight: 800; font-size: 14px; color: ${isUnlocked ? '#ffd700' : '#888'};">${ach.name} ${isUnlocked ? '✓' : '🔒'}</div>
+        <div style="font-weight: 800; font-size: 14px; color: ${isUnlocked ? '#ffd700' : '#888'};">${ach.name} ${isUnlocked ? '[COMPLETED]' : '[LOCKED]'}</div>
         <div style="font-size: 11px; color: #a49bb5; margin-top: 2px;">${ach.desc}</div>
       </div>
     `;
@@ -1557,7 +1854,7 @@ const AudioSys = {
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled;
     const btn = document.getElementById('music-btn');
-    btn.textContent = this.musicEnabled ? '🔊 MUSIC' : '🔇 MUTED';
+    btn.innerHTML = this.musicEnabled ? (VectorIcons.getSvg('audio', '#c5bdd4', 14) + ' AUDIO') : (VectorIcons.getSvg('audio_muted', '#ff5555', 14) + ' MUTED');
     btn.style.color = this.musicEnabled ? '#fff' : '#888';
   },
 
@@ -1933,7 +2230,7 @@ function testCheat(type) {
     runGold += 100;
     MetaStore.data.gold += 100;
     document.getElementById('hud-gold').textContent = runGold;
-    damageTexts.push(new DamageNumber(player.x, player.y - 20, '+100 GOLD 🪙', '#ffd700'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 20, '+100 GOLD', '#ffd700'));
     AudioSys.playCoin();
   } else if (type === 'lvl') {
     showLevelUpScreen();
@@ -1945,7 +2242,7 @@ function testCheat(type) {
       activeBoss.y = player.y - 250;
       enemies.push(activeBoss);
       document.getElementById('boss-hud').style.display = 'flex';
-      damageTexts.push(new DamageNumber(player.x, player.y - 20, '👑 BOSS SUMMONED!', '#ff3366'));
+      damageTexts.push(new DamageNumber(player.x, player.y - 20, 'BOSS SUMMONED!', '#ff3366'));
       AudioSys.playBossRoar();
       addTrauma(0.65);
       showBossBanner('THE VOID LICH HAS AWAKENED');
@@ -1953,27 +2250,30 @@ function testCheat(type) {
     }
   } else if (type === 'god') {
     isGodMode = !isGodMode;
-    damageTexts.push(new DamageNumber(player.x, player.y - 20, isGodMode ? 'GOD MODE ON 🛡️' : 'GOD MODE OFF', '#00f2fe'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 20, isGodMode ? 'GOD MODE ON' : 'GOD MODE OFF', '#00f2fe'));
   } else if (type === 'clear') {
     enemies.forEach(e => e.markedForDeath = true);
-    damageTexts.push(new DamageNumber(player.x, player.y - 20, '💀 SCREEN CLEARED', '#ffaa42'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 20, 'SCREEN CLEARED', '#ffaa42'));
     togglePause();
   }
 }
 
 /* Upgrades Pool */
 const UPGRADE_POOL = [
-  { id: 'multishot', name: 'Twin Flames', icon: '🔥', desc: 'Adds +1 bolt to your primary auto-attack salvo.' },
-  { id: 'lightning', name: 'Storm Conduit', icon: '⚡', desc: 'Strikes multiple enemies with high-voltage chain lightning.' },
-  { id: 'frostnova', name: 'Frost Aura', icon: '❄️', desc: 'Releases periodic frost bursts that freeze and slow foes.' },
-  { id: 'puddle', name: 'Holy Consecration', icon: '💧', desc: 'Drops fiery sanctified puddles that burn hordes over time.' },
-  { id: 'shield', name: 'Orbiting Spark', icon: '🛡️', desc: 'Spawns a spinning barrier orb that pulverizes oncoming mobs.' },
-  { id: 'speed', name: 'Windstride Boots', icon: '👟', desc: 'Increases hero movement speed by +18%.' },
-  { id: 'firerate', name: 'Arcane Quickening', icon: '✨', desc: 'Reduces all spell attack cooldowns by +22%.' },
-  { id: 'vitality', name: 'Lifebloom Heart', icon: '❤️', desc: 'Instantly heals 50 HP and raises maximum health by +30.' },
-  { id: 'poison', name: 'Void Miasma', icon: '👁️', desc: 'Unleashes toxic curses that poison enemies over time.' },
-  { id: 'smite', name: 'Divine Smite', icon: '⚚', desc: 'Holy smite strikes nearby foes and radiates healing energy.' },
-  { id: 'necro', name: 'Spectral Thralls', icon: '🧟', desc: 'Summons orbiting undead minions that slice enemies and siphon health.' }
+  { id: 'multishot', name: 'Twin Flames', icon: 'multishot', desc: 'Adds +1 bolt to your primary auto-attack salvo.' },
+  { id: 'lightning', name: 'Storm Conduit', icon: 'lightning', desc: 'Strikes multiple enemies with high-voltage chain lightning.' },
+  { id: 'frostnova', name: 'Frost Aura', icon: 'frostnova', desc: 'Releases periodic frost bursts that freeze and slow foes.' },
+  { id: 'puddle', name: 'Holy Consecration', icon: 'puddle', desc: 'Drops fiery sanctified puddles that burn hordes over time.' },
+  { id: 'shield', name: 'Orbiting Spark', icon: 'shield', desc: 'Spawns a spinning barrier orb that pulverizes oncoming mobs.' },
+  { id: 'speed', name: 'Windstride Boots', icon: 'speed', desc: 'Increases hero movement speed by +18%.' },
+  { id: 'firerate', name: 'Arcane Quickening', icon: 'firerate', desc: 'Reduces all spell attack cooldowns by +22%.' },
+  { id: 'vitality', name: 'Lifebloom Heart', icon: 'vitality', desc: 'Instantly heals 50 HP and raises maximum health by +30.' },
+  { id: 'poison', name: 'Void Miasma', icon: 'poison', desc: 'Unleashes toxic curses that poison enemies over time.' },
+  { id: 'smite', name: 'Divine Smite', icon: 'crest_paladin', desc: 'Holy smite strikes nearby foes and radiates healing energy.' },
+  { id: 'necro', name: 'Spectral Thralls', icon: 'crest_necro', desc: 'Summons orbiting undead minions that slice enemies and siphon health.' },
+  { id: 'crit', name: 'Serrated Edge', icon: 'crit', desc: 'Increases critical strike chance by +15% and crit damage.' },
+  { id: 'drain', name: 'Soul Siphon', icon: 'drain', desc: 'Gain 8% lifesteal, recovering HP on critical hits.' },
+  { id: 'parry', name: 'Duelist Aegis', icon: 'parry', desc: 'Extends dash perfect-parry window by +50% and unleashes blade shockwave.' }
 ];
 
 /* Player Object */
@@ -2118,7 +2418,7 @@ const player = {
 
   tryUltimate() {
     if ((this.ultMeter || 0) < this.maxUlt) {
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 18, 'ULTIMATE CHARGING! ⚡', '#bb00ff'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 18, 'ULTIMATE CHARGING!', '#bb00ff'));
       return;
     }
     this.ultMeter = 0;
@@ -2135,7 +2435,7 @@ const player = {
         e.takeDamage(160 * this.damageMult, true);
         e.applyStatus('burn', { damage: 12, duration: 6 });
       });
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '🔥 INFERNO CATACLYSM!', '#ff5500'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'INFERNO CATACLYSM!', '#ff5500'));
     } else if (hero === 'cryo') {
       // Glacial Absolute Zero
       shockwaves.push(new Shockwave(this.x, this.y, 400, '#00f2fe'));
@@ -2143,7 +2443,7 @@ const player = {
         e.applyStatus('freeze', { slowFactor: 0.05, duration: 4.5 });
         e.takeDamage(120 * this.damageMult, true);
       });
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '❄️ ABSOLUTE ZERO!', '#00f2fe'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'ABSOLUTE ZERO!', '#00f2fe'));
     } else if (hero === 'rogue') {
       // Void Omni-Slash
       this.invulnTimer = 3.0;
@@ -2155,7 +2455,7 @@ const player = {
           shockwaves.push(new Shockwave(e.x, e.y, 60, '#c040ff'));
         }, idx * 60);
       });
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '⚡ VOID OMNI-SLASH!', '#c040ff'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'VOID OMNI-SLASH!', '#c040ff'));
     } else if (hero === 'necro') {
       // Reaper's Army
       enemies.forEach(e => {
@@ -2163,7 +2463,7 @@ const player = {
         else e.takeDamage(110 * this.damageMult, true);
       });
       for (let i = 0; i < 20; i++) particles.push(Pool.getParticle(this.x, this.y, '#00ff88', 3.5));
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '💀 ARMY OF THE DAMNED!', '#00ff88'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'ARMY OF THE DAMNED!', '#00ff88'));
     } else if (hero === 'paladin') {
       // Judgment Ray
       this.hp = this.maxHp;
@@ -2171,14 +2471,14 @@ const player = {
       enemies.forEach(e => {
         e.takeDamage(180 * this.damageMult, true);
       });
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '⚚ JUDGMENT RAY & FULL HEAL!', '#ffd700'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'JUDGMENT RAY & FULL HEAL!', '#ffd700'));
     } else if (hero === 'archer') {
       // Celestial Arrow Storm
       for (let i = 0; i < 32; i++) {
         const a = (i / 32) * Math.PI * 2;
         projectiles.push(new Projectile(this.x, this.y, a, 45 * this.damageMult));
       }
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '🏹 CELESTIAL ARROW STORM!', '#ffd700'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'CELESTIAL ARROW STORM!', '#ffd700'));
     } else if (hero === 'warlock') {
       // Black Hole Singularity
       shockwaves.push(new Shockwave(this.x, this.y, 320, '#bb00ff'));
@@ -2189,7 +2489,7 @@ const player = {
         e.takeDamage(130 * this.damageMult, true);
         e.applyStatus('poison', { damage: 15, duration: 5 });
       });
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '👁️ EVENT HORIZON SINGULARITY!', '#bb00ff'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'EVENT HORIZON SINGULARITY!', '#bb00ff'));
     } else if (hero === 'bard') {
       // Symphony Crescendo
       this.speed *= 1.8;
@@ -2200,7 +2500,7 @@ const player = {
       }, 6000);
       shockwaves.push(new Shockwave(this.x, this.y, 350, '#ff00aa'));
       enemies.forEach(e => e.applyStatus('stun', { duration: 3.0 }));
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, '🎵 SYMPHONY CRESCENDO (HYPER FRENZY)!', '#ff00aa'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, 'SYMPHONY CRESCENDO (HYPER FRENZY)!', '#ff00aa'));
     }
     updateHUD();
   },
@@ -2208,7 +2508,7 @@ const player = {
   tryDash() {
     if (this.isDashing) return;
     if (this.stamina < this.staminaCost) {
-      damageTexts.push(new DamageNumber(this.x, this.y - 14, 'LOW STAMINA! ⚡', '#ff3b30'));
+      damageTexts.push(new DamageNumber(this.x, this.y - 14, 'LOW STAMINA!', '#ff3b30'));
       return;
     }
     this.stamina -= this.staminaCost;
@@ -2247,7 +2547,7 @@ const player = {
     if (parried) {
       this.stamina = Math.min(this.maxStamina, this.stamina + 25);
       shockwaves.push(new Shockwave(this.x, this.y, 140, '#ffd700'));
-      damageTexts.push(new DamageNumber(this.x, this.y - 24, '⚡ PERFECT PARRY!', '#ffd700'));
+      damageTexts.push(new DamageNumber(this.x, this.y - 24, 'PERFECT PARRY!', '#ffd700'));
       addTrauma(0.35);
       AudioSys.playParry();
     }
@@ -2413,7 +2713,7 @@ const player = {
           });
           this.hp = Math.min(this.maxHp, this.hp + 4);
           updateHUD();
-          damageTexts.push(new DamageNumber(this.x, this.y - 18, '+4 HP ⚚', '#00ff88'));
+          damageTexts.push(new DamageNumber(this.x, this.y - 18, '+4 HP', '#00ff88'));
         }
       }
     }
@@ -2502,7 +2802,7 @@ const player = {
     if (this.hasRelic && this.hasRelic('aegis_shield') && (this.shieldTimer || 0) <= 0) {
       this.shieldTimer = 14;
       shockwaves.push(new Shockwave(this.x, this.y, 110, '#00f2fe'));
-      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 20, 'AEGIS BLOCKED! 🛡️', '#00f2fe'));
+      damageTexts.push(Pool.getDamageNumber(this.x, this.y - 20, 'AEGIS BLOCKED!', '#00f2fe'));
       AudioSys.playLightning();
       return;
     }
@@ -2677,7 +2977,12 @@ class Projectile {
       ctx.shadowBlur = 10;
       ctx.font = '16px sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('♪', 0, 0);
+      ctx.fillStyle = '#ff99ff';
+      ctx.beginPath();
+      ctx.arc(0, 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(2, -5, 1.5, 7);
+      ctx.fillRect(2, -5, 4, 1.5);
     } else if (this.hero === 'warlock') {
       ctx.fillStyle = '#8b0000';
       ctx.shadowColor = '#ff00ff';
@@ -3047,7 +3352,7 @@ class Enemy {
 
   takeDamage(amount, isCrit = false) {
     if (this.type === 'gargoyle' && this.stoneMode) {
-      damageTexts.push(new DamageNumber(this.x, this.y - 12, 'IMMUNE 🪨', '#a49bb5'));
+      damageTexts.push(new DamageNumber(this.x, this.y - 12, 'IMMUNE', '#a49bb5'));
       return;
     }
 
@@ -3081,7 +3386,7 @@ class Enemy {
       this.hp = this.initialHp * 0.5;
       shockwaves.push(new Shockwave(this.x, this.y, 160, '#ff4400'));
       for (let i = 0; i < 16; i++) particles.push(new Particle(this.x, this.y, '#ff6600', 4));
-      damageTexts.push(new DamageNumber(this.x, this.y - 16, 'REBIRTH! 🔥', '#ffaa00'));
+      damageTexts.push(new DamageNumber(this.x, this.y - 16, 'REBIRTH!', '#ffaa00'));
       return;
     }
 
@@ -3117,7 +3422,7 @@ class Enemy {
       MetaStore.data.maxStreak = killStreak;
     }
     if (killStreak === 5 || killStreak === 10 || killStreak === 15 || killStreak === 20 || killStreak === 25 || killStreak === 30) {
-      damageTexts.push(new DamageNumber(player.x, player.y - 25, `${killStreak} COMBO! x${comboMult.toFixed(1)} ⚡`, '#ffd700'));
+      damageTexts.push(new DamageNumber(player.x, player.y - 25, `${killStreak} COMBO! x${comboMult.toFixed(1)}`, '#ffd700'));
     }
 
     // Blood Chalice Relic (vampiric heal on kills)
@@ -3126,7 +3431,7 @@ class Enemy {
       if (player.killsSinceHeal >= 3) {
         player.killsSinceHeal = 0;
         player.hp = Math.min(player.maxHp, player.hp + 2);
-        damageTexts.push(new DamageNumber(player.x, player.y - 18, '+2 HP 🍷', '#ff3366'));
+        damageTexts.push(new DamageNumber(player.x, player.y - 18, '+2 HP', '#ff3366'));
         updateHUD();
       }
     }
@@ -3365,7 +3670,7 @@ class GoldCoin {
         runGold += this.value;
         MetaStore.data.gold += this.value;
         document.getElementById('hud-gold').textContent = runGold;
-        damageTexts.push(new DamageNumber(this.x, this.y - 12, `+${this.value} 🪙`, '#ffd700'));
+        damageTexts.push(new DamageNumber(this.x, this.y - 12, `+${this.value} GOLD`, '#ffd700'));
         AudioSys.playCoin();
         this.collected = true;
         checkAchievements();
@@ -3427,11 +3732,11 @@ class TreasureChest {
    WANDERING MERCHANT & IN-RUN RELICS (PHASE 2)
    ========================================================================== */
 const MERCHANT_RELICS = [
-  { id: 'chalice', name: 'Blood Chalice', icon: '🍷', desc: 'Siphon: Restores +2 HP every 3 enemy kills.', cost: 35 },
-  { id: 'chronos', name: 'Chronos Hourglass', icon: '⏳', desc: 'Time Stasis: Freeze all nearby mobs on dodge roll.', cost: 45 },
-  { id: 'magnet_ring', name: 'Astral Singularity', icon: '💍', desc: 'Attraction: Doubles pickup magnet speed & radius.', cost: 30 },
-  { id: 'midas_crown', name: 'Midas Diadem', icon: '👑', desc: 'Transmutation: Doubles gold coins dropped by enemies.', cost: 50 },
-  { id: 'colossus_heart', name: 'Titan Core', icon: '💎', desc: 'Fortitude: +80 Max HP and immediately restore full HP.', cost: 40 }
+  { id: 'chalice', name: 'Blood Chalice', icon: 'drain', desc: 'Siphon: Restores +2 HP every 3 enemy kills.', cost: 35 },
+  { id: 'chronos', name: 'Chronos Hourglass', icon: 'timer', desc: 'Time Stasis: Freeze all nearby mobs on dodge roll.', cost: 45 },
+  { id: 'magnet_ring', name: 'Astral Singularity', icon: 'magnet', desc: 'Attraction: Doubles pickup magnet speed & radius.', cost: 30 },
+  { id: 'midas_crown', name: 'Midas Diadem', icon: 'crown', desc: 'Transmutation: Doubles gold coins dropped by enemies.', cost: 50 },
+  { id: 'colossus_heart', name: 'Titan Core', icon: 'vitality', desc: 'Fortitude: +80 Max HP and immediately restore full HP.', cost: 40 }
 ];
 
 class MerchantNPC {
@@ -3447,7 +3752,7 @@ class MerchantNPC {
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
     if (dist < 48) {
       if (!this.promptShown) {
-        damageTexts.push(new DamageNumber(this.x, this.y - 28, '💬 [E] OPEN SHOP', '#ffd700'));
+        damageTexts.push(new DamageNumber(this.x, this.y - 28, '[E] OPEN SHOP', '#ffd700'));
         this.promptShown = true;
       }
     } else {
@@ -3536,7 +3841,7 @@ function renderMerchantRelics() {
       <div class="merchant-name">${relic.name}</div>
       <div class="merchant-desc">${relic.desc}</div>
       <button class="merchant-buy" ${!canAfford ? 'disabled' : ''} onclick="buyMerchantRelic('${relic.id}', ${relic.cost})">
-        ${isOwned ? 'OWNED ✅' : `${relic.cost} 🪙`}
+        ${isOwned ? 'OWNED' : `${relic.cost} GOLD`}
       </button>
     `;
     container.appendChild(card);
@@ -3556,7 +3861,7 @@ function buyMerchantRelic(id, cost) {
       player.magnetRadius *= 2.2;
     }
 
-    damageTexts.push(new DamageNumber(player.x, player.y - 20, `RELIC UNLOCKED! 💎`, '#ffd700'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 20, `RELIC UNLOCKED!`, '#ffd700'));
     AudioSys.playCoin();
     updateHUD();
     renderMerchantRelics();
@@ -3681,10 +3986,10 @@ class Shrine {
     if (this.used) return;
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
     if (dist < 55) {
-      const prompt = this.type === 'blood' ? '🩸 [E] BLOOD ALTAR (-25 HP -> +25% DMG)' :
-                     this.type === 'storm' ? '⚡ [E] TEMPEST SHRINE (HYPER SPEED & RAPID FIRE)' :
-                     this.type === 'midas' ? '🪙 [E] MIDAS VAULT (GOLD TRANSMUTATION)' :
-                     '🛡️ [E] DIVINE WARD (120 HP FORCEFIELD)';
+      const prompt = this.type === 'blood' ? '[E] BLOOD ALTAR (-25 HP -> +25% DMG)' :
+                     this.type === 'storm' ? '[E] TEMPEST SHRINE (HYPER SPEED & RAPID FIRE)' :
+                     this.type === 'midas' ? '[E] MIDAS VAULT (GOLD TRANSMUTATION)' :
+                     '[E] DIVINE WARD (120 HP FORCEFIELD)';
       if (Math.floor(this.pulseTimer * 2) % 2 === 0) {
         damageTexts.push(Pool.getDamageNumber(this.x, this.y - 28, prompt, '#ffd700'));
       }
@@ -3701,7 +4006,7 @@ class Shrine {
       player.hp = Math.max(1, player.hp - 25);
       player.damageMult += 0.25;
       shockwaves.push(new Shockwave(this.x, this.y, 160, '#ff0033'));
-      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, '+25% PERMANENT MIGHT! 🩸', '#ff3344'));
+      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, '+25% PERMANENT MIGHT!', '#ff3344'));
       for (let i = 0; i < 20; i++) particles.push(Pool.getParticle(this.x, this.y, '#ff0033', 3));
     } else if (this.type === 'storm') {
       player.speed *= 1.4;
@@ -3711,7 +4016,7 @@ class Shrine {
         player.fireCooldown /= 0.5;
       }, 30000);
       shockwaves.push(new Shockwave(this.x, this.y, 180, '#00f2fe'));
-      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, '⚡ TEMPEST FRENZY (30s)!', '#00f2fe'));
+      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, 'TEMPEST FRENZY (30s)!', '#00f2fe'));
       for (let i = 0; i < 20; i++) particles.push(Pool.getParticle(this.x, this.y, '#00f2fe', 3));
     } else if (this.type === 'midas') {
       let count = 0;
@@ -3725,11 +4030,11 @@ class Shrine {
       runGold += 100;
       MetaStore.data.gold += 100;
       shockwaves.push(new Shockwave(this.x, this.y, 220, '#ffd700'));
-      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, '🪙 MIDAS TRANSMUTATION (+100 🪙)!', '#ffd700'));
+      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, 'MIDAS TRANSMUTATION (+100 GOLD)!', '#ffd700'));
     } else if (this.type === 'aegis') {
       player.shieldTimer = 35;
       shockwaves.push(new Shockwave(this.x, this.y, 160, '#ffffff'));
-      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, '🛡️ DIVINE WARD ACTIVE!', '#ffffff'));
+      damageTexts.push(Pool.getDamageNumber(player.x, player.y - 30, 'DIVINE WARD ACTIVE!', '#ffffff'));
     }
     updateHUD();
   }
@@ -3866,7 +4171,7 @@ function spawnWorldProps(biomeKey) {
 const BIOMES = {
   dungeon: {
     name: 'The Obsidian Crypt',
-    icon: '🏰',
+    icon: 'castle',
     floor: 'floor',
     wall: 'wall',
     wallFill: '#1c152a',
@@ -3878,7 +4183,7 @@ const BIOMES = {
   },
   forest: {
     name: 'Cursed Viridian Grove',
-    icon: '🌲',
+    icon: 'grove',
     floor: 'floor_forest',
     wall: 'wall_forest',
     wallFill: '#0c2415',
@@ -3890,7 +4195,7 @@ const BIOMES = {
   },
   glacial: {
     name: 'Glacial Frost Abyss',
-    icon: '❄️',
+    icon: 'glacial',
     floor: 'floor_glacial',
     wall: 'wall_glacial',
     wallFill: '#0d253b',
@@ -3902,7 +4207,7 @@ const BIOMES = {
   },
   inferno: {
     name: 'Infernal Magma Chasm',
-    icon: '🌋',
+    icon: 'inferno',
     floor: 'floor_inferno',
     wall: 'wall_inferno',
     wallFill: '#290d07',
@@ -3914,7 +4219,7 @@ const BIOMES = {
   },
   void: {
     name: 'Celestial Void Sanctum',
-    icon: '🌌',
+    icon: 'void',
     floor: 'floor_void',
     wall: 'wall_void',
     wallFill: '#170a2b',
@@ -3986,7 +4291,7 @@ function setBiome(biomeKey) {
   if (biomeEl) biomeEl.textContent = b.name.split(' ')[0];
   const banner = document.getElementById('biome-banner');
   if (banner) {
-    banner.textContent = `🌀 ENTERING: ${b.name.toUpperCase()} 🌀`;
+    banner.textContent = `ENTERING: ${b.name.toUpperCase()}`;
     banner.style.display = 'block';
     setTimeout(() => { if (banner) banner.style.display = 'none'; }, 4000);
   }
@@ -4158,7 +4463,16 @@ class Companion {
       ctx.font = '22px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this.type === 'knight' ? '🛡️' : this.type === 'ranger' ? '🏹' : '🔮', 0, -4);
+      ctx.fillStyle = this.type === 'knight' ? '#ffd700' : this.type === 'ranger' ? '#ffaa00' : '#c040ff';
+      ctx.beginPath();
+      if (this.type === 'knight') {
+        ctx.moveTo(0, -9); ctx.lineTo(6, -4); ctx.lineTo(4, 5); ctx.lineTo(0, 8); ctx.lineTo(-4, 5); ctx.lineTo(-6, -4); ctx.closePath();
+      } else if (this.type === 'ranger') {
+        ctx.arc(0, 0, 6, -Math.PI * 0.4, Math.PI * 0.4); ctx.lineTo(0, 0);
+      } else {
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      }
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -4199,7 +4513,8 @@ function renderLeaderboard() {
   const records = LeaderboardStore.getRecords();
   records.forEach((r, idx) => {
     const tr = document.createElement('tr');
-    const badge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+    const badge = idx === 0 ? '#1 [GOLD]' : idx === 1 ? '#2 [SILVER]' : idx === 2 ? '#3 [BRONZE]' : `#${idx + 1}`; 
+
     tr.innerHTML = `
       <td><span class="rank-badge">${badge}</span></td>
       <td style="font-weight:700; color:#fff;">${r.name}</td>
@@ -4221,7 +4536,7 @@ function claimDailyGold() {
   if (now - last < oneDay) {
     const remainingMs = oneDay - (now - last);
     const hrs = Math.ceil(remainingMs / (60 * 60 * 1000));
-    alert(`⏳ Daily Bounty chest is refilling! Next claim available in ~${hrs} hour(s).`);
+    alert(`Daily Bounty chest is refilling! Next claim available in ~${hrs} hour(s).`);
     return;
   }
   MetaStore.data.lastDailyClaim = now;
@@ -4229,7 +4544,7 @@ function claimDailyGold() {
   MetaStore.save();
   MetaStore.refreshDisplays();
   AudioSys.playChest();
-  alert('🎉 Claimed +250 Gold! Visit the Soul Forge to upgrade your bloodline stats.');
+  alert('Claimed +250 Gold! Visit the Soul Forge to upgrade your bloodline stats.');
 }
 
 let deferredInstallPrompt = null;
@@ -4251,7 +4566,7 @@ function triggerPwaInstall() {
       deferredInstallPrompt = null;
     });
   } else {
-    alert('📱 Install Soul Ember App:\n\n• On iOS (Safari): Tap Share > "Add to Home Screen".\n• On Android (Chrome): Tap three dots > "Install app" or "Add to Home screen" for full offline play!');
+    alert('Install Soul Ember App:\n\n• On iOS (Safari): Tap Share > "Add to Home Screen".\n• On Android (Chrome): Tap three dots > "Install app" or "Add to Home screen" for full offline play!');
   }
 }
 
@@ -4299,7 +4614,7 @@ function showLevelUpScreen() {
   gameState = 'LEVEL_UP';
   AudioSys.playChest();
   player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.25);
-  damageTexts.push(new DamageNumber(player.x, player.y - 28, '+25% HP RESTORED! 💚', '#00ff88'));
+  damageTexts.push(new DamageNumber(player.x, player.y - 28, '+25% HP RESTORED!', '#00ff88'));
   updateHUD();
   const modal = document.getElementById('lvl-modal');
   const container = document.getElementById('upg-cards-wrap');
@@ -4307,9 +4622,9 @@ function showLevelUpScreen() {
 
   const shuffled = [...UPGRADE_POOL].sort(() => 0.5 - Math.random()).slice(0, 3);
   const rarities = [
-    { name: 'LEGENDARY', color: '#ffd700', bg: 'rgba(255, 215, 0, 0.15)', border: '#ffd700', shadow: '0 0 25px rgba(255, 215, 0, 0.4)' },
-    { name: 'EPIC', color: '#c040ff', bg: 'rgba(192, 64, 255, 0.15)', border: '#c040ff', shadow: '0 0 20px rgba(192, 64, 255, 0.35)' },
-    { name: 'RARE', color: '#00f2fe', bg: 'rgba(0, 242, 254, 0.15)', border: '#00f2fe', shadow: '0 0 16px rgba(0, 242, 254, 0.3)' }
+    { name: 'LEGENDARY', color: '#ffd700', bg: 'rgba(255, 215, 0, 0.15)', border: '#ffd700', shadow: '0 0 25px rgba(255, 215, 0, 0.45)' },
+    { name: 'EPIC', color: '#c040ff', bg: 'rgba(192, 64, 255, 0.15)', border: '#c040ff', shadow: '0 0 20px rgba(192, 64, 255, 0.4)' },
+    { name: 'RARE', color: '#00f2fe', bg: 'rgba(0, 242, 254, 0.15)', border: '#00f2fe', shadow: '0 0 16px rgba(0, 242, 254, 0.35)' }
   ];
 
   shuffled.forEach((upg, idx) => {
@@ -4319,13 +4634,16 @@ function showLevelUpScreen() {
     card.className = 'upg-card';
     card.style.borderColor = rarity.border;
     card.style.boxShadow = rarity.shadow;
+    const iconSvg = VectorIcons.getSvg(upg.icon || 'spark', rarity.color, 44);
     card.innerHTML = `
-      <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:\${rarity.color}; background:\${rarity.bg}; border:1px solid \${rarity.border}; padding:3px 10px; border-radius:12px; margin-bottom:10px; text-transform:uppercase;">
-        \${rarity.name} BLESSING
+      <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:${rarity.color}; background:${rarity.bg}; border:1px solid ${rarity.border}; padding:3px 10px; border-radius:12px; margin-bottom:10px; text-transform:uppercase;">
+        ${rarity.name} BLESSING
       </div>
-      <div class="upg-icon" style="filter: drop-shadow(0 0 8px \${rarity.color});">\${upg.icon}</div>
-      <div class="upg-name" style="font-family: var(--font-display); letter-spacing:1px; color:#fff;">\${upg.name}</div>
-      <div class="upg-desc" style="color:#c5bdd4; line-height:1.5;">\${upg.desc}</div>
+      <div class="upg-icon" style="filter: drop-shadow(0 0 12px ${rarity.color}); display:flex; align-items:center; justify-content:center; width:56px; height:56px; margin:0 auto 10px auto; background:rgba(255,255,255,0.03); border-radius:14px; border:1px solid rgba(255,255,255,0.08);">
+        ${iconSvg}
+      </div>
+      <div class="upg-name" style="font-family: var(--font-display); letter-spacing:1px; color:#fff; font-size:16px; font-weight:800; margin-bottom:6px;">${upg.name}</div>
+      <div class="upg-desc" style="color:#c5bdd4; line-height:1.5; font-size:12px;">${upg.desc}</div>
     `;
     card.addEventListener('mouseenter', () => AudioSys.playHover());
     card.onclick = () => {
@@ -4367,7 +4685,7 @@ function triggerGameOver(victory = false) {
   const reward = document.getElementById('death-reward');
 
   if (victory) {
-    title.textContent = '👑 VICTORY ACHIEVED!';
+    title.textContent = 'VICTORY ACHIEVED!';
     title.style.color = '#ffcc00';
     modal.querySelector('.modal-box').style.borderColor = '#ffcc00';
   } else {
@@ -4397,13 +4715,13 @@ function triggerGameOver(victory = false) {
     <div style="display:flex; justify-content:center; align-items:center; gap:16px; margin:16px 0;">
       <div style="font-size:36px; font-weight:900; color:${rankColor}; text-shadow:0 0 16px ${rankColor}; padding:8px 18px; border:2px solid ${rankColor}; border-radius:12px; background:rgba(0,0,0,0.5);">RANK ${rank}</div>
       <div style="text-align:left; font-size:13px; line-height:1.6; color:#d1c8d6;">
-        <div>⏱️ Survival Time: <b style="color:#fff;">${timeFormatted}</b></div>
-        <div>💀 Monsters Slain: <b style="color:#fff;">${killCount}</b></div>
-        <div>⚡ Max Combo: <b style="color:#ffd700;">${MetaStore.data.maxStreak || killStreak}x</b></div>
+        <div>Survival Time: <b style="color:#fff;">${timeFormatted}</b></div>
+        <div>Monsters Slain: <b style="color:#fff;">${killCount}</b></div>
+        <div>Max Combo: <b style="color:#ffd700;">${MetaStore.data.maxStreak || killStreak}x</b></div>
       </div>
     </div>
   `;
-  reward.innerHTML = `<div style="background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:10px; margin-bottom:18px;">Gold Harvested: <b style="color:#ffd700;">+${runGold} 🪙</b> (Bank: ${MetaStore.data.gold} 🪙) &bull; Score: <b style="color:#00f2fe;">${totalScore.toLocaleString()} PTS</b></div>`;
+  reward.innerHTML = `<div style="background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:10px; margin-bottom:18px;">Gold Harvested: <b style="color:#ffd700;">+${runGold} GOLD</b> (Bank: ${MetaStore.data.gold} GOLD) &bull; Score: <b style="color:#00f2fe;">${totalScore.toLocaleString()} PTS</b></div>`;
   modal.style.display = 'flex';
 }
 
@@ -4430,7 +4748,7 @@ function updateHUD() {
   const ultText = document.getElementById('ult-text');
   if (ultText) {
     if (ultPct >= 100) {
-      ultText.textContent = '⚡ ULTIMATE READY [R]!';
+      ultText.textContent = 'ULTIMATE READY [R]!';
       ultText.style.color = '#ffd700';
       if (ultBar) ultBar.style.boxShadow = '0 0 14px #ff00cc';
     } else {
@@ -4456,11 +4774,11 @@ function updateHUD() {
    7. SHOP (SOUL FORGE)
    ========================================================================== */
 const SHOP_ITEMS = [
-  { key: 'hp', name: 'Titan Vitality', icon: '❤️', desc: '+15 Max Health per rank', baseCost: 30, maxRank: 5 },
-  { key: 'might', name: 'Void Might', icon: '⚔️', desc: '+10% Spell Damage per rank', baseCost: 40, maxRank: 5 },
-  { key: 'speed', name: 'Swift Stride', icon: '👟', desc: '+6% Movement Speed per rank', baseCost: 35, maxRank: 5 },
-  { key: 'magnet', name: 'Astral Magnet', icon: '🧲', desc: '+20% Pickup Radius per rank', baseCost: 25, maxRank: 5 },
-  { key: 'greed', name: 'Golden Fortune', icon: '🪙', desc: '+20% Gold drop chance per rank', baseCost: 50, maxRank: 5 }
+  { key: 'hp', name: 'Titan Vitality', icon: 'vitality', desc: '+15 Max Health per rank', baseCost: 30, maxRank: 5 },
+  { key: 'might', name: 'Void Might', icon: 'crit', desc: '+10% Spell Damage per rank', baseCost: 40, maxRank: 5 },
+  { key: 'speed', name: 'Swift Stride', icon: 'speed', desc: '+6% Movement Speed per rank', baseCost: 35, maxRank: 5 },
+  { key: 'magnet', name: 'Astral Magnet', icon: 'magnet', desc: '+20% Pickup Radius per rank', baseCost: 25, maxRank: 5 },
+  { key: 'greed', name: 'Golden Fortune', icon: 'coin', desc: '+20% Gold drop chance per rank', baseCost: 50, maxRank: 5 }
 ];
 
 function renderArmory() {
@@ -4482,7 +4800,7 @@ function renderArmory() {
         <div class="shop-sub">${item.desc}</div>
       </div>
       <button class="shop-buy" ${!canAfford ? 'disabled' : ''} onclick="buyArmoryUpgrade('${item.key}', ${cost})">
-        ${isMax ? 'MAX' : `${cost} 🪙`}
+        ${isMax ? 'MAX' : `${cost} GOLD`}
       </button>
     `;
     container.appendChild(div);
@@ -4621,7 +4939,7 @@ requestAnimationFrame(loop);
       Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(a) * 200)),
       Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(a) * 200))
     );
-    damageTexts.push(new DamageNumber(player.x, player.y - 30, '🧙‍♂️ WANDERING MERCHANT HAS ARRIVED!', '#ffd700'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 30, 'WANDERING MERCHANT HAS ARRIVED!', '#ffd700'));
   } else if (gameTime >= 135 && merchantSpawnedTimes === 1) {
     merchantSpawnedTimes = 2;
     const a = Math.random() * Math.PI * 2;
@@ -4629,7 +4947,7 @@ requestAnimationFrame(loop);
       Math.max(120, Math.min(WORLD.width - 120, player.x + Math.cos(a) * 200)),
       Math.max(120, Math.min(WORLD.height - 120, player.y + Math.sin(a) * 200))
     );
-    damageTexts.push(new DamageNumber(player.x, player.y - 30, '🧙‍♂️ WANDERING MERCHANT RETURNED!', '#ffd700'));
+    damageTexts.push(new DamageNumber(player.x, player.y - 30, 'WANDERING MERCHANT RETURNED!', '#ffd700'));
   }
 
   if (wanderingMerchant) {
@@ -5056,10 +5374,10 @@ requestAnimationFrame(loop);
   const centerScreenX = canvas.width / 2;
   const centerScreenY = canvas.height / 2;
   const radarTargets = [];
-  if (activeBoss) radarTargets.push({ x: activeBoss.x, y: activeBoss.y, label: 'BOSS', icon: '👑', color: '#ff0055' });
-  if (wanderingMerchant) radarTargets.push({ x: wanderingMerchant.x, y: wanderingMerchant.y, label: 'SHOP', icon: '🪙', color: '#ffd700' });
+  if (activeBoss) radarTargets.push({ x: activeBoss.x, y: activeBoss.y, label: 'BOSS', type: 'boss', color: '#ff0055' });
+  if (wanderingMerchant) radarTargets.push({ x: wanderingMerchant.x, y: wanderingMerchant.y, label: 'SHOP', type: 'shop', color: '#ffd700' });
   enemies.forEach(e => {
-    if (e.isElite) radarTargets.push({ x: e.x, y: e.y, label: 'ELITE', icon: '⚡', color: '#ffaa00' });
+    if (e.isElite) radarTargets.push({ x: e.x, y: e.y, label: 'ELITE', type: 'elite', color: '#ffaa00' });
   });
 
   radarTargets.forEach(t => {
@@ -5297,6 +5615,27 @@ document.getElementById('quit-btn').onclick = () => {
 requestAnimationFrame(loop);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+function initHeroIcons() {
+  const map = {
+    pyro: { icon: 'crest_pyro', color: '#ff5500' },
+    cryo: { icon: 'crest_cryo', color: '#00f2fe' },
+    rogue: { icon: 'crest_rogue', color: '#c040ff' },
+    necro: { icon: 'crest_necro', color: '#00ff88' },
+    paladin: { icon: 'crest_paladin', color: '#ffd700' },
+    archer: { icon: 'crest_ranger', color: '#ffb700' },
+    warlock: { icon: 'crest_warlock', color: '#ff3366' },
+    bard: { icon: 'crest_bard', color: '#ff99ff' }
+  };
+  Object.keys(map).forEach(key => {
+    const el = document.getElementById('hero-icon-' + key);
+    if (el) {
+      el.innerHTML = VectorIcons.getSvg(map[key].icon, map[key].color, 38);
+    }
+  });
+}
+window.addEventListener('DOMContentLoaded', initHeroIcons);
+
 </script>
 </body>
 </html>

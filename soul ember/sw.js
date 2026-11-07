@@ -1,4 +1,4 @@
-const CACHE = 'soul-ember-v14-victory-shop';
+const CACHE = 'soul-ember-v16-horde-scaling';
 const ASSETS = [
   './',
   './index.html',

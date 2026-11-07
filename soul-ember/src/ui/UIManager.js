@@ -10,14 +10,18 @@ import { RARITIES } from '../core/Constants.js';
 export class UIManager {
   constructor(audio) {
     this.audio = audio;
-    this.elements = {};
+    // Bind UI elements once DOM is ready
     this._bindElements();
+    // Attach hover/click sound feedback to all HUD buttons
+    this.attachButtonSounds();
   }
 
+  /** Gather all required DOM references */
   _bindElements() {
     if (typeof document === 'undefined') return;
 
     this.elements = {
+      // Core HUD
       hudHpText: document.getElementById('hud-hp'),
       hudHpFill: document.getElementById('hp-fill'),
       hudXpText: document.getElementById('hud-xp-text'),
@@ -26,19 +30,36 @@ export class UIManager {
       hudKills: document.getElementById('hud-kills'),
       hudGold: document.getElementById('hud-gold'),
       hudDash: document.getElementById('hud-dash'),
+      // Misc UI
       biomeText: document.getElementById('biome-text'),
       comboPill: document.getElementById('combo-pill'),
       comboText: document.getElementById('combo-text'),
       lvlModal: document.getElementById('lvl-modal'),
       upgCardsWrap: document.getElementById('upg-cards-wrap'),
       bossHud: document.getElementById('boss-hud'),
-      bossFill: document.getElementById('boss-fill')
+      bossFill: document.getElementById('boss-fill'),
+      // Generic HUD buttons for sound feedback (e.g., pause, audio toggle, etc.)
+      hudButtons: document.querySelectorAll('.hud-btn')
     };
   }
 
+  /** Attach hover and click sound callbacks to every .hud-btn */
+  attachButtonSounds() {
+    if (!this.elements?.hudButtons) return;
+    this.elements.hudButtons.forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        if (this.audio) this.audio.playHover();
+      });
+      btn.addEventListener('click', () => {
+        if (this.audio) this.audio.playClick();
+      });
+    });
+  }
+
+  /** Update all HUD elements each frame */
   updateHUD(player, timeString, kills, gold, biome, comboCount) {
-    if (!this.elements.hudHpText) this._bindElements();
-    if (!this.elements.hudHpText) return;
+    if (!this.elements?.hudHpText) this._bindElements();
+    if (!this.elements?.hudHpText) return;
 
     // HP Bar
     this.elements.hudHpText.textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
@@ -48,9 +69,7 @@ export class UIManager {
     }
 
     // XP Bar
-    if (this.elements.hudXpText) {
-      this.elements.hudXpText.textContent = `LVL ${player.lvl}`;
-    }
+    if (this.elements.hudXpText) this.elements.hudXpText.textContent = `LVL ${player.lvl}`;
     if (this.elements.hudXpFill) {
       const xpPct = Math.max(0, Math.min(100, (player.xp / player.xpNeed) * 100));
       this.elements.hudXpFill.style.width = `${xpPct}%`;
@@ -67,26 +86,22 @@ export class UIManager {
     }
 
     // Biome
-    if (this.elements.biomeText && biome) {
-      this.elements.biomeText.textContent = biome.name;
-    }
+    if (this.elements.biomeText && biome) this.elements.biomeText.textContent = biome.name;
 
     // Combo Pill
     if (this.elements.comboPill) {
       if (comboCount >= 3) {
         this.elements.comboPill.style.display = 'inline-flex';
-        if (this.elements.comboText) {
-          this.elements.comboText.textContent = `x${comboCount}`;
-        }
+        if (this.elements.comboText) this.elements.comboText.textContent = `x${comboCount}`;
       } else {
         this.elements.comboPill.style.display = 'none';
       }
     }
   }
 
+  /** Show level‑up blessing modal */
   showLevelUp(upgradePool, onSelectUpgrade) {
-    if (!this.elements.lvlModal) return;
-
+    if (!this.elements?.lvlModal) return;
     if (this.audio) this.audio.playLevelUp();
 
     this.elements.upgCardsWrap.innerHTML = '';
@@ -96,14 +111,12 @@ export class UIManager {
     shuffled.forEach(upg => {
       const r = Math.random();
       const rarity = r < 0.18 ? rarityKeys[0] : r < 0.55 ? rarityKeys[1] : rarityKeys[2];
-
       const card = document.createElement('div');
       card.className = 'upg-card';
       card.style.borderColor = rarity.border;
       card.style.boxShadow = rarity.shadow;
 
       const iconSvg = VectorIcons.getSvg(upg.icon || 'spark', rarity.color, 44);
-
       card.innerHTML = `
         <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:${rarity.color}; background:${rarity.bg}; border:1px solid ${rarity.border}; padding:3px 10px; border-radius:12px; margin-bottom:10px; text-transform:uppercase;">
           ${rarity.name} BLESSING
@@ -118,7 +131,6 @@ export class UIManager {
       card.addEventListener('mouseenter', () => {
         if (this.audio) this.audio.playHover();
       });
-
       card.onclick = () => {
         if (this.audio) this.audio.playClick();
         this.elements.lvlModal.style.display = 'none';

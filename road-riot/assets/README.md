@@ -9,6 +9,12 @@ The 3D models in this folder are from Kenney's CC0 asset collections:
 The sound files are CC0 assets indexed by `Mcamento8/open-game-sfx-index`:
 
 - Engine sound from Kenney's Sci-fi Sounds collection
+- Natural engine idle recording from SFXMint, CC0 1.0: https://sfxmint.com/sounds/mechanical-engine-43
 - Pickup, boost, and collision sounds from the Level Up / Power Up / Coin Get collection
 - Source index: https://github.com/Mcamento8/open-game-sfx-index
 - License: CC0 1.0
+
+The player car files are local Blender exports supplied for this project:
+
+- `player-ferrari.glb` is the primary player car.
+- `player-lamborghini.glb` is the upgrade car.

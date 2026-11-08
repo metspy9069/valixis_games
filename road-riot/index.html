@@ -251,7 +251,7 @@
     }
     function trafficVehicle(color) {
       const roll = Math.random();
-      const imported = roll < .26 ? assetInstance('van', 4.8, 'vehicle', color, Math.PI) : roll < .58 ? assetInstance('suv', 4.8, 'vehicle', color, Math.PI) : assetInstance('sports', 4.8, 'vehicle', color, Math.PI);
+      const imported = roll < .26 ? assetInstance('van', 4.8, 'vehicle', color, 0) : roll < .58 ? assetInstance('suv', 4.8, 'vehicle', color, 0) : assetInstance('sports', 4.8, 'vehicle', color, 0);
       return imported || (roll < .18 ? truck(color) : roll < .42 ? van(color) : roll < .58 ? bike(color) : sportsCar(color, true));
     }
     function startAudio() {
@@ -290,7 +290,7 @@
       const source = audio.context.createBufferSource();
       source.buffer = audio.engineBuffer;
       source.loop = true;
-      source.loopStart = Math.min(.9, Math.max(0, audio.engineBuffer.duration * .18));
+      source.loopStart = Math.min(2.15, Math.max(0, audio.engineBuffer.duration * .42));
       source.loopEnd = Math.max(source.loopStart + 1, audio.engineBuffer.duration - .15);
       source.playbackRate.value = .92;
       source.connect(audio.engineFilter);

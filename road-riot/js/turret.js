@@ -298,14 +298,14 @@ export class TurretDefenseSystem {
     const droneConfigs = [];
     if (wave === 1) {
       for (let i = 0; i < 4; i++) {
-        const spreadX = (i - 1.5) * 4.5;
+        const spreadX = (i - 1.5) * 4.2;
         droneConfigs.push({
           type: 'scout',
           hp: 2,
           maxHp: 2,
           x: spreadX,
-          y: 16 + Math.random() * 4,
-          z: -55 - i * 6,
+          y: 4.8 + (i % 2) * 1.5,
+          z: -52 - i * 5,
           swoopSpeed: 1.2 + Math.random() * 0.4,
           swoopPhase: i * 0.8,
           scale: 1.0
@@ -313,14 +313,14 @@ export class TurretDefenseSystem {
       }
     } else if (wave === 2) {
       for (let i = 0; i < 6; i++) {
-        const spreadX = (i - 2.5) * 3.8;
+        const spreadX = (i - 2.5) * 3.6;
         droneConfigs.push({
           type: 'assault',
           hp: 2,
           maxHp: 2,
           x: spreadX,
-          y: 18 + (i % 2) * 5,
-          z: -60 - (i % 3) * 8,
+          y: 5.2 + (i % 2) * 1.8,
+          z: -56 - (i % 3) * 6,
           swoopSpeed: 1.6 + Math.random() * 0.5,
           swoopPhase: i * 0.6,
           scale: 1.1
@@ -333,20 +333,20 @@ export class TurretDefenseSystem {
         hp: 6,
         maxHp: 6,
         x: 0,
-        y: 20,
-        z: -65,
+        y: 6.8,
+        z: -60,
         swoopSpeed: 0.9,
         swoopPhase: 0,
         scale: 1.75
       });
-      [-6, -3, 3, 6].forEach((spreadX, idx) => {
+      [-5.5, -2.5, 2.5, 5.5].forEach((spreadX, idx) => {
         droneConfigs.push({
           type: 'escort',
           hp: 2,
           maxHp: 2,
           x: spreadX,
-          y: 16 + (idx % 2) * 4,
-          z: -55 - idx * 4,
+          y: 4.8 + (idx % 2) * 1.5,
+          z: -50 - idx * 4,
           swoopSpeed: 1.5,
           swoopPhase: idx * 0.9,
           scale: 1.0
@@ -606,7 +606,7 @@ export class TurretDefenseSystem {
 
       // Dynamic swooping 3D flight paths
       const swoopX = Math.sin(d.time + d.swoopPhase) * 6.5;
-      const swoopY = Math.sin(d.time * 1.5 + d.swoopPhase) * 3.5;
+      const swoopY = Math.sin(d.time * 1.5 + d.swoopPhase) * 1.5;
       d.mesh.position.x = d.x + swoopX;
       d.mesh.position.y = d.baseY + swoopY;
 

@@ -32,10 +32,10 @@ class RoadRiotGame {
     this.renderer.toneMappingExposure = 1.15;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0c1322, 45, 230);
+    this.scene.fog = new THREE.Fog(0x0c1322, 130, 480);
 
-    this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 320);
-    this.defaultCamPos = new THREE.Vector3(0, 5.5, 8.6);
+    this.camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.1, 700);
+    this.defaultCamPos = new THREE.Vector3(0, 3.8, 1.2);
     this.camera.position.copy(this.defaultCamPos);
 
     // State Machine: 'MENU', 'COUNTDOWN', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
@@ -1111,12 +1111,12 @@ class RoadRiotGame {
 
     // --- 180° TURRET DEFENSE CHECKPOINT STATE ---
     if (this.state === 'TURRET_DEFENSE') {
-      // 1. Camera smoothly locks over the roof gunner view
-      const targetCamPos = new THREE.Vector3(this.player.x * 0.35, 2.8, this.player.mesh.position.z + 4.5);
+      // 1. Camera smoothly locks into a dramatic third-person view showing the car, the mounted human gunner, the road, and sky targets
+      const targetCamPos = new THREE.Vector3(this.player.x * 0.42, 3.4, this.player.mesh.position.z + 8.2);
       this.camera.position.lerp(targetCamPos, Math.min(1, dt * 7));
-      const lookAimX = this.player.x * 0.35 - Math.sin(this.turretSystem.aimYaw) * 16;
-      const lookAimY = 4.5 + Math.sin(this.turretSystem.aimPitch) * 16;
-      this.camera.lookAt(lookAimX, lookAimY, -45);
+      const lookAimX = this.player.x * 0.28 - Math.sin(this.turretSystem.aimYaw) * 18;
+      const lookAimY = 2.4 + Math.sin(this.turretSystem.aimPitch) * 12;
+      this.camera.lookAt(lookAimX, lookAimY, -60);
 
       // 2. Keyboard spacebar / Enter firing in turret mode
       if (this.keys.has(' ') || this.keys.has('Enter')) {
@@ -1552,25 +1552,31 @@ class RoadRiotGame {
       }
     }
 
-    // 10. Dynamic Camera Motion & Elevated Forward Sightline
-    const dynamicFov = 60 + Math.min(24, (kmh / 360) * 22) + (this.player.isBoosting ? 10 : 0) + (this.player.isAirborne ? 5 : 0);
+    // 10. Dynamic Camera Motion & Wide-Angle Long Highway Sightline
+    const dynamicFov = 64 + Math.min(18, (kmh / 360) * 16) + (this.player.isBoosting ? 8 : 0) + (this.player.isAirborne ? 4 : 0);
     this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 6.5);
     this.camera.updateProjectionMatrix();
 
     // High-speed asphalt micro-rumble
-    const speedRumble = (kmh > 220) ? Math.min(0.08, ((kmh - 220) / 140) * 0.05) : 0;
+    const speedRumble = (kmh > 220) ? Math.min(0.06, ((kmh - 220) / 140) * 0.04) : 0;
     this.camShake = Math.max(0, this.camShake - dt * 2.2);
     const totalShake = this.camShake + speedRumble;
 
-    // Elevated Bird's-Eye Camera Height (Y = 5.5m) and Forward Sightline (Y = 1.55m, Z = -26m)
-    const targetCamX = this.player.x * 0.42 + (Math.random() - 0.5) * totalShake;
-    const targetCamY = 5.5 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
-    const targetCamZ = 8.6 + (this.player.isBoosting ? 0.7 : 0);
+    // Cinematic GT Chase Cam: Elevated rear angle that reveals 150+ meters of open highway ahead
+    const targetCamX = this.player.x * 0.52 + (Math.random() - 0.5) * totalShake;
+    const targetCamY = 3.8 + this.player.verticalY * 0.55 + (Math.random() - 0.5) * totalShake;
+    const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
     this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);
     this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 6);
-    this.camera.lookAt(this.player.x * 0.22, 1.55 + this.player.verticalY * 0.35, -26);
+
+    // Look far down the highway (Z = -85m) towards the horizon so all 3 lanes, oncoming cars, ramps, and horizon are fully visible
+    this.camera.lookAt(
+      this.player.x * 0.25,
+      1.85 + this.player.verticalY * 0.38,
+      -85
+    );
 
     // Dynamic speed warp radial lines
     const warpOpacity = this.player.isBoosting ? '0.85' : (kmh > 260 ? String(Math.min(0.65, (kmh - 260) / 100)) : '0');

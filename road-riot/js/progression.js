@@ -1,14 +1,14 @@
 // Road Riot 3D - Progression, Settings, Achievements & Viral Challenge Engine
 
 export const ACHIEVEMENTS = [
-  { id: 'first_burnout', title: 'First Burnout', desc: 'Complete your first run on the highway.', reward: 150, icon: '🏁' },
-  { id: 'mach_speeder', title: 'Mach Speeder', desc: 'Break the speed limit and reach 280+ KM/H.', reward: 300, icon: '⚡' },
-  { id: 'drift_master', title: 'Drift Master', desc: 'Score 1,000 drift points in a single run.', reward: 400, icon: '🏎️' },
-  { id: 'needle_threader', title: 'Threading the Needle', desc: 'Execute 15 Near Misses in a single run.', reward: 500, icon: '🎯' },
-  { id: 'stunt_driver', title: 'Stunt Driver', desc: 'Launch off 5 Stunt Jump Ramps.', reward: 400, icon: '🚀' },
-  { id: 'highway_enforcer', title: 'Highway Enforcer', desc: 'Demolish 10 vehicles with weapons or ramming.', reward: 600, icon: '💥' },
-  { id: 'untouchable', title: 'Untouchable', desc: 'Survive 3,000m without taking hull damage.', reward: 750, icon: '🛡️' },
-  { id: 'rival_vanquisher', title: 'Rival Vanquisher', desc: 'Conquer a friend\'s challenger beacon.', reward: 1000, icon: '🏆' }
+  { id: 'first_burnout', title: 'First Burnout', desc: 'Complete your first run on the highway.', reward: 150, icon: 'INIT' },
+  { id: 'mach_speeder', title: 'Mach Speeder', desc: 'Break the speed limit and reach 280+ KM/H.', reward: 300, icon: 'MACH' },
+  { id: 'drift_master', title: 'Drift Master', desc: 'Score 1,000 drift points in a single run.', reward: 400, icon: 'DRIFT' },
+  { id: 'needle_threader', title: 'Threading the Needle', desc: 'Execute 15 Near Misses in a single run.', reward: 500, icon: 'APEX' },
+  { id: 'stunt_driver', title: 'Stunt Driver', desc: 'Launch off 5 Stunt Jump Ramps.', reward: 400, icon: 'AERO' },
+  { id: 'highway_enforcer', title: 'Highway Enforcer', desc: 'Demolish 10 vehicles with weapons or ramming.', reward: 600, icon: 'COMBAT' },
+  { id: 'untouchable', title: 'Untouchable', desc: 'Survive 3,000m without taking hull damage.', reward: 750, icon: 'SHIELD' },
+  { id: 'rival_vanquisher', title: 'Rival Vanquisher', desc: 'Conquer a friend\'s challenger beacon.', reward: 1000, icon: 'PODIUM' }
 ];
 
 export class ProgressionManager {
@@ -249,7 +249,7 @@ export class ProgressionManager {
   }
 
   getShareText(distance, score, topSpeed) {
-    return `🚗 I just clocked ${Math.floor(distance)}m at ${Math.round(topSpeed)} KM/H in Road Riot 3D on VALIXIS Games! Can you beat my score? Play free: ${this.generateShareUrl(distance, score)}`;
+    return `Telemetry: ${Math.floor(distance)}m at ${Math.round(topSpeed)} KM/H in Road Riot 3D (VALIXIS Motorsports). Beat my record: ${this.generateShareUrl(distance, score)}`;
   }
 }
 

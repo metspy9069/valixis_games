@@ -27,6 +27,9 @@
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
+  <!-- Tactile Film Grain Overlay (Studio Depth) -->
+  <div class="film-grain-overlay" aria-hidden="true"></div>
+
   <!-- 3D Canvas -->
   <canvas id="game-canvas"></canvas>
 
@@ -103,7 +106,7 @@
       <div class="radar-track">
         <div id="radar-progress" class="radar-progress"></div>
         <div id="radar-pin-player" class="radar-pin-player"></div>
-        <span id="radar-pin-beacon" class="radar-pin-beacon">🏁</span>
+        <span id="radar-pin-beacon" class="radar-pin-beacon">◆</span>
       </div>
     </div>
 
@@ -112,7 +115,7 @@
 
     <!-- Checkpoint Turret Defense Warning Banner -->
     <div id="hud-checkpoint-banner" class="checkpoint-banner hidden">
-      <div class="checkpoint-glitch-badge">⚠️ COMBAT SECTOR ACTIVE ⚠️</div>
+      <div class="checkpoint-glitch-badge">COMBAT SECTOR ENGAGED</div>
       <div class="checkpoint-sub">MOUNTING ROOF TURRET &bull; SHOOT DRONES, COMBAT PLANES &amp; ASSAULT ROBOTS</div>
     </div>
 
@@ -189,8 +192,8 @@
           <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; AIR DEFENSE CHECKPOINTS &bull; CAR TUNING</div>
         </div>
         <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:12px; background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.3); border-radius:8px; padding:8px 14px; display:flex; flex-direction:column; gap:4px; text-align:right;">
-          <div style="color:#00d9ff; font-size:11px; font-weight:900;">🚗 <span id="menu-equipped-car">VALIXIS APEX GT</span></div>
-          <div>🪙 <span id="menu-coins">0</span> COINS</div>
+          <div style="color:#00d9ff; font-size:11px; font-weight:900;"><span class="badge-tag">VEHICLE</span> <span id="menu-equipped-car">VALIXIS APEX GT</span></div>
+          <div><span class="cr-symbol">CR</span> <span id="menu-coins">0</span> CREDITS</div>
         </div>
       </div>
 
@@ -202,7 +205,7 @@
             <div id="mode-card-endless" class="race-mode-card active" style="background:rgba(0, 217, 255, 0.06); border:2px solid var(--neon-cyan); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">ENDLESS HIGHWAY</span>
-                <span style="font-size:18px;">♾️</span>
+                <span class="mode-badge-tag">ENDLESS</span>
               </div>
               <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
                 Survive infinite dense traffic, leap high-angle stunt ramps, collect credits, and halt at milestone checkpoints to gun down enemy drone squadrons.
@@ -213,7 +216,7 @@
             <div id="mode-card-sprint" class="race-mode-card" style="background:rgba(255, 42, 133, 0.04); border:2px solid rgba(255, 42, 133, 0.25); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">4-CAR SPRINT</span>
-                <span style="font-size:18px;">🏁</span>
+                <span class="mode-badge-tag">1,500M SPRINT</span>
               </div>
               <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
                 High-stakes 3,000m dash against rival street drivers. Draft through traffic slipstreams, ram opponents, defend milestones, and claim 1st place!
@@ -228,19 +231,19 @@
           <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1.5px; margin-bottom:10px;">HIGHWAY BIOME &amp; ATMOSPHERE</div>
           <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
             <button class="setting-toggle biome-btn active" data-biome="midnight" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:16px;">🌃</span>
+              <span class="biome-code-badge">SEC-01</span>
               <span>MIDNIGHT</span>
             </button>
             <button class="setting-toggle biome-btn" data-biome="canyon" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:16px;">🌅</span>
+              <span class="biome-code-badge">SEC-02</span>
               <span>SUNSET</span>
             </button>
             <button class="setting-toggle biome-btn" data-biome="neotokyo" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:16px;">🌧️</span>
+              <span class="biome-code-badge">SEC-03</span>
               <span>NEO-RAIN</span>
             </button>
             <button class="setting-toggle biome-btn" data-biome="arctic" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span style="font-size:16px;">❄️</span>
+              <span class="biome-code-badge">SEC-04</span>
               <span>ARCTIC</span>
             </button>
           </div>
@@ -250,9 +253,9 @@
       <div class="modal-footer" style="padding:14px 28px;">
         <a href="../" class="btn-secondary" style="text-decoration:none; display:flex; align-items:center; gap:6px;">&larr; ARCADE HUB</a>
         <div style="display:flex; gap:10px; align-items:center;">
-          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2);">🏎️ SUPERCAR SHOP &amp; GARAGE</button>
-          <button id="menu-settings-btn" class="btn-secondary">⚙️ CONTROLS</button>
-          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4);">START RACE 🏁</button>
+          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2);">SHOWROOM &amp; TUNING</button>
+          <button id="menu-settings-btn" class="btn-secondary">CONTROLS</button>
+          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4);">START RACE</button>
         </div>
       </div>
     </div>
@@ -269,7 +272,7 @@
           <h2 style="font-size:26px; font-weight:900; letter-spacing:1px; color:#fff;">SUPERCAR SHOWROOM &amp; SHOP</h2>
         </div>
         <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:16px;">
-          🪙 <span id="garage-coins">0</span> COINS
+          <span class="cr-symbol">CR</span> <span id="garage-coins">0</span> CREDITS
         </div>
       </div>
 
@@ -281,7 +284,7 @@
       <!-- Garage Navigation Tabs -->
       <div class="tab-group" style="padding: 0 28px; margin-top: 6px;">
         <button id="tab-cars-btn" class="tab-btn active">SUPERCAR TUNING &amp; DYNO</button>
-        <button id="tab-achievements-btn" class="tab-btn">ACHIEVEMENTS 🏆</button>
+        <button id="tab-achievements-btn" class="tab-btn">ACHIEVEMENTS</button>
       </div>
 
       <div class="modal-body">
@@ -292,7 +295,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
               <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
               <div id="garage-car-price" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:#ffb800; background:rgba(255,184,0,0.15); border:1px solid rgba(255,184,0,0.4); padding:3px 8px; border-radius:4px;">
-                🪙 UNLOCKED
+                UNLOCKED
               </div>
             </div>
             <div id="garage-car-title" class="car-preview-title">Valixis Apex</div>
@@ -327,12 +330,12 @@
               </div>
 
               <div style="font-family:var(--font-mono); font-size:10px; color:#ffea00; margin-top:12px; font-weight:700; text-align:center; letter-spacing:1px; background:rgba(255,234,0,0.1); border:1px solid rgba(255,234,0,0.25); border-radius:6px; padding:6px 10px;">
-                🔄 3D TURNTABLE ACTIVE &bull; DRAG TO ROTATE 360&deg;
+                3D TURNTABLE ACTIVE &bull; DRAG TO ROTATE 360&deg;
               </div>
 
               <!-- Interactive Dyno Test Button -->
               <button id="garage-dyno-btn" class="btn-primary" style="margin-top:12px; width:100%; font-size:11px; padding:10px; background:linear-gradient(135deg, #ff8800, #ff2a44); border-color:#ffaa00; font-weight:800;">
-                📊 RUN DYNO SPEED TEST BENCHMARK
+                RUN DYNO SPEED TEST BENCHMARK
               </button>
             </div>
           </div>
@@ -354,7 +357,7 @@
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
         <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
         <button id="garage-race-now-btn" class="btn-primary" style="padding:12px 32px; font-size:13px; font-weight:900; background:linear-gradient(135deg, #00d9ff, #00ff88); color:#000; letter-spacing:1.5px; box-shadow:0 0 20px rgba(0,217,255,0.4);">
-          RACE THIS CAR 🏁
+          RACE THIS CAR
         </button>
       </div>
     </div>
@@ -446,7 +449,7 @@
       <div class="modal-body" style="align-items:center; gap:12px;">
         <button id="pause-resume-btn" class="btn-primary" style="width:100%; max-width:280px;">RESUME RACE</button>
         <button id="pause-restart-btn" class="btn-secondary" style="width:100%; max-width:280px;">RESTART RUN</button>
-        <button id="pause-settings-btn" class="btn-secondary" style="width:100%; max-width:280px;">SETTINGS ⚙️</button>
+        <button id="pause-settings-btn" class="btn-secondary" style="width:100%; max-width:280px;">SETTINGS</button>
         <a href="../" class="btn-secondary" style="width:100%; max-width:280px; text-decoration:none;">&larr; EXIT TO ARCADE HUB</a>
       </div>
     </div>
@@ -463,7 +466,7 @@
           <h2 id="gameover-status-title" style="font-size:32px; font-weight:900; letter-spacing:1px; color:#fff;">DRIVER RECORD</h2>
         </div>
         <div id="run-coins-awarded" style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:15px;">
-          +0 COINS
+          +0 CREDITS
         </div>
       </div>
 
@@ -518,8 +521,8 @@
       <div class="modal-footer">
         <a href="../" class="btn-secondary" style="text-decoration:none;">&larr; ARCADE HUB</a>
         <div style="display:flex; gap:10px;">
-          <button id="gameover-garage-btn" class="btn-secondary">GARAGE</button>
-          <button id="restart-btn" class="btn-primary">PLAY AGAIN 🏎️</button>
+          <button id="gameover-garage-btn" class="btn-secondary">SHOWROOM</button>
+          <button id="restart-btn" class="btn-primary">RACE AGAIN</button>
         </div>
       </div>
     </div>

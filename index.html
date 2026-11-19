@@ -44,13 +44,14 @@
 
   <style>
     :root {
-      --bg: #06090e;
-      --card-bg: rgba(14, 19, 28, 0.85);
+      --bg: #04070d;
+      --card-bg: rgba(11, 16, 26, 0.88);
       --card-border: rgba(255, 255, 255, 0.08);
+      --card-highlight: rgba(255, 255, 255, 0.12);
       --accent-ember: #ff6a00;
       --accent-glow: #ff8533;
       --accent-cyan: #00d9ff;
-      --text-main: #f1f5f9;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
 
@@ -63,13 +64,28 @@
     body {
       background-color: var(--bg);
       background-image: 
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 106, 0, 0.15), transparent 70%),
-        radial-gradient(ellipse 60% 40% at 85% 60%, rgba(0, 217, 255, 0.08), transparent 70%);
+        radial-gradient(1100px 600px at 50% -100px, rgba(255, 106, 0, 0.18), transparent 70%),
+        radial-gradient(900px 500px at 88% 25%, rgba(0, 217, 255, 0.09), transparent 65%),
+        radial-gradient(1000px 600px at 12% 80%, rgba(157, 78, 221, 0.07), transparent 60%);
       color: var(--text-main);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      position: relative;
+    }
+
+    /* Tactile Fine Film Grain Texture Overlay (Human-Crafted Depth) */
+    .film-grain-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.032;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     }
 
     /* Universal Navbar */
@@ -79,8 +95,9 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(12px);
-      background: rgba(6, 9, 14, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(4, 7, 13, 0.78);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -457,6 +474,8 @@
   </style>
 </head>
 <body>
+  <!-- Film Grain Overlay for Tactile Depth -->
+  <div class="film-grain-overlay" aria-hidden="true"></div>
 
   <!-- Universal Top Navigation -->
   <header class="top-nav">
@@ -564,11 +583,11 @@
         <div>
           <div style="display:flex; gap:8px; margin-bottom:10px;">
             <span class="game-tag" style="background: rgba(0, 217, 255, 0.12); border: 1px solid rgba(0, 217, 255, 0.35); color: var(--accent-cyan);">FLAGSHIP 3D RACER</span>
-            <span class="game-tag" style="background: rgba(255, 184, 0, 0.12); border: 1px solid rgba(255, 184, 0, 0.35); color: #ffb800;">5 SUPERCARS &bull; WEAPONS</span>
+            <span class="game-tag" style="background: rgba(255, 184, 0, 0.12); border: 1px solid rgba(255, 184, 0, 0.35); color: #ffb800;">6 SUPERCARS &bull; COMBAT TURRET</span>
           </div>
           <h3 style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; color: #fff; margin-bottom: 8px;">Road Riot 3D: Hyperspeed</h3>
           <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 18px;">
-            High-octane highway combat racer. 320+ KM/H nitro boost, slipstream drafting, near-miss fever multipliers, custom garage tuning, homing missiles, EMP shockwaves, and viral friend challenges.
+            High-octane highway combat racer. 320+ KM/H nitro boost, slipstream drafting, 6 tunable supercars, and milestone battle checkpoints featuring a motorized roof turret defense sequence against drone squadrons, combat jets, and walking assault mechs.
           </p>
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
             <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--accent-cyan); font-weight: 700;">STATUS: LIVE RUNTIME</span>

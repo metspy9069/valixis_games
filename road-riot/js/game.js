@@ -398,7 +398,9 @@ class RoadRiotGame {
 
     this.ui.audioBtn?.addEventListener('click', () => {
       const isMuted = audio.toggleMute();
-      this.ui.audioBtn.textContent = isMuted ? '🔇' : '🔊';
+      this.ui.audioBtn.innerHTML = isMuted
+        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
     });
 
     // Garage Tabs
@@ -597,7 +599,7 @@ class RoadRiotGame {
   runDynoBenchmark() {
     if (this.isDynoTesting) return;
     this.isDynoTesting = true;
-    this.toast('DYNO BENCHMARK ENGAGED! REV TO REDLINE 🏁', 'gold');
+    this.toast('DYNO BENCHMARK ENGAGED — REV TO REDLINE', 'gold');
     audio.resume();
     audio.startEngine();
 
@@ -617,7 +619,7 @@ class RoadRiotGame {
         audio.stopEngine();
         const zeroToHundred = (2.65 + Math.random() * 0.45).toFixed(2);
         const horsepower = Math.floor(680 + Math.random() * 140);
-        this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP! ⚡`, 'cyan');
+        this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP`, 'cyan');
         audio.play('fever');
       }
     }, 60);
@@ -783,7 +785,7 @@ class RoadRiotGame {
 
     if (this.ui.gameoverStatusEyebrow) {
       if (isSprintFinish) {
-        this.ui.gameoverStatusEyebrow.textContent = isWinner ? '🏆 1ST PLACE FINISH — SPRINT CHAMPION!' : `🏁 SPRINT FINISHED — ${this.racePosition}TH PLACE`;
+        this.ui.gameoverStatusEyebrow.textContent = isWinner ? '1ST PLACE FINISH — SPRINT CHAMPION' : `SPRINT FINISHED — ${this.racePosition}TH PLACE`;
         this.ui.gameoverStatusEyebrow.style.color = isWinner ? '#00ff88' : '#ffb800';
       } else {
         this.ui.gameoverStatusEyebrow.textContent = 'RUN TERMINATED';
@@ -965,17 +967,17 @@ class RoadRiotGame {
 
     if (this.ui.garageCarPrice) {
       if (isSelected) {
-        this.ui.garageCarPrice.textContent = '✔ EQUIPPED';
+        this.ui.garageCarPrice.textContent = 'EQUIPPED';
         this.ui.garageCarPrice.style.color = '#ffb800';
         this.ui.garageCarPrice.style.borderColor = 'rgba(255, 184, 0, 0.4)';
         this.ui.garageCarPrice.style.background = 'rgba(255, 184, 0, 0.15)';
       } else if (isUnlocked) {
-        this.ui.garageCarPrice.textContent = '✔ OWNED';
+        this.ui.garageCarPrice.textContent = 'OWNED';
         this.ui.garageCarPrice.style.color = '#00ff88';
         this.ui.garageCarPrice.style.borderColor = 'rgba(0, 255, 136, 0.4)';
         this.ui.garageCarPrice.style.background = 'rgba(0, 255, 136, 0.15)';
       } else {
-        this.ui.garageCarPrice.textContent = `🪙 ${car.cost} COINS`;
+        this.ui.garageCarPrice.textContent = `${car.cost.toLocaleString()} CR`;
         this.ui.garageCarPrice.style.color = '#cbd5e1';
         this.ui.garageCarPrice.style.borderColor = 'rgba(255, 255, 255, 0.2)';
         this.ui.garageCarPrice.style.background = 'rgba(255, 255, 255, 0.08)';
@@ -991,7 +993,7 @@ class RoadRiotGame {
         const isOwn = progression.data.unlockedVehicles.includes(cId);
 
         let statusClass = 'locked';
-        let statusText = `🪙 ${cData.cost}`;
+        let statusText = `${cData.cost.toLocaleString()} CR`;
         if (isEq) {
           statusClass = 'equipped';
           statusText = 'EQUIPPED';
@@ -1035,7 +1037,7 @@ class RoadRiotGame {
       const canUpgrade = isUnlocked && lvl < 5 && progression.data.coins >= upgradeCost;
       const upgradeBtnHtml = lvl >= 5
         ? '<span style="color:#00ff88; font-size:9px; font-weight:800;">MAX</span>'
-        : `<button class="upgrade-stat-btn" data-car="${carId}" data-stat="${s.key}" data-cost="${upgradeCost}" style="cursor:pointer; background:rgba(0,217,255,0.18); border:1px solid #00d9ff; border-radius:4px; color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; padding:2px 7px;" ${canUpgrade ? '' : 'disabled style="opacity:0.4;"'}>+ LVL ${lvl + 1} (${upgradeCost}🪙)</button>`;
+        : `<button class="upgrade-stat-btn" data-car="${carId}" data-stat="${s.key}" data-cost="${upgradeCost}" style="cursor:pointer; background:rgba(0,217,255,0.18); border:1px solid #00d9ff; border-radius:4px; color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; padding:2px 7px;" ${canUpgrade ? '' : 'disabled style="opacity:0.4;"'}>+ LVL ${lvl + 1} (${upgradeCost} CR)</button>`;
 
       statsHtml += `
         <div class="spec-row">
@@ -1058,7 +1060,7 @@ class RoadRiotGame {
       questsHtml += `
         <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-family:var(--font-mono); font-size:10px;">
           <span style="color:${q.claimed ? '#7f8c80' : '#e2e8f0'}">${q.desc} (${Math.min(q.target, q.current)}/${q.target})</span>
-          ${q.claimed ? '<span style="color:#00ff88;">CLAIMED ✔</span>' : `<button class="claim-quest-btn" data-quest="${q.id}" style="cursor:pointer; background:${readyToClaim ? 'linear-gradient(135deg, #ffb800, #ff8800)' : 'rgba(255,255,255,0.08)'}; border:0; border-radius:4px; color:#000; font-weight:800; font-size:9px; padding:3px 8px;" ${readyToClaim ? '' : 'disabled'}>+${q.reward}🪙</button>`}
+          ${q.claimed ? '<span style="color:#00ff88;">CLAIMED</span>' : `<button class="claim-quest-btn" data-quest="${q.id}" style="cursor:pointer; background:${readyToClaim ? 'linear-gradient(135deg, #ffb800, #ff8800)' : 'rgba(255,255,255,0.08)'}; border:0; border-radius:4px; color:#000; font-weight:800; font-size:9px; padding:3px 8px;" ${readyToClaim ? '' : 'disabled'}>+${q.reward} CR</button>`}
         </div>
       `;
     });
@@ -1068,7 +1070,7 @@ class RoadRiotGame {
 
     // Equip / Unlock Button
     if (!isUnlocked) {
-      this.ui.garageBuyBtn.textContent = `UNLOCK (${car.cost} COINS)`;
+      this.ui.garageBuyBtn.textContent = `UNLOCK (${car.cost.toLocaleString()} CREDITS)`;
       this.ui.garageBuyBtn.disabled = progression.data.coins < car.cost;
       this.ui.garageBuyBtn.onclick = () => {
         if (progression.unlockVehicle(carId, car.cost)) {
@@ -1117,7 +1119,7 @@ class RoadRiotGame {
         const reward = progression.claimQuest(qId);
         if (reward > 0) {
           audio.play('fever');
-          this.toast(`CLAIMED +${reward} COINS! 🪙`, 'gold');
+          this.toast(`CLAIMED +${reward} CREDITS!`, 'gold');
           this.renderGarageCarousel();
         }
       });
@@ -1132,9 +1134,9 @@ class RoadRiotGame {
         <div class="achievement-card ${isUnlocked ? 'unlocked' : ''}">
           <div class="achievement-icon">${ach.icon}</div>
           <div class="achievement-info">
-            <div class="achievement-title">${ach.title} ${isUnlocked ? '✔' : ''}</div>
+            <div class="achievement-title">${ach.title} ${isUnlocked ? '[UNLOCKED]' : ''}</div>
             <div class="achievement-desc">${ach.desc}</div>
-            <div class="achievement-reward">+${ach.reward}🪙 ${isUnlocked ? '(UNLOCKED)' : ''}</div>
+            <div class="achievement-reward">+${ach.reward} CR ${isUnlocked ? '(COMPLETED)' : ''}</div>
           </div>
         </div>
       `;
@@ -1237,25 +1239,25 @@ class RoadRiotGame {
         onDroneKilled: (enemy) => {
           let pts = 400;
           let coins = 25;
-          let label = '+400 DRONE DESTROYED! 💥';
+          let label = '+400 DRONE DESTROYED';
           if (enemy.category === 'plane') {
             pts = 650;
             coins = 45;
-            label = '+650 COMBAT JET DOWNED! ✈️💥';
+            label = '+650 COMBAT JET DOWNED';
           } else if (enemy.category === 'robot') {
             if (enemy.isBoss) {
               pts = 2500;
               coins = 250;
-              label = '+2,500 TITAN WAR MECH CRUSHED! 🏆🤖💥';
+              label = '+2,500 TITAN WAR MECH CRUSHED';
             } else {
               pts = 850;
               coins = 70;
-              label = '+850 ASSAULT MECH DESTROYED! 🤖💥';
+              label = '+850 ASSAULT MECH DESTROYED';
             }
           } else if (enemy.type === 'commander') {
             pts = 1500;
             coins = 120;
-            label = '+1,500 COMMANDER DRONE DOWNED! 💥';
+            label = '+1,500 COMMANDER DRONE DOWNED';
           }
 
           this.score += pts * this.multiplier;
@@ -1275,19 +1277,19 @@ class RoadRiotGame {
             'WAVE 2/3: COMBINED AIR & GROUND ASSAULT',
             'WAVE 3/3: TITAN WAR MECH & BOSS DRONE'
           ];
-          this.toast(`⚠️ ${waveNames[wave] || `WAVE ${wave}/3 INCOMING`}`, 'magenta');
+          this.toast(`${waveNames[wave] || `WAVE ${wave}/3 INCOMING`}`, 'magenta');
           audio.play('fever');
           if (this.ui.turretWaveBadge) {
             this.ui.turretWaveBadge.textContent = `WAVE ${wave}/3`;
           }
         },
         onDefenseSecured: () => {
-          this.toast('🏆 SECTOR AIRSPACE SECURED! +2,000 COINS', 'gold');
+          this.toast('SECTOR AIRSPACE SECURED! +2,000 CREDITS', 'gold');
           progression.data.coins += 2000;
           progression.save();
           audio.play('fever');
           this.vibrate([100, 100, 300]);
-          this.spawnScorePopup('+2,000 SECTOR CLEARED! 🏆', '#ffb800');
+          this.spawnScorePopup('+2,000 SECTOR CLEARED', '#ffb800');
         },
         onComplete: () => {
           // Re-accelerate into racing!
@@ -1300,7 +1302,7 @@ class RoadRiotGame {
           this.player.triggerSpeedBoost(1.55, 3.0);
           this.checkpointDistance += this.checkpointInterval;
           this.isStoppingForCheckpoint = false;
-          this.toast('HYPERSONIC RELAUNCH! 🚀', 'cyan');
+          this.toast('HYPERSONIC RELAUNCH', 'cyan');
         }
       });
 
@@ -1336,7 +1338,7 @@ class RoadRiotGame {
       this.vibrate(80);
       this.score += 350 * this.multiplier;
       progression.activeRunStats.rampsJumped++;
-      this.spawnScorePopup('+350 STUNT AIRTIME! 🚀', '#ffea00');
+      this.spawnScorePopup('+350 STUNT AIRTIME', '#ffea00');
     });
 
     if (isDrifting) {
@@ -1363,7 +1365,7 @@ class RoadRiotGame {
       this.isStoppingForCheckpoint = true;
       this.player.isBrakingToHalt = true;
       audio.play('turret_warning');
-      this.toast('⚠️ AIR DEFENSE CHECKPOINT AHEAD — BRING VEHICLE TO COMPLETE STOP!', 'magenta');
+      this.toast('COMBAT CHECKPOINT AHEAD — DECELERATING VEHICLE TO HALT', 'magenta');
     }
 
     if (this.isStoppingForCheckpoint) {
@@ -1406,12 +1408,12 @@ class RoadRiotGame {
     // 5. World Scrolling & Jump Ramps / Speed Panels Detection
     this.world.update(dt, currentSpeed, this.distance, {
       onChallengeDefeated: () => {
-        this.toast('🏆 RIVAL CHALLENGE CRUSHED! +1000 COINS', 'gold');
+        this.toast('RIVAL CHALLENGE OVERTAKEN! +1,000 CREDITS', 'gold');
         audio.play('fever');
         this.vibrate([100, 50, 200]);
         progression.activeRunStats.coinsEarned += 1000;
         progression.unlockAchievement('rival_vanquisher');
-        this.spawnScorePopup('+1,000 RIVAL CONQUERED!', '#ffb800');
+        this.spawnScorePopup('+1,000 RIVAL CONQUERED', '#ffb800');
       }
     });
 
@@ -1424,9 +1426,9 @@ class RoadRiotGame {
         ramp.triggered = true;
         this.player.triggerJump(17);
         audio.play('ramp_launch');
-        this.toast('STUNT AIRTIME LAUNCH! 🚀', 'gold');
+        this.toast('STUNT AIRTIME LAUNCH', 'gold');
         this.score += 400 * this.multiplier;
-        this.spawnScorePopup('+400 STUNT JUMP! 🚀', '#ffea00');
+        this.spawnScorePopup('+400 STUNT JUMP', '#ffea00');
         this.vibrate([60, 40, 80]);
         this.camShake = 0.35;
       }
@@ -1443,8 +1445,8 @@ class RoadRiotGame {
         audio.play('boost_pad');
         this.score += 300 * this.multiplier;
         this.ui.overlayWarp.style.opacity = '0.85';
-        this.spawnScorePopup('+300 HYPERSONIC BOOST! ⚡', '#00f0ff');
-        this.toast('HYPERSONIC BOOST ACTIVATED! ⚡', 'cyan');
+        this.spawnScorePopup('+300 HYPERSONIC BOOST', '#00f0ff');
+        this.toast('HYPERSONIC BOOST ACTIVATED', 'cyan');
         this.vibrate(100);
       }
     }
@@ -1468,8 +1470,8 @@ class RoadRiotGame {
         this.player.triggerSpeedBoost(1.35, 1.6);
         audio.play('boost');
         this.score += 250 * this.multiplier;
-        this.spawnScorePopup('+250 SLINGSHOT OVERTAKE! 🌪️', '#ff8800');
-        this.toast('SLINGSHOT OVERTAKE! 🌪️', 'gold');
+        this.spawnScorePopup('+250 SLINGSHOT OVERTAKE', '#ff8800');
+        this.toast('SLINGSHOT OVERTAKE', 'gold');
         this.vibrate([60, 40]);
       }
     } else {
@@ -1493,9 +1495,9 @@ class RoadRiotGame {
           this.isFever = true;
           this.ui.multiplier.classList.add('fever');
           audio.play('fever');
-          this.toast(`FEVER MODE x${this.multiplier}! 🔥`, 'magenta');
+          this.toast(`FEVER MULTIPLIER x${this.multiplier}`, 'magenta');
         } else {
-          this.toast(`NEAR MISS! x${this.multiplier}`, 'cyan');
+          this.toast(`NEAR MISS x${this.multiplier}`, 'cyan');
         }
       },
       onDrafting: (delta, v) => {
@@ -1526,8 +1528,8 @@ class RoadRiotGame {
             v.mesh.rotation.x += 2;
             this.score += 1000;
             this.camShake = 0.4;
-            this.toast('RAMMING OVERDRIVE! 💥', 'gold');
-            this.spawnScorePopup('+1,000 RAM! 💥', '#ffb800');
+            this.toast('RAMMING OVERDRIVE', 'gold');
+            this.spawnScorePopup('+1,000 RAM', '#ffb800');
           } else {
             // Hard Physical Impasse Collision:
             // 1. Heavy speed cut (48% speed loss)
@@ -1548,7 +1550,7 @@ class RoadRiotGame {
             this.vibrate([80, 50, 140]);
             this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 22);
             this.showDamageOverlay();
-            this.toast('HARD IMPACT! -24% HULL 💥', 'magenta');
+            this.toast('HARD IMPACT! -24% HULL', 'magenta');
             if (this.player.hull <= 0) {
               this.gameOver(false, false);
               return;
@@ -1574,7 +1576,7 @@ class RoadRiotGame {
             this.camShake = 0.45;
             audio.play('collision');
             this.vibrate(90);
-            this.toast('TIRES PUNCTURED BY SPIKES! ⚠️', 'magenta');
+            this.toast('TIRES PUNCTURED BY SPIKES', 'magenta');
           } else {
             // Hard physical barrier / barrel stop & damage
             const dmg = this.player.takeDamage(18);
@@ -1585,7 +1587,7 @@ class RoadRiotGame {
             audio.play('collision');
             this.vibrate([60, 40, 100]);
             this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 18);
-            this.toast('BARRIER COLLISION! 🛑', 'magenta');
+            this.toast('BARRIER COLLISION', 'magenta');
           }
           this.showDamageOverlay();
           if (this.player.hull <= 0) {
@@ -1607,21 +1609,21 @@ class RoadRiotGame {
         if (c.type === 'coin') {
           progression.activeRunStats.coinsEarned += 10;
           this.score += 150;
-          this.spawnScorePopup('+10 COINS', '#ffb800');
+          this.spawnScorePopup('+10 CREDITS', '#ffb800');
         } else if (c.type === 'nitro') {
           this.player.addNitro(60);
-          this.toast('NITRO TANK REFILLED! ⚡', 'cyan');
+          this.toast('NITRO TANK REFILLED', 'cyan');
         } else if (c.type === 'shield') {
           this.player.activateShield(8);
           audio.play('shield');
-          this.toast('HEX FORCEFIELD ONLINE! 🛡️', 'magenta');
+          this.toast('HEX FORCEFIELD ONLINE', 'magenta');
         } else if (c.type === 'magnet') {
           this.player.activateMagnet(10);
-          this.toast('COIN MAGNET ACTIVE! 🧲', 'green');
+          this.toast('CREDIT MAGNET ACTIVE', 'green');
         } else if (c.type === 'repair') {
           this.player.repair(35);
           audio.play('shield');
-          this.toast('+35% HULL RESTORED! 🔧', 'green');
+          this.toast('+35% HULL RESTORED', 'green');
           this.showDamageOverlay();
         }
 
@@ -1655,11 +1657,11 @@ class RoadRiotGame {
         if (won) {
           progression.data.coins += 1500;
           progression.save();
-          this.toast('🏆 1ST PLACE FINISH! SPRINT CHAMPION! +1,500 COINS', 'gold');
+          this.toast('1ST PLACE FINISH! SPRINT CHAMPION! +1,500 CREDITS', 'gold');
         } else {
           progression.data.coins += 400;
           progression.save();
-          this.toast(`SPRINT FINISHED: ${this.racePosition}TH PLACE! +400 COINS`, 'cyan');
+          this.toast(`SPRINT FINISHED: ${this.racePosition}TH PLACE! +400 CREDITS`, 'cyan');
         }
         this.gameOver(true, won);
         return;

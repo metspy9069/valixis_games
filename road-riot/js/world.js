@@ -300,7 +300,19 @@ export class WorldManager {
     this.sunMesh.position.set(-65, 52, -220);
     this.scene.add(this.sunMesh);
 
-    // Stars particle field
+    // Stars particle field with smooth circular pinpoint texture (eliminates square pixel boxes)
+    const starCanvas = document.createElement('canvas');
+    starCanvas.width = 32;
+    starCanvas.height = 32;
+    const sctx = starCanvas.getContext('2d');
+    const sGrad = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    sGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    sGrad.addColorStop(0.3, 'rgba(180, 230, 255, 0.8)');
+    sGrad.addColorStop(1, 'rgba(180, 230, 255, 0)');
+    sctx.fillStyle = sGrad;
+    sctx.fillRect(0, 0, 32, 32);
+    const starTex = new THREE.CanvasTexture(starCanvas);
+
     const starGeo = new THREE.BufferGeometry();
     const starCount = 350;
     const starPos = new Float32Array(starCount * 3);
@@ -313,7 +325,15 @@ export class WorldManager {
       starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x99ddff, size: 1.6, transparent: true, opacity: 0.85 });
+    const starMat = new THREE.PointsMaterial({
+      map: starTex,
+      color: 0x99ddff,
+      size: 1.2,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
     this.stars = new THREE.Points(starGeo, starMat);
     this.scene.add(this.stars);
   }
@@ -450,7 +470,7 @@ export class WorldManager {
     if (!this.skyMat) return;
 
     if (biomeId === 'canyon') {
-      // Sunset Canyon: Amber twilight, rich gold sun, warm red sky
+      // Sunset Canyon: Amber twilight, rich gold sun, warm red sky (stars hidden in daytime twilight)
       this.skyMat.uniforms.topColor.value.setHex(0x1a0826);
       this.skyMat.uniforms.midColor.value.setHex(0xb84318);
       this.skyMat.uniforms.botColor.value.setHex(0xffaa33);
@@ -458,6 +478,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0xffaa66);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xffcc00);
       if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
+      if (this.stars) this.stars.visible = false;
       this.setWeatherType('none');
     } else if (biomeId === 'neotokyo') {
       // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
@@ -468,6 +489,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0x20e0ff);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0x00f0ff);
       if (this.scene.fog) this.scene.fog.color.setHex(0x061120);
+      if (this.stars) this.stars.visible = false;
       this.setWeatherType('rain');
     } else if (biomeId === 'arctic') {
       // Arctic Frostway: Polar ice horizon, pale frost sun, swirling blizzard
@@ -478,9 +500,10 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0x60c0ff);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xccf0ff);
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c223c);
+      if (this.stars) this.stars.visible = false;
       this.setWeatherType('snow');
     } else {
-      // Midnight Metropolis (Default)
+      // Midnight Metropolis (Default night sky with circular stars)
       this.skyMat.uniforms.topColor.value.setHex(0x050c1e);
       this.skyMat.uniforms.midColor.value.setHex(0x28123a);
       this.skyMat.uniforms.botColor.value.setHex(0xd94b76);
@@ -488,6 +511,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0x75c8ff);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xffaa33);
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c1322);
+      if (this.stars) this.stars.visible = true;
       this.setWeatherType('none');
     }
   }

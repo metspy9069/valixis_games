@@ -99,6 +99,7 @@ class RoadRiotGame {
     this.cacheDomElements();
     this.bindEvents();
     this.applySavedSettings();
+    this.updateMenuHeader();
     this.loadAssets();
     this.checkUrlChallenge();
 
@@ -141,6 +142,8 @@ class RoadRiotGame {
 
       // Modals & Navigation
       menuModal: document.querySelector('#menu-modal'),
+      menuEquippedCar: document.querySelector('#menu-equipped-car'),
+      menuCoins: document.querySelector('#menu-coins'),
       startBtn: document.querySelector('#start-btn'),
       garageBtn: document.querySelector('#garage-btn'),
       menuSettingsBtn: document.querySelector('#menu-settings-btn'),
@@ -152,6 +155,9 @@ class RoadRiotGame {
       // Garage
       garageModal: document.querySelector('#garage-modal'),
       garageCloseBtn: document.querySelector('#garage-close-btn'),
+      garageRaceNowBtn: document.querySelector('#garage-race-now-btn'),
+      garageCarChips: document.querySelector('#garage-car-chips'),
+      garageCarPrice: document.querySelector('#garage-car-price'),
       garageCarTitle: document.querySelector('#garage-car-title'),
       garageCarTier: document.querySelector('#garage-car-tier'),
       garageCarDesc: document.querySelector('#garage-car-desc'),
@@ -368,6 +374,10 @@ class RoadRiotGame {
     this.ui.garageBtn?.addEventListener('click', () => this.openGarage());
     this.ui.hudGarageBtn?.addEventListener('click', () => this.openGarage());
     this.ui.garageCloseBtn?.addEventListener('click', () => this.closeGarage());
+    this.ui.garageRaceNowBtn?.addEventListener('click', () => {
+      this.closeGarage();
+      this.startCountdown();
+    });
     this.ui.gameoverGarageBtn?.addEventListener('click', () => {
       this.ui.gameoverModal.classList.add('hidden');
       this.openGarage();
@@ -617,16 +627,18 @@ class RoadRiotGame {
       { key: 'player', url: './assets/player-ferrari.glb' },
       { key: 'venom', url: './assets/sports.glb' },
       { key: 'sports', url: './assets/sports.glb' },
+      { key: 'phantom', url: './assets/sedan-sports.glb' },
+      { key: 'sedan-sports', url: './assets/sedan-sports.glb' },
+      { key: 'interceptor', url: './assets/police.glb' },
+      { key: 'police', url: './assets/police.glb' },
       { key: 'titan', url: './assets/suv.glb' },
       { key: 'suv', url: './assets/suv.glb' },
-      { key: 'phantom', url: './assets/van.glb' },
+      { key: 'hyperion', url: './assets/player-lamborghini.glb' },
       { key: 'van', url: './assets/van.glb' },
-      { key: 'police', url: './assets/police.glb' },
       { key: 'taxi', url: './assets/taxi.glb' },
       { key: 'ambulance', url: './assets/ambulance.glb' },
       { key: 'delivery', url: './assets/delivery.glb' },
       { key: 'sedan', url: './assets/sedan.glb' },
-      { key: 'sedan-sports', url: './assets/sedan-sports.glb' },
       { key: 'barrier', url: './assets/construction-barrier.glb' },
       { key: 'cone', url: './assets/construction-cone.glb' },
       { key: 'coin', url: './assets/coin-gold.glb' },
@@ -652,21 +664,6 @@ class RoadRiotGame {
         () => {}
       );
     });
-
-    // Lazy load heavy Lamborghini if needed
-    if (progression.data.selectedVehicle === 'hyperion' || progression.data.unlockedVehicles.includes('hyperion')) {
-      this.gltfLoader.load(
-        './assets/player-lamborghini.glb',
-        gltf => {
-          this.assetPrototypes.hyperion = gltf.scene;
-          if (progression.data.selectedVehicle === 'hyperion') {
-            this.player.rebuildCarModel();
-          }
-        },
-        undefined,
-        () => {}
-      );
-    }
 
     const sel = progression.data.selectedVehicle || 'apex';
     const upg = progression.data.upgrades[sel] || {};
@@ -905,6 +902,15 @@ class RoadRiotGame {
       this.camera.position.copy(this.defaultCamPos);
       this.camera.lookAt(0, 1.0, -8);
       this.ui.menuModal.classList.remove('hidden');
+      this.updateMenuHeader();
+    }
+  }
+
+  updateMenuHeader() {
+    if (this.ui.menuCoins) this.ui.menuCoins.textContent = progression.data.coins;
+    if (this.ui.menuEquippedCar) {
+      const curCar = VEHICLE_ROSTER[progression.data.selectedVehicle] || VEHICLE_ROSTER.apex;
+      this.ui.menuEquippedCar.textContent = curCar.name.toUpperCase();
     }
   }
 
@@ -926,6 +932,61 @@ class RoadRiotGame {
     this.ui.garageCarTitle.textContent = car.name;
     this.ui.garageCarTier.textContent = car.tier;
     this.ui.garageCarDesc.textContent = car.desc;
+
+    if (this.ui.garageCarPrice) {
+      if (isSelected) {
+        this.ui.garageCarPrice.textContent = '✔ EQUIPPED';
+        this.ui.garageCarPrice.style.color = '#ffb800';
+        this.ui.garageCarPrice.style.borderColor = 'rgba(255, 184, 0, 0.4)';
+        this.ui.garageCarPrice.style.background = 'rgba(255, 184, 0, 0.15)';
+      } else if (isUnlocked) {
+        this.ui.garageCarPrice.textContent = '✔ OWNED';
+        this.ui.garageCarPrice.style.color = '#00ff88';
+        this.ui.garageCarPrice.style.borderColor = 'rgba(0, 255, 136, 0.4)';
+        this.ui.garageCarPrice.style.background = 'rgba(0, 255, 136, 0.15)';
+      } else {
+        this.ui.garageCarPrice.textContent = `🪙 ${car.cost} COINS`;
+        this.ui.garageCarPrice.style.color = '#cbd5e1';
+        this.ui.garageCarPrice.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        this.ui.garageCarPrice.style.background = 'rgba(255, 255, 255, 0.08)';
+      }
+    }
+
+    // Render Supercar Showroom Quick-Select Chips
+    if (this.ui.garageCarChips) {
+      this.ui.garageCarChips.innerHTML = this.garageVehicleList.map((cId, idx) => {
+        const cData = VEHICLE_ROSTER[cId] || VEHICLE_ROSTER.apex;
+        const isAct = idx === this.garageIndex;
+        const isEq = progression.data.selectedVehicle === cId;
+        const isOwn = progression.data.unlockedVehicles.includes(cId);
+
+        let statusClass = 'locked';
+        let statusText = `🪙 ${cData.cost}`;
+        if (isEq) {
+          statusClass = 'equipped';
+          statusText = 'EQUIPPED';
+        } else if (isOwn) {
+          statusClass = 'owned';
+          statusText = 'OWNED';
+        }
+
+        return `
+          <div class="garage-chip ${isAct ? 'active' : ''}" data-index="${idx}">
+            <span class="garage-chip-tier">${cData.tier}</span>
+            <span class="garage-chip-name">${cData.name}</span>
+            <span class="garage-chip-status ${statusClass}">${statusText}</span>
+          </div>
+        `;
+      }).join('');
+
+      this.ui.garageCarChips.querySelectorAll('.garage-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          this.garageIndex = parseInt(chip.dataset.index, 10);
+          audio.play('gear_shift');
+          this.renderGarageCarousel();
+        });
+      });
+    }
 
     // Upgrades
     const upg = progression.data.upgrades[carId] || { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 };
@@ -983,6 +1044,7 @@ class RoadRiotGame {
         if (progression.unlockVehicle(carId, car.cost)) {
           audio.play('fever');
           this.toast(`${car.name} UNLOCKED!`, 'green');
+          this.updateMenuHeader();
           this.renderGarageCarousel();
         }
       };
@@ -995,6 +1057,7 @@ class RoadRiotGame {
         audio.play('boost');
         this.player.setVehicle(carId, progression.data.upgrades[carId] || {}, progression.data.selectedPaint, progression.data.selectedGlow);
         this.toast(`${car.name} EQUIPPED!`, 'cyan');
+        this.updateMenuHeader();
         this.renderGarageCarousel();
       };
     } else {

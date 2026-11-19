@@ -24,11 +24,11 @@ const SHARED_SMOKE_MAT = new THREE.MeshBasicMaterial({
 export const VEHICLE_ROSTER = {
   apex: {
     id: 'apex',
-    name: 'Valixis Apex',
+    name: 'Valixis Apex GT',
     tier: 'GT SPORT',
-    desc: 'Precision aerodynamics & razor-sharp lane transition.',
+    desc: 'Precision Italian aerodynamics, razor-sharp lane handling, and balanced track performance.',
     modelAsset: './assets/player-ferrari.glb',
-    baseStats: { topSpeed: 28, accel: 30, handling: 32, nitro: 50, armor: 100 },
+    baseStats: { topSpeed: 28, accel: 32, handling: 34, nitro: 50, armor: 100 },
     paint: 0xd71920, // Rosso Corsa
     glow: 0x00d9ff,
     cost: 0,
@@ -38,47 +38,59 @@ export const VEHICLE_ROSTER = {
     id: 'venom',
     name: 'Venom Drift-R',
     tier: 'DRIFT SPEC',
-    desc: 'Lightweight chassis designed for massive drift streaks & slipstreams.',
+    desc: 'Lightweight carbon chassis engineered for high-angle corner slides and slipstream slingshots.',
     modelAsset: './assets/sports.glb',
-    baseStats: { topSpeed: 31, accel: 34, handling: 36, nitro: 55, armor: 85 },
+    baseStats: { topSpeed: 31, accel: 35, handling: 38, nitro: 55, armor: 85 },
     paint: 0x9d4edd, // Cyber Purple
     glow: 0xff2a85,
     cost: 800,
     unlocked: false
   },
-  titan: {
-    id: 'titan',
-    name: 'Titan Enforcer',
-    tier: 'HEAVY ARMOR',
-    desc: 'Reinforced plating that crushes obstacles and absorbs heavy hits.',
-    modelAsset: './assets/suv.glb',
-    baseStats: { topSpeed: 26, accel: 26, handling: 25, nitro: 45, armor: 180 },
-    paint: 0x223548, // Midnight Navy
-    glow: 0x00ff88,
+  phantom: {
+    id: 'phantom',
+    name: 'Phantom GT V8',
+    tier: 'SUPER SEDAN',
+    desc: 'Twin-turbo executive sport sedan with brutal straight-line acceleration and rapid nitrous recharge.',
+    modelAsset: './assets/sedan-sports.glb',
+    baseStats: { topSpeed: 33, accel: 38, handling: 31, nitro: 60, armor: 110 },
+    paint: 0xffb800, // Electric Gold
+    glow: 0xff8800,
     cost: 1500,
     unlocked: false
   },
-  phantom: {
-    id: 'phantom',
-    name: 'Phantom V8',
-    tier: 'INTERCEPTOR',
-    desc: 'Raw twin-turbo muscle car with rapid nitrous recharge.',
-    modelAsset: './assets/van.glb',
-    baseStats: { topSpeed: 34, accel: 36, handling: 29, nitro: 60, armor: 120 },
-    paint: 0xffb800, // Electric Gold
-    glow: 0xff8800,
-    cost: 2500,
+  interceptor: {
+    id: 'interceptor',
+    name: 'Highway Interceptor',
+    tier: 'PURSUIT SPEC',
+    desc: 'Reinforced high-output police cruiser with front tactical push-bar and active siren strobes.',
+    modelAsset: './assets/police.glb',
+    baseStats: { topSpeed: 34, accel: 36, handling: 33, nitro: 65, armor: 160 },
+    paint: 0x0c121e, // Stealth Midnight
+    glow: 0x00d9ff,
+    cost: 2400,
+    unlocked: false
+  },
+  titan: {
+    id: 'titan',
+    name: 'Titan Juggernaut',
+    tier: 'HEAVY ARMOR',
+    desc: 'Heavy-duty armored tactical SUV. Crushes oncoming traffic and shrugs off massive collisions.',
+    modelAsset: './assets/suv.glb',
+    baseStats: { topSpeed: 27, accel: 28, handling: 26, nitro: 45, armor: 220 },
+    paint: 0x1e2d3d, // Battleship Slate
+    glow: 0x00ff88,
+    cost: 3500,
     unlocked: false
   },
   hyperion: {
     id: 'hyperion',
     name: 'Lamborghini Hyperion',
     tier: 'CYBER HYPERCAR',
-    desc: 'The ultimate prototype. Breaks the Mach barrier with hyper-drive.',
+    desc: 'The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 320+ KM/H.',
     modelAsset: './assets/player-lamborghini.glb',
-    baseStats: { topSpeed: 38, accel: 44, handling: 40, nitro: 70, armor: 140 },
-    paint: 0x05c2d6, // Electric Cyan
-    glow: 0x00d9ff,
+    baseStats: { topSpeed: 40, accel: 46, handling: 42, nitro: 75, armor: 140 },
+    paint: 0x00f0ff, // Luminous Cyan
+    glow: 0x00ffff,
     cost: 5000,
     unlocked: false
   }

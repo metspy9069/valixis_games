@@ -34,6 +34,7 @@ export class WorldManager {
     this.weatherParticles = null;
     this.weatherPositions = null;
     this.weatherVelocities = null;
+    this.pedestrians = [];
 
     this.initLighting();
     this.initSky();
@@ -541,6 +542,16 @@ export class WorldManager {
     // Roadside Buildings
     this.createRoadsideBuildings(group, index);
 
+    // Pedestrian Sidewalk Spectators & Cheerers (every 3 segments)
+    if (index % 3 === 1) {
+      this.createSidewalkPedestrians(group, index);
+    }
+
+    // Modern Elevated Glass Pedestrian Skywalk (every 14 segments)
+    if (index % 14 === 7) {
+      this.createPedestrianSkywalk(group, index);
+    }
+
     // Interactive Highway Objects:
     // Stunt Jump Ramp (every 11 segments, in one lane)
     if (index % 11 === 4) {
@@ -870,5 +881,183 @@ export class WorldManager {
       }
       this.weatherParticles.geometry.attributes.position.needsUpdate = true;
     }
+
+    // Dynamic Pedestrian Animation (Crowd Cheering, Arm Pumps, Head Movements)
+    const now = performance.now() * 0.005;
+    for (let i = 0; i < this.pedestrians.length; i++) {
+      const p = this.pedestrians[i];
+      if (p.userData && p.userData.isCheering) {
+        const t = now + p.userData.phase;
+        if (p.userData.leftArmGroup) p.userData.leftArmGroup.rotation.x = -0.3 + Math.sin(t * 5) * 0.45;
+        if (p.userData.rightArmGroup) p.userData.rightArmGroup.rotation.x = -0.3 + Math.cos(t * 5) * 0.45;
+        p.position.y = p.userData.baseY + Math.abs(Math.sin(t * 4)) * 0.08;
+      }
+    }
+  }
+
+  createPedestrian(colorHex, isCheering = false) {
+    const group = new THREE.Group();
+
+    // Humanoid materials
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xdcb285, roughness: 0.8 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x181e28, roughness: 0.6 });
+    const hoodieMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.45, metalness: 0.25 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x141b27, roughness: 0.7 });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xe8eef5, roughness: 0.3 });
+    const shadesMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+
+    // Shoes & Legs
+    [-0.10, 0.10].forEach(lx => {
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.20), shoeMat);
+      shoe.position.set(lx, 0.04, 0.02);
+      group.add(shoe);
+
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.60, 8), pantsMat);
+      leg.position.set(lx, 0.36, 0);
+      group.add(leg);
+    });
+
+    // Torso with streetwear hoodie / jacket
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.22), hoodieMat);
+    torso.position.set(0, 0.88, 0);
+    group.add(torso);
+
+    // Head, Hair & Holographic Cyber Shades
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), skinMat);
+    head.position.set(0, 1.24, 0);
+    group.add(head);
+
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.10, 0.22), hairMat);
+    hair.position.set(0, 1.32, -0.01);
+    group.add(hair);
+
+    const shades = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.06), shadesMat);
+    shades.position.set(0, 1.25, -0.11);
+    group.add(shades);
+
+    // Dual Arms with articulate shoulder pivots
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-0.24, 1.06, 0);
+    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.045, 0.38, 6), hoodieMat);
+    leftArm.position.y = -0.16;
+    leftArmGroup.add(leftArm);
+    group.add(leftArmGroup);
+
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(0.24, 1.06, 0);
+    const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.045, 0.38, 6), hoodieMat);
+    rightArm.position.y = -0.16;
+    rightArmGroup.add(rightArm);
+    group.add(rightArmGroup);
+
+    if (isCheering) {
+      leftArmGroup.rotation.z = Math.PI * 0.75;
+      rightArmGroup.rotation.z = -Math.PI * 0.75;
+      leftArmGroup.rotation.x = -0.25;
+      rightArmGroup.rotation.x = -0.25;
+    }
+
+    group.userData = {
+      isCheering,
+      leftArmGroup,
+      rightArmGroup,
+      baseY: 0,
+      phase: Math.random() * Math.PI * 2
+    };
+
+    return group;
+  }
+
+  createSidewalkPedestrians(parent, index) {
+    const palette = [0x00d9ff, 0xff2a85, 0xffb800, 0x00ff88, 0xff6600, 0x9d4edd, 0xffffff];
+    [-1, 1].forEach(side => {
+      const count = 1 + (index % 3);
+      for (let i = 0; i < count; i++) {
+        const color = palette[(index * 3 + i + (side > 0 ? 2 : 0)) % palette.length];
+        const isCheering = (index + i) % 2 === 0;
+        const p = this.createPedestrian(color, isCheering);
+
+        const xPos = side * (this.roadWidth / 2 + 1.8 + Math.random() * 2.2);
+        const zPos = (Math.random() - 0.5) * (this.segmentLength * 0.7);
+        p.position.set(xPos, 0.05, zPos);
+        p.rotation.y = (side > 0 ? -Math.PI / 2 : Math.PI / 2) + (Math.random() - 0.5) * 0.6;
+        p.userData.baseY = 0.05;
+
+        parent.add(p);
+        this.pedestrians.push(p);
+      }
+    });
+  }
+
+  createPedestrianSkywalk(parent, index) {
+    const skywalkGroup = new THREE.Group();
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x141b27, roughness: 0.4, metalness: 0.8 });
+    const deckMat = new THREE.MeshStandardMaterial({ color: 0x1c2433, roughness: 0.6, metalness: 0.4 });
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0x00d9ff,
+      metalness: 0.9,
+      roughness: 0.08,
+      transparent: true,
+      opacity: 0.45
+    });
+    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+
+    const bridgeHeight = 6.4;
+    const spanWidth = this.roadWidth + 8; // ~28m span
+
+    // 1. Dual Heavy Vertical Support Columns
+    [-spanWidth / 2 + 1.2, spanWidth / 2 - 1.2].forEach(x => {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(1.2, bridgeHeight, 1.4), frameMat);
+      col.position.set(x, bridgeHeight / 2, 0);
+      col.castShadow = true;
+      skywalkGroup.add(col);
+
+      // Neon column accent strip
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, bridgeHeight * 0.9, 0.12), neonMat);
+      strip.position.set(x + (x < 0 ? 0.62 : -0.62), bridgeHeight / 2, 0);
+      skywalkGroup.add(strip);
+    });
+
+    // 2. Walkway Deck
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(spanWidth, 0.45, 4.2), deckMat);
+    deck.position.set(0, bridgeHeight, 0);
+    deck.receiveShadow = true;
+    skywalkGroup.add(deck);
+
+    // 3. Transparent Safety Glass Railings (Front & Back)
+    [-2.0, 2.0].forEach(z => {
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(spanWidth - 1, 1.2, 0.08), glassMat);
+      glass.position.set(0, bridgeHeight + 0.7, z);
+      skywalkGroup.add(glass);
+
+      // Handrail bar
+      const handrail = new THREE.Mesh(new THREE.BoxGeometry(spanWidth, 0.08, 0.14), frameMat);
+      handrail.position.set(0, bridgeHeight + 1.32, z);
+      skywalkGroup.add(handrail);
+    });
+
+    // 4. Overhead Canopy Arch
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(spanWidth + 0.6, 0.25, 4.8), frameMat);
+    roof.position.set(0, bridgeHeight + 2.8, 0);
+    skywalkGroup.add(roof);
+
+    // Glowing Neon Under-Deck Lightstrip
+    const underLight = new THREE.Mesh(new THREE.BoxGeometry(spanWidth * 0.85, 0.06, 0.2), neonMat);
+    underLight.position.set(0, bridgeHeight - 0.26, 0);
+    skywalkGroup.add(underLight);
+
+    // 5. Spectators Cheering on Bridge Deck Looking Down at Highway
+    const palette = [0x00d9ff, 0xff2a85, 0xffb800, 0x00ff88, 0xff3b00, 0xffffff];
+    const bridgeSpectators = [-6.5, -2.5, 0.8, 4.2, 7.0];
+    bridgeSpectators.forEach((x, i) => {
+      const p = this.createPedestrian(palette[i % palette.length], true);
+      p.position.set(x, bridgeHeight + 0.22, 1.4);
+      p.rotation.y = Math.PI; // Looking toward approaching cars (+Z)
+      p.userData.baseY = bridgeHeight + 0.22;
+      skywalkGroup.add(p);
+      this.pedestrians.push(p);
+    });
+
+    parent.add(skywalkGroup);
   }
 }

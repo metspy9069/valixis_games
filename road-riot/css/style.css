@@ -13,8 +13,10 @@
   --border-panel: rgba(0, 217, 255, 0.25);
   --text-main: #f0f6fc;
   --text-muted: #8fa0b5;
-  --font-display: 'Orbitron', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'Orbitron', 'Russo One', sans-serif;
+  --font-speed: 'Russo One', 'Orbitron', sans-serif;
+  --font-hud: 'Chakra Petch', 'JetBrains Mono', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Chakra Petch', ui-monospace, monospace;
 }
 
 * {
@@ -163,20 +165,21 @@ html, body {
 }
 
 .hud-stat-label {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
+  font-family: var(--font-hud);
+  font-size: 10px;
+  font-weight: 800;
   letter-spacing: 2px;
   color: var(--neon-cyan);
   margin-bottom: 2px;
 }
 
 .hud-stat-value {
-  font-family: var(--font-mono);
-  font-size: 22px;
-  font-weight: 800;
+  font-family: var(--font-speed);
+  font-size: 24px;
+  font-weight: 900;
   color: #fff;
   line-height: 1.1;
+  letter-spacing: 0.5px;
 }
 
 .hud-stat-unit {
@@ -329,33 +332,34 @@ html, body {
 }
 
 .speed-number {
-  font-family: var(--font-mono);
-  font-size: 38px;
+  font-family: var(--font-speed);
+  font-size: 42px;
   font-weight: 900;
   line-height: 1;
   color: #fff;
-  letter-spacing: -1.5px;
-  text-shadow: 0 0 16px rgba(0, 217, 255, 0.4);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 20px rgba(0, 217, 255, 0.55);
 }
 
 .speed-unit {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 800;
   color: var(--neon-cyan);
+  letter-spacing: 1px;
 }
 
 .gear-badge {
   margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-hud);
+  font-size: 12px;
   font-weight: 900;
   color: var(--neon-gold);
-  background: rgba(255, 184, 0, 0.15);
-  border: 1px solid rgba(255, 184, 0, 0.4);
-  padding: 3px 8px;
+  background: rgba(255, 184, 0, 0.18);
+  border: 1px solid rgba(255, 184, 0, 0.5);
+  padding: 4px 10px;
   border-radius: 6px;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-shadow: 0 0 10px rgba(255, 184, 0, 0.5);
   box-shadow: 0 0 12px rgba(255, 184, 0, 0.2);
 }
@@ -709,6 +713,89 @@ html, body {
   background: rgba(0, 217, 255, 0.12);
   box-shadow: 0 0 16px var(--neon-cyan-glow);
   transform: translateY(-1px);
+}
+
+/* Garage Supercar Selector Chips */
+.garage-chips-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 24px 14px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 217, 255, 0.4) transparent;
+}
+.garage-chips-row::-webkit-scrollbar {
+  height: 6px;
+}
+.garage-chips-row::-webkit-scrollbar-thumb {
+  background: rgba(0, 217, 255, 0.35);
+  border-radius: 3px;
+}
+.garage-chip {
+  flex: 1 0 135px;
+  max-width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(10, 18, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.garage-chip:hover {
+  background: rgba(0, 217, 255, 0.16);
+  border-color: rgba(0, 217, 255, 0.55);
+  transform: translateY(-2px);
+}
+.garage-chip.active {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.24), rgba(0, 255, 136, 0.12));
+  border-color: #00d9ff;
+  box-shadow: 0 0 14px rgba(0, 217, 255, 0.45);
+}
+.garage-chip-tier {
+  font-family: var(--font-hud);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--neon-cyan);
+}
+.garage-chip-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+}
+.garage-chip-status {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+.garage-chip-status.equipped {
+  background: rgba(255, 184, 0, 0.2);
+  color: #ffb800;
+  border: 1px solid rgba(255, 184, 0, 0.5);
+}
+.garage-chip-status.owned {
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.4);
+}
+.garage-chip-status.locked {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Garage Vehicle Selector Carousel */

@@ -45,8 +45,9 @@ export class ProgressionManager {
       upgrades: {
         apex: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         venom: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
-        titan: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         phantom: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
+        interceptor: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
+        titan: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         hyperion: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 }
       },
       settings: {

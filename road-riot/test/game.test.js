@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { ProgressionManager, ACHIEVEMENTS } from '../js/progression.js';
 import { VEHICLE_ROSTER } from '../js/player.js';
 
-test('vehicle roster contains 5 distinct supercars with complete base stats', () => {
+test('vehicle roster contains 6 distinct supercars with complete base stats', () => {
   const keys = Object.keys(VEHICLE_ROSTER);
-  assert.equal(keys.length, 5);
-  assert.deepEqual(keys, ['apex', 'venom', 'titan', 'phantom', 'hyperion']);
+  assert.equal(keys.length, 6);
+  assert.deepEqual(keys, ['apex', 'venom', 'phantom', 'interceptor', 'titan', 'hyperion']);
 
   keys.forEach(k => {
     const car = VEHICLE_ROSTER[k];

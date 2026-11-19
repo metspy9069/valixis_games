@@ -19,10 +19,10 @@
   <link rel="icon" href="../favicon-32x32.png">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 
-  <!-- Fonts -->
+  <!-- Fonts: High-impact AAA Arcade Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;0,800;1,700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&family=Russo+One&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="./css/style.css">
 </head>
@@ -182,11 +182,15 @@
   <!-- ========================================================= -->
   <div id="menu-modal" class="modal-screen">
     <div class="glass-panel modal-dialog" style="width:min(860px, 94vw); max-width:860px;">
-      <div class="modal-header" style="padding-bottom:12px;">
+      <div class="modal-header" style="padding-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
         <div>
           <div class="brand-eyebrow" style="letter-spacing:3px; color:var(--neon-cyan);">VALIXIS ARCADE RACING</div>
           <h1 class="brand-title" style="letter-spacing:3px;">ROAD RIOT 3D</h1>
           <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; AIR DEFENSE CHECKPOINTS &bull; CAR TUNING</div>
+        </div>
+        <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:12px; background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.3); border-radius:8px; padding:8px 14px; display:flex; flex-direction:column; gap:4px; text-align:right;">
+          <div style="color:#00d9ff; font-size:11px; font-weight:900;">🚗 <span id="menu-equipped-car">VALIXIS APEX GT</span></div>
+          <div>🪙 <span id="menu-coins">0</span> COINS</div>
         </div>
       </div>
 
@@ -246,7 +250,7 @@
       <div class="modal-footer" style="padding:14px 28px;">
         <a href="../" class="btn-secondary" style="text-decoration:none; display:flex; align-items:center; gap:6px;">&larr; ARCADE HUB</a>
         <div style="display:flex; gap:10px; align-items:center;">
-          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.4); color:#ffea00;">🏎️ GARAGE &amp; TUNING</button>
+          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2);">🏎️ SUPERCAR SHOP &amp; GARAGE</button>
           <button id="menu-settings-btn" class="btn-secondary">⚙️ CONTROLS</button>
           <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4);">START RACE 🏁</button>
         </div>
@@ -258,20 +262,25 @@
   <!-- GARAGE & VEHICLE CUSTOMIZATION MODAL                      -->
   <!-- ========================================================= -->
   <div id="garage-modal" class="modal-screen hidden">
-    <div class="glass-panel modal-dialog" style="width:min(920px, 95vw);">
+    <div class="glass-panel modal-dialog" style="width:min(960px, 95vw);">
       <div class="modal-header">
         <div>
-          <div class="brand-eyebrow">CUSTOM WORKSHOP</div>
-          <h2 style="font-size:28px; font-weight:900; letter-spacing:1px; color:#fff;">GARAGE &amp; TUNING</h2>
+          <div class="brand-eyebrow">HIGHWAY RACING HEADQUARTERS</div>
+          <h2 style="font-size:26px; font-weight:900; letter-spacing:1px; color:#fff;">SUPERCAR SHOWROOM &amp; SHOP</h2>
         </div>
         <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:16px;">
           🪙 <span id="garage-coins">0</span> COINS
         </div>
       </div>
 
+      <!-- Supercar Quick-Select Chips (Showroom Roster) -->
+      <div id="garage-car-chips" class="garage-chips-row">
+        <!-- Dynamically rendered by renderGarageCarousel() -->
+      </div>
+
       <!-- Garage Navigation Tabs -->
-      <div class="tab-group" style="padding: 0 28px; margin-top: 14px;">
-        <button id="tab-cars-btn" class="tab-btn active">CARS &amp; TUNING</button>
+      <div class="tab-group" style="padding: 0 28px; margin-top: 6px;">
+        <button id="tab-cars-btn" class="tab-btn active">SUPERCAR TUNING &amp; DYNO</button>
         <button id="tab-achievements-btn" class="tab-btn">ACHIEVEMENTS 🏆</button>
       </div>
 
@@ -280,7 +289,12 @@
         <div id="garage-view-cars" class="garage-container">
           <!-- 3D Car Showcase Details -->
           <div class="car-showcase">
-            <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+              <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
+              <div id="garage-car-price" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:#ffb800; background:rgba(255,184,0,0.15); border:1px solid rgba(255,184,0,0.4); padding:3px 8px; border-radius:4px;">
+                🪙 UNLOCKED
+              </div>
+            </div>
             <div id="garage-car-title" class="car-preview-title">Valixis Apex</div>
             <p id="garage-car-desc" style="font-size:12px; color:#8fa0b5; margin-top:6px; max-width:320px; line-height:1.5;">
               Precision aerodynamics &amp; razor-sharp lane transition.
@@ -337,8 +351,11 @@
         </div>
       </div>
 
-      <div class="modal-footer">
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
         <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
+        <button id="garage-race-now-btn" class="btn-primary" style="padding:12px 32px; font-size:13px; font-weight:900; background:linear-gradient(135deg, #00d9ff, #00ff88); color:#000; letter-spacing:1.5px; box-shadow:0 0 20px rgba(0,217,255,0.4);">
+          RACE THIS CAR 🏁
+        </button>
       </div>
     </div>
   </div>

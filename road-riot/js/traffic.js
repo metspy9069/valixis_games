@@ -225,7 +225,7 @@ export class TrafficManager {
       parentGroup.add(head);
     });
 
-    // 3. Police Strobe Lightbar (Alternating High-Intensity Emissive Beacons)
+    // 3. Police Strobe Lightbar & Push-Bar (Alternating High-Intensity Beacons)
     if (isPolice || type === 'police') {
       const sirenBar = new THREE.Mesh(
         new THREE.BoxGeometry(1.2, 0.14, 0.28),
@@ -248,11 +248,56 @@ export class TrafficManager {
       blueBeacon.position.set(0.35, 1.55, 0.1);
       parentGroup.add(blueBeacon);
 
+      const sirenLight = new THREE.PointLight(0xff0044, 2.5, 8.0);
+      sirenLight.position.set(0, 1.6, 0.1);
+      parentGroup.add(sirenLight);
+
+      // Heavy Tactical Front Bullbar / Push-Bar
+      const bullMat = new THREE.MeshStandardMaterial({ color: 0x0d121c, metalness: 0.9, roughness: 0.2 });
+      [-0.48, 0.48].forEach(bx => {
+        const upright = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.15), bullMat);
+        upright.position.set(bx, 0.52, -2.32);
+        parentGroup.add(upright);
+      });
+      const crossbar = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.08, 0.12), bullMat);
+      crossbar.position.set(0, 0.62, -2.34);
+      parentGroup.add(crossbar);
+
       parentGroup.userData.sirenRedMesh = redBeacon;
       parentGroup.userData.sirenBlueMesh = blueBeacon;
+      parentGroup.userData.sirenLight = sirenLight;
     }
 
-    // 4. Taxi Rooftop Medallion
+    // 4. Rival Racing Supercar Enhancements (GT Carbon Wing & Underglow)
+    if (isRival) {
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0x111622, roughness: 0.35, metalness: 0.85 });
+      const wingBlade = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.05, 0.42), wingMat);
+      wingBlade.position.set(0, 1.15, 1.82);
+      parentGroup.add(wingBlade);
+
+      // Wing uprights
+      [-0.55, 0.55].forEach(wx => {
+        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.32, 0.22), wingMat);
+        strut.position.set(wx, 1.0, 1.82);
+        parentGroup.add(strut);
+      });
+
+      // Neon Underglow Kit
+      const underglow = new THREE.PointLight(0xff2a85, 2.2, 5.0);
+      underglow.position.set(0, 0.25, 0);
+      parentGroup.add(underglow);
+    }
+
+    // 5. Dual Chrome Exhaust Pipes
+    const pipeMat = new THREE.MeshStandardMaterial({ color: 0xdde4ec, metalness: 0.95, roughness: 0.1 });
+    [-0.52, 0.52].forEach(px => {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.07, 0.25, 8), pipeMat);
+      pipe.rotation.x = Math.PI / 2;
+      pipe.position.set(px, 0.35, 2.25);
+      parentGroup.add(pipe);
+    });
+
+    // 6. Taxi Rooftop Medallion
     if (type === 'taxi') {
       const taxiSign = new THREE.Mesh(
         new THREE.BoxGeometry(0.65, 0.18, 0.22),
@@ -262,7 +307,7 @@ export class TrafficManager {
       parentGroup.add(taxiSign);
     }
 
-    // 5. Ambient Occlusion Contact Shadow Plane (Grounds vehicle on pavement)
+    // 7. Ambient Occlusion Contact Shadow Plane (Grounds vehicle on pavement)
     const shadowGeo = new THREE.PlaneGeometry(2.5, 4.8);
     shadowGeo.rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({
@@ -798,9 +843,9 @@ export class TrafficManager {
         if (v.mesh.userData.sirenRedMesh && v.mesh.userData.sirenBlueMesh) {
           v.mesh.userData.sirenRedMesh.visible = strobe;
           v.mesh.userData.sirenBlueMesh.visible = !strobe;
-        } else if (v.mesh.userData.sirenRed) {
-          v.mesh.userData.sirenRed.intensity = strobe ? 4 : 0;
-          v.mesh.userData.sirenBlue.intensity = strobe ? 0 : 4;
+        }
+        if (v.mesh.userData.sirenLight) {
+          v.mesh.userData.sirenLight.color.setHex(strobe ? 0xff0044 : 0x0088ff);
         }
       }
 

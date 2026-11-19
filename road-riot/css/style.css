@@ -327,6 +327,21 @@ html, body {
   color: var(--neon-cyan);
 }
 
+.gear-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--neon-gold);
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(255, 184, 0, 0.5);
+  box-shadow: 0 0 12px rgba(255, 184, 0, 0.2);
+}
+
 /* Speed Gauge Arch */
 .speed-bar-track {
   width: 100%;
@@ -342,6 +357,37 @@ html, body {
   width: 0%;
   background: linear-gradient(90deg, var(--neon-cyan), var(--neon-gold), var(--neon-magenta));
   transition: width 0.08s linear;
+}
+
+/* Tachometer */
+.rpm-container {
+  margin-top: 8px;
+}
+
+.rpm-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #a0aec0;
+  margin-bottom: 3px;
+}
+
+.rpm-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.rpm-bar-fill {
+  height: 100%;
+  width: 15%;
+  background: linear-gradient(90deg, #00d9ff 0%, #ffea00 70%, #ff1644 100%);
+  transition: width 0.06s linear;
 }
 
 /* Nitro Cluster */
@@ -381,63 +427,6 @@ html, body {
 .nitro-ready .nitro-bar-fill {
   background: linear-gradient(90deg, #00f0ff, #ff2a85, #ffb800);
   box-shadow: 0 0 18px rgba(255, 42, 133, 0.9);
-}
-
-/* Weapon / Power-Up Slot */
-.weapon-panel {
-  padding: 12px 16px;
-  min-width: 140px;
-  text-align: center;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.weapon-slot {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  border: 2px dashed rgba(0, 217, 255, 0.4);
-  background: rgba(0, 30, 60, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.weapon-slot.active {
-  border-style: solid;
-  border-color: var(--neon-cyan);
-  background: radial-gradient(circle, rgba(0, 217, 255, 0.25), rgba(4, 10, 20, 0.9));
-  box-shadow: 0 0 20px var(--neon-cyan-glow);
-  animation: pulseWeapon 1.2s infinite alternate;
-}
-
-@keyframes pulseWeapon {
-  from { transform: scale(1); }
-  to { transform: scale(1.06); }
-}
-
-.weapon-name {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--neon-cyan);
-}
-
-.weapon-keyhint {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--text-muted);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 2px 5px;
-  border-radius: 4px;
 }
 
 /* Screen FX Overlays */
@@ -541,13 +530,6 @@ html, body {
   font-size: 12px;
   letter-spacing: 1px;
   box-shadow: 0 0 24px var(--neon-cyan-glow);
-}
-
-.touch-btn.weapon-touch-btn {
-  width: 58px;
-  height: 58px;
-  border-color: var(--neon-magenta);
-  color: #ffb3d9;
 }
 
 /* ========================================================= */
@@ -1082,4 +1064,309 @@ html, body {
   .speed-number {
     font-size: 28px;
   }
+}
+
+
+/* ========================================================= */
+/* CINEMATIC 3-2-1-GO COUNTDOWN                              */
+/* ========================================================= */
+#countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#countdown-overlay.show {
+  opacity: 1;
+}
+
+.countdown-num {
+  font-family: var(--font-display);
+  font-size: clamp(72px, 16vw, 160px);
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow: 0 0 40px var(--neon-cyan-glow), 0 0 80px var(--neon-cyan);
+  animation: countdownPulse 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.countdown-num.go {
+  color: #00ff88;
+  text-shadow: 0 0 40px var(--neon-green-glow), 0 0 80px var(--neon-green);
+}
+
+@keyframes countdownPulse {
+  0% { transform: scale(0.3); opacity: 0; }
+  25% { transform: scale(1.15); opacity: 1; }
+  60% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* ========================================================= */
+/* HIGHWAY DISTANCE RADAR PROGRESS BAR                       */
+/* ========================================================= */
+#highway-radar {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 78vw);
+  background: rgba(4, 10, 20, 0.85);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 99px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 12;
+}
+
+.radar-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--neon-cyan);
+  white-space: nowrap;
+}
+
+.radar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  position: relative;
+  overflow: visible;
+}
+
+.radar-progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00d9ff, #00ff88);
+  border-radius: 99px;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+}
+
+.radar-pin-player {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #00d9ff;
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px #00d9ff;
+}
+
+.radar-pin-beacon {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #ffb800;
+  text-shadow: 0 0 8px #ffb800;
+}
+
+/* ========================================================= */
+/* FLOATING 3D SCORE POINTS                                  */
+/* ========================================================= */
+#floating-scores-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 16;
+  overflow: hidden;
+}
+
+.floating-score-popup {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 8px #000;
+  animation: floatScoreUp 1.2s forwards cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  white-space: nowrap;
+}
+
+@keyframes floatScoreUp {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  15% { transform: translateY(-8px) scale(1.15); opacity: 1; }
+  30% { transform: translateY(-16px) scale(1); opacity: 1; }
+  80% { transform: translateY(-42px) scale(0.95); opacity: 0.9; }
+  100% { transform: translateY(-64px) scale(0.85); opacity: 0; }
+}
+
+/* ========================================================= */
+/* SETTINGS & PAUSE MODALS                                   */
+/* ========================================================= */
+.settings-group {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-group-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--neon-cyan);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 6px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.setting-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #d2e0f0;
+}
+
+.setting-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 140px;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.setting-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--neon-cyan);
+}
+
+.setting-toggle {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.setting-toggle.active {
+  background: var(--neon-cyan);
+  color: #04111a;
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 12px var(--neon-cyan-glow);
+}
+
+/* ========================================================= */
+/* ACHIEVEMENTS UI IN GARAGE                                 */
+/* ========================================================= */
+.tab-group {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  color: #fff;
+  border-bottom-color: var(--neon-cyan);
+  text-shadow: 0 0 12px var(--neon-cyan-glow);
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.achievement-card {
+  background: rgba(0, 20, 36, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.achievement-card.unlocked {
+  border-color: rgba(0, 255, 136, 0.4);
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.08), rgba(0, 20, 36, 0.7));
+}
+
+.achievement-icon {
+  font-size: 26px;
+}
+
+.achievement-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.achievement-desc {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.achievement-reward {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--neon-gold);
+  margin-top: 4px;
 }

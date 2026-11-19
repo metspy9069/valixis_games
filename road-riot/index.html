@@ -7,17 +7,6 @@
   <meta name="description" content="Road Riot 3D - High-octane arcade highway combat racer by VALIXIS Games. Thread near misses, drift at 300+ KM/H, unleash missiles & EMPs, and challenge your friends.">
   <meta name="theme-color" content="#060911">
 
-  <!-- Google tag (gtag.js) / Google Tag Manager -->
-  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KTXSRLWK"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'GTM-KTXSRLWK');
-    gtag('config', 'G-9SGCBYSRYB');
-  </script>
-
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="VALIXIS Games">
@@ -46,6 +35,14 @@
   <div id="overlay-warp"></div>
   <div id="overlay-shield"></div>
 
+  <!-- Cinematic 3-2-1-GO Countdown -->
+  <div id="countdown-overlay">
+    <div id="countdown-text" class="countdown-num">3</div>
+  </div>
+
+  <!-- Floating 3D/2D Score Popups Layer -->
+  <div id="floating-scores-layer"></div>
+
   <!-- In-Game HUD -->
   <div id="hud" class="hidden">
     <!-- Topbar -->
@@ -54,8 +51,10 @@
         <a href="../" class="glass-panel hub-btn" title="Return to VALIXIS Games Portal">
           <span>&larr; ARCADE HUB</span>
         </a>
-        <button id="network-btn" class="hud-icon-btn" title="VALIXIS Games Network">🎮</button>
+        <button id="pause-btn" class="hud-icon-btn" title="Pause Game (ESC / P)">⏸️</button>
+        <button id="settings-btn" class="hud-icon-btn" title="Settings">⚙️</button>
         <button id="audio-btn" class="hud-icon-btn" title="Toggle Sound">🔊</button>
+        <button id="network-btn" class="hud-icon-btn" title="VALIXIS Games Network">🎮</button>
       </div>
 
       <div class="hud-stats-group">
@@ -80,19 +79,40 @@
       </div>
     </header>
 
+    <!-- Highway Distance Radar Progress Bar -->
+    <div id="highway-radar">
+      <span class="radar-label">HIGHWAY RADAR</span>
+      <div class="radar-track">
+        <div id="radar-progress" class="radar-progress"></div>
+        <div id="radar-pin-player" class="radar-pin-player"></div>
+        <span id="radar-pin-beacon" class="radar-pin-beacon">🏁</span>
+      </div>
+    </div>
+
     <!-- Center Floating Announcer & Combo Popups -->
     <div id="announcer-zone"></div>
 
-    <!-- Bottombar: Speedometer, Nitro, and Weapons -->
+    <!-- Bottombar: Speedometer, Gear, Tachometer, and Nitro -->
     <footer class="hud-bottombar">
       <!-- Speedometer & Nitro Panel -->
       <div class="glass-panel speed-panel">
         <div class="speed-readout">
           <span id="hud-speed" class="speed-number">0</span>
           <span class="speed-unit">KM/H</span>
+          <span id="hud-gear" class="gear-badge">GEAR 1</span>
         </div>
         <div class="speed-bar-track">
           <div id="hud-speed-fill" class="speed-bar-fill"></div>
+        </div>
+
+        <div class="rpm-container">
+          <div class="rpm-label-row">
+            <span>TACHOMETER</span>
+            <span id="hud-rpm">1,200 RPM</span>
+          </div>
+          <div class="rpm-bar-track">
+            <div id="hud-rpm-fill" class="rpm-bar-fill"></div>
+          </div>
         </div>
 
         <div class="nitro-container">
@@ -105,29 +125,21 @@
           </div>
         </div>
       </div>
-
-      <!-- Active Weapon / Power-Up Slot -->
-      <div id="weapon-panel" class="glass-panel weapon-panel">
-        <div id="weapon-slot" class="weapon-slot">—</div>
-        <div id="weapon-name" class="weapon-name">NO WEAPON</div>
-        <div class="weapon-keyhint">PRESS [E / F]</div>
-      </div>
     </footer>
 
     <!-- Desktop Controls Hint -->
-    <div id="controls-hint">A / D or ARROWS: STEER &bull; S / DOWN: DRIFT &bull; SPACE: BOOST &bull; E / F: FIRE WEAPON</div>
+    <div id="controls-hint">A / D or &larr; / &rarr;: STEER &bull; S or &darr;: DRIFT &bull; SPACE: NITRO BOOST</div>
   </div>
 
   <!-- Mobile Touch Controls -->
   <div id="mobile-controls">
     <div class="touch-cluster">
-      <button class="touch-btn" data-key="ArrowLeft" aria-label="Steer Left">‹</button>
-      <button class="touch-btn" data-key="ArrowRight" aria-label="Steer Right">›</button>
+      <button class="touch-btn" data-key="ArrowLeft" aria-label="Steer Left">&lsaquo;</button>
+      <button class="touch-btn" data-key="ArrowRight" aria-label="Steer Right">&rsaquo;</button>
       <button class="touch-btn" data-key="ArrowDown" aria-label="Drift">DRIFT</button>
     </div>
     <div class="touch-cluster">
-      <button class="touch-btn weapon-touch-btn" data-key="Weapon" aria-label="Use Weapon">WEAPON</button>
-      <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">BOOST</button>
+      <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">NITRO BOOST</button>
     </div>
   </div>
 
@@ -145,7 +157,7 @@
 
       <div class="modal-body">
         <p style="color:#b6c8dc; font-size:14px; line-height:1.7;">
-          Race down the neon-lit midnight boulevard at Mach speeds. Thread tight near-misses, slipstream drafting behind haulers, drift corners to supercharge your nitro, and blast through syndicate rivals with homing missiles and EMP shockwaves.
+          Race down the neon-lit midnight boulevard at Mach speeds. Thread tight near-misses, slipstream drafting behind haulers, launch off stunt ramps, drift corners to charge nitro, and blast syndicate rivals with homing missiles, lasers, and EMP shockwaves.
         </p>
 
         <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:8px 0;">
@@ -157,7 +169,7 @@
           <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,42,133,0.2); border-radius:10px; padding:12px; text-align:center;">
             <div style="font-size:24px; margin-bottom:4px;">🚀</div>
             <div style="font-weight:800; font-size:12px; color:#fff;">COMBAT ARSENAL</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Missiles, EMPs, Hex Shields</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Missiles, EMPs, Cyber Drones</div>
           </div>
           <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,184,0,0.2); border-radius:10px; padding:12px; text-align:center;">
             <div style="font-size:24px; margin-bottom:4px;">🏎️</div>
@@ -170,6 +182,7 @@
       <div class="modal-footer">
         <a href="../" class="btn-secondary" style="text-decoration:none;">&larr; ARCADE PORTAL</a>
         <div style="display:flex; gap:10px;">
+          <button id="menu-settings-btn" class="btn-secondary">SETTINGS ⚙️</button>
           <button id="garage-btn" class="btn-secondary">GARAGE &amp; CARS</button>
           <button id="start-btn" class="btn-primary">START RUN 🏁</button>
         </div>
@@ -181,7 +194,7 @@
   <!-- GARAGE & VEHICLE CUSTOMIZATION MODAL                      -->
   <!-- ========================================================= -->
   <div id="garage-modal" class="modal-screen hidden">
-    <div class="glass-panel modal-dialog" style="width:min(900px, 95vw);">
+    <div class="glass-panel modal-dialog" style="width:min(920px, 95vw);">
       <div class="modal-header">
         <div>
           <div class="brand-eyebrow">CUSTOM WORKSHOP</div>
@@ -192,8 +205,15 @@
         </div>
       </div>
 
+      <!-- Garage Navigation Tabs -->
+      <div class="tab-group" style="padding: 0 28px; margin-top: 14px;">
+        <button id="tab-cars-btn" class="tab-btn active">CARS &amp; TUNING</button>
+        <button id="tab-achievements-btn" class="tab-btn">ACHIEVEMENTS 🏆</button>
+      </div>
+
       <div class="modal-body">
-        <div class="garage-container">
+        <!-- View 1: Cars & Tuning -->
+        <div id="garage-view-cars" class="garage-container">
           <!-- 3D Car Showcase Details -->
           <div class="car-showcase">
             <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
@@ -235,10 +255,109 @@
             <!-- Dynamically populated -->
           </div>
         </div>
+
+        <!-- View 2: Achievements -->
+        <div id="garage-view-achievements" class="hidden">
+          <div class="achievements-grid" id="achievements-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
       </div>
 
       <div class="modal-footer">
         <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- SETTINGS MODAL                                            -->
+  <!-- ========================================================= -->
+  <div id="settings-modal" class="modal-screen hidden">
+    <div class="glass-panel modal-dialog" style="max-width:540px;">
+      <div class="modal-header">
+        <div>
+          <div class="brand-eyebrow">CONFIGURATION</div>
+          <h2 style="font-size:26px; font-weight:900; color:#fff;">SETTINGS</h2>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Audio Mixer -->
+        <div class="settings-group">
+          <div class="settings-group-title">AUDIO MIXER</div>
+          <div class="setting-row">
+            <span class="setting-label">MASTER VOLUME</span>
+            <input id="slider-vol-master" type="range" min="0" max="1" step="0.05" value="0.85" class="setting-slider">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">ENGINE &amp; GEAR SOUNDS</span>
+            <input id="slider-vol-engine" type="range" min="0" max="1" step="0.05" value="0.75" class="setting-slider">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">SOUND EFFECTS (SFX)</span>
+            <input id="slider-vol-sfx" type="range" min="0" max="1" step="0.05" value="0.85" class="setting-slider">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">SYNTHWAVE MUSIC</span>
+            <input id="slider-vol-music" type="range" min="0" max="1" step="0.05" value="0.50" class="setting-slider">
+          </div>
+        </div>
+
+        <!-- Controls & Input -->
+        <div class="settings-group">
+          <div class="settings-group-title">CONTROLS &amp; INPUT</div>
+          <div class="setting-row">
+            <span class="setting-label">STEERING SENSITIVITY</span>
+            <input id="slider-sensitivity" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="setting-slider">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">MOUSE POINTER STEERING</span>
+            <button id="toggle-mouse-steer" class="setting-toggle">OFF</button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">GAMEPAD RUMBLE / VIBRATION</span>
+            <button id="toggle-gamepad-rumble" class="setting-toggle active">ON</button>
+          </div>
+        </div>
+
+        <!-- Graphics Quality -->
+        <div class="settings-group">
+          <div class="settings-group-title">PERFORMANCE &amp; GRAPHICS</div>
+          <div class="setting-row">
+            <span class="setting-label">GRAPHICS PRESET</span>
+            <div style="display:flex; gap:6px;">
+              <button class="setting-toggle quality-btn active" data-quality="high">HIGH</button>
+              <button class="setting-toggle quality-btn" data-quality="med">MED</button>
+              <button class="setting-toggle quality-btn" data-quality="low">LOW</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="settings-close-btn" class="btn-primary" style="padding:12px 28px;">SAVE &amp; CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- PAUSE MODAL                                               -->
+  <!-- ========================================================= -->
+  <div id="pause-modal" class="modal-screen hidden">
+    <div class="glass-panel modal-dialog" style="max-width:440px; text-align:center;">
+      <div class="modal-header" style="justify-content:center;">
+        <div>
+          <div class="brand-eyebrow">GAME PAUSED</div>
+          <h2 style="font-size:32px; font-weight:900; color:#fff; margin-top:4px;">PAUSED</h2>
+        </div>
+      </div>
+
+      <div class="modal-body" style="align-items:center; gap:12px;">
+        <button id="pause-resume-btn" class="btn-primary" style="width:100%; max-width:280px;">RESUME RACE</button>
+        <button id="pause-restart-btn" class="btn-secondary" style="width:100%; max-width:280px;">RESTART RUN</button>
+        <button id="pause-settings-btn" class="btn-secondary" style="width:100%; max-width:280px;">SETTINGS ⚙️</button>
+        <a href="../" class="btn-secondary" style="width:100%; max-width:280px; text-decoration:none;">&larr; EXIT TO ARCADE HUB</a>
       </div>
     </div>
   </div>

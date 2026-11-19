@@ -1,4 +1,4 @@
-// Road Riot 3D - Procedural Highway, Cyber Billboards & World Systems
+// Road Riot 3D - Procedural Highway, Cyber Billboards, Stunt Ramps & Speed Dash Panels
 import * as THREE from 'three';
 
 export class WorldManager {
@@ -8,18 +8,20 @@ export class WorldManager {
     this.segmentLength = 15;
     this.segmentCount = 30;
     this.roadWidth = 18;
-    this.currentTheme = 'cyberpunk'; // 'cyberpunk', 'sunset', 'storm'
+    this.currentTheme = 'cyberpunk';
+
+    // Interactive World Objects (Dash Panels & Jump Ramps)
+    this.speedPanels = [];
+    this.jumpRamps = [];
 
     // Billboards and props
     this.billboardTextures = [];
-    this.decorGroups = [];
 
     // Weather & Sky
     this.skyMesh = null;
     this.sunMesh = null;
     this.hemiLight = null;
     this.dirLight = null;
-    this.rainParticles = null;
 
     // Challenge Marker
     this.challengeDistance = null;
@@ -54,7 +56,6 @@ export class WorldManager {
   }
 
   initSky() {
-    // Synthwave dome with custom gradient shader
     const skyGeo = new THREE.SphereGeometry(260, 32, 16);
     this.skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
@@ -62,8 +63,7 @@ export class WorldManager {
         topColor: { value: new THREE.Color(0x050c1e) },
         midColor: { value: new THREE.Color(0x28123a) },
         botColor: { value: new THREE.Color(0xd94b76) },
-        offset: { value: 0.15 },
-        exponent: { value: 0.8 }
+        offset: { value: 0.15 }
       },
       vertexShader: `
         varying vec3 vWorldPosition;
@@ -78,7 +78,6 @@ export class WorldManager {
         uniform vec3 midColor;
         uniform vec3 botColor;
         uniform float offset;
-        uniform float exponent;
         varying vec3 vWorldPosition;
         void main() {
           float h = normalize(vWorldPosition + offset).y;
@@ -118,7 +117,6 @@ export class WorldManager {
   }
 
   initBillboardCanvases() {
-    // Generate high-resolution cyber billboards driving traffic to VALIXIS Games!
     const ads = [
       {
         header: 'VALIXIS GAMES',
@@ -131,7 +129,7 @@ export class WorldManager {
       {
         header: 'SOUL EMBER',
         sub: 'SURVIVORS ROGUELIKE',
-        tag: 'PLAY FREE NOW &bull; 8 HEROES',
+        tag: 'PLAY FREE NOW • 8 HEROES',
         bg: '#200a05',
         accent: '#ff6a00',
         glow: '#ff4400'
@@ -145,9 +143,9 @@ export class WorldManager {
         glow: '#66cc22'
       },
       {
-        header: 'ROAD RIOT 3D',
-        sub: 'VALIXIS HYPERSPEED',
-        tag: 'CHALLENGE YOUR FRIENDS',
+        header: 'DEV TYCOON',
+        sub: 'BUILD YOUR STUDIO',
+        tag: 'FLUTTER WEB ARCADE',
         bg: '#180518',
         accent: '#ff2a85',
         glow: '#cc0066'
@@ -160,19 +158,16 @@ export class WorldManager {
       c.height = 256;
       const ctx = c.getContext('2d');
 
-      // Card Background with neon gradient
       const grad = ctx.createLinearGradient(0, 0, 512, 256);
       grad.addColorStop(0, ad.bg);
       grad.addColorStop(1, '#04060a');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 512, 256);
 
-      // Glowing Neon Border
       ctx.strokeStyle = ad.accent;
       ctx.lineWidth = 10;
       ctx.strokeRect(8, 8, 496, 240);
 
-      // Tech Grid Pattern
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 1;
       for (let x = 20; x < 512; x += 30) {
@@ -182,7 +177,6 @@ export class WorldManager {
         ctx.stroke();
       }
 
-      // Title
       ctx.shadowColor = ad.glow;
       ctx.shadowBlur = 18;
       ctx.fillStyle = '#ffffff';
@@ -190,13 +184,11 @@ export class WorldManager {
       ctx.textAlign = 'center';
       ctx.fillText(ad.header, 256, 88);
 
-      // Subtitle
       ctx.shadowBlur = 10;
       ctx.fillStyle = ad.accent;
       ctx.font = 'bold 22px "JetBrains Mono", monospace';
       ctx.fillText(ad.sub, 256, 138);
 
-      // Tagline pill
       ctx.shadowBlur = 6;
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
       ctx.fillRect(70, 172, 372, 46);
@@ -206,12 +198,33 @@ export class WorldManager {
 
       ctx.fillStyle = '#f0f6fc';
       ctx.font = 'bold 16px "JetBrains Mono", monospace';
-      ctx.fillText(ad.tag.replace('&bull;', '•'), 256, 202);
+      ctx.fillText(ad.tag, 256, 202);
 
       const texture = new THREE.CanvasTexture(c);
       texture.colorSpace = THREE.SRGBColorSpace;
       return texture;
     });
+
+    // Overhead Highway Gantry Electronic Signs
+    const gc = document.createElement('canvas');
+    gc.width = 512;
+    gc.height = 128;
+    const gctx = gc.getContext('2d');
+    gctx.fillStyle = '#050c18';
+    gctx.fillRect(0, 0, 512, 128);
+    gctx.strokeStyle = '#00d9ff';
+    gctx.lineWidth = 6;
+    gctx.strokeRect(6, 6, 500, 116);
+    gctx.fillStyle = '#00f0ff';
+    gctx.font = 'bold 32px "Orbitron", sans-serif';
+    gctx.textAlign = 'center';
+    gctx.fillText('VALIXIS EXPRESSWAY', 256, 52);
+    gctx.fillStyle = '#ffea00';
+    gctx.font = 'bold 20px "JetBrains Mono", monospace';
+    gctx.fillText('SPEED LIMIT 320 KM/H • ALL LANES OPEN', 256, 95);
+
+    this.gantryTexture = new THREE.CanvasTexture(gc);
+    this.gantryTexture.colorSpace = THREE.SRGBColorSpace;
   }
 
   buildInitialHighway() {
@@ -219,7 +232,6 @@ export class WorldManager {
       this.createSegment(i);
     }
 
-    // Infinite foundation underneath
     const foundationGeo = new THREE.BoxGeometry(this.roadWidth + 4, 0.4, 4000);
     const foundationMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.9 });
     this.foundation = new THREE.Mesh(foundationGeo, foundationMat);
@@ -231,7 +243,7 @@ export class WorldManager {
     const group = new THREE.Group();
     group.position.z = -index * this.segmentLength;
 
-    // Road Surface with asphalt texture look
+    // Road Surface
     const roadGeo = new THREE.BoxGeometry(this.roadWidth, 0.3, this.segmentLength);
     const roadMat = new THREE.MeshStandardMaterial({
       color: 0x181e28,
@@ -243,8 +255,7 @@ export class WorldManager {
     roadMesh.receiveShadow = true;
     group.add(roadMesh);
 
-    // Glowing Neon Lane Dividers (Three Lanes: -6, 0, +6)
-    // Dividers at x = -3 and x = +3
+    // Glowing Neon Lane Dividers (Lanes at -6, 0, +6; dividers at -3, +3)
     [-3, 3].forEach(x => {
       const dashGeo = new THREE.BoxGeometry(0.16, 0.04, 3.8);
       const dashMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
@@ -255,21 +266,18 @@ export class WorldManager {
 
     // Guard Rails & Neon Shoulder Strips
     [-this.roadWidth / 2, this.roadWidth / 2].forEach((x, side) => {
-      // Curb
       const curbGeo = new THREE.BoxGeometry(0.8, 0.35, this.segmentLength);
       const curbMat = new THREE.MeshStandardMaterial({ color: 0x222e40, roughness: 0.8 });
       const curb = new THREE.Mesh(curbGeo, curbMat);
       curb.position.set(x + (side === 0 ? -0.4 : 0.4), 0.05, 0);
       group.add(curb);
 
-      // Neon Guide Strip
       const neonStripGeo = new THREE.BoxGeometry(0.12, 0.1, this.segmentLength);
       const neonStripMat = new THREE.MeshBasicMaterial({ color: side === 0 ? 0xff2a85 : 0x00d9ff });
       const neonStrip = new THREE.Mesh(neonStripGeo, neonStripMat);
       neonStrip.position.set(x, 0.18, 0);
       group.add(neonStrip);
 
-      // Sidewalk / Verge
       const walkGeo = new THREE.BoxGeometry(7, 0.2, this.segmentLength);
       const walkMat = new THREE.MeshStandardMaterial({ color: 0x0d1422, roughness: 0.95 });
       const walk = new THREE.Mesh(walkGeo, walkMat);
@@ -277,28 +285,176 @@ export class WorldManager {
       group.add(walk);
     });
 
-    // Street Light Posts (every 3 segments)
+    // Street Lights (every 3 segments)
     if (index % 3 === 0) {
       this.createStreetLight(group, -10.2, 1);
       this.createStreetLight(group, 10.2, -1);
     }
 
-    // Overhead Highway Sign Gantry (every 9 segments)
-    if (index % 9 === 0) {
+    // Overhead Gantry Sign (every 8 segments)
+    if (index % 8 === 0) {
       this.createOverheadGantry(group);
     }
 
-    // Neon Cyber Billboard (alternating sides every 5 segments)
+    // Neon Cyber Billboard (every 5 segments)
     if (index % 5 === 2) {
       const side = (index % 10 === 2) ? -1 : 1;
       this.createCyberBillboard(group, side * 15.5, (index / 5) % this.billboardTextures.length);
     }
 
-    // City Skyscrapers & Buildings
+    // Roadside Buildings
     this.createRoadsideBuildings(group, index);
+
+    // Interactive Highway Objects:
+    // Stunt Jump Ramp (every 11 segments, in one lane)
+    if (index % 11 === 4) {
+      const rampLane = [-6, 0, 6][(index * 2) % 3];
+      this.createJumpRamp(group, rampLane);
+    }
+
+    // Highway Speed Booster Panel (every 7 segments, in one lane)
+    if (index % 7 === 3) {
+      const boostLane = [-6, 0, 6][(index * 3) % 3];
+      this.createSpeedPanel(group, boostLane);
+    }
 
     this.scene.add(group);
     this.segments.push(group);
+  }
+
+  createJumpRamp(parent, lane) {
+    const rampGroup = new THREE.Group();
+    const w = 2.8;
+    const l = 4.8;
+    const hw = w / 2;
+    const hl = l / 2;
+    const h0 = 0.03; // Flush with asphalt at entrance (+Z)
+    const h1 = 1.35; // Elevated takeoff lip at (-Z)
+
+    // Mathematically exact forward-launching wedge geometry
+    // Entrance at +Z (hl), Takeoff Lip at -Z (-hl)
+    const positions = [
+      // Top incline deck (2 triangles)
+      -hw, h0, hl,   hw, h0, hl,   hw, h1, -hl,
+      -hw, h0, hl,   hw, h1, -hl,  -hw, h1, -hl,
+      // Back vertical drop face at takeoff lip (-hl)
+      -hw, h1, -hl,  hw, h1, -hl,  hw, 0, -hl,
+      -hw, h1, -hl,  hw, 0, -hl,   -hw, 0, -hl,
+      // Left side triangular wall
+      -hw, 0, hl,    -hw, h0, hl,  -hw, h1, -hl,
+      -hw, 0, hl,    -hw, h1, -hl, -hw, 0, -hl,
+      // Right side triangular wall
+      hw, 0, hl,     hw, h1, -hl,  hw, h0, hl,
+      hw, 0, hl,     hw, 0, -hl,   hw, h1, -hl,
+      // Bottom face flush on asphalt
+      -hw, 0, hl,    hw, 0, hl,    hw, 0, -hl,
+      -hw, 0, hl,    hw, 0, -hl,   -hw, 0, -hl
+    ];
+
+    const rampGeo = new THREE.BufferGeometry();
+    rampGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    rampGeo.computeVertexNormals();
+
+    const rampMat = new THREE.MeshStandardMaterial({
+      color: 0xff6a00,
+      roughness: 0.4,
+      metalness: 0.65
+    });
+    const rampMesh = new THREE.Mesh(rampGeo, rampMat);
+    rampMesh.castShadow = true;
+    rampMesh.receiveShadow = true;
+    rampGroup.add(rampMesh);
+
+    // Glowing Runway Chevrons on incline pointing forward up to takeoff (-Z)
+    const inclineAngle = Math.atan2(h1 - h0, l); // ~15.3 degrees
+    const chevMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+    [-1.2, 0.0, 1.2].forEach(relZ => {
+      // Calculate height on incline for each chevron
+      const t = (hl - relZ) / l;
+      const yPos = h0 + t * (h1 - h0) + 0.025;
+      const chev = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.03, 0.4), chevMat);
+      chev.position.set(0, yPos, relZ);
+      chev.rotation.x = -inclineAngle;
+      rampGroup.add(chev);
+    });
+
+    // Elevated Glowing Takeoff Lip across -Z edge
+    const lipMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+    const lipMesh = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.1, 0.16), lipMat);
+    lipMesh.position.set(0, h1 + 0.04, -hl);
+    rampGroup.add(lipMesh);
+
+    // Takeoff Lip Hazard LED Light
+    const lipLight = new THREE.PointLight(0xffaa00, 2.2, 7.0);
+    lipLight.position.set(0, h1 + 0.4, -hl);
+    rampGroup.add(lipLight);
+
+    // Left and Right Caution Guardrails
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, metalness: 0.8, roughness: 0.3 });
+    [-hw - 0.06, hw + 0.06].forEach(x => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, l), railMat);
+      rail.position.set(x, (h1 + h0) / 2 + 0.18, 0);
+      rail.rotation.x = -inclineAngle;
+      rampGroup.add(rail);
+
+      // Warning hazard stripe on rail
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.1, l), chevMat);
+      stripe.position.set(x, (h1 + h0) / 2 + 0.25, 0);
+      stripe.rotation.x = -inclineAngle;
+      rampGroup.add(stripe);
+    });
+
+    rampGroup.position.set(lane, 0, 0);
+    parent.add(rampGroup);
+
+    this.jumpRamps.push({ parent, lane, mesh: rampGroup, triggered: false });
+  }
+
+  createSpeedPanel(parent, lane) {
+    const panelGroup = new THREE.Group();
+
+    // Dark Carbon Foundation Pad
+    const padMat = new THREE.MeshStandardMaterial({ color: 0x07111a, roughness: 0.7, metalness: 0.4 });
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 4.4), padMat);
+    pad.position.set(0, 0.01, 0);
+    panelGroup.add(pad);
+
+    // Glowing Electric Cyan Border Frame
+    const borderMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
+    [-1.25, 1.25].forEach(x => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 4.4), borderMat);
+      rail.position.set(x, 0.025, 0);
+      panelGroup.add(rail);
+    });
+
+    // 4 High-Speed Forward Chevrons pointing toward -Z
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+    [-1.3, -0.4, 0.5, 1.4].forEach(z => {
+      const chev = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.035, 0.4), arrowMat);
+      chev.position.set(0, 0.03, z);
+      panelGroup.add(chev);
+    });
+
+    // Twin Energy Beacon Pylons with Pulsing Cyan Glow
+    [-1.4, 1.4].forEach(x => {
+      const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.2 });
+      const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.7, 8), pylonMat);
+      pylon.position.set(x, 0.35, 0);
+      panelGroup.add(pylon);
+
+      const beaconOrb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), borderMat);
+      beaconOrb.position.set(x, 0.72, 0);
+      panelGroup.add(beaconOrb);
+
+      const pylonLight = new THREE.PointLight(0x00d9ff, 1.8, 5.0);
+      pylonLight.position.set(x, 0.75, 0);
+      panelGroup.add(pylonLight);
+    });
+
+    panelGroup.position.set(lane, 0, 0);
+    parent.add(panelGroup);
+
+    this.speedPanels.push({ parent, lane, mesh: panelGroup, triggered: false });
   }
 
   createStreetLight(parent, x, dir) {
@@ -308,16 +464,11 @@ export class WorldManager {
     pole.position.set(x, 2.4, 0);
     parent.add(pole);
 
-    // Lamp Arm
-    const armGeo = new THREE.BoxGeometry(1.2, 0.08, 0.08);
-    const arm = new THREE.Mesh(armGeo, poleMat);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.08), poleMat);
     arm.position.set(x + dir * 0.5, 4.7, 0);
     parent.add(arm);
 
-    // Glowing Lamp Fixture
-    const lampGeo = new THREE.BoxGeometry(0.5, 0.12, 0.3);
-    const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe099 });
-    const lamp = new THREE.Mesh(lampGeo, lampMat);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshBasicMaterial({ color: 0xffe099 }));
     lamp.position.set(x + dir * 1.0, 4.65, 0);
     parent.add(lamp);
   }
@@ -326,27 +477,21 @@ export class WorldManager {
     const gantry = new THREE.Group();
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.4 });
 
-    // Left and Right Posts
     [-10, 10].forEach(x => {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 6.5, 8), frameMat);
       post.position.set(x, 3.25, 0);
       gantry.add(post);
     });
 
-    // Cross Truss
     const truss = new THREE.Mesh(new THREE.BoxGeometry(20.4, 0.4, 0.4), frameMat);
     truss.position.set(0, 6.2, 0);
     gantry.add(truss);
 
-    // Overhead Digital Signs
-    [-5, 0, 5].forEach(x => {
-      const signMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(3.6, 1.2, 0.15),
-        new THREE.MeshStandardMaterial({ color: 0x07111e, emissive: 0x00d9ff, emissiveIntensity: 0.35 })
-      );
-      signMesh.position.set(x, 5.4, 0);
-      gantry.add(signMesh);
-    });
+    // Realistic Electronic Expressway Sign
+    const signMat = new THREE.MeshBasicMaterial({ map: this.gantryTexture });
+    const signMesh = new THREE.Mesh(new THREE.BoxGeometry(14.8, 2.0, 0.15), signMat);
+    signMesh.position.set(0, 5.0, 0);
+    gantry.add(signMesh);
 
     parent.add(gantry);
   }
@@ -359,7 +504,6 @@ export class WorldManager {
     board.position.set(x, 5.8, 0);
     board.rotation.y = x < 0 ? 0.2 : -0.2;
 
-    // Support Pylons
     const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 });
     const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 4.0, 8), pylonMat);
     pylon.position.set(x, 2.0, 0);
@@ -383,7 +527,6 @@ export class WorldManager {
       building.position.set(x, height / 2 - 0.2, 0);
       parent.add(building);
 
-      // Lit Windows
       const winGeo = new THREE.BoxGeometry(0.4, 0.6, 0.05);
       const winMatA = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
       const winMatB = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
@@ -401,12 +544,10 @@ export class WorldManager {
     });
   }
 
-  // Challenger Marker Support (Viral Ghost / Rival Beacon)
   setChallengeTarget(distance, challengerName = 'Rival') {
     this.challengeDistance = distance;
     this.challengePassed = false;
 
-    // Create glowing neon beacon cylinder reaching up to the sky
     const beaconGroup = new THREE.Group();
     const beamGeo = new THREE.CylinderGeometry(0.3, 0.3, 80, 16);
     const beamMat = new THREE.MeshBasicMaterial({
@@ -418,7 +559,6 @@ export class WorldManager {
     beam.position.y = 40;
     beaconGroup.add(beam);
 
-    // Glowing rings around beacon
     [5, 12, 22].forEach(h => {
       const ringGeo = new THREE.TorusGeometry(1.6, 0.15, 8, 24);
       const ringMat = new THREE.MeshBasicMaterial({ color: 0xff2a85 });
@@ -433,57 +573,31 @@ export class WorldManager {
     this.challengeMarker = beaconGroup;
   }
 
-  setTheme(themeName) {
-    this.currentTheme = themeName;
-    if (themeName === 'sunset') {
-      this.skyMat.uniforms.topColor.value.setHex(0x190826);
-      this.skyMat.uniforms.midColor.value.setHex(0x731a4e);
-      this.skyMat.uniforms.botColor.value.setHex(0xf57f44);
-      this.sunMesh.material.color.setHex(0xff7722);
-      this.dirLight.color.setHex(0xff9944);
-    } else if (themeName === 'storm') {
-      this.skyMat.uniforms.topColor.value.setHex(0x04060c);
-      this.skyMat.uniforms.midColor.value.setHex(0x0d1526);
-      this.skyMat.uniforms.botColor.value.setHex(0x1b2840);
-      this.sunMesh.visible = false;
-      this.dirLight.color.setHex(0x6688aa);
-      this.hemiLight.color.setHex(0x446699);
-    } else {
-      // Cyberpunk default
-      this.skyMat.uniforms.topColor.value.setHex(0x050c1e);
-      this.skyMat.uniforms.midColor.value.setHex(0x28123a);
-      this.skyMat.uniforms.botColor.value.setHex(0xd94b76);
-      this.sunMesh.visible = true;
-      this.sunMesh.material.color.setHex(0xffaa33);
-      this.dirLight.color.setHex(0xffa550);
-    }
-  }
-
-  update(dt, speed, currentDistance, onChallengeDefeated) {
+  update(dt, speed, currentDistance, callbacks = {}) {
     const trackTotalLength = this.segmentCount * this.segmentLength;
 
-    // Scroll road segments smoothly backward
     for (let i = 0; i < this.segments.length; i++) {
       const seg = this.segments[i];
       seg.position.z += speed * dt;
       if (seg.position.z > this.segmentLength) {
         seg.position.z -= trackTotalLength;
+        // Reset interactive triggers for recycled segment
+        this.jumpRamps.forEach(r => { if (r.parent === seg) r.triggered = false; });
+        this.speedPanels.forEach(p => { if (p.parent === seg) p.triggered = false; });
       }
     }
 
-    // Animate Challenge Beacon
+    // Challenger Beacon
     if (this.challengeMarker) {
       this.challengeMarker.position.z += speed * dt;
       this.challengeMarker.rotation.y += dt * 1.5;
 
-      // Check if player passed the rival mark!
       if (!this.challengePassed && this.challengeMarker.position.z > -8) {
         this.challengePassed = true;
-        if (onChallengeDefeated) onChallengeDefeated();
+        if (callbacks.onChallengeDefeated) callbacks.onChallengeDefeated();
       }
     }
 
-    // Subtle sky rotation for depth
     if (this.skyMesh) {
       this.skyMesh.rotation.y += dt * 0.01;
     }

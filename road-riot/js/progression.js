@@ -1,4 +1,15 @@
-// Road Riot 3D - Progression, Garage, Daily Quests & Viral Challenge Engine
+// Road Riot 3D - Progression, Settings, Achievements & Viral Challenge Engine
+
+export const ACHIEVEMENTS = [
+  { id: 'first_burnout', title: 'First Burnout', desc: 'Complete your first run on the highway.', reward: 150, icon: '🏁' },
+  { id: 'mach_speeder', title: 'Mach Speeder', desc: 'Break the speed limit and reach 280+ KM/H.', reward: 300, icon: '⚡' },
+  { id: 'drift_master', title: 'Drift Master', desc: 'Score 1,000 drift points in a single run.', reward: 400, icon: '🏎️' },
+  { id: 'needle_threader', title: 'Threading the Needle', desc: 'Execute 15 Near Misses in a single run.', reward: 500, icon: '🎯' },
+  { id: 'stunt_driver', title: 'Stunt Driver', desc: 'Launch off 5 Stunt Jump Ramps.', reward: 400, icon: '🚀' },
+  { id: 'highway_enforcer', title: 'Highway Enforcer', desc: 'Demolish 10 vehicles with weapons or ramming.', reward: 600, icon: '💥' },
+  { id: 'untouchable', title: 'Untouchable', desc: 'Survive 3,000m without taking hull damage.', reward: 750, icon: '🛡️' },
+  { id: 'rival_vanquisher', title: 'Rival Vanquisher', desc: 'Conquer a friend\'s challenger beacon.', reward: 1000, icon: '🏆' }
+];
 
 export class ProgressionManager {
   constructor() {
@@ -11,7 +22,10 @@ export class ProgressionManager {
       nearMisses: 0,
       combos: 0,
       coinsEarned: 0,
-      vehiclesDestroyed: 0
+      vehiclesDestroyed: 0,
+      driftPoints: 0,
+      rampsJumped: 0,
+      damageTaken: 0
     };
 
     this.checkDailyReset();
@@ -19,7 +33,7 @@ export class ProgressionManager {
 
   getDefaultData() {
     return {
-      coins: 250, // Starting bonus
+      coins: 300, // Starter bonus
       highScore: 0,
       bestDistance: 0,
       bestTopSpeed: 0,
@@ -35,6 +49,17 @@ export class ProgressionManager {
         phantom: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         hyperion: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 }
       },
+      settings: {
+        masterVolume: 0.85,
+        engineVolume: 0.75,
+        sfxVolume: 0.85,
+        musicVolume: 0.50,
+        steeringSensitivity: 1.0,
+        mouseSteerEnabled: false,
+        gamepadRumbleEnabled: true,
+        graphicsQuality: 'high' // 'high', 'med', 'low'
+      },
+      unlockedAchievements: [],
       lastDailyDate: '',
       dailyQuests: [
         { id: 'near_miss', desc: 'Pull off 8 Near Misses', target: 8, current: 0, reward: 300, claimed: false },
@@ -50,7 +75,13 @@ export class ProgressionManager {
         const raw = localStorage.getItem(this.storageKey);
         if (raw) {
           const parsed = JSON.parse(raw);
-          return Object.assign(this.getDefaultData(), parsed);
+          const def = this.getDefaultData();
+          return {
+            ...def,
+            ...parsed,
+            settings: { ...def.settings, ...(parsed.settings || {}) },
+            upgrades: { ...def.upgrades, ...(parsed.upgrades || {}) }
+          };
         }
       }
     } catch (e) {}
@@ -111,7 +142,10 @@ export class ProgressionManager {
       nearMisses: 0,
       combos: 0,
       coinsEarned: 0,
-      vehiclesDestroyed: 0
+      vehiclesDestroyed: 0,
+      driftPoints: 0,
+      rampsJumped: 0,
+      damageTaken: 0
     };
   }
 
@@ -130,7 +164,7 @@ export class ProgressionManager {
       this.data.bestTopSpeed = Math.floor(s.topSpeed);
     }
 
-    // Check Daily Quests Progress
+    // Check Daily Quests
     this.data.dailyQuests.forEach(q => {
       if (q.id === 'near_miss') q.current = Math.min(q.target, q.current + s.nearMisses);
       if (q.id === 'coins') q.current = Math.min(q.target, q.current + s.coinsEarned);
@@ -138,7 +172,38 @@ export class ProgressionManager {
       if (q.id === 'top_speed') q.current = Math.max(q.current, Math.min(q.target, Math.floor(s.topSpeed)));
     });
 
+    // Check Achievements on run finish
+    this.checkAchievements();
     this.save();
+  }
+
+  checkAchievements() {
+    const s = this.activeRunStats;
+    const unlocked = [];
+
+    if (this.data.totalRuns >= 1) unlocked.push(this.unlockAchievement('first_burnout'));
+    if (s.topSpeed >= 280) unlocked.push(this.unlockAchievement('mach_speeder'));
+    if (s.driftPoints >= 1000) unlocked.push(this.unlockAchievement('drift_master'));
+    if (s.nearMisses >= 15) unlocked.push(this.unlockAchievement('needle_threader'));
+    if (s.rampsJumped >= 5) unlocked.push(this.unlockAchievement('stunt_driver'));
+    if (s.vehiclesDestroyed >= 10) unlocked.push(this.unlockAchievement('highway_enforcer'));
+    if (s.distance >= 3000 && s.damageTaken === 0) unlocked.push(this.unlockAchievement('untouchable'));
+
+    return unlocked.filter(Boolean);
+  }
+
+  unlockAchievement(id) {
+    if (!this.data.unlockedAchievements) this.data.unlockedAchievements = [];
+    if (!this.data.unlockedAchievements.includes(id)) {
+      const ach = ACHIEVEMENTS.find(a => a.id === id);
+      if (ach) {
+        this.data.unlockedAchievements.push(id);
+        this.data.coins += ach.reward;
+        this.save();
+        return ach;
+      }
+    }
+    return null;
   }
 
   claimQuest(questId) {

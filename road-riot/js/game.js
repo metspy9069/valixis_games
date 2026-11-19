@@ -8,7 +8,7 @@ import { WorldManager } from './world.js';
 import { PlayerCar, VEHICLE_ROSTER } from './player.js';
 import { TrafficManager } from './traffic.js';
 import { WeaponSystem } from './weapons.js';
-import { progression } from './progression.js';
+import { progression, ACHIEVEMENTS } from './progression.js';
 
 class RoadRiotGame {
   constructor() {
@@ -33,10 +33,11 @@ class RoadRiotGame {
     this.scene.fog = new THREE.Fog(0x0c1322, 45, 230);
 
     this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 320);
-    this.camera.position.set(0, 7.2, 8.5);
+    this.defaultCamPos = new THREE.Vector3(0, 7.2, 8.5);
+    this.camera.position.copy(this.defaultCamPos);
 
-    // State
-    this.state = 'MENU'; // 'MENU', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
+    // State Machine: 'MENU', 'COUNTDOWN', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
+    this.state = 'MENU';
     this.distance = 0;
     this.score = 0;
     this.multiplier = 1;
@@ -44,7 +45,9 @@ class RoadRiotGame {
     this.isFever = false;
     this.camShake = 0;
     this.keys = new Set();
-    this.touchSteerX = 0;
+    this.mouseTargetX = 0;
+    this.countdownStep = 3;
+    this.countdownTimer = 0;
 
     // Assets Prototypes
     this.assetPrototypes = {};
@@ -53,15 +56,23 @@ class RoadRiotGame {
     dracoLoader.setDecoderPath('./assets/draco/');
     this.gltfLoader.setDRACOLoader(dracoLoader);
 
-    // Systems
+    // Subsystems
     this.world = new WorldManager(this.scene);
     this.traffic = new TrafficManager(this.scene, this.assetPrototypes);
     this.player = new PlayerCar(this.scene, this.assetPrototypes);
     this.weapons = new WeaponSystem(this.scene, this.traffic, audio);
 
+    // Garage carousel index
+    this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
+    this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle) || 0;
+
+    // Drone auto-shoot timer
+    this.droneFireTimer = 0;
+
     // Bind UI & Inputs
     this.cacheDomElements();
     this.bindEvents();
+    this.applySavedSettings();
     this.loadAssets();
     this.checkUrlChallenge();
 
@@ -82,22 +93,35 @@ class RoadRiotGame {
       hullBox: document.querySelector('#hud-hull-box'),
       speedNum: document.querySelector('#hud-speed'),
       speedBar: document.querySelector('#hud-speed-fill'),
+      gearBadge: document.querySelector('#hud-gear'),
+      rpmNum: document.querySelector('#hud-rpm'),
+      rpmBar: document.querySelector('#hud-rpm-fill'),
       nitroBar: document.querySelector('#hud-nitro-fill'),
       nitroTrack: document.querySelector('#hud-nitro-track'),
-      weaponPanel: document.querySelector('#weapon-panel'),
-      weaponSlot: document.querySelector('#weapon-slot'),
-      weaponName: document.querySelector('#weapon-name'),
       announcer: document.querySelector('#announcer-zone'),
+      floatingScores: document.querySelector('#floating-scores-layer'),
+      countdownOverlay: document.querySelector('#countdown-overlay'),
+      countdownText: document.querySelector('#countdown-text'),
+
+      // Radar
+      radarProgress: document.querySelector('#radar-progress'),
+      radarPinPlayer: document.querySelector('#radar-pin-player'),
+      radarPinBeacon: document.querySelector('#radar-pin-beacon'),
+
+      // Screen Overlays
       overlayDamage: document.querySelector('#overlay-damage'),
       overlayWarp: document.querySelector('#overlay-warp'),
       overlayShield: document.querySelector('#overlay-shield'),
 
-      // Modals
+      // Modals & Navigation
       menuModal: document.querySelector('#menu-modal'),
       startBtn: document.querySelector('#start-btn'),
       garageBtn: document.querySelector('#garage-btn'),
-      networkBtn: document.querySelector('#network-btn'),
+      menuSettingsBtn: document.querySelector('#menu-settings-btn'),
+      pauseBtn: document.querySelector('#pause-btn'),
+      settingsBtn: document.querySelector('#settings-btn'),
       audioBtn: document.querySelector('#audio-btn'),
+      networkBtn: document.querySelector('#network-btn'),
 
       // Garage
       garageModal: document.querySelector('#garage-modal'),
@@ -110,8 +134,31 @@ class RoadRiotGame {
       garageBuyBtn: document.querySelector('#garage-buy-btn'),
       garageCoins: document.querySelector('#garage-coins'),
       garageStatsList: document.querySelector('#garage-stats-list'),
+      tabCarsBtn: document.querySelector('#tab-cars-btn'),
+      tabAchievementsBtn: document.querySelector('#tab-achievements-btn'),
+      garageViewCars: document.querySelector('#garage-view-cars'),
+      garageViewAchievements: document.querySelector('#garage-view-achievements'),
+      achievementsContainer: document.querySelector('#achievements-container'),
       paintSwatches: document.querySelectorAll('.paint-swatch'),
       glowSwatches: document.querySelectorAll('.glow-swatch'),
+
+      // Settings Modal
+      settingsModal: document.querySelector('#settings-modal'),
+      settingsCloseBtn: document.querySelector('#settings-close-btn'),
+      sliderVolMaster: document.querySelector('#slider-vol-master'),
+      sliderVolEngine: document.querySelector('#slider-vol-engine'),
+      sliderVolSfx: document.querySelector('#slider-vol-sfx'),
+      sliderVolMusic: document.querySelector('#slider-vol-music'),
+      sliderSensitivity: document.querySelector('#slider-sensitivity'),
+      toggleMouseSteer: document.querySelector('#toggle-mouse-steer'),
+      toggleGamepadRumble: document.querySelector('#toggle-gamepad-rumble'),
+      qualityBtns: document.querySelectorAll('.quality-btn'),
+
+      // Pause Modal
+      pauseModal: document.querySelector('#pause-modal'),
+      pauseResumeBtn: document.querySelector('#pause-resume-btn'),
+      pauseRestartBtn: document.querySelector('#pause-restart-btn'),
+      pauseSettingsBtn: document.querySelector('#pause-settings-btn'),
 
       // Game Over Screen
       gameoverModal: document.querySelector('#gameover-modal'),
@@ -127,10 +174,57 @@ class RoadRiotGame {
       shareTwitterBtn: document.querySelector('#share-twitter-btn'),
       shareWhatsappBtn: document.querySelector('#share-whatsapp-btn'),
 
-      // Arcade Network Modal
+      // Network Modal
       networkModal: document.querySelector('#network-modal'),
       networkCloseBtn: document.querySelector('#network-close-btn')
     };
+  }
+
+  applySavedSettings() {
+    const s = progression.data.settings;
+    if (this.ui.sliderVolMaster) this.ui.sliderVolMaster.value = s.masterVolume;
+    if (this.ui.sliderVolEngine) this.ui.sliderVolEngine.value = s.engineVolume;
+    if (this.ui.sliderVolSfx) this.ui.sliderVolSfx.value = s.sfxVolume;
+    if (this.ui.sliderVolMusic) this.ui.sliderVolMusic.value = s.musicVolume;
+    if (this.ui.sliderSensitivity) this.ui.sliderSensitivity.value = s.steeringSensitivity;
+
+    audio.setMasterVolume(s.masterVolume);
+    audio.setEngineVolume(s.engineVolume);
+    audio.setSfxVolume(s.sfxVolume);
+    audio.setMusicVolume(s.musicVolume);
+
+    if (this.ui.toggleMouseSteer) {
+      this.ui.toggleMouseSteer.textContent = s.mouseSteerEnabled ? 'ON' : 'OFF';
+      this.ui.toggleMouseSteer.classList.toggle('active', s.mouseSteerEnabled);
+    }
+    if (this.ui.toggleGamepadRumble) {
+      this.ui.toggleGamepadRumble.textContent = s.gamepadRumbleEnabled ? 'ON' : 'OFF';
+      this.ui.toggleGamepadRumble.classList.toggle('active', s.gamepadRumbleEnabled);
+    }
+
+    this.applyGraphicsQuality(s.graphicsQuality || 'high');
+  }
+
+  applyGraphicsQuality(quality) {
+    progression.data.settings.graphicsQuality = quality;
+    progression.save();
+
+    this.ui.qualityBtns?.forEach(b => {
+      b.classList.toggle('active', b.dataset.quality === quality);
+    });
+
+    if (quality === 'low') {
+      this.renderer.shadowMap.enabled = false;
+      this.renderer.setPixelRatio(1.0);
+    } else if (quality === 'med') {
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.BasicShadowMap;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.3));
+    } else {
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+    }
   }
 
   bindEvents() {
@@ -143,13 +237,18 @@ class RoadRiotGame {
       if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         this.togglePause();
       }
-      if ((e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') && this.state === 'RUNNING') {
-        this.useActiveWeapon();
-      }
     });
 
     window.addEventListener('keyup', e => {
       this.keys.delete(e.key);
+    });
+
+    // Mouse Pointer Steering
+    window.addEventListener('mousemove', e => {
+      if (this.state === 'RUNNING' && progression.data.settings.mouseSteerEnabled) {
+        const norm = (e.clientX / window.innerWidth) * 2 - 1; // -1 to +1
+        this.mouseTargetX = norm * 7.2;
+      }
     });
 
     // Window Resize
@@ -159,29 +258,31 @@ class RoadRiotGame {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Touch controls
+    // Mobile Touch Controls
     document.querySelectorAll('.touch-btn').forEach(btn => {
       const key = btn.dataset.key;
       const onDown = ev => {
         ev.preventDefault();
-        if (key === 'Weapon') {
-          this.useActiveWeapon();
-        } else {
-          this.keys.add(key);
-        }
+        this.vibrate(30);
+        this.keys.add(key);
       };
       const onUp = ev => {
         ev.preventDefault();
-        if (key !== 'Weapon') this.keys.delete(key);
+        this.keys.delete(key);
       };
       btn.addEventListener('pointerdown', onDown, { passive: false });
       btn.addEventListener('pointerup', onUp, { passive: false });
       btn.addEventListener('pointercancel', onUp, { passive: false });
     });
 
-    // Button actions
-    this.ui.startBtn?.addEventListener('click', () => this.startRun());
-    this.ui.restartBtn?.addEventListener('click', () => this.startRun());
+    // Modal Triggers
+    this.ui.startBtn?.addEventListener('click', () => this.startCountdown());
+    this.ui.restartBtn?.addEventListener('click', () => this.startCountdown());
+    this.ui.pauseRestartBtn?.addEventListener('click', () => {
+      this.ui.pauseModal.classList.add('hidden');
+      this.startCountdown();
+    });
+
     this.ui.garageBtn?.addEventListener('click', () => this.openGarage());
     this.ui.garageCloseBtn?.addEventListener('click', () => this.closeGarage());
     this.ui.gameoverGarageBtn?.addEventListener('click', () => {
@@ -189,61 +290,39 @@ class RoadRiotGame {
       this.openGarage();
     });
 
-    this.ui.networkBtn?.addEventListener('click', () => this.openNetworkModal());
-    this.ui.networkCloseBtn?.addEventListener('click', () => this.closeNetworkModal());
+    this.ui.pauseBtn?.addEventListener('click', () => this.togglePause());
+    this.ui.pauseResumeBtn?.addEventListener('click', () => this.togglePause());
+
+    this.ui.settingsBtn?.addEventListener('click', () => this.openSettings());
+    this.ui.menuSettingsBtn?.addEventListener('click', () => this.openSettings());
+    this.ui.pauseSettingsBtn?.addEventListener('click', () => this.openSettings());
+    this.ui.settingsCloseBtn?.addEventListener('click', () => this.closeSettings());
+
+    this.ui.networkBtn?.addEventListener('click', () => this.ui.networkModal.classList.remove('hidden'));
+    this.ui.networkCloseBtn?.addEventListener('click', () => this.ui.networkModal.classList.add('hidden'));
 
     this.ui.audioBtn?.addEventListener('click', () => {
       const isMuted = audio.toggleMute();
       this.ui.audioBtn.textContent = isMuted ? '🔇' : '🔊';
     });
 
-    // Challenge Friend Button
-    this.ui.challengeFriendBtn?.addEventListener('click', () => {
-      const text = progression.getShareText(
-        progression.activeRunStats.distance,
-        progression.activeRunStats.score,
-        progression.activeRunStats.topSpeed
-      );
-      const url = progression.generateShareUrl(
-        progression.activeRunStats.distance,
-        progression.activeRunStats.score
-      );
-
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-          this.toast('CHALLENGE LINK COPIED TO CLIPBOARD! 📋', 'green');
-        }).catch(() => {
-          this.toast('SHARE LINK: ' + url, 'gold');
-        });
-      }
+    // Garage Tabs
+    this.ui.tabCarsBtn?.addEventListener('click', () => {
+      this.ui.tabCarsBtn.classList.add('active');
+      this.ui.tabAchievementsBtn.classList.remove('active');
+      this.ui.garageViewCars.classList.remove('hidden');
+      this.ui.garageViewAchievements.classList.add('hidden');
     });
 
-    // Social Sharing Buttons
-    this.ui.shareTwitterBtn?.addEventListener('click', () => {
-      const text = encodeURIComponent(
-        `I just scored ${progression.activeRunStats.score} in Road Riot 3D on VALIXIS Games! Can you beat me? 🏎️🔥`
-      );
-      const url = encodeURIComponent(
-        progression.generateShareUrl(progression.activeRunStats.distance, progression.activeRunStats.score)
-      );
-      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
-    });
-
-    this.ui.shareWhatsappBtn?.addEventListener('click', () => {
-      const text = encodeURIComponent(
-        progression.getShareText(
-          progression.activeRunStats.distance,
-          progression.activeRunStats.score,
-          progression.activeRunStats.topSpeed
-        )
-      );
-      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    this.ui.tabAchievementsBtn?.addEventListener('click', () => {
+      this.ui.tabAchievementsBtn.classList.add('active');
+      this.ui.tabCarsBtn.classList.remove('active');
+      this.ui.garageViewAchievements.classList.remove('hidden');
+      this.ui.garageViewCars.classList.add('hidden');
+      this.renderAchievementsList();
     });
 
     // Garage Carousel & Swatches
-    this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
-    this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle) || 0;
-
     this.ui.garagePrevBtn?.addEventListener('click', () => {
       this.garageIndex = (this.garageIndex - 1 + this.garageVehicleList.length) % this.garageVehicleList.length;
       this.renderGarageCarousel();
@@ -254,7 +333,6 @@ class RoadRiotGame {
       this.renderGarageCarousel();
     });
 
-    // Paint and Glow Swatches
     this.ui.paintSwatches?.forEach(swatch => {
       swatch.addEventListener('click', () => {
         const hex = parseInt(swatch.dataset.color, 16);
@@ -278,6 +356,98 @@ class RoadRiotGame {
         swatch.classList.add('active');
       });
     });
+
+    // Settings Sliders & Toggles
+    this.ui.sliderVolMaster?.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      progression.data.settings.masterVolume = v;
+      audio.setMasterVolume(v);
+      progression.save();
+    });
+
+    this.ui.sliderVolEngine?.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      progression.data.settings.engineVolume = v;
+      audio.setEngineVolume(v);
+      progression.save();
+    });
+
+    this.ui.sliderVolSfx?.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      progression.data.settings.sfxVolume = v;
+      audio.setSfxVolume(v);
+      progression.save();
+    });
+
+    this.ui.sliderVolMusic?.addEventListener('input', e => {
+      const v = parseFloat(e.target.value);
+      progression.data.settings.musicVolume = v;
+      audio.setMusicVolume(v);
+      progression.save();
+    });
+
+    this.ui.sliderSensitivity?.addEventListener('input', e => {
+      progression.data.settings.steeringSensitivity = parseFloat(e.target.value);
+      progression.save();
+    });
+
+    this.ui.toggleMouseSteer?.addEventListener('click', () => {
+      const next = !progression.data.settings.mouseSteerEnabled;
+      progression.data.settings.mouseSteerEnabled = next;
+      this.ui.toggleMouseSteer.textContent = next ? 'ON' : 'OFF';
+      this.ui.toggleMouseSteer.classList.toggle('active', next);
+      progression.save();
+    });
+
+    this.ui.toggleGamepadRumble?.addEventListener('click', () => {
+      const next = !progression.data.settings.gamepadRumbleEnabled;
+      progression.data.settings.gamepadRumbleEnabled = next;
+      this.ui.toggleGamepadRumble.textContent = next ? 'ON' : 'OFF';
+      this.ui.toggleGamepadRumble.classList.toggle('active', next);
+      progression.save();
+    });
+
+    this.ui.qualityBtns?.forEach(b => {
+      b.addEventListener('click', () => {
+        this.applyGraphicsQuality(b.dataset.quality);
+      });
+    });
+
+    // Viral Sharing
+    this.ui.challengeFriendBtn?.addEventListener('click', () => {
+      const url = progression.generateShareUrl(
+        progression.activeRunStats.distance,
+        progression.activeRunStats.score
+      );
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+          this.toast('CHALLENGE LINK COPIED TO CLIPBOARD! 📋', 'green');
+        }).catch(() => {
+          this.toast('SHARE LINK: ' + url, 'gold');
+        });
+      }
+    });
+
+    this.ui.shareTwitterBtn?.addEventListener('click', () => {
+      const text = encodeURIComponent(
+        `I just scored ${progression.activeRunStats.score} in Road Riot 3D on VALIXIS Games! Can you beat me? 🏎️🔥`
+      );
+      const url = encodeURIComponent(
+        progression.generateShareUrl(progression.activeRunStats.distance, progression.activeRunStats.score)
+      );
+      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+    });
+
+    this.ui.shareWhatsappBtn?.addEventListener('click', () => {
+      const text = encodeURIComponent(
+        progression.getShareText(
+          progression.activeRunStats.distance,
+          progression.activeRunStats.score,
+          progression.activeRunStats.topSpeed
+        )
+      );
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    });
   }
 
   loadAssets() {
@@ -289,7 +459,12 @@ class RoadRiotGame {
       { key: 'titan', url: './assets/suv.glb' },
       { key: 'suv', url: './assets/suv.glb' },
       { key: 'phantom', url: './assets/van.glb' },
-      { key: 'van', url: './assets/van.glb' }
+      { key: 'van', url: './assets/van.glb' },
+      { key: 'police', url: './assets/police.glb' },
+      { key: 'taxi', url: './assets/taxi.glb' },
+      { key: 'ambulance', url: './assets/ambulance.glb' },
+      { key: 'delivery', url: './assets/delivery.glb' },
+      { key: 'sedan', url: './assets/sedan.glb' }
     ];
 
     assetsToLoad.forEach(item => {
@@ -323,7 +498,6 @@ class RoadRiotGame {
       );
     }
 
-    // Configure equipped vehicle from progression save
     const sel = progression.data.selectedVehicle || 'apex';
     const upg = progression.data.upgrades[sel] || {};
     this.player.setVehicle(sel, upg, progression.data.selectedPaint, progression.data.selectedGlow);
@@ -339,18 +513,14 @@ class RoadRiotGame {
     }
   }
 
-  startRun() {
+  // --- 3-2-1-GO COUNTDOWN & RUN LIFECYCLE ---
+  startCountdown() {
     audio.resume();
     audio.startEngine();
-    audio.startMusic();
 
-    this.distance = 0;
-    this.score = 0;
-    this.multiplier = 1;
-    this.multiplierTimer = 0;
-    this.isFever = false;
-    this.camShake = 0;
-    this.state = 'RUNNING';
+    this.state = 'COUNTDOWN';
+    this.countdownStep = 3;
+    this.countdownTimer = 0;
 
     progression.resetRunStats();
     this.traffic.clear();
@@ -362,25 +532,47 @@ class RoadRiotGame {
     this.player.mesh.position.set(0, 0, -8);
     this.player.x = 0;
 
-    // Hide menus, show HUD
     this.ui.menuModal.classList.add('hidden');
     this.ui.gameoverModal.classList.add('hidden');
+    this.ui.pauseModal.classList.add('hidden');
     this.ui.hud.classList.remove('hidden');
 
-    this.toast('GREEN LIGHT! GO GO GO!', 'green');
+    this.ui.countdownOverlay.classList.add('show');
+    this.ui.countdownText.textContent = '3';
+    this.ui.countdownText.classList.remove('go');
+    audio.play('countdown_tick');
+
+    // Pre-race beauty camera position
+    this.camera.position.set(-4.2, 2.8, -13);
+    this.camera.lookAt(0, 0.8, -8);
+  }
+
+  startRun() {
+    this.state = 'RUNNING';
+    this.ui.countdownOverlay.classList.remove('show');
+    this.distance = 0;
+    this.score = 0;
+    this.multiplier = 1;
+    this.multiplierTimer = 0;
+    this.isFever = false;
+    this.camShake = 0;
+
+    audio.startMusic();
     audio.play('boost');
+    this.toast('GREEN LIGHT! GO GO GO!', 'green');
+    this.vibrate(100);
   }
 
   gameOver() {
     this.state = 'GAMEOVER';
     audio.stopEngine();
     audio.play('collision');
+    this.vibrate([100, 50, 200]);
 
     progression.activeRunStats.distance = this.distance;
     progression.activeRunStats.score = this.score;
     progression.recordRunEnd();
 
-    // Populate Game Over modal
     this.ui.runDist.textContent = `${Math.floor(this.distance)}m`;
     this.ui.runScore.textContent = this.score.toLocaleString();
     this.ui.runSpeed.textContent = `${Math.round(progression.activeRunStats.topSpeed)} KM/H`;
@@ -399,37 +591,28 @@ class RoadRiotGame {
     if (this.state === 'RUNNING') {
       this.state = 'PAUSED';
       audio.stopEngine();
-      this.toast('PAUSED', 'gold');
+      this.ui.pauseModal.classList.remove('hidden');
     } else if (this.state === 'PAUSED') {
       this.state = 'RUNNING';
       audio.startEngine();
-      this.toast('RESUMED', 'green');
+      this.ui.pauseModal.classList.add('hidden');
     }
   }
 
-  useActiveWeapon() {
-    if (this.player.activeWeapon === 'missile') {
-      this.weapons.fireMissile(this.player.mesh.position.x, 0.8, this.player.mesh.position.z - 2.5);
-      this.player.activeWeapon = null;
-      this.updateWeaponHud();
-    } else if (this.player.activeWeapon === 'emp') {
-      this.weapons.triggerEmp(this.player.mesh.position);
-      this.player.activeWeapon = null;
-      this.updateWeaponHud();
-    }
+  openSettings() {
+    this.ui.settingsModal.classList.remove('hidden');
   }
 
-  updateWeaponHud() {
-    const w = this.player.activeWeapon;
-    if (w) {
-      this.ui.weaponSlot.classList.add('active');
-      this.ui.weaponSlot.textContent = w === 'missile' ? '🚀' : '⚡';
-      this.ui.weaponName.textContent = w.toUpperCase();
-    } else {
-      this.ui.weaponSlot.classList.remove('active');
-      this.ui.weaponSlot.textContent = '—';
-      this.ui.weaponName.textContent = 'NO WEAPON';
-    }
+  closeSettings() {
+    this.ui.settingsModal.classList.add('hidden');
+  }
+
+  // Architecture Hook: Checkpoint 180-Degree Turret Sequence
+  // Planned feature: At designated distance checkpoints, the car comes to a stop,
+  // a motorized gunner turret mounts at the roof, shifting camera into a 180-degree forward turret view
+  // to shoot down waves of airborne & highway drones/enemies before resuming the race.
+  checkTurretCheckpointMilestone(distance) {
+    // Current loop is pure car racing. Hook is prepared for turret stage integration.
   }
 
   toast(text, theme = 'cyan') {
@@ -438,6 +621,42 @@ class RoadRiotGame {
     el.textContent = text;
     this.ui.announcer.appendChild(el);
     setTimeout(() => el.remove(), 1900);
+  }
+
+  spawnScorePopup(text, color = '#00ff88') {
+    if (!this.ui.floatingScores) return;
+    const el = document.createElement('div');
+    el.className = 'floating-score-popup';
+    el.textContent = text;
+    el.style.color = color;
+    el.style.left = `${window.innerWidth * 0.5 + (Math.random() - 0.5) * 160}px`;
+    el.style.top = `${window.innerHeight * 0.42 + (Math.random() - 0.5) * 80}px`;
+    this.ui.floatingScores.appendChild(el);
+    setTimeout(() => el.remove(), 1200);
+  }
+
+  vibrate(pattern) {
+    // 1. Mobile Navigator Vibrate
+    if (navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+    // 2. Gamepad Dual-Rumble Vibration
+    if (progression.data.settings.gamepadRumbleEnabled && navigator.getGamepads) {
+      try {
+        const gamepads = navigator.getGamepads();
+        for (const gp of gamepads) {
+          if (gp && gp.vibrationActuator && gp.vibrationActuator.playEffect) {
+            const dur = Array.isArray(pattern) ? pattern[0] : pattern;
+            gp.vibrationActuator.playEffect('dual-rumble', {
+              startDelay: 0,
+              duration: dur || 80,
+              weakMagnitude: 0.6,
+              strongMagnitude: 0.8
+            });
+          }
+        }
+      } catch (e) {}
+    }
   }
 
   openGarage() {
@@ -496,7 +715,7 @@ class RoadRiotGame {
       `;
     });
 
-    // Daily Quests Section
+    // Daily Quests
     let questsHtml = `
       <div style="margin-top:16px; padding:12px; background:rgba(0,0,0,0.35); border-radius:10px; border:1px solid rgba(0,217,255,0.2);">
         <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffb800; letter-spacing:1.5px; margin-bottom:8px;">DAILY BOUNTIES</div>
@@ -541,7 +760,7 @@ class RoadRiotGame {
       this.ui.garageBuyBtn.disabled = true;
     }
 
-    // Attach upgrade button clicks
+    // Attach upgrade buttons
     this.ui.garageStatsList.querySelectorAll('.upgrade-stat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const cId = btn.dataset.car;
@@ -556,7 +775,7 @@ class RoadRiotGame {
       });
     });
 
-    // Attach quest claim clicks
+    // Attach quest claims
     this.ui.garageStatsList.querySelectorAll('.claim-quest-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const qId = btn.dataset.quest;
@@ -570,47 +789,139 @@ class RoadRiotGame {
     });
   }
 
-  openNetworkModal() {
-    this.ui.networkModal.classList.remove('hidden');
+  renderAchievementsList() {
+    let html = '';
+    ACHIEVEMENTS.forEach(ach => {
+      const isUnlocked = (progression.data.unlockedAchievements || []).includes(ach.id);
+      html += `
+        <div class="achievement-card ${isUnlocked ? 'unlocked' : ''}">
+          <div class="achievement-icon">${ach.icon}</div>
+          <div class="achievement-info">
+            <div class="achievement-title">${ach.title} ${isUnlocked ? '✔' : ''}</div>
+            <div class="achievement-desc">${ach.desc}</div>
+            <div class="achievement-reward">+${ach.reward}🪙 ${isUnlocked ? '(UNLOCKED)' : ''}</div>
+          </div>
+        </div>
+      `;
+    });
+    this.ui.achievementsContainer.innerHTML = html;
   }
 
-  closeNetworkModal() {
-    this.ui.networkModal.classList.add('hidden');
+  // --- GAMEPAD POLLING ---
+  pollGamepad() {
+    if (!navigator.getGamepads) return { steer: 0, boost: false, drift: false };
+    const gamepads = navigator.getGamepads();
+    for (const gp of gamepads) {
+      if (!gp || !gp.connected) continue;
+
+      let steer = 0;
+      if (Math.abs(gp.axes[0]) > 0.15) {
+        steer = gp.axes[0]; // analog stick
+      } else if (gp.buttons[14]?.pressed) {
+        steer = -1; // D-pad left
+      } else if (gp.buttons[15]?.pressed) {
+        steer = 1; // D-pad right
+      }
+
+      const boost = gp.buttons[0]?.pressed || gp.buttons[7]?.value > 0.3; // A button or RT
+      const drift = gp.buttons[1]?.pressed || gp.buttons[6]?.value > 0.3; // B button or LT
+
+      if (gp.buttons[9]?.pressed) {
+        this.togglePause();
+      }
+
+      return { steer, boost, drift };
+    }
+    return { steer: 0, boost: false, drift: false };
   }
 
   update(dt) {
+    // 1. Countdown Animation State
+    if (this.state === 'COUNTDOWN') {
+      this.countdownTimer += dt;
+      // Camera sweeps from side to rear chase cam
+      const progress = Math.min(1, this.countdownTimer / 3.0);
+      this.camera.position.lerpVectors(new THREE.Vector3(-4.2, 2.8, -13), this.defaultCamPos, progress);
+      this.camera.lookAt(0, 1.0, -8);
+
+      if (this.countdownTimer >= 1.0 && this.countdownStep === 3) {
+        this.countdownStep = 2;
+        this.ui.countdownText.textContent = '2';
+        audio.play('countdown_tick');
+      } else if (this.countdownTimer >= 2.0 && this.countdownStep === 2) {
+        this.countdownStep = 1;
+        this.ui.countdownText.textContent = '1';
+        audio.play('countdown_tick');
+      } else if (this.countdownTimer >= 3.0 && this.countdownStep === 1) {
+        this.countdownStep = 0;
+        this.ui.countdownText.textContent = 'GO!';
+        this.ui.countdownText.classList.add('go');
+        audio.play('countdown_go');
+        setTimeout(() => this.startRun(), 350);
+      }
+      return;
+    }
+
+    // Garage Turntable Spin
+    if (this.state === 'GARAGE' && this.player.chassis) {
+      this.player.chassis.rotation.y += dt * 0.8;
+      this.camera.position.set(0, 4.2, -14);
+      this.camera.lookAt(0, 0.8, -8);
+      return;
+    }
+
     if (this.state !== 'RUNNING') return;
 
-    // 1. Controls
-    let steerDir = 0;
+    // 2. Poll Inputs (Keyboard, Gamepad, Mouse)
+    const gp = this.pollGamepad();
+    let steerDir = gp.steer;
+
     if (this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A')) steerDir -= 1;
     if (this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D')) steerDir += 1;
 
-    const isBoosting = this.keys.has(' ') || this.keys.has('Shift');
-    const isDrifting = (this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S')) && Math.abs(steerDir) > 0;
-
-    this.player.setBoost(isBoosting);
-    this.player.setDrift(isDrifting);
-    this.player.steer(steerDir, dt);
-    this.player.update(dt);
-
-    if (isDrifting) {
-      audio.play('drift');
-      this.score += Math.floor(dt * 80);
-      this.player.addNitro(dt * 8);
+    // Mouse Steer Option
+    if (progression.data.settings.mouseSteerEnabled && Math.abs(steerDir) === 0) {
+      const dx = this.mouseTargetX - this.player.x;
+      if (Math.abs(dx) > 0.2) steerDir = Math.sign(dx) * Math.min(1, Math.abs(dx) * 0.8);
     }
 
-    // 2. Highway & Distance
+    const isBoosting = this.keys.has(' ') || this.keys.has('Shift') || gp.boost;
+    const isDrifting = (this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || gp.drift) && Math.abs(steerDir) > 0;
+
+    const sens = progression.data.settings.steeringSensitivity || 1.0;
+    this.player.setBoost(isBoosting);
+    this.player.setDrift(isDrifting);
+    this.player.steer(steerDir, dt, sens);
+    this.player.update(dt, () => {
+      // Landing callback from stunt jump
+      audio.play('ramp_land');
+      this.camShake = 0.55;
+      this.vibrate(80);
+      this.score += 350 * this.multiplier;
+      progression.activeRunStats.rampsJumped++;
+      this.spawnScorePopup('+350 STUNT AIRTIME! 🚀', '#ffea00');
+    });
+
+    if (isDrifting) {
+      this.score += Math.floor(dt * 90);
+      progression.activeRunStats.driftPoints += Math.floor(dt * 90);
+      this.player.addNitro(dt * 12);
+      if (Math.random() < 0.08) {
+        this.spawnScorePopup('+50 DRIFT', '#9d4edd');
+      }
+    }
+
+    // 3. Ground Speed & Km/h (1:1 Physical Calibration: 1 m/s = 3.6 km/h)
     const currentSpeed = this.player.speed;
-    const kmh = currentSpeed * 9.5;
+    const kmh = currentSpeed * 3.6;
     if (kmh > progression.activeRunStats.topSpeed) {
       progression.activeRunStats.topSpeed = kmh;
     }
 
     this.distance += currentSpeed * dt;
-    this.score += Math.floor(currentSpeed * dt * 2.2 * this.multiplier);
+    this.score += Math.floor(currentSpeed * dt * 1.5 * this.multiplier);
 
-    // Dynamic Multiplier & Fever
+    // Multiplier Timer
     if (this.multiplierTimer > 0) {
       this.multiplierTimer -= dt;
       if (this.multiplierTimer <= 0 && this.multiplier > 1) {
@@ -620,17 +931,111 @@ class RoadRiotGame {
       }
     }
 
-    // 3. Audio & Engine
-    audio.updateEngine(currentSpeed, this.player.isBoosting, this.player.topSpeed * 1.5);
+    // 4. Audio Engine Update (6-Speed Dual-Clutch Model)
+    audio.updateEngine(kmh, this.player.isBoosting, isDrifting);
 
-    // 4. World Update
-    this.world.update(dt, currentSpeed, this.distance, () => {
-      this.toast('🏆 RIVAL CHALLENGE CRUSHED! +1000 COINS', 'gold');
-      audio.play('fever');
-      progression.activeRunStats.coinsEarned += 1000;
+    // 5. World Scrolling & Jump Ramps / Speed Panels Detection
+    this.world.update(dt, currentSpeed, this.distance, {
+      onChallengeDefeated: () => {
+        this.toast('🏆 RIVAL CHALLENGE CRUSHED! +1000 COINS', 'gold');
+        audio.play('fever');
+        this.vibrate([100, 50, 200]);
+        progression.activeRunStats.coinsEarned += 1000;
+        progression.unlockAchievement('rival_vanquisher');
+        this.spawnScorePopup('+1,000 RIVAL CONQUERED!', '#ffb800');
+      }
     });
 
-    // 5. Traffic & Obstacles
+    // Check Stunt Jump Ramps Collision (Forward-Launching Wedges)
+    for (const ramp of this.world.jumpRamps) {
+      const rampWorldZ = ramp.parent.position.z + ramp.mesh.position.z;
+      const dz = Math.abs(rampWorldZ - this.player.mesh.position.z);
+      const dx = Math.abs(ramp.lane - this.player.x);
+      if (dz < 2.4 && dx < 1.4 && !ramp.triggered && !this.player.isAirborne) {
+        ramp.triggered = true;
+        this.player.triggerJump(17);
+        audio.play('ramp_launch');
+        this.toast('STUNT AIRTIME LAUNCH! 🚀', 'gold');
+        this.score += 400 * this.multiplier;
+        this.spawnScorePopup('+400 STUNT JUMP! 🚀', '#ffea00');
+        this.vibrate([60, 40, 80]);
+        this.camShake = 0.35;
+      }
+    }
+
+    // Check Speed Booster Panels Collision (Highway Rocket Surge)
+    for (const panel of this.world.speedPanels) {
+      const panelWorldZ = panel.parent.position.z + panel.mesh.position.z;
+      const dz = Math.abs(panelWorldZ - this.player.mesh.position.z);
+      const dx = Math.abs(panel.lane - this.player.x);
+      if (dz < 2.4 && dx < 1.4 && !panel.triggered) {
+        panel.triggered = true;
+        this.player.triggerSpeedBoost(1.65, 2.2);
+        audio.play('boost_pad');
+        this.score += 300 * this.multiplier;
+        this.ui.overlayWarp.style.opacity = '0.85';
+        this.spawnScorePopup('+300 HYPERSONIC BOOST! ⚡', '#00f0ff');
+        this.toast('HYPERSONIC BOOST ACTIVATED! ⚡', 'cyan');
+        this.vibrate(100);
+      }
+    }
+
+    // Tactical Slipstream / Drafting Behind Traffic
+    let isDrafting = false;
+    for (const v of this.traffic.vehicles) {
+      if (!v.hit && Math.abs(v.mesh.position.x - this.player.x) < 1.35) {
+        const distAhead = this.player.mesh.position.z - v.mesh.position.z;
+        if (distAhead > 3.0 && distAhead < 20.0) {
+          isDrafting = true;
+          break;
+        }
+      }
+    }
+
+    if (isDrafting && currentSpeed > 35) {
+      this.draftTimer = (this.draftTimer || 0) + dt;
+      if (this.draftTimer >= 1.2) {
+        this.draftTimer = 0;
+        this.player.triggerSpeedBoost(1.35, 1.6);
+        audio.play('boost');
+        this.score += 250 * this.multiplier;
+        this.spawnScorePopup('+250 SLINGSHOT OVERTAKE! 🌪️', '#ff8800');
+        this.toast('SLINGSHOT OVERTAKE! 🌪️', 'gold');
+        this.vibrate([60, 40]);
+      }
+    } else {
+      this.draftTimer = Math.max(0, (this.draftTimer || 0) - dt * 2);
+    }
+
+    // 6. Drone Companion Auto-Shoot AI
+    if (this.player.droneActive) {
+      this.droneFireTimer -= dt;
+      if (this.droneFireTimer <= 0) {
+        this.droneFireTimer = 0.65;
+        // Find closest target
+        let closestTarget = null;
+        let closestDist = 45;
+        for (const v of this.traffic.vehicles) {
+          if (!v.hit && v.mesh.position.z < this.player.mesh.position.z) {
+            const dist = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestTarget = v;
+            }
+          }
+        }
+        if (closestTarget) {
+          this.weapons.fireDroneLaser(
+            this.player.mesh.position.x,
+            2.6,
+            this.player.mesh.position.z - 1.2,
+            closestTarget
+          );
+        }
+      }
+    }
+
+    // 7. Traffic & Obstacles System
     this.traffic.update(dt, currentSpeed, this.player.x, this.player.mesh.position.z, this.distance, {
       isMagnetActive: this.player.magnetActive,
       onNearMiss: (v) => {
@@ -638,8 +1043,9 @@ class RoadRiotGame {
         this.score += 250 * this.multiplier;
         this.player.addNitro(18);
         audio.play('nearmiss');
+        this.vibrate(40);
+        this.spawnScorePopup(`+${250 * this.multiplier} NEAR MISS!`, '#00d9ff');
 
-        // Multiplier streak
         this.multiplier = Math.min(5, this.multiplier + 1);
         this.multiplierTimer = 4.0;
         if (this.multiplier >= 4) {
@@ -654,40 +1060,71 @@ class RoadRiotGame {
       onDrafting: (delta, v) => {
         this.player.addNitro(delta * 22);
         this.score += Math.floor(delta * 120);
-        this.ui.overlayWarp.style.opacity = '0.3';
+        this.ui.overlayWarp.style.opacity = '0.35';
       }
     });
 
-    // 6. Weapons & Explosions
-    this.weapons.update(dt, (destroyedVehicle) => {
-      progression.activeRunStats.vehiclesDestroyed++;
-      progression.activeRunStats.coinsEarned += 25;
-      this.score += 500 * this.multiplier;
-      this.toast('💥 TARGET DESTROYED! +500', 'magenta');
-    });
+    // 8. Collisions: Traffic Cars & Obstacles
+    if (!this.player.isAirborne) {
+      // Traffic cars collision
+      for (const v of this.traffic.vehicles) {
+        if (v.hit) continue;
+        const dz = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
+        const dx = Math.abs(v.mesh.position.x - this.player.mesh.position.x);
 
-    // 7. Vehicle & Obstacle Collisions
-    for (const v of this.traffic.vehicles) {
-      if (v.hit) continue;
-      const dz = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
-      const dx = Math.abs(v.mesh.position.x - this.player.mesh.position.x);
+        if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.45 + 0.9)) {
+          v.hit = true;
+          if (this.player.isBoosting && this.multiplier >= 4) {
+            this.traffic.spawnExplosion(v.mesh.position, 0xffaa00, 24);
+            audio.play('collision');
+            this.vibrate(80);
+            v.mesh.position.y += 5;
+            v.mesh.rotation.x += 2;
+            this.score += 1000;
+            this.camShake = 0.4;
+            this.toast('RAMMING OVERDRIVE! 💥', 'gold');
+            this.spawnScorePopup('+1,000 RAM! 💥', '#ffb800');
+          } else {
+            const dmg = this.player.takeDamage(22);
+            progression.activeRunStats.damageTaken += dmg;
+            this.camShake = 0.55;
+            audio.play('collision');
+            this.vibrate([60, 40, 100]);
+            this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 18);
+            this.showDamageOverlay();
+            if (this.player.hull <= 0) {
+              this.gameOver();
+              return;
+            }
+          }
+        }
+      }
 
-      if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.45 + 0.9)) {
-        v.hit = true;
-        if (this.player.isBoosting && this.multiplier >= 4) {
-          // Ramming mode during Fever/Overdrive
-          this.traffic.spawnExplosion(v.mesh.position, 0xffaa00, 24);
-          audio.play('collision');
-          v.mesh.position.y += 5;
-          v.mesh.rotation.x += 2;
-          this.score += 1000;
-          this.camShake = 0.4;
-          this.toast('RAMMING OVERDRIVE! 💥', 'gold');
-        } else {
-          const dmg = this.player.takeDamage(22);
-          this.camShake = 0.55;
-          audio.play('collision');
-          this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 18);
+      // Obstacles collision (Spike strip, Barrel, Barrier)
+      for (const o of this.traffic.obstacles) {
+        if (o.hit) continue;
+        const dz = Math.abs(o.mesh.position.z - this.player.mesh.position.z);
+        const dx = Math.abs(o.mesh.position.x - this.player.mesh.position.x);
+
+        if (dz < 1.8 && dx < 1.6) {
+          o.hit = true;
+          if (o.isSpike) {
+            // Spike strip puncture: temporary speed drop
+            const dmg = this.player.takeDamage(10);
+            progression.activeRunStats.damageTaken += dmg;
+            this.player.speed *= 0.5;
+            this.camShake = 0.4;
+            audio.play('collision');
+            this.vibrate(90);
+            this.toast('TIRES PUNCTURED BY SPIKES! ⚠️', 'magenta');
+          } else {
+            const dmg = this.player.takeDamage(14);
+            progression.activeRunStats.damageTaken += dmg;
+            this.camShake = 0.35;
+            audio.play('collision');
+            this.vibrate(60);
+            this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 14);
+          }
           this.showDamageOverlay();
           if (this.player.hull <= 0) {
             this.gameOver();
@@ -697,50 +1134,33 @@ class RoadRiotGame {
       }
     }
 
-    // Obstacle collisions
-    for (const o of this.traffic.obstacles) {
-      if (o.hit) continue;
-      const dz = Math.abs(o.mesh.position.z - this.player.mesh.position.z);
-      const dx = Math.abs(o.mesh.position.x - this.player.mesh.position.x);
-
-      if (dz < 1.8 && dx < 1.6) {
-        o.hit = true;
-        const dmg = this.player.takeDamage(14);
-        this.camShake = 0.35;
-        audio.play('collision');
-        this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 12);
-        this.showDamageOverlay();
-        if (this.player.hull <= 0) {
-          this.gameOver();
-          return;
-        }
-      }
-    }
-
-    // Collectible pick up
+    // Collectibles Pickup
     for (let i = this.traffic.collectibles.length - 1; i >= 0; i--) {
       const c = this.traffic.collectibles[i];
       if (c.mesh.position.distanceTo(this.player.mesh.position) < 2.4) {
         audio.play('pickup');
         this.traffic.spawnExplosion(c.mesh.position, 0xffea00, 12);
+        this.vibrate(30);
 
         if (c.type === 'coin') {
           progression.activeRunStats.coinsEarned += 10;
           this.score += 150;
+          this.spawnScorePopup('+10 COINS', '#ffb800');
         } else if (c.type === 'nitro') {
-          this.player.addNitro(50);
-          this.toast('+50% NITRO', 'cyan');
+          this.player.addNitro(60);
+          this.toast('NITRO TANK REFILLED! ⚡', 'cyan');
         } else if (c.type === 'shield') {
           this.player.activateShield(8);
           audio.play('shield');
-          this.toast('HEX SHIELD ACTIVATED! 🛡️', 'magenta');
+          this.toast('HEX FORCEFIELD ONLINE! 🛡️', 'magenta');
         } else if (c.type === 'magnet') {
-          this.player.activateMagnet(9);
+          this.player.activateMagnet(10);
           this.toast('COIN MAGNET ACTIVE! 🧲', 'green');
-        } else if (c.type === 'missile' || c.type === 'emp') {
-          this.player.activeWeapon = c.type;
-          this.updateWeaponHud();
-          this.toast(`${c.type.toUpperCase()} READY! [SPACE / E]`, 'gold');
+        } else if (c.type === 'repair') {
+          this.player.repair(35);
+          audio.play('shield');
+          this.toast('+35% HULL RESTORED! 🔧', 'green');
+          this.showDamageOverlay();
         }
 
         this.scene.remove(c.mesh);
@@ -748,21 +1168,28 @@ class RoadRiotGame {
       }
     }
 
-    // 8. Dynamic Camera Physics
-    const targetFov = this.player.isBoosting ? 74 : 58;
-    this.camera.fov += (targetFov - this.camera.fov) * dt * 4;
+    // 10. Dynamic Camera Motion & Speed Warp Sensation
+    const dynamicFov = 62 + Math.min(26, (kmh / 360) * 24) + (this.player.isBoosting ? 12 : 0) + (this.player.isAirborne ? 6 : 0);
+    this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 6.5);
     this.camera.updateProjectionMatrix();
 
-    // Camera follow with soft lag & shake
-    this.camShake = Math.max(0, this.camShake - dt * 2.0);
-    const targetCamX = this.player.x * 0.38 + (Math.random() - 0.5) * this.camShake;
-    const targetCamY = 7.2 + (Math.random() - 0.5) * this.camShake;
-    this.camera.position.x += (targetCamX - this.camera.position.x) * dt * 5.5;
-    this.camera.position.y = targetCamY;
-    this.camera.lookAt(this.player.x * 0.15, 1.2, -12);
+    // High-speed asphalt micro-rumble
+    const speedRumble = (kmh > 220) ? Math.min(0.08, ((kmh - 220) / 140) * 0.05) : 0;
+    this.camShake = Math.max(0, this.camShake - dt * 2.2);
+    const totalShake = this.camShake + speedRumble;
 
-    // 9. Warp overlay update
-    this.ui.overlayWarp.style.opacity = this.player.isBoosting ? '0.65' : '0';
+    const targetCamX = this.player.x * 0.45 + (Math.random() - 0.5) * totalShake;
+    const targetCamY = 3.8 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
+    const targetCamZ = 7.4 + (this.player.isBoosting ? 0.7 : 0);
+
+    this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
+    this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);
+    this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 6);
+    this.camera.lookAt(this.player.x * 0.25, 1.1 + this.player.verticalY * 0.4, -18);
+
+    // Dynamic speed warp radial lines
+    const warpOpacity = this.player.isBoosting ? '0.85' : (kmh > 260 ? String(Math.min(0.65, (kmh - 260) / 100)) : '0');
+    this.ui.overlayWarp.style.opacity = warpOpacity;
     this.ui.overlayShield.style.opacity = this.player.shieldActive ? '0.75' : '0';
 
     this.updateHud(kmh);
@@ -779,32 +1206,37 @@ class RoadRiotGame {
     this.ui.distance.textContent = Math.floor(this.distance);
     this.ui.score.textContent = this.score.toLocaleString();
     this.ui.coins.textContent = progression.activeRunStats.coinsEarned;
-
-    // Multiplier
     this.ui.multiplier.textContent = `x${this.multiplier}`;
 
-    // Hull
     const hullPct = Math.max(0, (this.player.hull / this.player.maxHull) * 100);
     this.ui.hullBar.style.width = `${hullPct}%`;
-    if (hullPct < 30) {
-      this.ui.hullBox.classList.add('hull-low');
-    } else {
-      this.ui.hullBox.classList.remove('hull-low');
-    }
+    this.ui.hullBox.classList.toggle('hull-low', hullPct < 30);
 
-    // Speedometer
     this.ui.speedNum.textContent = Math.round(kmh);
-    const speedRatio = Math.min(100, (kmh / 320) * 100);
+    const speedRatio = Math.min(100, (kmh / 360) * 100);
     this.ui.speedBar.style.width = `${speedRatio}%`;
 
-    // Nitro
+    // Real-Time Gear & RPM Tachometer HUD
+    if (this.ui.gearBadge) {
+      this.ui.gearBadge.textContent = `GEAR ${audio.getGear()}`;
+    }
+
+    if (this.ui.rpmNum && this.ui.rpmBar) {
+      const rpm = audio.getRpm();
+      this.ui.rpmNum.textContent = `${rpm.toLocaleString()} RPM`;
+      const rpmPct = Math.min(100, Math.max(8, (rpm / 8000) * 100));
+      this.ui.rpmBar.style.width = `${rpmPct}%`;
+    }
+
     const nitroPct = (this.player.nitro / this.player.maxNitro) * 100;
     this.ui.nitroBar.style.width = `${nitroPct}%`;
-    if (nitroPct >= 95) {
-      this.ui.nitroTrack.classList.add('nitro-ready');
-    } else {
-      this.ui.nitroTrack.classList.remove('nitro-ready');
-    }
+    this.ui.nitroTrack.classList.toggle('nitro-ready', nitroPct >= 95);
+
+    // Highway Distance Radar
+    const targetMilestone = this.world.challengeDistance || 10000;
+    const radarPct = Math.min(100, (this.distance / targetMilestone) * 100);
+    this.ui.radarProgress.style.width = `${radarPct}%`;
+    this.ui.radarPinPlayer.style.left = `${radarPct}%`;
   }
 
   loop(now) {

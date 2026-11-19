@@ -1,5 +1,6 @@
-// Road Riot 3D - High Octane Audio & Synth Engine
-// Combines authentic audio samples with 100% reliable procedural Web Audio synthesizers
+// Road Riot 3D - High-Octane Audio & Procedural Synthesizer Engine
+// Features authentic sample playback + multi-oscillator V8 transmission, turbo spool,
+// blow-off valves, tire screech, stunt jumps, and 80s synthwave sequencer.
 
 class RoadAudioEngine {
   constructor() {
@@ -9,34 +10,54 @@ class RoadAudioEngine {
     this.musicGain = null;
     this.engineGain = null;
 
+    // Volume Settings (0.0 to 1.0)
+    this.masterVolume = parseFloat(localStorage.getItem('roadriot_vol_master') ?? '0.85');
+    this.engineVolume = parseFloat(localStorage.getItem('roadriot_vol_engine') ?? '0.75');
+    this.sfxVolume = parseFloat(localStorage.getItem('roadriot_vol_sfx') ?? '0.85');
+    this.musicVolume = parseFloat(localStorage.getItem('roadriot_vol_music') ?? '0.50');
     this.isMuted = localStorage.getItem('roadriot_mute') === 'true';
-    this.musicEnabled = localStorage.getItem('roadriot_music') !== 'false';
-    this.volume = parseFloat(localStorage.getItem('roadriot_vol') || '0.75');
 
-    // Engine sound sources
-    this.engineBuffer = null;
-    this.engineSource = null;
-    this.engineFilter = null;
-    this.engineLoading = false;
-
-    // Procedural Synth Engine
-    this.proceduralEngine = null;
-
-    // Music Sequencer
-    this.musicPlaying = false;
-    this.musicStep = 0;
-    this.musicTimer = null;
-    this.bpm = 132;
-    this.filterEnvelope = 1200;
-
-    // Sound asset URLs
+    // Natural Audio Buffer Cache & High-Fidelity Racing SFX
+    this.buffers = {};
     this.clipUrls = {
       boost: './assets/audio/boost.wav',
       collision: './assets/audio/crash.wav',
       pickup: './assets/audio/pickup.wav',
-      engine: './assets/audio/engine-natural.mp3'
+      engine: './assets/audio/engine-natural.mp3',
+      boost_pad: './assets/audio/boost_pad.wav',
+      booster: './assets/audio/boost_pad.wav',
+      ramp_launch: './assets/audio/ramp_launch.wav',
+      jump: './assets/audio/ramp_launch.wav',
+      ramp_land: './assets/audio/ramp_land.wav',
+      land: './assets/audio/ramp_land.wav',
+      blowoff: './assets/audio/blowoff.wav',
+      gear_shift: './assets/audio/gear_shift.wav',
+      near_miss: './assets/audio/near_miss.wav',
+      nearmiss: './assets/audio/near_miss.wav'
     };
-    this.buffers = {};
+
+    // Engine Synthesizer State (6-Speed Dual-Clutch Supercar Model)
+    this.gear = 1;
+    this.rpm = 1200; // 1000 to 7800 RPM
+    this.targetRpm = 1200;
+    this.lastSpeed = 0;
+    this.isShifting = false;
+    this.shiftTimer = 0;
+    this.lastBoosting = false;
+    this.proceduralEngine = null;
+    this.engineSampleNode = null;
+    this.engineSampleGain = null;
+    this.windNode = null;
+    this.windGain = null;
+
+    // Tire Screech Generator
+    this.tireScreech = null;
+
+    // Music Sequencer State
+    this.musicPlaying = false;
+    this.musicStep = 0;
+    this.musicTimer = null;
+    this.bpm = 132;
   }
 
   init() {
@@ -46,29 +67,29 @@ class RoadAudioEngine {
       if (!AudioCtx) return;
       this.ctx = new AudioCtx();
 
-      // Master bus
+      // Master Bus
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = this.isMuted ? 0 : this.volume;
+      this.masterGain.gain.value = this.isMuted ? 0 : this.masterVolume;
       this.masterGain.connect(this.ctx.destination);
 
-      // SFX bus
+      // SFX Bus
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.85;
+      this.sfxGain.gain.value = this.sfxVolume;
       this.sfxGain.connect(this.masterGain);
 
-      // Music bus
+      // Music Bus
       this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = this.musicEnabled ? 0.38 : 0;
+      this.musicGain.gain.value = this.musicVolume;
       this.musicGain.connect(this.masterGain);
 
-      // Engine Bus with low-pass filter
+      // Engine Bus with low-pass & warmth
       this.engineGain = this.ctx.createGain();
-      this.engineGain.gain.value = 0;
+      this.engineGain.gain.value = this.engineVolume * 0.45;
       this.engineFilter = this.ctx.createBiquadFilter();
       this.engineFilter.type = 'lowpass';
-      this.engineFilter.frequency.value = 1600;
+      this.engineFilter.frequency.value = 1800;
       this.engineFilter.connect(this.engineGain);
-      this.engineGain.connect(this.sfxGain);
+      this.engineGain.connect(this.masterGain);
 
       this.preloadSamples();
     } catch (e) {
@@ -91,13 +112,43 @@ class RoadAudioEngine {
           const ab = await res.arrayBuffer();
           const decoded = await this.ctx.decodeAudioData(ab);
           this.buffers[key] = decoded;
-          if (key === 'engine') {
-            this.engineBuffer = decoded;
-          }
         }
       } catch (err) {
-        // Fallback to procedural audio gracefully
+        // Procedural fallbacks seamlessly handle missing audio
       }
+    }
+  }
+
+  // --- VOLUME & MIXER CONTROLS ---
+  setMasterVolume(val) {
+    this.masterVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('roadriot_vol_master', this.masterVolume.toString());
+    if (this.masterGain && this.ctx && !this.isMuted) {
+      this.masterGain.gain.setTargetAtTime(this.masterVolume, this.ctx.currentTime, 0.05);
+    }
+  }
+
+  setEngineVolume(val) {
+    this.engineVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('roadriot_vol_engine', this.engineVolume.toString());
+    if (this.engineGain && this.ctx) {
+      this.engineGain.gain.setTargetAtTime(this.engineVolume * 0.45, this.ctx.currentTime, 0.05);
+    }
+  }
+
+  setSfxVolume(val) {
+    this.sfxVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('roadriot_vol_sfx', this.sfxVolume.toString());
+    if (this.sfxGain && this.ctx) {
+      this.sfxGain.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.05);
+    }
+  }
+
+  setMusicVolume(val) {
+    this.musicVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('roadriot_vol_music', this.musicVolume.toString());
+    if (this.musicGain && this.ctx) {
+      this.musicGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -105,7 +156,7 @@ class RoadAudioEngine {
     this.isMuted = muted;
     localStorage.setItem('roadriot_mute', muted ? 'true' : 'false');
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : this.volume, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -114,136 +165,325 @@ class RoadAudioEngine {
     return this.isMuted;
   }
 
-  toggleMusic() {
-    this.musicEnabled = !this.musicEnabled;
-    localStorage.setItem('roadriot_music', this.musicEnabled ? 'true' : 'false');
-    if (this.musicGain && this.ctx) {
-      this.musicGain.gain.setTargetAtTime(this.musicEnabled ? 0.38 : 0, this.ctx.currentTime, 0.1);
-    }
-    return this.musicEnabled;
-  }
-
-  // --- PROCEDURAL ENGINE NOISE & SAMPLES ---
+  // --- AUTHENTIC SUPERCAR ENGINE & 6-SPEED DUAL-CLUTCH TRANSMISSION ---
   startEngine() {
     if (!this.ctx) this.init();
     this.resume();
 
-    if (this.engineBuffer && !this.engineSource) {
+    // 1. Natural Recorded Supercar Sample Playback (Looping Engine Core)
+    if (this.ctx && this.buffers['engine'] && !this.engineSampleNode) {
       try {
         const src = this.ctx.createBufferSource();
-        src.buffer = this.engineBuffer;
+        src.buffer = this.buffers['engine'];
         src.loop = true;
-        src.loopStart = Math.min(2.15, this.engineBuffer.duration * 0.4);
-        src.loopEnd = Math.max(src.loopStart + 1.2, this.engineBuffer.duration - 0.1);
-        src.playbackRate.value = 0.85;
-        src.connect(this.engineFilter);
+        src.playbackRate.value = 0.72;
+
+        this.engineSampleGain = this.ctx.createGain();
+        this.engineSampleGain.gain.setValueAtTime(0.75, this.ctx.currentTime);
+
+        src.connect(this.engineSampleGain);
+        this.engineSampleGain.connect(this.engineFilter);
+
         src.start(0);
-        this.engineSource = src;
-      } catch (e) {
-        this.engineSource = null;
+        this.engineSampleNode = src;
+      } catch (err) {
+        console.warn('Natural engine sample start error:', err);
       }
     }
 
-    // Also spin up procedural backup engine synth
+    // 2. Warm Sub-Bass Rumble & Harmonics (Soft acoustic support, NO harsh buzzing)
     if (!this.proceduralEngine && this.ctx) {
-      this.startProceduralEngine();
+      this.initProceduralEngine();
+    }
+
+    // 3. High-Speed Aerodynamic Wind Shearing Generator
+    if (!this.windNode && this.ctx) {
+      this.initWindShear();
+    }
+
+    // 4. Tire Screech for Drifts
+    if (!this.tireScreech && this.ctx) {
+      this.initTireScreech();
     }
 
     if (this.engineGain && this.ctx) {
-      this.engineGain.gain.setTargetAtTime(0.24, this.ctx.currentTime, 0.15);
+      this.engineGain.gain.setTargetAtTime(this.engineVolume * 0.55, this.ctx.currentTime, 0.1);
     }
   }
 
-  startProceduralEngine() {
-    if (!this.ctx || this.proceduralEngine) return;
-    try {
-      const t = this.ctx.currentTime;
-      // White noise generator for exhaust rumble
-      const bufferSize = this.ctx.sampleRate * 2;
-      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = noiseBuffer;
-      noise.loop = true;
+  initProceduralEngine() {
+    const t = this.ctx.currentTime;
 
-      const noiseFilter = this.ctx.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.value = 180;
-      noiseFilter.Q.value = 3.5;
+    // Soft Deep Sub-Bass Exhaust Purr (Triangle wave at 38 Hz - warm and punchy)
+    const subOsc = this.ctx.createOscillator();
+    subOsc.type = 'triangle';
+    subOsc.frequency.setValueAtTime(38, t);
 
-      // Primary cylinder rumble oscillator
-      const osc = this.ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 55;
+    // Warm Low-Mid Harmonic (Sine wave at 76 Hz)
+    const midOsc = this.ctx.createOscillator();
+    midOsc.type = 'sine';
+    midOsc.frequency.setValueAtTime(76, t);
 
-      const sub = this.ctx.createOscillator();
-      sub.type = 'triangle';
-      sub.frequency.value = 28;
+    const subGain = this.ctx.createGain();
+    subGain.gain.setValueAtTime(0.25, t);
 
-      const pGain = this.ctx.createGain();
-      pGain.gain.value = 0.08;
+    // Resonant Lowpass Filter (eliminates all harshness)
+    const subFilter = this.ctx.createBiquadFilter();
+    subFilter.type = 'lowpass';
+    subFilter.frequency.setValueAtTime(160, t);
+    subFilter.Q.setValueAtTime(2.0, t);
 
-      noise.connect(noiseFilter);
-      noiseFilter.connect(pGain);
-      osc.connect(pGain);
-      sub.connect(pGain);
-      pGain.connect(this.engineFilter);
+    subOsc.connect(subFilter);
+    midOsc.connect(subFilter);
+    subFilter.connect(subGain);
+    subGain.connect(this.engineFilter);
 
-      noise.start(t);
-      osc.start(t);
-      sub.start(t);
+    subOsc.start(t);
+    midOsc.start(t);
 
-      this.proceduralEngine = { noise, osc, sub, noiseFilter, pGain };
-    } catch (e) {}
+    this.proceduralEngine = {
+      subOsc,
+      midOsc,
+      subGain,
+      subFilter
+    };
+  }
+
+  initWindShear() {
+    const t = this.ctx.currentTime;
+    const bufferSize = this.ctx.sampleRate * 2;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
+    // High-speed air rush bandpass
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(550, t);
+    filter.Q.setValueAtTime(1.8, t);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start(t);
+    this.windNode = noise;
+    this.windGain = gain;
+    this.windFilter = filter;
+  }
+
+  initTireScreech() {
+    const t = this.ctx.currentTime;
+    const bufferSize = this.ctx.sampleRate * 2;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(900, t);
+    filter.Q.setValueAtTime(4.0, t);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain);
+
+    noise.start(t);
+    this.tireScreech = { noise, filter, gain };
   }
 
   stopEngine() {
-    if (this.engineSource) {
+    if (this.engineSampleNode) {
       try {
-        this.engineSource.stop();
-        this.engineSource.disconnect();
+        this.engineSampleNode.stop();
+        this.engineSampleNode.disconnect();
       } catch (e) {}
-      this.engineSource = null;
+      this.engineSampleNode = null;
     }
     if (this.proceduralEngine) {
       try {
-        this.proceduralEngine.noise.stop();
-        this.proceduralEngine.osc.stop();
-        this.proceduralEngine.sub.stop();
-        this.proceduralEngine.pGain.disconnect();
+        this.proceduralEngine.subOsc.stop();
+        this.proceduralEngine.midOsc.stop();
+        this.proceduralEngine.subGain.disconnect();
       } catch (e) {}
       this.proceduralEngine = null;
+    }
+    if (this.windNode) {
+      try {
+        this.windNode.stop();
+        this.windGain.disconnect();
+      } catch (e) {}
+      this.windNode = null;
+    }
+    if (this.tireScreech) {
+      try {
+        this.tireScreech.noise.stop();
+        this.tireScreech.gain.disconnect();
+      } catch (e) {}
+      this.tireScreech = null;
     }
     if (this.engineGain && this.ctx) {
       this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
     }
   }
 
-  updateEngine(speed, isBoosting, maxSpeed = 30) {
-    if (!this.ctx || !this.engineGain) return;
-    const ratio = Math.max(0, Math.min(1.4, speed / maxSpeed));
+  updateEngine(speedKmh, isBoosting, isDrifting = false) {
+    if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Pitch shift natural audio
-    if (this.engineSource) {
-      const targetRate = 0.75 + ratio * 0.75 + (isBoosting ? 0.35 : 0);
-      this.engineSource.playbackRate.setTargetAtTime(targetRate, now, 0.05);
+    // 6-Speed Dual-Clutch Supercar Transmission Ratios
+    // Gear thresholds:
+    // 1st: 0-65 km/h
+    // 2nd: 65-120 km/h
+    // 3rd: 120-175 km/h
+    // 4th: 175-230 km/h
+    // 5th: 230-285 km/h
+    // 6th: 285+ km/h
+    let targetGear = 1;
+    let gearMinSpeed = 0;
+    let gearMaxSpeed = 65;
+
+    if (speedKmh > 285) {
+      targetGear = 6;
+      gearMinSpeed = 285;
+      gearMaxSpeed = 380;
+    } else if (speedKmh > 230) {
+      targetGear = 5;
+      gearMinSpeed = 230;
+      gearMaxSpeed = 285;
+    } else if (speedKmh > 175) {
+      targetGear = 4;
+      gearMinSpeed = 175;
+      gearMaxSpeed = 230;
+    } else if (speedKmh > 120) {
+      targetGear = 3;
+      gearMinSpeed = 120;
+      gearMaxSpeed = 175;
+    } else if (speedKmh > 65) {
+      targetGear = 2;
+      gearMinSpeed = 65;
+      gearMaxSpeed = 120;
     }
 
-    // Pitch shift procedural backup
+    // Upshift Detection -> Exhaust Crackle & Dual-Clutch Pop!
+    if (targetGear > this.gear && !this.isShifting) {
+      this.gear = targetGear;
+      this.isShifting = true;
+      this.shiftTimer = 0.12; // 120ms dual-clutch shift
+      this.play('gear_shift');
+    } else if (targetGear < this.gear) {
+      this.gear = targetGear;
+    }
+
+    // Handle shift transition dip
+    if (this.isShifting) {
+      this.shiftTimer -= 0.016;
+      if (this.shiftTimer <= 0) this.isShifting = false;
+    }
+
+    // Turbo blow-off valve detection on boost release
+    if (this.lastBoosting && !isBoosting) {
+      this.play('blowoff');
+    }
+    this.lastBoosting = isBoosting;
+
+    // Calculate RPM inside current gear (1200 idle to 7800 redline)
+    const gearSpan = Math.max(20, gearMaxSpeed - gearMinSpeed);
+    const gearProgress = Math.max(0, Math.min(1, (speedKmh - gearMinSpeed) / gearSpan));
+    let baseRpm = 1600 + gearProgress * 5600; // 1600 to 7200 RPM
+    if (this.isShifting) {
+      baseRpm *= 0.68; // RPM drop during shift
+    }
+    if (isBoosting) {
+      baseRpm = Math.min(8200, baseRpm + 950);
+    }
+
+    this.rpm += (baseRpm - this.rpm) * 0.18;
+
+    // Modulate Natural Sample Pitch (playbackRate: 0.68 idle -> 2.05 redline)
+    if (this.engineSampleNode && this.engineSampleNode.playbackRate) {
+      const targetRate = 0.68 + (this.rpm / 7800) * 1.35;
+      this.engineSampleNode.playbackRate.setTargetAtTime(targetRate, now, 0.04);
+    }
+
+    // Sub-Bass Acoustic Exhaust Pulse
     if (this.proceduralEngine) {
-      const baseFreq = 48 + ratio * 95 + (isBoosting ? 45 : 0);
-      this.proceduralEngine.osc.frequency.setTargetAtTime(baseFreq, now, 0.05);
-      this.proceduralEngine.sub.frequency.setTargetAtTime(baseFreq * 0.5, now, 0.05);
-      this.proceduralEngine.noiseFilter.frequency.setTargetAtTime(140 + ratio * 280, now, 0.06);
+      const pulseFreq = 34 + (this.rpm / 7800) * 65;
+      this.proceduralEngine.subOsc.frequency.setTargetAtTime(pulseFreq, now, 0.04);
+      this.proceduralEngine.midOsc.frequency.setTargetAtTime(pulseFreq * 2.0, now, 0.04);
+      this.proceduralEngine.subFilter.frequency.setTargetAtTime(140 + (this.rpm / 7800) * 220, now, 0.04);
     }
 
-    // Engine Filter cutoff expands with speed
-    const cutoff = 1000 + ratio * 2800 + (isBoosting ? 2000 : 0);
-    this.engineFilter.frequency.setTargetAtTime(cutoff, now, 0.06);
+    // Dynamic Engine Low-Pass Master Filter (opens up as RPM climbs for high-rev scream)
+    if (this.engineFilter) {
+      const filterFreq = 1200 + (this.rpm / 7800) * 3600 + (isBoosting ? 2000 : 0);
+      this.engineFilter.frequency.setTargetAtTime(filterFreq, now, 0.05);
+    }
+
+    // Aerodynamic High-Speed Wind Shearing Noise (rises above 130 km/h)
+    if (this.windGain && this.windFilter) {
+      const windFactor = Math.max(0, (speedKmh - 130) / 220); // 0 at 130 km/h to 1.0 at 350 km/h
+      const windVol = Math.pow(windFactor, 1.6) * 0.32;
+      this.windGain.gain.setTargetAtTime(windVol, now, 0.08);
+      this.windFilter.frequency.setTargetAtTime(450 + windFactor * 850, now, 0.08);
+    }
+
+    // Tire Screech Volume during Drifts
+    if (this.tireScreech) {
+      const targetScreechGain = isDrifting ? 0.35 : 0;
+      this.tireScreech.gain.gain.setTargetAtTime(targetScreechGain, now, 0.05);
+      this.tireScreech.filter.frequency.setTargetAtTime(800 + Math.random() * 250, now, 0.04);
+    }
+  }
+
+  getGear() {
+    return this.gear;
+  }
+
+  getRpm() {
+    return Math.round(this.rpm);
+  }
+
+  synthBlowOffValve(t) {
+    // Turbo flutter / blow-off release ("stututu")
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1400, t);
+      osc.frequency.exponentialRampToValueAtTime(320, t + 0.22);
+
+      filter.type = 'highpass';
+      filter.frequency.setValueAtTime(800, t);
+
+      gain.gain.setValueAtTime(0.24, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain);
+
+      osc.start(t);
+      osc.stop(t + 0.26);
+    } catch (e) {}
   }
 
   // --- SOUND EFFECTS ---
@@ -251,7 +491,7 @@ class RoadAudioEngine {
     if (!this.ctx) return;
     this.resume();
 
-    // If we have a cached decoded buffer, play it
+    // Natural Audio Buffer Playback
     if (this.buffers[type]) {
       try {
         const src = this.ctx.createBufferSource();
@@ -262,7 +502,7 @@ class RoadAudioEngine {
       } catch (e) {}
     }
 
-    // Otherwise, trigger rich procedural sound effect
+    // Procedural Synthesizer SFX
     const now = this.ctx.currentTime;
     switch (type) {
       case 'nearmiss':
@@ -291,7 +531,28 @@ class RoadAudioEngine {
         this.synthFever(now);
         break;
       case 'drift':
-        this.synthDrift(now);
+        // Handled dynamically in updateEngine()
+        break;
+      case 'jump':
+        this.synthJumpLaunch(now);
+        break;
+      case 'land':
+        this.synthJumpLand(now);
+        break;
+      case 'booster':
+        this.synthBoosterSurge(now);
+        break;
+      case 'laser':
+        this.synthDroneLaser(now);
+        break;
+      case 'countdown_tick':
+        this.synthCountdownTick(now);
+        break;
+      case 'countdown_go':
+        this.synthCountdownGo(now);
+        break;
+      case 'achievement':
+        this.synthAchievement(now);
         break;
       default:
         break;
@@ -304,14 +565,14 @@ class RoadAudioEngine {
     const filter = this.ctx.createBiquadFilter();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(620, t);
-    osc.frequency.exponentialRampToValueAtTime(180, t + 0.28);
+    osc.frequency.setValueAtTime(680, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.26);
 
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(2400, t);
-    filter.frequency.exponentialRampToValueAtTime(300, t + 0.28);
+    filter.frequency.setValueAtTime(2800, t);
+    filter.frequency.exponentialRampToValueAtTime(350, t + 0.26);
 
-    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.setValueAtTime(0.4, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
 
     osc.connect(filter);
@@ -323,66 +584,63 @@ class RoadAudioEngine {
   }
 
   synthBoost(t) {
-    // Jet hiss + rising laser whoosh
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(140, t);
-    osc.frequency.exponentialRampToValueAtTime(540, t + 0.45);
+    osc.frequency.exponentialRampToValueAtTime(580, t + 0.42);
 
     gain.gain.setValueAtTime(0.45, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.6);
+    osc.stop(t + 0.55);
   }
 
   synthCrash(t) {
-    // Heavy crunch + noise explosion
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'square';
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(25, t + 0.35);
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(24, t + 0.36);
 
-    gain.gain.setValueAtTime(0.55, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.42);
+    osc.stop(t + 0.45);
   }
 
   synthCoin(t) {
-    // Twin arpeggio crystal ding
-    [880, 1320].forEach((freq, idx) => {
+    [920, 1380].forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+      osc.frequency.setValueAtTime(freq, t + idx * 0.05);
 
-      gain.gain.setValueAtTime(0.28, t + idx * 0.06);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.22);
+      gain.gain.setValueAtTime(0.32, t + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.05 + 0.24);
 
       osc.connect(gain);
       gain.connect(this.sfxGain);
-      osc.start(t + idx * 0.06);
-      osc.stop(t + idx * 0.06 + 0.25);
+      osc.start(t + idx * 0.05);
+      osc.stop(t + idx * 0.05 + 0.26);
     });
   }
 
-  synthMissile(t) {
-    // Rocket ignition sweep
+  synthJumpLaunch(t) {
+    // Sonic whoosh taking off
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'triangle';
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(880, t + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(840, t + 0.35);
 
-    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.setValueAtTime(0.38, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
 
     osc.connect(gain);
@@ -391,33 +649,100 @@ class RoadAudioEngine {
     osc.stop(t + 0.4);
   }
 
-  synthEmp(t) {
-    // Electromagnetic surge
+  synthJumpLand(t) {
+    // Heavy suspension clunk & thud
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(80, t);
-    osc.frequency.linearRampToValueAtTime(700, t + 0.15);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.5);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.exponentialRampToValueAtTime(28, t + 0.28);
 
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.6);
+    osc.stop(t + 0.35);
+  }
+
+  synthBoosterSurge(t) {
+    // Highway dash panel pulse
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.linearRampToValueAtTime(920, t + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(320, t + 0.45);
+
+    gain.gain.setValueAtTime(0.42, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.52);
+  }
+
+  synthDroneLaser(t) {
+    // Cyber laser pulse
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1800, t);
+    osc.frequency.exponentialRampToValueAtTime(220, t + 0.12);
+
+    gain.gain.setValueAtTime(0.28, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
+
+  synthMissile(t) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(950, t + 0.32);
+
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.38);
+  }
+
+  synthEmp(t) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.linearRampToValueAtTime(750, t + 0.16);
+    osc.frequency.exponentialRampToValueAtTime(50, t + 0.55);
+
+    gain.gain.setValueAtTime(0.55, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.65);
   }
 
   synthShield(t) {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, t);
-    osc.frequency.exponentialRampToValueAtTime(880, t + 0.25);
+    osc.frequency.setValueAtTime(480, t);
+    osc.frequency.exponentialRampToValueAtTime(960, t + 0.28);
 
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
@@ -432,29 +757,61 @@ class RoadAudioEngine {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, t + idx * 0.08);
 
-      gain.gain.setValueAtTime(0.35, t + idx * 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.3);
+      gain.gain.setValueAtTime(0.38, t + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.32);
 
       osc.connect(gain);
       gain.connect(this.sfxGain);
       osc.start(t + idx * 0.08);
-      osc.stop(t + idx * 0.08 + 0.32);
+      osc.stop(t + idx * 0.08 + 0.35);
     });
   }
 
-  synthDrift(t) {
-    // Tire squeal burst
+  synthCountdownTick(t) {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(750 + Math.random() * 200, t);
-    gain.gain.setValueAtTime(0.18, t);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, t);
+
+    gain.gain.setValueAtTime(0.35, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
 
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.2);
+  }
+
+  synthCountdownGo(t) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, t);
+
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.48);
+  }
+
+  synthAchievement(t) {
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.09);
+
+      gain.gain.setValueAtTime(0.4, t + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.09 + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t + idx * 0.09);
+      osc.stop(t + idx * 0.09 + 0.38);
+    });
   }
 
   // --- PROCEDURAL 80s CYBERPUNK SYNTHWAVE MUSIC SEQUENCER ---
@@ -479,7 +836,7 @@ class RoadAudioEngine {
     const stepDuration = 60 / this.bpm / 4; // 16th note
     const now = this.ctx.currentTime;
 
-    if (this.musicEnabled) {
+    if (!this.isMuted && this.musicVolume > 0) {
       this.playSequencerStep(this.musicStep, now);
     }
 
@@ -489,7 +846,7 @@ class RoadAudioEngine {
 
   playSequencerStep(step, t) {
     // 16-step bass progression in D minor [D, F, G, Bb]
-    const rootNotes = [73.42, 73.42, 87.31, 87.31, 98.0, 98.0, 116.54, 116.54]; // D2, F2, G2, Bb2
+    const rootNotes = [73.42, 73.42, 87.31, 87.31, 98.0, 98.0, 116.54, 116.54];
     const currentChordIndex = Math.floor(step / 8) % rootNotes.length;
     const root = rootNotes[currentChordIndex];
 
@@ -550,7 +907,7 @@ class RoadAudioEngine {
 
     // Synth Arpeggios (in upper register)
     if (step % 4 === 2 || step % 4 === 3) {
-      const arpNotes = [293.66, 349.23, 440.0, 523.25, 587.33]; // D, F, A, C, D
+      const arpNotes = [293.66, 349.23, 440.0, 523.25, 587.33];
       const note = arpNotes[(step * 3) % arpNotes.length];
       const arpOsc = this.ctx.createOscillator();
       const arpGain = this.ctx.createGain();

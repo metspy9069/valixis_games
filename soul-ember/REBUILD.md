@@ -1,42 +1,42 @@
-# Soul Ember — The Last Light
+# Soul Ember illustrated rebuild
 
-The active game is `src/rebuild/main.js`, imported by `index.html`. The old `src/main.js` engine and its related modules are inactive; only its vector icons and audio synthesizer are reused. The original playable HTML is recoverable from Git history. `src/rebuild/catalog.js` carries over the actual playable catalog: eight heroes, fourteen blessings, eleven merchant items, and five Forge upgrade tracks. The duplicate folder named `soul ember` has been removed.
+`src/rebuild/main.js` is the active entry point. It connects the version 3 progression, interface, simulation, renderer and anonymous challenge adapter. The game keeps its data in `soul_ember_illustrated_v3`; it never imports or overwrites the older save.
 
-## Local development
+## Game structure
 
-From the repository root, run `npm install` and `npm run dev:soul-ember`. Open http://localhost:8080. Solo play, all heroes, Forge, daily gold, achievements and device records work without a backend. Run `npm test` for simulation/persistence checks. `npm run build` creates `site/`, containing the arcade and compiled game at `/soul-ember/`. Serve that directory to preview production; serving raw source HTML without Vite will not resolve Three.js imports.
+`roster.js` is the shared source of truth for eight heroes, their weapons, signatures and build branches, plus eighteen regional monsters and three guardians. `game.js` runs deterministic fixed-step combat. Automatic targeting requires line of sight, projectiles collide with walls, enemies use the shared navigation field, and attacks expose a windup before damage. The three guardians use separate radial, lane-and-pool, and root-summoning patterns with three health phases.
 
-## Persistent challenges
+Every hero has three ranks in each of three branches, plus two small shared survival blessings. Offers exclude capped choices. Rank three changes the attack pattern or dodge effect. The build panel shows branch ranks and damage contributions. The first choice is guaranteed by 50 seconds even if room geometry delays early drops; successful automated runs produce 10–13 choices in roughly 8–12 minutes. Human playtesting is still required to judge feel and tune outlier builds.
 
-The serverless endpoint is `/api/soul-ember`, with actions `start`, `board`, `submit` and `metric`. Configure server-only `DATABASE_URL` for a managed PostgreSQL database and a cryptographically random `CHALLENGE_SECRET` of at least 32 bytes. Apply `server/schema.sql` to that database once. Never put these secrets in variables prefixed `VITE_` or commit them. Vercel's root configuration builds the arcade and discovers the root API route. Deployment has not been performed.
+`scene.js` builds articulated 3D actors from batched body, limb, armor, weapon, wing and creature geometry. Heroes and monsters have physical depth, lighting, ground shadows and equipment, with idle, movement, attack, dodge, hit and death poses driven by the simulation. The illustrated bestiary remains in the hero-selection interface only. `dungeon-view.js` provides worn masonry, carved floors, coffins, banners, cutaway entrances, torchlight and region-specific ash debris, water and roots. The simulation and renderer share `dungeon.js`, so visible walls, doors and pillars match collision.
 
-For local API development, provide those environment variables to `npm --prefix soul-ember run backend`; Vite proxies `/api` to localhost:3001. With no database configuration the API explicitly returns 503 and solo play remains available. The old in-memory score endpoint returns 410. No fictional leaderboard entries are shown.
+The opening screen exposes only Play, Heroes and Settings. Records and challenges appear after the first completed expedition. A first-run guide introduces movement, automatic attacks, dodge warnings and soul pickups. Locked heroes explain the required number of completed expeditions.
 
-Daily boards reset at midnight UTC; weekly boards reset Monday midnight UTC. A shared challenge assigns a hero, deterministic seed, modifier and standard stats. Local Forge upgrades do not apply. Start returns a signed, expiring, single-submission run token. Submit accepts integer duration/kills/gold and a victory flag; the server calculates the score, checks elapsed time and plausible bounds, and stores the anonymous result. Top 50 records are returned. No account, name or persistent visitor ID is collected. A global start budget limits anonymous requests without recording network identifiers.
+Controls: WASD or arrows move, Space dodges, R or Q uses the signature, B opens the build panel, Escape or P pauses, and 1–3 choose a blessing. Mobile provides a movement pad and large combat controls. Backgrounding the page pauses play.
 
-These are plausibility checks, not authoritative gameplay verification: a modified browser client can still cheat. Serious competitive/prize use needs server replay verification before launch. Database connectivity, migrations, concurrent submissions and deployment must be exercised with an actual managed database before public rankings are enabled. The local automated suite does not claim live database coverage.
+## Local development and production
 
-## Ads and aggregate counters
+From the repository root:
 
-Ads are off unless an integration installs `window.soulEmberAds = { consented: true, rewarded: async () => boolean, interstitial: async () => void }`. `consented` must represent whatever consent the configured provider requires. The adapter must report rewarded completion exactly once, after actual provider confirmation. An unavailable or failed ad must not block play. No provider SDK is bundled.
+```text
+npm install
+npm run dev:soul-ember
+npm test
+npm run build
+```
 
-An optional rewarded ad after a standard run grants 50 local meta gold, once per result. Interstitials are eligible only after a victory or at least eight minutes survived. Ranked challenges never display ads. Aggregate counters are disabled by default: enable `VITE_ENABLE_METRICS=true` in the build and `ENABLE_METRICS=true` on the server to store daily totals for run starts, completions and challenge completions. No visitor/session IDs are sent. Counters are directional product measurements, not audited analytics.
+Development runs at <http://127.0.0.1:8080>. The root build creates `site/` and places the compiled game under `site/soul-ember/`. Serve `site/` for a production preview; raw source HTML does not resolve the Vite module graph.
 
-## Progress and behavior
+## Challenges, privacy and ads
 
-The existing `soul_ember_fullscreen_v1` storage key is migrated in place, preserving banked gold, purchased Forge ranks and achievements. New device records omit the previous fabricated sample scores. Storage failure is surfaced without preventing play. Meta gold settles at defeat, victory or an explicit quit; closing the tab mid-run can lose that run's unbanked gold. Challenge scores require a live connection to submit and are not silently presented as saved if submission fails.
+The optional endpoint is `/api/soul-ember`. Configure server-only `DATABASE_URL` and a random `CHALLENGE_SECRET` of at least 32 bytes, then apply `server/schema.sql`. Without those values the endpoint returns 503 and solo play remains fully available. Version 3 challenge IDs and boards are separate from the former game.
 
-Controls: WASD/arrows move, Space dodge, R/Q ultimate, E/B shop, P/Escape pause, 1–3 choose a blessing, F fullscreen. Touch players have a joystick, dodge and ultimate buttons. A hidden/backgrounded tab pauses. Reduced motion disables character bobbing and wing animation. Dev builds expose `window.__soulEmber` for inspection; production builds do not include this hook.
+Daily and weekly challenges assign the same hero, seed and modifier to every anonymous player. A signed, expiring, single-use token accompanies a run. The server validates timing and plausible bounds, calculates the score and stores the top records. These are plausibility checks rather than authoritative replay verification; prize competition requires server-side replay validation. No account, name or persistent visitor identifier is collected.
 
-The rebuilt five-realm progression changes environment every two minutes, with Malakor arriving at eight minutes. Defeating Malakor unlocks standard-run Endless Nightmare, including recurring elite waves. Further rarity presentation and handcrafted character animation, additional boss patterns and device-specific optimization still need further design/playtesting; no claim of finished visual quality or measured device performance is made.
+Ads remain disabled unless a provider installs `window.soulEmberAds` and confirms consent. Rewarded gold is available only after a run; interstitials are eligible only after victory or eight minutes. A failed ad never blocks play. Aggregate metrics are off by default and, when enabled on both client and server, contain event totals without visitor IDs.
 
-## Release checks
+## Verification and release limits
 
-Run `npm test` and `npm run build`. Exercise standard and challenge runs, upgrades, shop affordability, defeat/victory/endless, pause/backgrounding, mobile touch, save migration, unavailable API and ad cancellation. Test the managed database and ad provider after credentials are configured. Measure real desktop and mobile frame times before claiming the 60 FPS desktop / 30 FPS mobile targets. Broader human playtesting is needed to validate the 8–12 minute pacing and all hero/build combinations.
+The automated suite covers all heroes, branch caps and effects, signatures, every monster behavior, guardian phases and region advancement, drops, targeting walls, collision, deterministic seeds, first-choice timing and save isolation. Browser checks cover desktop and mobile layouts, touch controls, upgrade application, console errors and an 80-enemy stress scene. The stress scene held the browser's 60 Hz frame cadence in the tested environment, but this is not a claim about every phone or laptop.
 
-The dependency audit reported development-tooling advisories in the Vite dependency graph even after updating Vite; production-only dependency audit reported no vulnerabilities. Do not expose the development server publicly. Recheck the tooling advisory status before deployment.
-
-
-## Dungeon art and combat revision
-
-The world now uses a shared nine-chamber layout in `dungeon.js`: continuous stone walls, open doorways, column collision and navigation fields. `dungeon-view.js` builds the masonry, pointed arches, worn flagstones, banners, stone coffins and torchlight. Foreground walls use a cutaway height. Shots stop at stone; enemies route through connected rooms. Movement speed is now 7.2 units/second and the base attack cooldown is 0.38 seconds. Characters have articulated limbs and weapon recoil, with impact sparks, projectile streaks, dash trails and restrained camera shake. Reduced motion disables the extra movement effects. Human playtesting and real-device performance checks remain necessary after this pacing change.
+Before a public release, complete human playtests for every hero, check each guardian on real touch devices, validate sound balance, test the configured database and ad provider, and gather frame-time traces from the minimum supported desktop and mobile hardware.

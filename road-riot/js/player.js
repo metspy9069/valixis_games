@@ -1,6 +1,26 @@
 // Road Riot 3D - Player Car Physics, Suspension Dynamics, Skid Marks, Airtime & Drones
 import * as THREE from 'three';
 
+// Shared Pooled Static Geometries & Base Materials to eliminate GC memory leaks
+const SHARED_SKID_GEO = (() => {
+  const g = new THREE.PlaneGeometry(0.34, 1.4);
+  g.rotateX(-Math.PI / 2);
+  return g;
+})();
+const SHARED_SMOKE_GEO = new THREE.SphereGeometry(0.28, 6, 6);
+const SHARED_SKID_MAT = new THREE.MeshBasicMaterial({
+  color: 0x05080e,
+  transparent: true,
+  opacity: 0.6,
+  depthWrite: false
+});
+const SHARED_SMOKE_MAT = new THREE.MeshBasicMaterial({
+  color: 0x8899aa,
+  transparent: true,
+  opacity: 0.4,
+  depthWrite: false
+});
+
 export const VEHICLE_ROSTER = {
   apex: {
     id: 'apex',
@@ -8,7 +28,7 @@ export const VEHICLE_ROSTER = {
     tier: 'GT SPORT',
     desc: 'Precision aerodynamics & razor-sharp lane transition.',
     modelAsset: './assets/player-ferrari.glb',
-    baseStats: { topSpeed: 58, accel: 32, handling: 34, nitro: 28, armor: 100 },
+    baseStats: { topSpeed: 28, accel: 30, handling: 32, nitro: 50, armor: 100 },
     paint: 0xd71920, // Rosso Corsa
     glow: 0x00d9ff,
     cost: 0,
@@ -20,7 +40,7 @@ export const VEHICLE_ROSTER = {
     tier: 'DRIFT SPEC',
     desc: 'Lightweight chassis designed for massive drift streaks & slipstreams.',
     modelAsset: './assets/sports.glb',
-    baseStats: { topSpeed: 62, accel: 36, handling: 38, nitro: 32, armor: 85 },
+    baseStats: { topSpeed: 31, accel: 34, handling: 36, nitro: 55, armor: 85 },
     paint: 0x9d4edd, // Cyber Purple
     glow: 0xff2a85,
     cost: 800,
@@ -32,7 +52,7 @@ export const VEHICLE_ROSTER = {
     tier: 'HEAVY ARMOR',
     desc: 'Reinforced plating that crushes obstacles and absorbs heavy hits.',
     modelAsset: './assets/suv.glb',
-    baseStats: { topSpeed: 54, accel: 28, handling: 26, nitro: 26, armor: 160 },
+    baseStats: { topSpeed: 26, accel: 26, handling: 25, nitro: 45, armor: 180 },
     paint: 0x223548, // Midnight Navy
     glow: 0x00ff88,
     cost: 1500,
@@ -44,7 +64,7 @@ export const VEHICLE_ROSTER = {
     tier: 'INTERCEPTOR',
     desc: 'Raw twin-turbo muscle car with rapid nitrous recharge.',
     modelAsset: './assets/van.glb',
-    baseStats: { topSpeed: 66, accel: 38, handling: 30, nitro: 38, armor: 110 },
+    baseStats: { topSpeed: 34, accel: 36, handling: 29, nitro: 60, armor: 120 },
     paint: 0xffb800, // Electric Gold
     glow: 0xff8800,
     cost: 2500,
@@ -56,7 +76,7 @@ export const VEHICLE_ROSTER = {
     tier: 'CYBER HYPERCAR',
     desc: 'The ultimate prototype. Breaks the Mach barrier with hyper-drive.',
     modelAsset: './assets/player-lamborghini.glb',
-    baseStats: { topSpeed: 74, accel: 46, handling: 42, nitro: 50, armor: 130 },
+    baseStats: { topSpeed: 38, accel: 44, handling: 40, nitro: 70, armor: 140 },
     paint: 0x05c2d6, // Electric Cyan
     glow: 0x00d9ff,
     cost: 5000,
@@ -215,13 +235,15 @@ export class PlayerCar {
     const data = VEHICLE_ROSTER[vehicleId] || VEHICLE_ROSTER.apex;
 
     // Apply Upgrades (1 to 5 levels)
-    const speedBonus = (upgrades.topSpeed || 0) * 1.8;
-    const armorBonus = (upgrades.armor || 0) * 15;
-    const nitroBonus = (upgrades.nitro || 0) * 12;
+    const speedBonus = (upgrades.topSpeed || 0) * 4.2;
+    const accelBonus = (upgrades.accel || 0) * 4.0;
+    const handlingBonus = (upgrades.handling || 0) * 3.5;
+    const armorBonus = (upgrades.armor || 0) * 20;
+    const nitroBonus = (upgrades.nitro || 0) * 14;
 
     this.topSpeed = data.baseStats.topSpeed + speedBonus;
-    this.accel = data.baseStats.accel;
-    this.handling = data.baseStats.handling;
+    this.accel = data.baseStats.accel + accelBonus;
+    this.handling = data.baseStats.handling + handlingBonus;
     this.maxHull = data.baseStats.armor + armorBonus;
     this.hull = this.maxHull;
     this.maxNitro = data.baseStats.nitro + nitroBonus;
@@ -607,62 +629,63 @@ export class PlayerCar {
   }
 
   spawnSkidMark(x, z) {
-    const markGeo = new THREE.PlaneGeometry(0.32, 1.4);
-    markGeo.rotateX(-Math.PI / 2);
-    const markMat = new THREE.MeshBasicMaterial({
-      color: 0x05080e,
-      transparent: true,
-      opacity: 0.6
-    });
-    const mark = new THREE.Mesh(markGeo, markMat);
+    if (this.skidMarks.length >= 30) {
+      const old = this.skidMarks.shift();
+      this.scene.remove(old.mesh);
+      if (old.mesh.material) old.mesh.material.dispose();
+    }
+    const markMat = SHARED_SKID_MAT.clone();
+    const mark = new THREE.Mesh(SHARED_SKID_GEO, markMat);
     mark.position.set(x, 0.02, z);
     this.scene.add(mark);
-    this.skidMarks.push({ mesh: mark, life: 3.5 });
+    this.skidMarks.push({ mesh: mark, life: 3.0 });
   }
 
   spawnSmokeParticle(pos) {
-    const size = 0.2 + Math.random() * 0.25;
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(size, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.4 })
-    );
+    if (this.smokeParticles.length >= 22) {
+      const old = this.smokeParticles.shift();
+      this.scene.remove(old.mesh);
+      if (old.mesh.material) old.mesh.material.dispose();
+    }
+    const mat = SHARED_SMOKE_MAT.clone();
+    const mesh = new THREE.Mesh(SHARED_SMOKE_GEO, mat);
     mesh.position.copy(pos);
     mesh.position.y += 0.25;
     this.scene.add(mesh);
     this.smokeParticles.push({
       mesh,
       vel: new THREE.Vector3((Math.random() - 0.5) * 1.5, 0.8 + Math.random() * 1.2, 2.5),
-      life: 0.65,
-      maxLife: 0.65
+      life: 0.6,
+      maxLife: 0.6
     });
   }
 
   update(dt, onLandCallback = null) {
-    // 1. Acceleration & Nitro Dynamics
+    // 1. Acceleration & Nitro Dynamics (Calibrated: 80-120 Stock, 150-160 Boost)
     if (this.boostPadTimer > 0) {
       this.boostPadTimer -= dt;
       this.isBoosting = true;
-      this.targetSpeed = this.topSpeed * 1.62;
-      this.suspensionPitch = -0.12; // High-speed acceleration squat
+      this.targetSpeed = this.topSpeed * 1.55;
+      this.suspensionPitch = -0.10; // High-speed acceleration squat
       if (this.boostPadTimer <= 0 && this.nitro <= 0) {
         this.isBoosting = false;
       }
     } else if (this.isBoosting && this.nitro > 0) {
-      this.nitro = Math.max(0, this.nitro - dt * 22);
-      this.targetSpeed = this.topSpeed * 1.45;
+      this.nitro = Math.max(0, this.nitro - dt * 20);
+      this.targetSpeed = this.topSpeed * 1.55;
       if (this.nitro <= 0) this.isBoosting = false;
       // Acceleration squat (rear dips, nose lifts)
-      this.suspensionPitch = -0.09;
+      this.suspensionPitch = -0.08;
     } else if (this.isDrifting) {
-      this.targetSpeed = this.topSpeed * 0.85;
-      this.suspensionPitch = 0.04; // slight nose dip
+      this.targetSpeed = this.topSpeed * 0.88;
+      this.suspensionPitch = 0.03; // slight nose dip
     } else {
       this.targetSpeed = this.topSpeed;
       this.suspensionPitch *= 0.9;
     }
 
     // Smooth ground speed acceleration
-    this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 6.5 : 3.5));
+    this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2));
 
     // 2. Wheel Spinning Animation
     this.wheelRotation += (this.speed * dt) * 2.8;
@@ -697,7 +720,7 @@ export class PlayerCar {
     this.chassis.rotation.z = this.suspensionRoll;
 
     // 4. Drift Tire Skids & Smoke
-    if (this.isDrifting && this.speed > 16 && !this.isAirborne) {
+    if (this.isDrifting && this.speed > 14 && !this.isAirborne) {
       [-0.85, 0.85].forEach(offsetX => {
         const markPos = new THREE.Vector3(this.x + offsetX, 0, this.mesh.position.z + 1.2);
         this.spawnSkidMark(markPos.x, markPos.z);
@@ -705,19 +728,20 @@ export class PlayerCar {
       });
     }
 
-    // Update & Fade Skid Marks
+    // Update & Fade Skid Marks with Memory Cleanup
     for (let i = this.skidMarks.length - 1; i >= 0; i--) {
       const s = this.skidMarks[i];
       s.life -= dt;
       s.mesh.position.z += this.speed * dt; // Scrolls back with road
-      s.mesh.material.opacity = Math.max(0, s.life / 3.5 * 0.6);
-      if (s.life <= 0 || s.mesh.position.z > 20) {
+      s.mesh.material.opacity = Math.max(0, (s.life / 3.0) * 0.6);
+      if (s.life <= 0 || s.mesh.position.z > 22) {
         this.scene.remove(s.mesh);
+        if (s.mesh.material) s.mesh.material.dispose();
         this.skidMarks.splice(i, 1);
       }
     }
 
-    // Update Smoke Particles
+    // Update Smoke Particles with Memory Cleanup
     for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
       const p = this.smokeParticles[i];
       p.life -= dt;
@@ -726,6 +750,7 @@ export class PlayerCar {
       p.mesh.material.opacity = Math.max(0, (p.life / p.maxLife) * 0.4);
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
+        if (p.mesh.material) p.mesh.material.dispose();
         this.smokeParticles.splice(i, 1);
       }
     }

@@ -1,15 +1,16 @@
 # Soul Ember — The Last Light
 
-A playable 2.5D browser survival game for desktop and mobile.
+A 3D dark-fantasy survival roguelite for desktop and mobile browsers, with illustrated menu portraits.
 
-- Eight heroes with distinct starting abilities and ultimates
-- Five realms, Malakor, and Endless Nightmare
-- Fourteen blessings, eleven merchant items, five permanent Forge upgrades
-- Local progress migration, ten achievements and device score records
-- Anonymous daily/weekly challenge API backed by PostgreSQL (requires configuration)
-- Provider-neutral ad hooks; ads disabled until a provider is configured
+- Eight heroes with distinct weapons, signatures, stats and three connected build branches
+- Eighteen monsters split across the Ashen Cathedral, Drowned Catacombs and Thornbound Ossuary
+- Three multi-phase guardians with readable windups and region-specific attacks
+- Automatic line-of-sight targeting, responsive movement, dodge invulnerability and wall-aware projectiles
+- Ten to thirteen meaningful choices across a successful 8–12 minute expedition
+- Local progression with a separate versioned save; no account is required
+- Optional anonymous daily/weekly challenges when the backend is configured
 
-Run `npm run dev:soul-ember` from the repository root, then visit http://localhost:8080.
-Run `npm test` and `npm run build` for checks and the complete arcade production output.
+From the repository root, run `npm run dev:soul-ember`, then open <http://127.0.0.1:8080>.
 
-See [REBUILD.md](REBUILD.md) for architecture, online setup, privacy behavior, ad integration and release checks.
+Run `npm test` for gameplay checks and `npm run build` for the production arcade output.
+See [REBUILD.md](REBUILD.md) for architecture, controls, online configuration and release limits.

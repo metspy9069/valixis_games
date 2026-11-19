@@ -1,6 +1,8 @@
 // Road Riot 3D - Intelligent Traffic, Chemical Tankers, Police Spike Strips & Drone AI
 import * as THREE from 'three';
 
+const SHARED_DEBRIS_GEO = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+
 export class TrafficManager {
   constructor(scene, assetPrototypes = {}) {
     this.scene = scene;
@@ -21,6 +23,8 @@ export class TrafficManager {
     try {
       this.colormapTexture = new THREE.TextureLoader().load('./assets/Textures/colormap.png');
       this.colormapTexture.colorSpace = THREE.SRGBColorSpace;
+      this.colormapTexture.flipY = false; // MUST be false for glTF UV coordinates!
+      this.colormapTexture.anisotropy = 16;
     } catch (e) {
       this.colormapTexture = null;
     }
@@ -52,46 +56,47 @@ export class TrafficManager {
     chosenLanes.forEach(lane => {
       const roll = Math.random();
       let type = 'sports';
-      let speed = 13 + Math.random() * 5;
+      let speed = 21 + Math.random() * 4;
       let isRival = false;
       let isPolice = false;
       let isTruck = false;
       let isTanker = false;
 
+      // Rebalanced speeds for 80-120 km/h stock cruising and 150-160 km/h boost
       if (currentDistance > 1800 && Math.random() < 0.18) {
         type = 'tanker';
-        speed = 30 + Math.random() * 4;
+        speed = 16 + Math.random() * 3; // ~60 km/h
         isTanker = true;
       } else if (currentDistance > 1400 && Math.random() < 0.22) {
         type = 'rival';
-        speed = 48 + Math.random() * 8;
+        speed = 26 + Math.random() * 5; // ~98 km/h
         isRival = true;
       } else if (currentDistance > 2200 && Math.random() < 0.18) {
         type = 'police';
-        speed = 46 + Math.random() * 6;
+        speed = 24 + Math.random() * 4; // ~90 km/h
         isPolice = true;
       } else if (roll < 0.12) {
         type = 'truck';
-        speed = 32 + Math.random() * 4;
+        speed = 17 + Math.random() * 3; // ~64 km/h
         isTruck = true;
       } else if (roll < 0.24) {
         type = 'delivery';
-        speed = 35 + Math.random() * 5;
+        speed = 18 + Math.random() * 4; // ~70 km/h
       } else if (roll < 0.38) {
         type = 'taxi';
-        speed = 38 + Math.random() * 6;
+        speed = 21 + Math.random() * 4; // ~80 km/h
       } else if (roll < 0.52) {
         type = 'ambulance';
-        speed = 44 + Math.random() * 6;
+        speed = 23 + Math.random() * 4; // ~86 km/h
       } else if (roll < 0.68) {
         type = 'sedan';
-        speed = 39 + Math.random() * 6;
+        speed = 19 + Math.random() * 4; // ~72 km/h
       } else if (roll < 0.84) {
         type = 'suv';
-        speed = 37 + Math.random() * 5;
+        speed = 18 + Math.random() * 4; // ~70 km/h
       } else {
         type = 'van';
-        speed = 36 + Math.random() * 5;
+        speed = 18 + Math.random() * 4; // ~70 km/h
       }
 
       const mesh = this.buildVehicleMesh(type, isRival, isPolice, isTruck, isTanker);
@@ -135,18 +140,38 @@ export class TrafficManager {
 
     if (proto) {
       const model = proto.clone(true);
+      const carPalette = [0xd91626, 0x0066cc, 0x111622, 0xe8edf2, 0x159a42, 0x7b2cbf, 0xff9900, 0x00b4d8];
+      const carColor = carPalette[Math.floor(Math.random() * carPalette.length)];
+
       model.traverse(node => {
         if (!node.isMesh) return;
         node.castShadow = true;
         node.receiveShadow = true;
-        // Keep Kenney colormap texture atlas intact for maximum detailing & vibrant colors!
+
         if (node.material) {
           node.material = node.material.clone();
-          if (this.colormapTexture) {
+          if (node.material.map) {
+            node.material.map.flipY = false;
+            node.material.map.colorSpace = THREE.SRGBColorSpace;
+            node.material.map.anisotropy = 16;
+          } else if (this.colormapTexture) {
             node.material.map = this.colormapTexture;
           }
-          node.material.roughness = 0.32;
-          node.material.metalness = 0.38;
+
+          const name = (node.name || '').toLowerCase();
+          if (name.includes('body') || name.includes('spoiler')) {
+            if (type === 'sports' || type === 'sedan' || type === 'suv') {
+              node.material.color.setHex(carColor);
+            }
+            node.material.roughness = 0.22;
+            node.material.metalness = 0.65;
+          } else if (name.includes('wheel')) {
+            node.material.roughness = 0.82;
+            node.material.metalness = 0.15;
+          } else {
+            node.material.roughness = 0.3;
+            node.material.metalness = 0.4;
+          }
           node.material.needsUpdate = true;
         }
       });
@@ -322,11 +347,12 @@ export class TrafficManager {
 
   buildSemiTruck() {
     const group = new THREE.Group();
-    const cabMat = new THREE.MeshStandardMaterial({ color: 0x0a4fa6, roughness: 0.32, metalness: 0.65 });
-    const trailerMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.4, metalness: 0.3 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x12151b, roughness: 0.85 });
+    const cabMat = new THREE.MeshStandardMaterial({ color: 0x0a4fa6, roughness: 0.28, metalness: 0.7 });
+    const trailerMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45, metalness: 0.55 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x0f141c, roughness: 0.85 });
     const chromeMat = new THREE.MeshStandardMaterial({ color: 0xebf2f8, metalness: 0.95, roughness: 0.12 });
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0x081624, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.7 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x081624, metalness: 0.95, roughness: 0.05, transparent: true, opacity: 0.75 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0x00d9ff, roughness: 0.3, metalness: 0.7 });
 
     // Cab Section (-Z facing forward)
     const cab = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.9, 2.5), cabMat);
@@ -351,16 +377,36 @@ export class TrafficManager {
       group.add(stack);
     });
 
-    // Detailed Cargo Trailer
+    // Detailed Cargo Trailer (Dark Metallic with side livery)
     const trailer = new THREE.Mesh(new THREE.BoxGeometry(2.45, 2.45, 6.2), trailerMat);
     trailer.position.set(0, 1.7, 1.6);
     trailer.castShadow = true;
     group.add(trailer);
 
+    // Side livery accent bands & amber clearance markers
+    [-1.24, 1.24].forEach(x => {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 5.6), accentMat);
+      stripe.position.set(x, 1.7, 1.6);
+      group.add(stripe);
+
+      [-0.8, 0.8, 2.4, 4.0].forEach(z => {
+        const marker = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.18), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+        marker.position.set(x, 0.85, z);
+        group.add(marker);
+      });
+    });
+
     // Rear Cargo Doors & Red/White Hazard Striping (+Z facing player)
     const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(2.35, 2.3, 0.08), darkMat);
     doorFrame.position.set(0, 1.7, 4.72);
     group.add(doorFrame);
+
+    // Vertical chrome locking rods
+    [-0.55, 0.55].forEach(x => {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.2, 8), chromeMat);
+      rod.position.set(x, 1.7, 4.77);
+      group.add(rod);
+    });
 
     // Diagonal Hazard Barricade Tape on Rear Bumper
     const hazardBumper = new THREE.Mesh(
@@ -403,7 +449,7 @@ export class TrafficManager {
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({
       color: isPolice ? 0x111622 : color,
-      roughness: 0.28,
+      roughness: 0.22,
       metalness: 0.72
     });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x11151d, roughness: 0.85 });
@@ -413,7 +459,7 @@ export class TrafficManager {
       metalness: 0.95,
       roughness: 0.05,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.75
     });
 
     // Aerodynamic Body (-Z facing forward)
@@ -667,23 +713,28 @@ export class TrafficManager {
     return group;
   }
 
-  spawnExplosion(pos, color = 0xff4422, count = 18) {
+  spawnExplosion(pos, color = 0xff4422, count = 16) {
+    if (this.particles.length > 45) {
+      const excess = this.particles.splice(0, count);
+      excess.forEach(p => {
+        this.scene.remove(p.mesh);
+        if (p.mesh.material) p.mesh.material.dispose();
+      });
+    }
+
+    const mat = new THREE.MeshBasicMaterial({ color });
     for (let i = 0; i < count; i++) {
-      const size = 0.15 + Math.random() * 0.3;
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size, size, size),
-        new THREE.MeshBasicMaterial({ color })
-      );
+      const mesh = new THREE.Mesh(SHARED_DEBRIS_GEO, mat.clone());
       mesh.position.copy(pos);
       this.scene.add(mesh);
 
       const vel = new THREE.Vector3(
-        (Math.random() - 0.5) * 16,
-        4 + Math.random() * 12,
-        (Math.random() - 0.5) * 16
+        (Math.random() - 0.5) * 14,
+        4 + Math.random() * 10,
+        (Math.random() - 0.5) * 14
       );
 
-      this.particles.push({ mesh, vel, life: 0.85, maxLife: 0.85 });
+      this.particles.push({ mesh, vel, life: 0.75, maxLife: 0.75 });
     }
   }
 
@@ -789,6 +840,7 @@ export class TrafficManager {
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
+        if (p.mesh.material) p.mesh.material.dispose();
         this.particles.splice(i, 1);
       }
     }

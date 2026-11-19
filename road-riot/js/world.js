@@ -202,29 +202,79 @@ export class WorldManager {
 
       const texture = new THREE.CanvasTexture(c);
       texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 16;
       return texture;
     });
 
     // Overhead Highway Gantry Electronic Signs
     const gc = document.createElement('canvas');
-    gc.width = 512;
-    gc.height = 128;
+    gc.width = 1024;
+    gc.height = 256;
     const gctx = gc.getContext('2d');
     gctx.fillStyle = '#050c18';
-    gctx.fillRect(0, 0, 512, 128);
+    gctx.fillRect(0, 0, 1024, 256);
     gctx.strokeStyle = '#00d9ff';
-    gctx.lineWidth = 6;
-    gctx.strokeRect(6, 6, 500, 116);
+    gctx.lineWidth = 8;
+    gctx.strokeRect(8, 8, 1008, 240);
+
+    // Subtle LED matrix grid background
+    gctx.fillStyle = 'rgba(0, 217, 255, 0.05)';
+    for (let x = 16; x < 1008; x += 16) {
+      for (let y = 16; y < 240; y += 16) {
+        gctx.fillRect(x, y, 4, 4);
+      }
+    }
+
     gctx.fillStyle = '#00f0ff';
-    gctx.font = 'bold 32px "Orbitron", sans-serif';
+    gctx.font = 'bold 64px "Orbitron", sans-serif';
     gctx.textAlign = 'center';
-    gctx.fillText('VALIXIS EXPRESSWAY', 256, 52);
+    gctx.fillText('VALIXIS EXPRESSWAY', 512, 95);
+
     gctx.fillStyle = '#ffea00';
-    gctx.font = 'bold 20px "JetBrains Mono", monospace';
-    gctx.fillText('SPEED LIMIT 320 KM/H • ALL LANES OPEN', 256, 95);
+    gctx.font = 'bold 36px "JetBrains Mono", monospace';
+    gctx.fillText('SPEED LIMIT 320 KM/H • ALL LANES OPEN', 512, 175);
+
+    gctx.fillStyle = '#00ff88';
+    gctx.font = 'bold 22px "JetBrains Mono", monospace';
+    gctx.fillText('▲ LANE 1: CLEAR ▲   ▲ LANE 2: EXPRESS ▲   ▲ LANE 3: CLEAR ▲', 512, 222);
 
     this.gantryTexture = new THREE.CanvasTexture(gc);
     this.gantryTexture.colorSpace = THREE.SRGBColorSpace;
+    this.gantryTexture.anisotropy = 16;
+  }
+
+  setBiome(biomeId = 'midnight') {
+    this.currentTheme = biomeId;
+    if (!this.skyMat) return;
+
+    if (biomeId === 'canyon') {
+      // Sunset Canyon: Amber twilight, rich gold sun, warm red sky
+      this.skyMat.uniforms.topColor.value.setHex(0x1a0826);
+      this.skyMat.uniforms.midColor.value.setHex(0xb84318);
+      this.skyMat.uniforms.botColor.value.setHex(0xffaa33);
+      if (this.dirLight) this.dirLight.color.setHex(0xff8833);
+      if (this.hemiLight) this.hemiLight.color.setHex(0xffaa66);
+      if (this.sunMesh) this.sunMesh.material.color.setHex(0xffcc00);
+      if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
+    } else if (biomeId === 'neotokyo') {
+      // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
+      this.skyMat.uniforms.topColor.value.setHex(0x020712);
+      this.skyMat.uniforms.midColor.value.setHex(0x180b2a);
+      this.skyMat.uniforms.botColor.value.setHex(0x00d9ff);
+      if (this.dirLight) this.dirLight.color.setHex(0x40a0ff);
+      if (this.hemiLight) this.hemiLight.color.setHex(0x20e0ff);
+      if (this.sunMesh) this.sunMesh.material.color.setHex(0x00f0ff);
+      if (this.scene.fog) this.scene.fog.color.setHex(0x061120);
+    } else {
+      // Midnight Metropolis (Default)
+      this.skyMat.uniforms.topColor.value.setHex(0x050c1e);
+      this.skyMat.uniforms.midColor.value.setHex(0x28123a);
+      this.skyMat.uniforms.botColor.value.setHex(0xd94b76);
+      if (this.dirLight) this.dirLight.color.setHex(0xffa550);
+      if (this.hemiLight) this.hemiLight.color.setHex(0x75c8ff);
+      if (this.sunMesh) this.sunMesh.material.color.setHex(0xffaa33);
+      if (this.scene.fog) this.scene.fog.color.setHex(0x0c1322);
+    }
   }
 
   buildInitialHighway() {
@@ -487,10 +537,18 @@ export class WorldManager {
     truss.position.set(0, 6.2, 0);
     gantry.add(truss);
 
-    // Realistic Electronic Expressway Sign
+    // Dark housing backing
+    const housing = new THREE.Mesh(
+      new THREE.BoxGeometry(15.2, 2.3, 0.25),
+      new THREE.MeshStandardMaterial({ color: 0x09101a, roughness: 0.8, metalness: 0.5 })
+    );
+    housing.position.set(0, 5.0, 0);
+    gantry.add(housing);
+
+    // Front high-res LED Matrix face facing approaching driver (+Z)
     const signMat = new THREE.MeshBasicMaterial({ map: this.gantryTexture });
-    const signMesh = new THREE.Mesh(new THREE.BoxGeometry(14.8, 2.0, 0.15), signMat);
-    signMesh.position.set(0, 5.0, 0);
+    const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(14.8, 2.0), signMat);
+    signMesh.position.set(0, 5.0, 0.14);
     gantry.add(signMesh);
 
     parent.add(gantry);

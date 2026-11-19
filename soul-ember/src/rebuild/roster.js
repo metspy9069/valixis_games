@@ -6,10 +6,10 @@ const heroRows = [
  ['frost','Frost Oracle','#94bcc7','Frost prism','Crystal shards slow advancing enemies.','Winter Veil','shard',27,.57,95,7.1,['Permafrost','Shatterglass','Ice Ward']],
  ['bone','Bone Shepherd','#c4bc98','Soul lantern','Orbiting spirits seek nearby enemies.','Pale Procession','spirit',25,.65,105,7,['Soul Tether','Restless Choir','Grave Shelter']],
  ['storm','Storm Duelist','#a0a4c8','Twin sabers','Lightning jumps between close enemies.','Thunderstep','chain',31,.55,95,7.8,['Live Wire','Forked Sky','Static Guard']],
- ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools on impact.','Black Harvest','flask',22,.8,110,7,['Virulence','Glass Garden','Antidote']],
+ ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',22,.8,110,7,['Virulence','Glass Garden','Antidote']],
  ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',39,.85,125,6.8,['Resonance','Echo Chamber','Sanctuary']],
 ];
-export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],sprite)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,sprite,unlockRuns:sprite,initialXp:[30,80,30,30,48,80,65,80][sprite]}]));
+export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],sprite)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,sprite,unlockRuns:sprite,initialXp:[15,80,15,15,48,80,48,80][sprite],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];
 const rows=[
  ['thrall','Ash Thrall','chase',42,2.2,2],['shield','Shieldbearer','guard',105,1.5,4],['censer','Censer Acolyte','ranged',65,1.9,4],['ringer','Bell Ringer','pulse',90,1.8,5],['hound','Ember Hound','charge',48,3.8,3],['gargoyle','Gargoyle','ambush',140,2.1,6],
@@ -19,7 +19,7 @@ const rows=[
 ];
 export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,sprite:i+8,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));
 export const BOSSES=['abbot','warden','regent'];
-export const ANIMATION_MANIFEST={version:3,source:'Original generated ink-and-gouache bestiary atlas; runtime layered cutout animation',columns:8,rows:4,pivot:[.5,.92],collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['front','left','right','back']};
+export const ANIMATION_MANIFEST={version:4,source:'Articulated procedural 3D actors with batched geometry and equipment',collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['north','south','east','west']};
 export function branchEffect(hero,branch,rank){
  const h=HEROES[hero];
  if(branch===0)return `${Math.round((1+rank*.22)*100)}% weapon damage${rank===3?' · '+h.weapon+' evolution: empowered impacts':''}`;

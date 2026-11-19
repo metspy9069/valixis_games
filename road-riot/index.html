@@ -51,13 +51,28 @@
         <a href="../" class="glass-panel hub-btn" title="Return to VALIXIS Games Portal">
           <span>&larr; ARCADE HUB</span>
         </a>
-        <button id="pause-btn" class="hud-icon-btn" title="Pause Game (ESC / P)">⏸️</button>
-        <button id="settings-btn" class="hud-icon-btn" title="Settings">⚙️</button>
-        <button id="audio-btn" class="hud-icon-btn" title="Toggle Sound">🔊</button>
-        <button id="network-btn" class="hud-icon-btn" title="VALIXIS Games Network">🎮</button>
+        <button id="pause-btn" class="hud-icon-btn" title="Pause Game (ESC / P)">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.5"/><rect x="14" y="4" width="4" height="16" rx="1.5"/></svg>
+        </button>
+        <button id="settings-btn" class="hud-icon-btn" title="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button id="audio-btn" class="hud-icon-btn" title="Toggle Sound">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <button id="hud-garage-btn" class="hud-icon-btn" title="Garage & Supercars">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8c-.5.3-.8.8-.9 1.4L1 16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+        </button>
+        <button id="network-btn" class="hud-icon-btn" title="VALIXIS Games Network">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>
+        </button>
       </div>
 
       <div class="hud-stats-group">
+        <div id="hud-race-pos-box" class="glass-panel hud-stat-box race-pos-badge hidden" style="border-color: rgba(255, 184, 0, 0.45); background: rgba(255, 184, 0, 0.1);">
+          <div class="hud-stat-label">POSITION</div>
+          <div class="hud-stat-value" style="color:#ffea00"><span id="hud-race-pos">1ST</span><span class="hud-stat-unit" style="color:#8fa0b5">/4</span></div>
+        </div>
         <div class="glass-panel hud-stat-box">
           <div class="hud-stat-label">DISTANCE</div>
           <div class="hud-stat-value"><span id="hud-distance">0</span><span class="hud-stat-unit">m</span></div>
@@ -68,7 +83,10 @@
         </div>
         <div class="glass-panel hud-stat-box">
           <div class="hud-stat-label">COINS</div>
-          <div class="hud-stat-value" style="color:#ffb800">🪙 <span id="hud-coins">0</span></div>
+          <div class="hud-stat-value" style="color:#ffb800; display:flex; align-items:center; gap:5px;">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="#ffb800"><circle cx="12" cy="12" r="10" stroke="#ffd966" stroke-width="2"/><text x="12" y="16" font-size="12" font-family="sans-serif" font-weight="900" fill="#000" text-anchor="middle">V</text></svg>
+            <span id="hud-coins">0</span>
+          </div>
         </div>
         <div id="hud-hull-box" class="glass-panel hud-stat-box hull-box">
           <div class="hud-stat-label">HULL INTEGRITY</div>
@@ -157,24 +175,47 @@
 
       <div class="modal-body">
         <p style="color:#b6c8dc; font-size:14px; line-height:1.7;">
-          Race down the neon-lit midnight boulevard at Mach speeds. Thread tight near-misses, slipstream drafting behind haulers, launch off stunt ramps, drift corners to charge nitro, and blast syndicate rivals with homing missiles, lasers, and EMP shockwaves.
+          Experience pure arcade highway racing. Thread razor-thin near misses, draft behind long haulers, launch off high-angle stunt ramps, and carve corners to charge nitro. Start with an 80–120 KM/H stock GT and upgrade your engine, handling, and armor to unleash a 320+ KM/H hypercar.
         </p>
 
-        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:8px 0;">
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(0,217,255,0.2); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; margin-bottom:4px;">⚡</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">320+ KM/H NITRO</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Near-misses &amp; drift fill boost</div>
+        <!-- Feature Pillars -->
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:4px 0;">
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(0,217,255,0.25); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">⚡</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">PROGRESSIVE SPEED</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">80–120 stock to 320+ KM/H</div>
           </div>
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,42,133,0.2); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; margin-bottom:4px;">🚀</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">COMBAT ARSENAL</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Missiles, EMPs, Cyber Drones</div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,42,133,0.25); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">💥</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">HARD SOLID PHYSICS</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Impact recoil &amp; hull armor</div>
           </div>
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,184,0,0.2); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; margin-bottom:4px;">🏎️</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">5 SUPERCARS</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Tuners, SUVs, Hypercars</div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,184,0,0.25); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:22px; margin-bottom:4px;">🏎️</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">GARAGE &amp; TUNING</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">3D turntable &amp; performance</div>
+          </div>
+        </div>
+
+        <!-- Mode & Biome Selectors -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:6px;">
+          <!-- Game Mode -->
+          <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(0,217,255,0.18); border-radius:10px; padding:12px;">
+            <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#7ddcff; letter-spacing:1px; margin-bottom:8px;">RACE DISCIPLINE</div>
+            <div style="display:flex; gap:6px;">
+              <button id="mode-endless-btn" class="setting-toggle active" style="flex:1; font-size:11px; padding:8px 4px;">ENDLESS</button>
+              <button id="mode-sprint-btn" class="setting-toggle" style="flex:1; font-size:11px; padding:8px 4px;">4-CAR SPRINT</button>
+            </div>
+          </div>
+
+          <!-- Highway Biome -->
+          <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,184,0,0.18); border-radius:10px; padding:12px;">
+            <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1px; margin-bottom:8px;">HIGHWAY BIOME</div>
+            <div style="display:flex; gap:6px;">
+              <button class="setting-toggle biome-btn active" data-biome="midnight" style="flex:1; font-size:10px; padding:8px 2px;">MIDNIGHT</button>
+              <button class="setting-toggle biome-btn" data-biome="canyon" style="flex:1; font-size:10px; padding:8px 2px;">SUNSET</button>
+              <button class="setting-toggle biome-btn" data-biome="neotokyo" style="flex:1; font-size:10px; padding:8px 2px;">NEO-RAIN</button>
+            </div>
           </div>
         </div>
       </div>
@@ -246,6 +287,10 @@
                 <div class="color-swatch glow-swatch" data-color="ff2a85" style="background:#ff2a85;" title="Magenta Glow"></div>
                 <div class="color-swatch glow-swatch" data-color="00ff88" style="background:#00ff88;" title="Green Laser"></div>
                 <div class="color-swatch glow-swatch" data-color="ffaa00" style="background:#ffaa00;" title="Amber Flare"></div>
+              </div>
+
+              <div style="font-family:var(--font-mono); font-size:10px; color:#ffea00; margin-top:12px; font-weight:700; text-align:center; letter-spacing:1px; background:rgba(255,234,0,0.1); border:1px solid rgba(255,234,0,0.25); border-radius:6px; padding:6px 10px;">
+                🔄 3D TURNTABLE ACTIVE &bull; DRAG TO ROTATE 360&deg;
               </div>
             </div>
           </div>
@@ -405,19 +450,21 @@
             </div>
           </div>
 
-          <!-- Viral Challenge & Share Engine -->
-          <div class="viral-share-container">
-            <div class="share-headline">CHALLENGE YOUR FRIENDS TO BEAT THIS RUN</div>
-            <div class="share-buttons-row">
-              <button id="challenge-friend-btn" class="share-pill-btn copy-link-btn">
-                <span>📋 COPY CHALLENGE LINK</span>
-              </button>
-              <button id="share-twitter-btn" class="share-pill-btn" style="background:#1da1f2;">
-                <span>POST TO X / TWITTER</span>
-              </button>
-              <button id="share-whatsapp-btn" class="share-pill-btn" style="background:#25d366;">
-                <span>WHATSAPP</span>
-              </button>
+          <!-- Run Summary Highlights -->
+          <div style="display:flex; justify-content:space-around; align-items:center; margin-top:14px; padding:12px; background:rgba(0,0,0,0.35); border-radius:10px; border:1px solid rgba(255,255,255,0.06);">
+            <div style="text-align:center;">
+              <div style="font-family:var(--font-mono); font-size:9px; color:#8fa0b5; letter-spacing:1px;">DRIFT SCORE</div>
+              <div id="run-drift-pts" style="font-family:var(--font-mono); font-size:16px; font-weight:800; color:#9d4edd; margin-top:2px;">0</div>
+            </div>
+            <div style="width:1px; height:24px; background:rgba(255,255,255,0.1);"></div>
+            <div style="text-align:center;">
+              <div style="font-family:var(--font-mono); font-size:9px; color:#8fa0b5; letter-spacing:1px;">STUNT JUMPS</div>
+              <div id="run-ramps-jumped" style="font-family:var(--font-mono); font-size:16px; font-weight:800; color:#ffea00; margin-top:2px;">0</div>
+            </div>
+            <div style="width:1px; height:24px; background:rgba(255,255,255,0.1);"></div>
+            <div style="text-align:center;">
+              <div style="font-family:var(--font-mono); font-size:9px; color:#8fa0b5; letter-spacing:1px;">HULL DAMAGE</div>
+              <div id="run-damage-taken" style="font-family:var(--font-mono); font-size:16px; font-weight:800; color:#ff2a44; margin-top:2px;">0</div>
             </div>
           </div>
         </div>

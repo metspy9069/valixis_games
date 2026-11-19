@@ -15,13 +15,13 @@ class RoadRiotGame {
     this.canvas = document.querySelector('#game-canvas');
     this.mobileDevice = matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 
-    // Three.js Core
+    // Three.js Core with High-DPI & Antialiasing
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: !this.mobileDevice,
+      antialias: true,
       powerPreference: 'high-performance'
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.mobileDevice ? 1.4 : 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -33,7 +33,7 @@ class RoadRiotGame {
     this.scene.fog = new THREE.Fog(0x0c1322, 45, 230);
 
     this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 320);
-    this.defaultCamPos = new THREE.Vector3(0, 7.2, 8.5);
+    this.defaultCamPos = new THREE.Vector3(0, 4.8, 8.2);
     this.camera.position.copy(this.defaultCamPos);
 
     // State Machine: 'MENU', 'COUNTDOWN', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
@@ -49,6 +49,18 @@ class RoadRiotGame {
     this.countdownStep = 3;
     this.countdownTimer = 0;
 
+    // Game Mode & Biome
+    this.gameMode = 'ENDLESS'; // 'ENDLESS' | 'SPRINT'
+    this.sprintTargetDistance = 3000;
+    this.rivalCars = [];
+    this.racePosition = 1;
+    this.currentBiome = 'midnight';
+
+    // 3D Turntable Drag Rotation
+    this.turntableAngle = 0;
+    this.isDraggingTurntable = false;
+    this.lastDragX = 0;
+
     // Assets Prototypes
     this.assetPrototypes = {};
     this.gltfLoader = new GLTFLoader();
@@ -61,6 +73,11 @@ class RoadRiotGame {
     this.traffic = new TrafficManager(this.scene, this.assetPrototypes);
     this.player = new PlayerCar(this.scene, this.assetPrototypes);
     this.weapons = new WeaponSystem(this.scene, this.traffic, audio);
+
+    // 3D Turntable Showcase Platform
+    this.turntableMesh = this.buildTurntableMesh();
+    this.scene.add(this.turntableMesh);
+    this.turntableMesh.visible = false;
 
     // Garage carousel index
     this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
@@ -170,14 +187,61 @@ class RoadRiotGame {
       runNearMiss: document.querySelector('#run-nearmiss'),
       runRank: document.querySelector('#run-rank'),
       runCoinsAwarded: document.querySelector('#run-coins-awarded'),
-      challengeFriendBtn: document.querySelector('#challenge-friend-btn'),
-      shareTwitterBtn: document.querySelector('#share-twitter-btn'),
-      shareWhatsappBtn: document.querySelector('#share-whatsapp-btn'),
+      hudGarageBtn: document.querySelector('#hud-garage-btn'),
+      racePosBox: document.querySelector('#hud-race-pos-box'),
+      racePosNum: document.querySelector('#hud-race-pos'),
+      modeEndlessBtn: document.querySelector('#mode-endless-btn'),
+      modeSprintBtn: document.querySelector('#mode-sprint-btn'),
+      biomeBtns: document.querySelectorAll('.biome-btn'),
+      runDriftPts: document.querySelector('#run-drift-pts'),
+      runRampsJumped: document.querySelector('#run-ramps-jumped'),
+      runDamageTaken: document.querySelector('#run-damage-taken'),
 
       // Network Modal
       networkModal: document.querySelector('#network-modal'),
       networkCloseBtn: document.querySelector('#network-close-btn')
     };
+  }
+
+  buildTurntableMesh() {
+    const group = new THREE.Group();
+
+    // Beveled dark carbon base
+    const baseGeo = new THREE.CylinderGeometry(4.2, 4.5, 0.16, 48);
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x070c14, roughness: 0.6, metalness: 0.7 });
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.y = 0.08;
+    base.receiveShadow = true;
+    group.add(base);
+
+    // Glowing Neon Ring
+    const ringGeo = new THREE.TorusGeometry(4.1, 0.06, 16, 48);
+    ringGeo.rotateX(Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 0.165;
+    group.add(ring);
+
+    // Center circular brushed metal plate
+    const plateGeo = new THREE.CylinderGeometry(3.95, 3.95, 0.04, 48);
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0x111b2b, roughness: 0.35, metalness: 0.85 });
+    const plate = new THREE.Mesh(plateGeo, plateMat);
+    plate.position.y = 0.17;
+    plate.receiveShadow = true;
+    group.add(plate);
+
+    // Studio Spotlights illuminating car
+    const spotKey = new THREE.SpotLight(0xffffff, 4.5, 20, Math.PI / 4, 0.3);
+    spotKey.position.set(-4, 6, -4);
+    spotKey.target = base;
+    group.add(spotKey);
+
+    const spotFill = new THREE.SpotLight(0x00d9ff, 3.5, 20, Math.PI / 3, 0.4);
+    spotFill.position.set(4, 5, -5);
+    spotFill.target = base;
+    group.add(spotFill);
+
+    return group;
   }
 
   applySavedSettings() {
@@ -284,6 +348,7 @@ class RoadRiotGame {
     });
 
     this.ui.garageBtn?.addEventListener('click', () => this.openGarage());
+    this.ui.hudGarageBtn?.addEventListener('click', () => this.openGarage());
     this.ui.garageCloseBtn?.addEventListener('click', () => this.closeGarage());
     this.ui.gameoverGarageBtn?.addEventListener('click', () => {
       this.ui.gameoverModal.classList.add('hidden');
@@ -413,40 +478,51 @@ class RoadRiotGame {
       });
     });
 
-    // Viral Sharing
-    this.ui.challengeFriendBtn?.addEventListener('click', () => {
-      const url = progression.generateShareUrl(
-        progression.activeRunStats.distance,
-        progression.activeRunStats.score
-      );
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-          this.toast('CHALLENGE LINK COPIED TO CLIPBOARD! 📋', 'green');
-        }).catch(() => {
-          this.toast('SHARE LINK: ' + url, 'gold');
-        });
+    // Game Mode & Biome Selectors
+    this.ui.modeEndlessBtn?.addEventListener('click', () => {
+      this.gameMode = 'ENDLESS';
+      this.ui.modeEndlessBtn.classList.add('active');
+      this.ui.modeSprintBtn?.classList.remove('active');
+      this.toast('MODE: ENDLESS HIGHWAY', 'cyan');
+    });
+
+    this.ui.modeSprintBtn?.addEventListener('click', () => {
+      this.gameMode = 'SPRINT';
+      this.ui.modeSprintBtn.classList.add('active');
+      this.ui.modeEndlessBtn?.classList.remove('active');
+      this.toast('MODE: 4-CAR RIVAL SPRINT (3,000M)', 'gold');
+    });
+
+    this.ui.biomeBtns?.forEach(b => {
+      b.addEventListener('click', () => {
+        this.currentBiome = b.dataset.biome;
+        this.ui.biomeBtns.forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        this.world.setBiome(this.currentBiome);
+        this.toast(`BIOME: ${this.currentBiome.toUpperCase()}`, 'cyan');
+      });
+    });
+
+    // 3D Turntable Drag Interaction
+    window.addEventListener('pointerdown', e => {
+      if (this.state === 'GARAGE') {
+        this.isDraggingTurntable = true;
+        this.lastDragX = e.clientX;
       }
     });
 
-    this.ui.shareTwitterBtn?.addEventListener('click', () => {
-      const text = encodeURIComponent(
-        `I just scored ${progression.activeRunStats.score} in Road Riot 3D on VALIXIS Games! Can you beat me? 🏎️🔥`
-      );
-      const url = encodeURIComponent(
-        progression.generateShareUrl(progression.activeRunStats.distance, progression.activeRunStats.score)
-      );
-      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+    window.addEventListener('pointermove', e => {
+      if (this.state === 'GARAGE' && this.isDraggingTurntable && this.player.chassis) {
+        const dx = e.clientX - this.lastDragX;
+        this.lastDragX = e.clientX;
+        this.turntableAngle += dx * 0.012;
+        this.player.chassis.rotation.y = this.turntableAngle;
+        if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
+      }
     });
 
-    this.ui.shareWhatsappBtn?.addEventListener('click', () => {
-      const text = encodeURIComponent(
-        progression.getShareText(
-          progression.activeRunStats.distance,
-          progression.activeRunStats.score,
-          progression.activeRunStats.topSpeed
-        )
-      );
-      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    window.addEventListener('pointerup', () => {
+      this.isDraggingTurntable = false;
     });
   }
 
@@ -532,6 +608,19 @@ class RoadRiotGame {
     this.player.mesh.position.set(0, 0, -8);
     this.player.x = 0;
 
+    if (this.gameMode === 'SPRINT') {
+      if (this.ui.racePosBox) this.ui.racePosBox.classList.remove('hidden');
+      this.racePosition = 1;
+      this.rivalCars = [
+        { name: 'Viper GT', dist: 0, speed: 25.0 + Math.random() * 2.0 },
+        { name: 'Shadow Racer', dist: 0, speed: 24.5 + Math.random() * 2.0 },
+        { name: 'Ghost Interceptor', dist: 0, speed: 24.0 + Math.random() * 2.0 }
+      ];
+    } else {
+      if (this.ui.racePosBox) this.ui.racePosBox.classList.add('hidden');
+      this.rivalCars = [];
+    }
+
     this.ui.menuModal.classList.add('hidden');
     this.ui.gameoverModal.classList.add('hidden');
     this.ui.pauseModal.classList.add('hidden');
@@ -566,6 +655,7 @@ class RoadRiotGame {
   gameOver() {
     this.state = 'GAMEOVER';
     audio.stopEngine();
+    audio.stopMusic();
     audio.play('collision');
     this.vibrate([100, 50, 200]);
 
@@ -579,6 +669,10 @@ class RoadRiotGame {
     this.ui.runNearMiss.textContent = progression.activeRunStats.nearMisses;
     this.ui.runCoinsAwarded.textContent = `+${progression.activeRunStats.coinsEarned} COINS`;
 
+    if (this.ui.runDriftPts) this.ui.runDriftPts.textContent = progression.activeRunStats.driftPoints.toLocaleString();
+    if (this.ui.runRampsJumped) this.ui.runRampsJumped.textContent = progression.activeRunStats.rampsJumped;
+    if (this.ui.runDamageTaken) this.ui.runDamageTaken.textContent = `${Math.round(progression.activeRunStats.damageTaken)} HP`;
+
     const rank = progression.getRank(this.distance);
     this.ui.runRank.textContent = rank.title;
     this.ui.runRank.style.color = rank.color;
@@ -591,10 +685,12 @@ class RoadRiotGame {
     if (this.state === 'RUNNING') {
       this.state = 'PAUSED';
       audio.stopEngine();
+      audio.stopMusic();
       this.ui.pauseModal.classList.remove('hidden');
     } else if (this.state === 'PAUSED') {
       this.state = 'RUNNING';
       audio.startEngine();
+      audio.startMusic();
       this.ui.pauseModal.classList.add('hidden');
     }
   }
@@ -661,15 +757,50 @@ class RoadRiotGame {
 
   openGarage() {
     this.state = 'GARAGE';
+    this.ui.hud.classList.add('hidden');
+    this.ui.menuModal.classList.add('hidden');
+    this.ui.gameoverModal.classList.add('hidden');
     this.ui.garageCoins.textContent = progression.data.coins;
+
+    // Show Turntable Platform & Frame 3D Car
+    if (this.turntableMesh) {
+      this.turntableMesh.position.set(0, 0, -8);
+      this.turntableMesh.visible = true;
+    }
+    this.player.mesh.position.set(0, 0.16, -8);
+    this.player.x = 0;
+    this.turntableAngle = 0;
+    if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
+
+    // Set Showroom Beauty View Camera
+    this.camera.position.set(0, 2.0, -3.2);
+    this.camera.lookAt(0, 0.75, -8);
+
+    this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle);
+    if (this.garageIndex < 0) this.garageIndex = 0;
+
     this.ui.garageModal.classList.remove('hidden');
     this.renderGarageCarousel();
   }
 
   closeGarage() {
+    if (this.turntableMesh) this.turntableMesh.visible = false;
     this.ui.garageModal.classList.add('hidden');
+
+    // Restore equipped player car
+    this.player.setVehicle(
+      progression.data.selectedVehicle,
+      progression.data.upgrades[progression.data.selectedVehicle] || {},
+      progression.data.selectedPaint,
+      progression.data.selectedGlow
+    );
+    this.player.mesh.position.set(0, 0, -8);
+    if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
+
     if (this.state === 'GARAGE') {
       this.state = 'MENU';
+      this.camera.position.copy(this.defaultCamPos);
+      this.camera.lookAt(0, 1.0, -8);
       this.ui.menuModal.classList.remove('hidden');
     }
   }
@@ -679,6 +810,14 @@ class RoadRiotGame {
     const car = VEHICLE_ROSTER[carId] || VEHICLE_ROSTER.apex;
     const isUnlocked = progression.data.unlockedVehicles.includes(carId);
     const isSelected = progression.data.selectedVehicle === carId;
+
+    // Live 3D car preview on turntable
+    this.player.setVehicle(
+      carId,
+      progression.data.upgrades[carId] || {},
+      progression.data.selectedPaint,
+      progression.data.selectedGlow
+    );
 
     this.ui.garageCoins.textContent = progression.data.coins;
     this.ui.garageCarTitle.textContent = car.name;
@@ -863,10 +1002,14 @@ class RoadRiotGame {
     }
 
     // Garage Turntable Spin
-    if (this.state === 'GARAGE' && this.player.chassis) {
-      this.player.chassis.rotation.y += dt * 0.8;
-      this.camera.position.set(0, 4.2, -14);
-      this.camera.lookAt(0, 0.8, -8);
+    if (this.state === 'GARAGE') {
+      if (!this.isDraggingTurntable) {
+        this.turntableAngle += dt * 0.45;
+        if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
+        if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
+      }
+      this.camera.position.set(0, 2.0, -3.2);
+      this.camera.lookAt(0, 0.75, -8);
       return;
     }
 
@@ -1066,7 +1209,7 @@ class RoadRiotGame {
 
     // 8. Collisions: Traffic Cars & Obstacles
     if (!this.player.isAirborne) {
-      // Traffic cars collision
+      // Traffic cars collision (Hard Solid Physical Impact)
       for (const v of this.traffic.vehicles) {
         if (v.hit) continue;
         const dz = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
@@ -1074,7 +1217,10 @@ class RoadRiotGame {
 
         if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.45 + 0.9)) {
           v.hit = true;
+          const bounceDir = this.player.x < v.mesh.position.x ? -1 : 1;
+
           if (this.player.isBoosting && this.multiplier >= 4) {
+            // Overdrive Ramming
             this.traffic.spawnExplosion(v.mesh.position, 0xffaa00, 24);
             audio.play('collision');
             this.vibrate(80);
@@ -1085,13 +1231,26 @@ class RoadRiotGame {
             this.toast('RAMMING OVERDRIVE! 💥', 'gold');
             this.spawnScorePopup('+1,000 RAM! 💥', '#ffb800');
           } else {
-            const dmg = this.player.takeDamage(22);
+            // Hard Physical Impasse Collision:
+            // 1. Heavy speed cut (48% speed loss)
+            this.player.speed *= 0.52;
+            // 2. Lateral recoil bounce impulse
+            this.player.x = THREE.MathUtils.clamp(this.player.x + bounceDir * 1.35, -7.2, 7.2);
+            this.player.steerAngle += bounceDir * 0.3;
+            // 3. Traffic car deflection & spin
+            v.speed = Math.max(v.speed, this.player.speed * 0.85);
+            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 1.6, -7.5, 7.5);
+            v.mesh.rotation.y += bounceDir * 0.5;
+
+            // 4. Proportional Hull Damage
+            const dmg = this.player.takeDamage(24);
             progression.activeRunStats.damageTaken += dmg;
-            this.camShake = 0.55;
+            this.camShake = 0.65;
             audio.play('collision');
-            this.vibrate([60, 40, 100]);
-            this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 18);
+            this.vibrate([80, 50, 140]);
+            this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 22);
             this.showDamageOverlay();
+            this.toast('HARD IMPACT! -24% HULL 💥', 'magenta');
             if (this.player.hull <= 0) {
               this.gameOver();
               return;
@@ -1100,7 +1259,7 @@ class RoadRiotGame {
         }
       }
 
-      // Obstacles collision (Spike strip, Barrel, Barrier)
+      // Obstacles collision (Spike strip, Barrel, Barrier - Hard Solid Impasses)
       for (const o of this.traffic.obstacles) {
         if (o.hit) continue;
         const dz = Math.abs(o.mesh.position.z - this.player.mesh.position.z);
@@ -1108,22 +1267,27 @@ class RoadRiotGame {
 
         if (dz < 1.8 && dx < 1.6) {
           o.hit = true;
+          const bounceDir = this.player.x < o.mesh.position.x ? -1 : 1;
           if (o.isSpike) {
             // Spike strip puncture: temporary speed drop
-            const dmg = this.player.takeDamage(10);
+            const dmg = this.player.takeDamage(12);
             progression.activeRunStats.damageTaken += dmg;
-            this.player.speed *= 0.5;
-            this.camShake = 0.4;
+            this.player.speed *= 0.45;
+            this.camShake = 0.45;
             audio.play('collision');
             this.vibrate(90);
             this.toast('TIRES PUNCTURED BY SPIKES! ⚠️', 'magenta');
           } else {
-            const dmg = this.player.takeDamage(14);
+            // Hard physical barrier / barrel stop & damage
+            const dmg = this.player.takeDamage(18);
             progression.activeRunStats.damageTaken += dmg;
-            this.camShake = 0.35;
+            this.player.speed *= 0.48;
+            this.player.x = THREE.MathUtils.clamp(this.player.x + bounceDir * 1.1, -7.2, 7.2);
+            this.camShake = 0.55;
             audio.play('collision');
-            this.vibrate(60);
-            this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 14);
+            this.vibrate([60, 40, 100]);
+            this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 18);
+            this.toast('BARRIER COLLISION! 🛑', 'magenta');
           }
           this.showDamageOverlay();
           if (this.player.hull <= 0) {
@@ -1168,8 +1332,44 @@ class RoadRiotGame {
       }
     }
 
-    // 10. Dynamic Camera Motion & Speed Warp Sensation
-    const dynamicFov = 62 + Math.min(26, (kmh / 360) * 24) + (this.player.isBoosting ? 12 : 0) + (this.player.isAirborne ? 6 : 0);
+    // Sprint Mode Rivals Update & Position Tracking
+    if (this.gameMode === 'SPRINT' && this.rivalCars.length > 0) {
+      let playerPos = 1;
+      for (const rival of this.rivalCars) {
+        rival.dist += rival.speed * dt;
+        if (rival.dist > this.distance) {
+          playerPos++;
+        }
+      }
+      this.racePosition = playerPos;
+      if (this.ui.racePosNum) {
+        const suffixes = ['ST', 'ND', 'RD', 'TH'];
+        const sfx = suffixes[this.racePosition - 1] || 'TH';
+        this.ui.racePosNum.textContent = `${this.racePosition}${sfx}`;
+        this.ui.racePosNum.style.color = this.racePosition === 1 ? '#00ff88' : (this.racePosition === 2 ? '#00d9ff' : (this.racePosition === 3 ? '#ffb800' : '#ff4444'));
+      }
+
+      // Check Finish Line (3,000m)
+      if (this.distance >= this.sprintTargetDistance) {
+        const won = this.racePosition === 1;
+        audio.play('fever');
+        this.vibrate([100, 100, 300]);
+        if (won) {
+          progression.data.coins += 1500;
+          progression.save();
+          this.toast('🏆 1ST PLACE FINISH! SPRINT CHAMPION! +1,500 COINS', 'gold');
+        } else {
+          progression.data.coins += 400;
+          progression.save();
+          this.toast(`SPRINT FINISHED: ${this.racePosition}TH PLACE! +400 COINS`, 'cyan');
+        }
+        this.gameOver();
+        return;
+      }
+    }
+
+    // 10. Dynamic Camera Motion & Elevated Forward Sightline
+    const dynamicFov = 60 + Math.min(24, (kmh / 360) * 22) + (this.player.isBoosting ? 10 : 0) + (this.player.isAirborne ? 5 : 0);
     this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 6.5);
     this.camera.updateProjectionMatrix();
 
@@ -1178,14 +1378,15 @@ class RoadRiotGame {
     this.camShake = Math.max(0, this.camShake - dt * 2.2);
     const totalShake = this.camShake + speedRumble;
 
-    const targetCamX = this.player.x * 0.45 + (Math.random() - 0.5) * totalShake;
-    const targetCamY = 3.8 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
-    const targetCamZ = 7.4 + (this.player.isBoosting ? 0.7 : 0);
+    // Elevated Camera Height (Y = 4.8m) and Forward LookAt (Y = 1.45m, Z = -22m)
+    const targetCamX = this.player.x * 0.42 + (Math.random() - 0.5) * totalShake;
+    const targetCamY = 4.8 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
+    const targetCamZ = 8.2 + (this.player.isBoosting ? 0.7 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
     this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);
     this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 6);
-    this.camera.lookAt(this.player.x * 0.25, 1.1 + this.player.verticalY * 0.4, -18);
+    this.camera.lookAt(this.player.x * 0.22, 1.45 + this.player.verticalY * 0.4, -22);
 
     // Dynamic speed warp radial lines
     const warpOpacity = this.player.isBoosting ? '0.85' : (kmh > 260 ? String(Math.min(0.65, (kmh - 260) / 100)) : '0');

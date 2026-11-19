@@ -24,6 +24,7 @@ class RoadAudioEngine {
       collision: './assets/audio/crash.wav',
       pickup: './assets/audio/pickup.wav',
       engine: './assets/audio/engine-natural.mp3',
+      engine_ogg: './assets/audio/engine.ogg',
       boost_pad: './assets/audio/boost_pad.wav',
       booster: './assets/audio/boost_pad.wav',
       ramp_launch: './assets/audio/ramp_launch.wav',
@@ -44,6 +45,7 @@ class RoadAudioEngine {
     this.isShifting = false;
     this.shiftTimer = 0;
     this.lastBoosting = false;
+    this.isEngineRunning = false;
     this.proceduralEngine = null;
     this.engineSampleNode = null;
     this.engineSampleGain = null;
@@ -112,11 +114,49 @@ class RoadAudioEngine {
           const ab = await res.arrayBuffer();
           const decoded = await this.ctx.decodeAudioData(ab);
           this.buffers[key] = decoded;
+          if ((key === 'engine' || key === 'engine_ogg') && this.isEngineRunning && !this.engineSampleNode) {
+            this.startEngineSample();
+          }
         }
       } catch (err) {
         // Procedural fallbacks seamlessly handle missing audio
       }
     }
+  }
+
+  startEngineSample() {
+    if (!this.ctx || this.engineSampleNode) return;
+    const buf = this.buffers['engine'] || this.buffers['engine_ogg'];
+    if (!buf) return;
+
+    try {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.playbackRate.value = 0.75;
+
+      this.engineSampleGain = this.ctx.createGain();
+      this.engineSampleGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+      src.connect(this.engineSampleGain);
+      this.engineSampleGain.connect(this.engineFilter);
+
+      src.start(0);
+      this.engineSampleNode = src;
+    } catch (err) {
+      console.warn('Engine sample playback error:', err);
+    }
+  }
+
+  makeDistortionCurve(k = 8) {
+    const n = 44100;
+    const curve = new Float32Array(n);
+    const deg = Math.PI / 180;
+    for (let i = 0; i < n; ++i) {
+      const x = (i * 2) / n - 1;
+      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
   }
 
   // --- VOLUME & MIXER CONTROLS ---
@@ -169,27 +209,10 @@ class RoadAudioEngine {
   startEngine() {
     if (!this.ctx) this.init();
     this.resume();
+    this.isEngineRunning = true;
 
     // 1. Natural Recorded Supercar Sample Playback (Looping Engine Core)
-    if (this.ctx && this.buffers['engine'] && !this.engineSampleNode) {
-      try {
-        const src = this.ctx.createBufferSource();
-        src.buffer = this.buffers['engine'];
-        src.loop = true;
-        src.playbackRate.value = 0.72;
-
-        this.engineSampleGain = this.ctx.createGain();
-        this.engineSampleGain.gain.setValueAtTime(0.75, this.ctx.currentTime);
-
-        src.connect(this.engineSampleGain);
-        this.engineSampleGain.connect(this.engineFilter);
-
-        src.start(0);
-        this.engineSampleNode = src;
-      } catch (err) {
-        console.warn('Natural engine sample start error:', err);
-      }
-    }
+    this.startEngineSample();
 
     // 2. Warm Sub-Bass Rumble & Harmonics (Soft acoustic support, NO harsh buzzing)
     if (!this.proceduralEngine && this.ctx) {
@@ -214,28 +237,34 @@ class RoadAudioEngine {
   initProceduralEngine() {
     const t = this.ctx.currentTime;
 
-    // Soft Deep Sub-Bass Exhaust Purr (Triangle wave at 38 Hz - warm and punchy)
+    // Soft Deep Sub-Bass Exhaust Purr (Triangle wave at 40 Hz - warm and punchy)
     const subOsc = this.ctx.createOscillator();
     subOsc.type = 'triangle';
-    subOsc.frequency.setValueAtTime(38, t);
+    subOsc.frequency.setValueAtTime(40, t);
 
-    // Warm Low-Mid Harmonic (Sine wave at 76 Hz)
+    // Warm Low-Mid Harmonic (Sawtooth wave through shaper for automotive cylinder rumble)
     const midOsc = this.ctx.createOscillator();
-    midOsc.type = 'sine';
-    midOsc.frequency.setValueAtTime(76, t);
+    midOsc.type = 'sawtooth';
+    midOsc.frequency.setValueAtTime(80, t);
+
+    // Gentle Waveshaper Saturation (eliminates sterile buzzer tone)
+    const shaper = this.ctx.createWaveShaper();
+    shaper.curve = this.makeDistortionCurve(6);
+    shaper.oversample = '4x';
 
     const subGain = this.ctx.createGain();
-    subGain.gain.setValueAtTime(0.25, t);
+    subGain.gain.setValueAtTime(0.28, t);
 
     // Resonant Lowpass Filter (eliminates all harshness)
     const subFilter = this.ctx.createBiquadFilter();
     subFilter.type = 'lowpass';
-    subFilter.frequency.setValueAtTime(160, t);
-    subFilter.Q.setValueAtTime(2.0, t);
+    subFilter.frequency.setValueAtTime(180, t);
+    subFilter.Q.setValueAtTime(1.8, t);
 
     subOsc.connect(subFilter);
     midOsc.connect(subFilter);
-    subFilter.connect(subGain);
+    subFilter.connect(shaper);
+    shaper.connect(subGain);
     subGain.connect(this.engineFilter);
 
     subOsc.start(t);
@@ -309,6 +338,7 @@ class RoadAudioEngine {
   }
 
   stopEngine() {
+    this.isEngineRunning = false;
     if (this.engineSampleNode) {
       try {
         this.engineSampleNode.stop();
@@ -346,6 +376,11 @@ class RoadAudioEngine {
   updateEngine(speedKmh, isBoosting, isDrifting = false) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
+
+    // Lazily mount supercar audio sample if decoding completed during run
+    if (!this.engineSampleNode && (this.buffers['engine'] || this.buffers['engine_ogg']) && this.isEngineRunning) {
+      this.startEngineSample();
+    }
 
     // 6-Speed Dual-Clutch Supercar Transmission Ratios
     // Gear thresholds:
@@ -903,6 +938,52 @@ class RoadAudioEngine {
       snareGain.connect(this.musicGain);
       snareNoise.start(t);
       snareNoise.stop(t + 0.14);
+    }
+
+    // Lush 80s Synth Pad Chords (every 8 steps / 2 beats)
+    if (step % 8 === 0) {
+      const chordFreqs = [
+        [146.83, 220.0, 293.66], // Dm (D3, A3, D4)
+        [174.61, 261.63, 349.23], // F (F3, C4, F4)
+        [196.0, 293.66, 392.0],   // G (G3, D4, G4)
+        [233.08, 349.23, 466.16]  // Bb (Bb3, F4, Bb4)
+      ];
+      const chord = chordFreqs[Math.floor(step / 16) % chordFreqs.length];
+      chord.forEach(f => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f, t);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, t);
+        filter.frequency.linearRampToValueAtTime(1400, t + 0.3);
+        filter.frequency.exponentialRampToValueAtTime(600, t + 0.85);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.08, t + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.musicGain);
+        osc.start(t);
+        osc.stop(t + 0.88);
+      });
+    }
+
+    // Crisp Hi-Hat tick on offbeats
+    if (step % 4 === 2) {
+      const hhOsc = this.ctx.createOscillator();
+      const hhGain = this.ctx.createGain();
+      hhOsc.type = 'square';
+      hhOsc.frequency.setValueAtTime(4500, t);
+      hhGain.gain.setValueAtTime(0.06, t);
+      hhGain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      hhOsc.connect(hhGain);
+      hhGain.connect(this.musicGain);
+      hhOsc.start(t);
+      hhOsc.stop(t + 0.05);
     }
 
     // Synth Arpeggios (in upper register)

@@ -38,8 +38,130 @@ export class WorldManager {
     this.initLighting();
     this.initSky();
     this.initBillboardCanvases();
+    this.initHighwayMaterials();
     this.initWeatherParticles();
     this.buildInitialHighway();
+  }
+
+  initHighwayMaterials() {
+    // 1. Ultra High-Res Anti-Aliased Highway Surface Texture (2048x1024)
+    // Eliminates geometric line aliasing and pixel crawling down the road
+    const rc = document.createElement('canvas');
+    rc.width = 1024;
+    rc.height = 512;
+    const rctx = rc.getContext('2d');
+
+    // Deep rich asphalt base
+    rctx.fillStyle = '#111722';
+    rctx.fillRect(0, 0, 1024, 512);
+
+    // Fine asphalt aggregate speckling
+    rctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i = 0; i < 3000; i++) {
+      const rx = Math.random() * 1024;
+      const ry = Math.random() * 512;
+      rctx.fillRect(rx, ry, 2, 2);
+    }
+
+    // Glowing Neon Lane Divider Dashes at X = -3m and X = +3m (lanes at -6, 0, +6)
+    // 1024 px width corresponds to 21m road width (-10.5m to +10.5m)
+    const dashX1 = Math.round((7.5 / 21) * 1024);
+    const dashX2 = Math.round((13.5 / 21) * 1024);
+
+    rctx.shadowColor = '#00f0ff';
+    rctx.shadowBlur = 10;
+    rctx.fillStyle = '#00d9ff';
+
+    // Anti-aliased smooth dashes along Z (512px height corresponds to 15m segment length)
+    [dashX1, dashX2].forEach(dx => {
+      rctx.fillRect(dx - 5, 50, 10, 140);
+      rctx.fillRect(dx - 5, 310, 10, 140);
+    });
+
+    // High-visibility Neon Shoulder Border Strips
+    rctx.shadowBlur = 12;
+    rctx.shadowColor = '#ff2a85';
+    rctx.fillStyle = '#ff2a85';
+    rctx.fillRect(10, 0, 8, 512); // Left shoulder neon
+
+    rctx.shadowColor = '#00d9ff';
+    rctx.fillStyle = '#00d9ff';
+    rctx.fillRect(1006, 0, 8, 512); // Right shoulder neon
+
+    this.roadTexture = new THREE.CanvasTexture(rc);
+    this.roadTexture.wrapS = THREE.ClampToEdgeWrapping;
+    this.roadTexture.wrapT = THREE.RepeatWrapping;
+    this.roadTexture.colorSpace = THREE.SRGBColorSpace;
+    this.roadTexture.anisotropy = 16;
+    this.roadTexture.generateMipmaps = true;
+    this.roadTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.roadTexture.magFilter = THREE.LinearFilter;
+
+    this.roadMaterial = new THREE.MeshStandardMaterial({
+      map: this.roadTexture,
+      roughness: 0.65,
+      metalness: 0.2
+    });
+
+    this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.8 });
+    this.walkMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.95 });
+
+    // 2. High-Resolution Skyscraper Façade Textures
+    // Consolidates ~2,700 individual window boxes into unified high-res textures (<80 total scene draw calls)
+    const fa = document.createElement('canvas');
+    fa.width = 512;
+    fa.height = 512;
+    const fctxA = fa.getContext('2d');
+    fctxA.fillStyle = '#0a101d';
+    fctxA.fillRect(0, 0, 512, 512);
+    for (let x = 0; x < 512; x += 32) {
+      fctxA.fillStyle = '#162033';
+      fctxA.fillRect(x, 0, 4, 512);
+    }
+    for (let y = 16; y < 512; y += 32) {
+      for (let x = 6; x < 512; x += 32) {
+        if ((x + y) % 5 !== 0) {
+          const isBright = (x * 3 + y) % 7 === 0;
+          fctxA.fillStyle = isBright ? '#a5f3fc' : '#0284c7';
+          fctxA.fillRect(x, y, 20, 16);
+        }
+      }
+    }
+    const texA = new THREE.CanvasTexture(fa);
+    texA.wrapS = THREE.RepeatWrapping;
+    texA.wrapT = THREE.RepeatWrapping;
+    texA.colorSpace = THREE.SRGBColorSpace;
+    texA.anisotropy = 16;
+
+    const fb = document.createElement('canvas');
+    fb.width = 512;
+    fb.height = 512;
+    const fctxB = fb.getContext('2d');
+    fctxB.fillStyle = '#0d131a';
+    fctxB.fillRect(0, 0, 512, 512);
+    for (let x = 0; x < 512; x += 32) {
+      fctxB.fillStyle = '#1c2430';
+      fctxB.fillRect(x, 0, 4, 512);
+    }
+    for (let y = 16; y < 512; y += 32) {
+      for (let x = 6; x < 512; x += 32) {
+        if ((x + y) % 4 !== 0) {
+          const isBright = (x + y * 2) % 9 === 0;
+          fctxB.fillStyle = isBright ? '#fef08a' : '#d97706';
+          fctxB.fillRect(x, y, 20, 16);
+        }
+      }
+    }
+    const texB = new THREE.CanvasTexture(fb);
+    texB.wrapS = THREE.RepeatWrapping;
+    texB.wrapT = THREE.RepeatWrapping;
+    texB.colorSpace = THREE.SRGBColorSpace;
+    texB.anisotropy = 16;
+
+    this.buildingMaterials = [
+      new THREE.MeshStandardMaterial({ map: texA, roughness: 0.35, metalness: 0.65 }),
+      new THREE.MeshStandardMaterial({ map: texB, roughness: 0.35, metalness: 0.65 })
+    ];
   }
 
   initWeatherParticles() {
@@ -191,9 +313,9 @@ export class WorldManager {
   initBillboardCanvases() {
     const ads = [
       {
-        header: 'VALIXIS GAMES',
-        sub: 'OFFICIAL ARCADE PORTAL',
-        tag: 'GAMES.VALIXIS.TECH',
+        header: 'APEX RACING',
+        sub: 'HIGHWAY GT TELEMETRY',
+        tag: 'TWIN TURBO HYPERDRIVE',
         bg: '#051124',
         accent: '#00d9ff',
         glow: '#00aacc'
@@ -215,9 +337,9 @@ export class WorldManager {
         glow: '#66cc22'
       },
       {
-        header: 'DEV TYCOON',
-        sub: 'BUILD YOUR STUDIO',
-        tag: 'FLUTTER WEB ARCADE',
+        header: 'CYBER DRIFT',
+        sub: 'NEO SHINJUKU EXPRESSWAY',
+        tag: 'SLIPSTREAM & NITRO BOOST',
         bg: '#180518',
         accent: '#ff2a85',
         glow: '#cc0066'
@@ -378,44 +500,21 @@ export class WorldManager {
     const group = new THREE.Group();
     group.position.z = -index * this.segmentLength;
 
-    // Road Surface
+    // Road Surface (Unified High-Res Anti-Aliased Surface Texture)
     const roadGeo = new THREE.BoxGeometry(this.roadWidth, 0.3, this.segmentLength);
-    const roadMat = new THREE.MeshStandardMaterial({
-      color: 0x181e28,
-      roughness: 0.75,
-      metalness: 0.1
-    });
-    const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+    const roadMesh = new THREE.Mesh(roadGeo, this.roadMaterial);
     roadMesh.position.y = -0.15;
-    roadMesh.receiveShadow = true;
     group.add(roadMesh);
 
-    // Glowing Neon Lane Dividers (Lanes at -6, 0, +6; dividers at -3, +3)
-    [-3, 3].forEach(x => {
-      const dashGeo = new THREE.BoxGeometry(0.16, 0.04, 3.8);
-      const dashMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
-      const dash = new THREE.Mesh(dashGeo, dashMat);
-      dash.position.set(x, 0.02, 0);
-      group.add(dash);
-    });
-
-    // Guard Rails & Neon Shoulder Strips
+    // Guard Rails & Sidewalks (Curbs & Walks)
     [-this.roadWidth / 2, this.roadWidth / 2].forEach((x, side) => {
       const curbGeo = new THREE.BoxGeometry(0.8, 0.35, this.segmentLength);
-      const curbMat = new THREE.MeshStandardMaterial({ color: 0x222e40, roughness: 0.8 });
-      const curb = new THREE.Mesh(curbGeo, curbMat);
+      const curb = new THREE.Mesh(curbGeo, this.curbMat);
       curb.position.set(x + (side === 0 ? -0.4 : 0.4), 0.05, 0);
       group.add(curb);
 
-      const neonStripGeo = new THREE.BoxGeometry(0.12, 0.1, this.segmentLength);
-      const neonStripMat = new THREE.MeshBasicMaterial({ color: side === 0 ? 0xff2a85 : 0x00d9ff });
-      const neonStrip = new THREE.Mesh(neonStripGeo, neonStripMat);
-      neonStrip.position.set(x, 0.18, 0);
-      group.add(neonStrip);
-
       const walkGeo = new THREE.BoxGeometry(7, 0.2, this.segmentLength);
-      const walkMat = new THREE.MeshStandardMaterial({ color: 0x0d1422, roughness: 0.95 });
-      const walk = new THREE.Mesh(walkGeo, walkMat);
+      const walk = new THREE.Mesh(walkGeo, this.walkMat);
       walk.position.set(x + (side === 0 ? -4.3 : 4.3), -0.05, 0);
       group.add(walk);
     });
@@ -424,11 +523,6 @@ export class WorldManager {
     if (index % 3 === 0) {
       this.createStreetLight(group, -10.2, 1);
       this.createStreetLight(group, 10.2, -1);
-    }
-
-    // Overhead Gantry Sign (every 8 segments)
-    if (index % 8 === 0) {
-      this.createOverheadGantry(group);
     }
 
     // Neon Cyber Billboard (every 5 segments)
@@ -519,11 +613,6 @@ export class WorldManager {
     lipMesh.position.set(0, h1 + 0.04, -hl);
     rampGroup.add(lipMesh);
 
-    // Takeoff Lip Hazard LED Light
-    const lipLight = new THREE.PointLight(0xffaa00, 2.2, 7.0);
-    lipLight.position.set(0, h1 + 0.4, -hl);
-    rampGroup.add(lipLight);
-
     // Left and Right Caution Guardrails
     const railMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, metalness: 0.8, roughness: 0.3 });
     [-hw - 0.06, hw + 0.06].forEach(x => {
@@ -580,10 +669,6 @@ export class WorldManager {
       const beaconOrb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), borderMat);
       beaconOrb.position.set(x, 0.72, 0);
       panelGroup.add(beaconOrb);
-
-      const pylonLight = new THREE.PointLight(0x00d9ff, 1.8, 5.0);
-      pylonLight.position.set(x, 0.75, 0);
-      panelGroup.add(pylonLight);
     });
 
     panelGroup.position.set(lane, 0, 0);
@@ -687,32 +772,13 @@ export class WorldManager {
           parent.add(tree);
         }
       } else {
-        const height = 12 + ((index * 7 + side * 5) % 24);
+        const height = 14 + ((index * 7 + side * 5) % 24);
         const width = 8 + (index % 4) * 2;
         const bGeo = new THREE.BoxGeometry(width, height, 11);
-        const bMat = new THREE.MeshStandardMaterial({
-          color: palette[(index + side) % palette.length],
-          roughness: 0.7,
-          metalness: 0.2
-        });
+        const bMat = this.buildingMaterials[(index + side) % 2];
         const building = new THREE.Mesh(bGeo, bMat);
         building.position.set(x, height / 2 - 0.2, 0);
         parent.add(building);
-
-        const winGeo = new THREE.BoxGeometry(0.4, 0.6, 0.05);
-        const winMatA = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
-        const winMatB = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
-
-        for (let r = 2; r < height - 2; r += 2.2) {
-          for (let c = -width / 2 + 1.2; c < width / 2 - 1.2; c += 1.8) {
-            if (((index + r + c) % 3) === 0) {
-              const win = new THREE.Mesh(winGeo, ((index + r) % 2 === 0) ? winMatA : winMatB);
-              win.position.set(x + (side === 0 ? width / 2 + 0.05 : -width / 2 - 0.05), r, c);
-              win.rotation.y = Math.PI / 2;
-              parent.add(win);
-            }
-          }
-        }
       }
     });
   }

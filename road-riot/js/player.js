@@ -157,26 +157,37 @@ export class PlayerCar {
   }
 
   initVisuals() {
-    // Underglow Neon Point Light
-    this.underglowLight = new THREE.PointLight(this.underglowColor, 3.5, 7.5);
-    this.underglowLight.position.set(0, 0.2, 0);
+    // 1. Soft Ambient Occlusion Contact Shadow Plane (Grounds player car on asphalt)
+    const shadowGeo = new THREE.PlaneGeometry(2.6, 5.0);
+    shadowGeo.rotateX(-Math.PI / 2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x03060a,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false
+    });
+    const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowMesh.position.y = 0.02;
+    this.mesh.add(shadowMesh);
+
+    // 2. Underglow Neon Point Light
+    this.underglowLight = new THREE.PointLight(this.underglowColor, 3.0, 7.0);
+    this.underglowLight.position.set(0, 0.25, 0);
     this.mesh.add(this.underglowLight);
 
-    // Dual Exhaust Nitro Lights
+    // 3. Dual Exhaust Nitro Jet Cones
     [-0.6, 0.6].forEach(x => {
-      const flame = new THREE.PointLight(0x00f0ff, 0, 5);
-      flame.position.set(x, 0.45, 2.2);
-      this.chassis.add(flame);
-      this.exhaustFlames.push(flame);
-
-      // Visual Flame Cone
+      // Visual Flame Cone with luminous electric blue
       const coneGeo = new THREE.ConeGeometry(0.18, 0.9, 8);
       coneGeo.rotateX(-Math.PI / 2);
-      const coneMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff, transparent: true, opacity: 0 });
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0 });
       const coneMesh = new THREE.Mesh(coneGeo, coneMat);
       coneMesh.position.set(x, 0.45, 2.3);
       this.chassis.add(coneMesh);
-      flame.userData.cone = coneMesh;
+
+      // Lightweight flame object for animation
+      const flame = { userData: { cone: coneMesh } };
+      this.exhaustFlames.push(flame);
     });
 
     // Shield Forcefield Bubble (Pulsing Hexagonal Energy)
@@ -199,6 +210,48 @@ export class PlayerCar {
     this.mesh.add(this.droneMesh);
 
     this.rebuildCarModel();
+  }
+
+  reset() {
+    this.x = 0;
+    this.speed = 0;
+    this.targetSpeed = this.topSpeed;
+    this.hull = this.maxHull;
+    this.nitro = this.maxNitro * 0.5;
+    this.isBoosting = false;
+    this.boostPadTimer = 0;
+    this.isDrifting = false;
+    this.driftScore = 0;
+    this.steerInput = 0;
+    this.steerAngle = 0;
+    this.suspensionPitch = 0;
+    this.suspensionRoll = 0;
+    this.wheelRotation = 0;
+    this.isAirborne = false;
+    this.verticalY = 0;
+    this.verticalVel = 0;
+    this.shieldActive = false;
+    this.shieldTime = 0;
+    this.magnetActive = false;
+    this.magnetTime = 0;
+    this.slowMoActive = false;
+    this.slowMoTime = 0;
+    this.droneActive = false;
+    this.droneTime = 0;
+
+    this.mesh.position.set(0, 0, -8);
+    this.mesh.rotation.set(0, 0, 0);
+    if (this.chassis) {
+      this.chassis.rotation.set(0, 0, 0);
+    }
+    if (this.shieldMesh && this.shieldMesh.material) {
+      this.shieldMesh.material.opacity = 0;
+    }
+    if (this.droneMesh) {
+      this.droneMesh.visible = false;
+    }
+    if (this.wheels.fl) this.wheels.fl.rotation.y = 0;
+    if (this.wheels.fr) this.wheels.fr.rotation.y = 0;
   }
 
   buildDroneMesh() {
@@ -725,6 +778,7 @@ export class PlayerCar {
     }
 
     this.mesh.position.y = this.verticalY + Math.sin(performance.now() * 0.008) * 0.02;
+    this.chassis.rotation.y = 0; // Chassis yaw is strictly locked forward; steering yaw is applied to this.mesh
     this.chassis.rotation.z = this.suspensionRoll;
 
     // 4. Drift Tire Skids & Smoke
@@ -763,12 +817,15 @@ export class PlayerCar {
       }
     }
 
-    // 5. Exhaust Nitro Flames FX
+    // 5. Exhaust Nitro Flames FX & Underglow Modulation
+    if (this.underglowLight) {
+      this.underglowLight.intensity = this.isBoosting ? 5.5 : 3.0;
+    }
     this.exhaustFlames.forEach(f => {
-      f.intensity = this.isBoosting ? 6.5 : 0.8;
-      if (f.userData.cone) {
-        f.userData.cone.material.opacity = this.isBoosting ? 0.9 : 0;
-        f.userData.cone.scale.y = this.isBoosting ? 1.0 + Math.random() * 0.4 : 0.1;
+      if (f.intensity !== undefined) f.intensity = this.isBoosting ? 6.5 : 0.8;
+      if (f.userData && f.userData.cone) {
+        f.userData.cone.material.opacity = this.isBoosting ? 0.92 : 0;
+        f.userData.cone.scale.y = this.isBoosting ? 1.0 + Math.random() * 0.45 : 0.1;
       }
     });
 

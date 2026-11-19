@@ -35,7 +35,11 @@ export class TurretDefenseSystem {
     this.leftBarrel = null;
     this.rightBarrel = null;
     this.roofHatch = null;
-    this.muzzleFlash = null;
+    this.muzzleLight = null;
+    this.gunnerMesh = null;
+    this.gunnerArms = null;
+    this.gunnerHead = null;
+    this.recoilOffset = 0;
 
     // Shared Geometries & Materials
     this.plasmaGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.4, 8);
@@ -111,9 +115,148 @@ export class TurretDefenseSystem {
     this.muzzleLight.position.set(0, 0, -1.2);
     this.turretMantlet.add(this.muzzleLight);
 
+    // 6. Dual Gunner Control Grips with Trigger Switches on rear of mantlet (+Z)
+    [-0.17, 0.17].forEach(hx => {
+      const handleBar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.02, 0.24, 8),
+        new THREE.MeshStandardMaterial({ color: 0x111622, metalness: 0.9, roughness: 0.2 })
+      );
+      handleBar.position.set(hx, -0.06, 0.34);
+      this.turretMantlet.add(handleBar);
+
+      const trigger = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.06, 0.05),
+        new THREE.MeshBasicMaterial({ color: 0x00ffff })
+      );
+      trigger.position.set(hx, -0.06, 0.36);
+      this.turretMantlet.add(trigger);
+    });
+
+    // 7. Tactical 3D Human Gunner Character (Emerged on roof behind twin plasma cannons)
+    this.gunnerMesh = this.buildGunnerMesh();
+    this.turretBase.add(this.gunnerMesh);
+
     if (this.player && this.player.chassis) {
       this.player.chassis.add(this.turretGroup);
     }
+  }
+
+  buildGunnerMesh() {
+    const group = new THREE.Group();
+
+    // High-tech Tactical Spec-Ops Pilot materials
+    const suitMat = new THREE.MeshStandardMaterial({
+      color: 0x162232, // Tactical stealth navy
+      roughness: 0.65,
+      metalness: 0.35
+    });
+    const armorMat = new THREE.MeshStandardMaterial({
+      color: 0x090f18, // Matte carbon fiber tactical plates
+      roughness: 0.32,
+      metalness: 0.88
+    });
+    const helmetMat = new THREE.MeshStandardMaterial({
+      color: 0x1a2436,
+      roughness: 0.22,
+      metalness: 0.8
+    });
+    const visorMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff // Glowing electric cyan holographic targeting visor
+    });
+    const gloveMat = new THREE.MeshStandardMaterial({
+      color: 0x0c1017,
+      roughness: 0.85,
+      metalness: 0.2
+    });
+    const cyanCoreMat = new THREE.MeshBasicMaterial({
+      color: 0x00d9ff
+    });
+
+    // Lower Body Hatch Anchor (Waist emerging from roof hatch)
+    const waist = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.25, 0.24), suitMat);
+    waist.position.set(0, 0.12, 0);
+    group.add(waist);
+
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.08, 0.26), armorMat);
+    belt.position.set(0, 0.22, 0);
+    group.add(belt);
+
+    // Torso with Tactical Ballistic Armor Plates
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.45, 0.26), suitMat);
+    torso.position.set(0, 0.48, 0);
+    torso.castShadow = true;
+    group.add(torso);
+
+    // Armored Chest Plate
+    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.08), armorMat);
+    chestPlate.position.set(0, 0.52, -0.13);
+    group.add(chestPlate);
+
+    // Glowing Cybernetic HUD Core on Chest
+    const chestCore = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), cyanCoreMat);
+    chestCore.position.set(0, 0.52, -0.18);
+    group.add(chestCore);
+
+    // Tactical Ammo & Power Supply Backpack Unit on back (+Z)
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.38, 0.14), armorMat);
+    pack.position.set(0, 0.50, 0.18);
+    group.add(pack);
+
+    // Head & High-Tech Cyber Pilot Helmet with Glowing Visor
+    this.gunnerHead = new THREE.Group();
+    this.gunnerHead.position.set(0, 0.82, -0.02);
+
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), helmetMat);
+    this.gunnerHead.add(helmet);
+
+    // Full-face curved holographic targeting visor (-Z facing forward towards targets)
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.09, 0.09), visorMat);
+    visor.position.set(0, 0.02, -0.13);
+    this.gunnerHead.add(visor);
+
+    // Tactical Helmet Side Comms & Sensor Pods
+    [-0.16, 0.16].forEach(x => {
+      const earPod = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.06, 8), armorMat);
+      earPod.rotation.z = Math.PI / 2;
+      earPod.position.set(x, 0.02, -0.02);
+      this.gunnerHead.add(earPod);
+    });
+    group.add(this.gunnerHead);
+
+    // Dual Shoulders & Arms Gripping the Plasma Turret Controls
+    this.gunnerArms = new THREE.Group();
+    this.gunnerArms.position.set(0, 0.58, 0);
+    group.add(this.gunnerArms);
+
+    [-0.24, 0.24].forEach(sideX => {
+      // Armored Shoulder Pauldron
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), armorMat);
+      shoulder.position.set(sideX, 0, 0);
+      this.gunnerArms.add(shoulder);
+
+      // Upper Arm angled forward towards the turret mantlet handles
+      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.34, 8), suitMat);
+      upperArm.rotation.x = Math.PI / 3.2;
+      upperArm.rotation.z = (sideX < 0 ? -1 : 1) * 0.18;
+      upperArm.position.set(sideX * 0.95, -0.11, -0.14);
+      this.gunnerArms.add(upperArm);
+
+      // Forearm with Reinforced Gauntlet
+      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.30, 8), armorMat);
+      forearm.rotation.x = Math.PI / 2.1;
+      forearm.rotation.z = (sideX < 0 ? 1 : -1) * 0.12;
+      forearm.position.set(sideX * 0.8, -0.18, -0.32);
+      this.gunnerArms.add(forearm);
+
+      // Combat Glove gripping handle
+      const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.10), gloveMat);
+      hand.position.set(sideX * 0.7, -0.20, -0.46);
+      this.gunnerArms.add(hand);
+    });
+
+    // Position gunner standing behind the turret base and mantlet
+    group.position.set(0, 0.08, 0.44);
+    return group;
   }
 
   // --- START TURRET DEFENSE CHECKPOINT SEQUENCE ---
@@ -125,9 +268,13 @@ export class TurretDefenseSystem {
     this.currentWave = waveIndex;
     this.turretGroup.visible = true;
 
-    // Open roof hatch and raise turret base
-    this.turretBase.position.y = 0.82;
+    // Reset roof hatch and turret position
+    this.turretBase.position.y = 0.35; // submerged inside car cabin
     this.roofHatch.position.z = -0.15;
+    if (this.gunnerMesh) {
+      this.gunnerMesh.position.y = -0.55; // human below roof line
+      this.gunnerMesh.scale.setScalar(0.05); // compressed inside car
+    }
 
     // Reset aim
     this.aimYaw = 0;
@@ -358,17 +505,28 @@ export class TurretDefenseSystem {
   update(dt, callbacks = {}) {
     if (!this.isActive) return;
 
-    // 1. Deployment / Retraction Hydraulic Animation
+    // 1. Hydraulic Mounting & Dismounting Animation (Human & Turret emerge / retract)
     if (this.isDeploying) {
-      this.deployProgress = Math.min(1, this.deployProgress + dt * 2.2);
-      // Hatch slides backward, turret elevates
-      this.roofHatch.position.z = -0.15 - this.deployProgress * 0.45;
-      this.turretBase.position.y = 0.82 + this.deployProgress * 0.35;
+      this.deployProgress = Math.min(1, this.deployProgress + dt * 2.0);
+      // Roof hatch slides open backward
+      this.roofHatch.position.z = -0.15 - this.deployProgress * 0.55;
+      // Heavy turret base elevates out of car roof
+      this.turretBase.position.y = 0.35 + this.deployProgress * 0.55;
+      // 3D Human Gunner emerges from the cabin through roof hatch
+      if (this.gunnerMesh) {
+        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.63;
+        this.gunnerMesh.scale.setScalar(Math.min(1, 0.1 + this.deployProgress * 0.9));
+      }
       if (this.deployProgress >= 1) this.isDeploying = false;
     } else if (this.isRetracting) {
-      this.deployProgress = Math.max(0, this.deployProgress - dt * 2.5);
-      this.roofHatch.position.z = -0.6 + (1 - this.deployProgress) * 0.45;
-      this.turretBase.position.y = 0.82 + this.deployProgress * 0.35;
+      this.deployProgress = Math.max(0, this.deployProgress - dt * 2.2);
+      // Human gunner lowers back inside vehicle cabin
+      this.roofHatch.position.z = -0.70 + (1 - this.deployProgress) * 0.55;
+      this.turretBase.position.y = 0.35 + this.deployProgress * 0.55;
+      if (this.gunnerMesh) {
+        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.63;
+        this.gunnerMesh.scale.setScalar(Math.max(0.05, this.deployProgress));
+      }
       if (this.deployProgress <= 0) {
         this.isRetracting = false;
         this.isActive = false;
@@ -377,11 +535,20 @@ export class TurretDefenseSystem {
       }
     }
 
-    // 2. Smooth Aim Tracking (180° Arc)
+    // 2. Smooth Aim Tracking across 180° Panoramic Arc (Horizontal & Vertical)
     this.aimYaw += (this.targetYaw - this.aimYaw) * Math.min(1, dt * 14);
     this.aimPitch += (this.targetPitch - this.aimPitch) * Math.min(1, dt * 14);
     if (this.turretBase) this.turretBase.rotation.y = this.aimYaw;
     if (this.turretMantlet) this.turretMantlet.rotation.x = this.aimPitch;
+    // Human gunner's arms and pilot helmet pitch in sync with the twin plasma cannons
+    if (this.gunnerArms) this.gunnerArms.rotation.x = this.aimPitch * 0.85;
+    if (this.gunnerHead) this.gunnerHead.rotation.x = this.aimPitch * 0.45;
+
+    // Recoil recovery
+    this.recoilOffset = Math.max(0, this.recoilOffset - dt * 10);
+    if (this.gunnerArms) this.gunnerArms.position.z = this.recoilOffset * 0.04;
+    if (this.leftBarrel) this.leftBarrel.position.z = -0.55 + (this.fireBarrelToggle === 0 ? this.recoilOffset * 0.06 : 0);
+    if (this.rightBarrel) this.rightBarrel.position.z = -0.55 + (this.fireBarrelToggle === 1 ? this.recoilOffset * 0.06 : 0);
 
     // 3. Continuous Plasma Cannon Firing
     if (this.isFiring && this.deployProgress >= 0.95) {
@@ -389,6 +556,7 @@ export class TurretDefenseSystem {
       if (this.fireTimer <= 0) {
         this.fireTimer = this.fireCadence;
         this.fireSingleBolt();
+        this.recoilOffset = 1.0;
       }
     }
 
@@ -487,5 +655,9 @@ export class TurretDefenseSystem {
     this.plasmaBolts.forEach(b => this.scene.remove(b.mesh));
     this.plasmaBolts = [];
     if (this.turretGroup) this.turretGroup.visible = false;
+    if (this.gunnerMesh) {
+      this.gunnerMesh.position.y = -0.55;
+      this.gunnerMesh.scale.setScalar(0.05);
+    }
   }
 }

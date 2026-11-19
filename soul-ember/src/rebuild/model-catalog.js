@@ -34,3 +34,4 @@ export const MONSTER_MODELS={
 };
 
 export const modelFor=id=>HERO_MODELS[id]||MONSTER_MODELS[id];
+export const actorPhase=id=>typeof id==='number'&&Number.isFinite(id)?id:[...String(id??'actor')].reduce((n,c)=>(Math.imul(n,31)+c.charCodeAt(0))|0,17)*.013;

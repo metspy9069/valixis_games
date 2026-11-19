@@ -45,10 +45,18 @@ nav .primary span{color:#171d17}
 .meter progress{width:100%;height:6px;border:0;display:block;margin-top:8px;background:#30382a}
 progress::-webkit-progress-bar{background:#30382a}
 #health::-webkit-progress-value{background:#a76c52}
+#shield::-webkit-progress-value{background:#7ca5ad}
 #xp::-webkit-progress-value{background:#9cae9b}
 #boss-hp::-webkit-progress-value{background:#aa7651}
 .combat-actions{display:flex;gap:8px}
 .combat-actions button{font-size:10px;flex:1;padding:11px 8px}
+.skill-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.skill-actions button{min-height:46px;padding:9px 8px;font-size:10px;border-color:#7d6d49;background:linear-gradient(135deg,#283027,#18201a)}
+.skill-actions button:active{transform:translateY(1px);background:#4a4430}
+#aim-reticle{position:fixed;left:50%;top:50%;width:28px;height:28px;border:1px solid #dac68b55;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 18px #d5b56a30}
+#aim-reticle:before,#aim-reticle:after{content:"";position:absolute;background:#d8c69588}
+#aim-reticle:before{left:13px;top:-5px;width:1px;height:36px}
+#aim-reticle:after{left:-5px;top:13px;width:36px;height:1px}
 #boss{position:fixed;left:30%;right:30%;top:104px;text-align:center;font:15px Georgia}
 #boss progress{width:100%;height:6px;display:block;margin-top:8px}
 #guide{position:fixed;top:115px;left:15%;right:15%;text-align:center;color:#e5d7b5;font-size:12px;text-shadow:0 2px 4px #000}
@@ -75,6 +83,22 @@ p{line-height:1.65}
 .hero-card h3{font-size:20px}
 .hero-card p{font-size:11px;min-height:52px}
 .hero-card small{font-size:10px;color:#bcae7d}
+.armory-head,.merchant-head{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:1px solid #514e3a;padding-bottom:16px}
+.armory-head strong,.merchant-head strong{white-space:nowrap;color:#e1c47d;letter-spacing:2px}
+.armory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0 28px}
+.armory-card,.mastery-card{padding:18px;background:#222a21;border:1px solid #555c45}
+.armory-card small{color:#b5a773;letter-spacing:1.5px;font-size:9px}
+.armory-card h3{font-size:20px;margin:8px 0}
+.armory-card p{font-size:12px;min-height:40px;color:#adb5a2}
+.armory-card span{color:#dfc57f;font-size:10px}
+.mastery-card{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:24px}
+.mastery-card p{margin:0}
+.merchant-card{position:relative;overflow:hidden}
+.merchant-card:before{content:"";position:absolute;inset:0;border-top:2px solid #b59a5a;pointer-events:none}
+.skill-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.skill-summary div{display:grid;gap:6px;padding:15px;border:1px solid #4e5944;background:#202820}
+.skill-summary small{font-size:9px;letter-spacing:1.5px;color:#c2ae72}
+.skill-summary span{font-size:11px;color:#aeb7a5}
 .selected{border-color:#d6bd7b}
 .row{display:flex;gap:10px}
 .statline{display:flex;justify-content:space-around;padding:24px 0}
@@ -90,6 +114,8 @@ p{line-height:1.65}
 @media(pointer:coarse){#stick{display:flex}
 .hud-bottom{left:auto;right:18px;width:245px}
 .combat-actions button{min-height:56px}
+.skill-actions button{min-height:58px;touch-action:none}
+#aim-reticle{display:none}
 }
 @media(max-width:700px){#menu{padding:65px 8vw;align-items:center}
 .intro{width:100%;max-width:380px}
@@ -104,6 +130,7 @@ h1{font-size:86px}
 .hud-top button{padding:12px 8px}
 .hud-bottom{bottom:18px;padding:12px;width:210px}
 .hero-grid{grid-template-columns:repeat(2,1fr)}
+.armory-grid{grid-template-columns:1fr 1fr}
 .cards{grid-template-columns:1fr;gap:9px}
 .card{padding:16px}
 .card h3{margin:6px 0}
@@ -111,6 +138,7 @@ h1{font-size:86px}
 .modal-card{padding:22px}
 h2{font-size:29px}
 .statline strong{font-size:24px}
+.armory-head,.merchant-head,.mastery-card{align-items:flex-start;flex-direction:column}
 #boss{left:18%;right:18%;top:92px}
 #guide{top:125px;font-size:10px}
 #boss:not([hidden]) + #guide{top:138px}

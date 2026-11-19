@@ -13,7 +13,7 @@ function challenge(kind, now = new Date()) {
   );
   if (kind === "weekly")
     date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
-  const id = `v3:${kind}:${date.toISOString().slice(0, 10)}`,
+  const id = `v4:${kind}:${date.toISOString().slice(0, 10)}`,
     hash = sign(id),
     seed = parseInt(hash.slice(0, 8), 16);
   return {
@@ -22,7 +22,7 @@ function challenge(kind, now = new Date()) {
     seed,
     hero: heroes[seed % heroes.length],
     modifier: seed % 2 ? "swarm" : "balanced",
-    version: 3,
+    version: 4,
   };
 }
 export default async function handler(req, res) {
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
         gold > kills * 10 + 500 ||
         typeof victory !== "boolean" ||
         (victory && duration < 465) ||
-        run.version !== 3
+        run.version !== 4
       )
         return res.status(400).json({ error: "Invalid run" });
       if (run.id !== challenge(run.kind).id)

@@ -1,4 +1,4 @@
-export const VERSION = 3;
+export const VERSION = 4;
 const heroRows = [
  ['cinder','Cinder Witch','#cb704b','Ember staff','Scorching bolts ignite enemies.','Pyre Crown','bolt',30,.62,100,7.2,['Kindling','Forked Flame','Ash Mantle']],
  ['grave','Grave Knight','#aaa68d','Graveblade','Heavy sweeping strikes stagger nearby foes.','Last Oath','cleave',62,.85,145,6.5,['Gravestone','Execution','Iron Oath']],
@@ -19,7 +19,7 @@ const rows=[
 ];
 export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));
 export const BOSSES=['abbot','warden','regent'];
-export const ANIMATION_MANIFEST={version:4,source:'Articulated procedural 3D actors with batched geometry and equipment',collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['north','south','east','west']};
+export const ANIMATION_MANIFEST={version:5,source:'Articulated procedural 3D actors with batched geometry and weapon-specific equipment',collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},cast:{duration:.42},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['north','south','east','west']};
 export function branchEffect(hero,branch,rank){
  const h=HEROES[hero];
  if(branch===0)return `${Math.round((1+rank*.22)*100)}% weapon damage${rank===3?' · '+h.weapon+' evolution: empowered impacts':''}`;

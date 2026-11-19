@@ -16,16 +16,17 @@ class RoadRiotGame {
     this.canvas = document.querySelector('#game-canvas');
     this.mobileDevice = matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 
-    // Three.js Core with High-DPI & Antialiasing
+    // Three.js Core with High-Precision Native Multi-Sampling & Anti-Aliasing
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
-      powerPreference: 'high-performance'
+      powerPreference: 'high-performance',
+      precision: 'highp'
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
+    this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = false; // Fast contact shadow planes used instead of 1,000+ shadow draw calls
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
@@ -330,10 +331,12 @@ class RoadRiotGame {
       }
     });
 
-    // Window Resize
+    // Window Resize with Exact 1:1 Pixel Mapping
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
+      const newDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
+      this.renderer.setPixelRatio(newDpr);
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
@@ -679,12 +682,12 @@ class RoadRiotGame {
     progression.resetRunStats();
     this.traffic.clear();
     this.weapons.clear();
+    this.turntableAngle = 0;
 
     const sel = progression.data.selectedVehicle || 'apex';
     const upg = progression.data.upgrades[sel] || {};
     this.player.setVehicle(sel, upg, progression.data.selectedPaint, progression.data.selectedGlow);
-    this.player.mesh.position.set(0, 0, -8);
-    this.player.x = 0;
+    this.player.reset();
 
     if (this.gameMode === 'SPRINT') {
       if (this.ui.racePosBox) this.ui.racePosBox.classList.remove('hidden');
@@ -723,6 +726,9 @@ class RoadRiotGame {
     this.multiplierTimer = 0;
     this.isFever = false;
     this.camShake = 0;
+    this.turntableAngle = 0;
+    this.player.mesh.rotation.set(0, 0, 0);
+    if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
     // Reset Checkpoint & Turret System
     this.checkpointDistance = 1500;
@@ -883,6 +889,8 @@ class RoadRiotGame {
       progression.data.selectedGlow
     );
     this.player.mesh.position.set(0, 0, -8);
+    this.player.mesh.rotation.set(0, 0, 0);
+    this.turntableAngle = 0;
     if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
     if (this.state === 'GARAGE') {

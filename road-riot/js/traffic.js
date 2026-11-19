@@ -213,10 +213,6 @@ export class TrafficManager {
       );
       tail.position.set(x, 0.65, 2.2);
       parentGroup.add(tail);
-
-      const glow = new THREE.PointLight(0xff1644, 1.4, 3.5);
-      glow.position.set(x, 0.65, 2.25);
-      parentGroup.add(glow);
     });
 
     // 2. Dual Forward Xenon Headlights (-Z in wrapper space = pointing down the road)
@@ -229,7 +225,7 @@ export class TrafficManager {
       parentGroup.add(head);
     });
 
-    // 3. Police Strobe Lightbar
+    // 3. Police Strobe Lightbar (Alternating High-Intensity Emissive Beacons)
     if (isPolice || type === 'police') {
       const sirenBar = new THREE.Mesh(
         new THREE.BoxGeometry(1.2, 0.14, 0.28),
@@ -238,16 +234,22 @@ export class TrafficManager {
       sirenBar.position.set(0, 1.48, 0.1);
       parentGroup.add(sirenBar);
 
-      const redLight = new THREE.PointLight(0xff0044, 2.8, 7);
-      redLight.position.set(-0.4, 1.55, 0.1);
-      parentGroup.add(redLight);
+      const redBeacon = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 0.12, 0.22),
+        new THREE.MeshBasicMaterial({ color: 0xff0044 })
+      );
+      redBeacon.position.set(-0.35, 1.55, 0.1);
+      parentGroup.add(redBeacon);
 
-      const blueLight = new THREE.PointLight(0x0066ff, 2.8, 7);
-      blueLight.position.set(0.4, 1.55, 0.1);
-      parentGroup.add(blueLight);
+      const blueBeacon = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 0.12, 0.22),
+        new THREE.MeshBasicMaterial({ color: 0x0088ff })
+      );
+      blueBeacon.position.set(0.35, 1.55, 0.1);
+      parentGroup.add(blueBeacon);
 
-      parentGroup.userData.sirenRed = redLight;
-      parentGroup.userData.sirenBlue = blueLight;
+      parentGroup.userData.sirenRedMesh = redBeacon;
+      parentGroup.userData.sirenBlueMesh = blueBeacon;
     }
 
     // 4. Taxi Rooftop Medallion
@@ -258,18 +260,20 @@ export class TrafficManager {
       );
       taxiSign.position.set(0, 1.46, 0.1);
       parentGroup.add(taxiSign);
-
-      const taxiLight = new THREE.PointLight(0xffbb00, 1.2, 3.0);
-      taxiLight.position.set(0, 1.5, 0.1);
-      parentGroup.add(taxiLight);
     }
 
-    // 5. Rival Neon Underglow
-    if (isRival) {
-      const underglow = new THREE.PointLight(0xff2a85, 3.2, 6.0);
-      underglow.position.set(0, 0.2, 0);
-      parentGroup.add(underglow);
-    }
+    // 5. Ambient Occlusion Contact Shadow Plane (Grounds vehicle on pavement)
+    const shadowGeo = new THREE.PlaneGeometry(2.5, 4.8);
+    shadowGeo.rotateX(-Math.PI / 2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x040810,
+      transparent: true,
+      opacity: 0.62,
+      depthWrite: false
+    });
+    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    shadow.position.y = 0.02;
+    parentGroup.add(shadow);
   }
 
   buildChemicalTanker() {
@@ -318,10 +322,6 @@ export class TrafficManager {
       const tail = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.08), new THREE.MeshBasicMaterial({ color: 0xff1644 }));
       tail.position.set(x, 0.5, 4.85);
       group.add(tail);
-
-      const glow = new THREE.PointLight(0xff1644, 1.6, 4.0);
-      glow.position.set(x, 0.5, 4.9);
-      group.add(glow);
     });
 
     // 10 Heavy Truck Wheels
@@ -413,10 +413,6 @@ export class TrafficManager {
       const tail = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.08), new THREE.MeshBasicMaterial({ color: 0xff1644 }));
       tail.position.set(x, 0.48, 4.82);
       group.add(tail);
-
-      const glow = new THREE.PointLight(0xff1644, 1.6, 4.0);
-      glow.position.set(x, 0.48, 4.88);
-      group.add(glow);
     });
 
     // 10 Heavy Truck Wheels with Chrome Hubcaps
@@ -540,10 +536,6 @@ export class TrafficManager {
           mesh.add(stripe);
         });
       }
-
-      const led = new THREE.PointLight(0xffb800, 2.5, 5);
-      led.position.set(0, 1.2, 0);
-      mesh.add(led);
     } else {
       // Heavy Construction Barrier
       isBarrier = true;
@@ -579,10 +571,6 @@ export class TrafficManager {
           mesh.add(stripe);
         });
       }
-
-      const warnLight = new THREE.PointLight(0xff4400, 2.0, 4.5);
-      warnLight.position.set(0, 1.1, 0);
-      mesh.add(warnLight);
     }
 
     mesh.position.set(lane, 0, -145);
@@ -656,16 +644,13 @@ export class TrafficManager {
         const coin = new THREE.Mesh(coinGeo, coinMat);
         group.add(coin);
       }
-
-      const coinGlow = new THREE.PointLight(0xffb800, 1.8, 3.5);
-      group.add(coinGlow);
     } else if (type === 'nitro') {
       const canister = new THREE.Mesh(
         new THREE.CylinderGeometry(0.36, 0.36, 1.3, 14),
         new THREE.MeshStandardMaterial({
           color: 0x00d9ff,
           emissive: 0x00f0ff,
-          emissiveIntensity: 0.75,
+          emissiveIntensity: 0.85,
           metalness: 0.8,
           roughness: 0.2
         })
@@ -678,16 +663,13 @@ export class TrafficManager {
       );
       cap.position.y = 0.75;
       group.add(cap);
-
-      const nitroGlow = new THREE.PointLight(0x00f0ff, 2.2, 4.0);
-      group.add(nitroGlow);
     } else if (type === 'shield') {
       const orb = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.72, 1),
         new THREE.MeshStandardMaterial({
           color: 0x9d4edd,
           emissive: 0x9d4edd,
-          emissiveIntensity: 0.85,
+          emissiveIntensity: 0.95,
           wireframe: true
         })
       );
@@ -698,16 +680,13 @@ export class TrafficManager {
         new THREE.MeshBasicMaterial({ color: 0xdf88ff })
       );
       group.add(core);
-
-      const shieldGlow = new THREE.PointLight(0x9d4edd, 2.0, 4.0);
-      group.add(shieldGlow);
     } else if (type === 'magnet') {
       const magnet = new THREE.Mesh(
         new THREE.TorusGeometry(0.55, 0.18, 8, 18, Math.PI),
         new THREE.MeshStandardMaterial({
           color: 0xff1644,
           emissive: 0xff002b,
-          emissiveIntensity: 0.5,
+          emissiveIntensity: 0.6,
           metalness: 0.8,
           roughness: 0.25
         })
@@ -729,7 +708,7 @@ export class TrafficManager {
         new THREE.MeshStandardMaterial({
           color: 0x059669,
           emissive: 0x10b981,
-          emissiveIntensity: 0.4,
+          emissiveIntensity: 0.5,
           metalness: 0.7,
           roughness: 0.3
         })
@@ -740,9 +719,6 @@ export class TrafficManager {
       group.add(crossH);
       const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.48), new THREE.MeshBasicMaterial({ color: 0xffffff }));
       group.add(crossV);
-
-      const repGlow = new THREE.PointLight(0x10b981, 2.0, 4.0);
-      group.add(repGlow);
     }
 
     const ring = new THREE.Mesh(
@@ -817,10 +793,15 @@ export class TrafficManager {
         v.mesh.position.x += (v.targetLane - v.mesh.position.x) * Math.min(1, dt * 3.5);
       }
 
-      if (v.isPolice && v.mesh.userData.sirenRed) {
+      if (v.isPolice) {
         const strobe = Math.sin(performance.now() * 0.02) > 0;
-        v.mesh.userData.sirenRed.intensity = strobe ? 4 : 0;
-        v.mesh.userData.sirenBlue.intensity = strobe ? 0 : 4;
+        if (v.mesh.userData.sirenRedMesh && v.mesh.userData.sirenBlueMesh) {
+          v.mesh.userData.sirenRedMesh.visible = strobe;
+          v.mesh.userData.sirenBlueMesh.visible = !strobe;
+        } else if (v.mesh.userData.sirenRed) {
+          v.mesh.userData.sirenRed.intensity = strobe ? 4 : 0;
+          v.mesh.userData.sirenBlue.intensity = strobe ? 0 : 4;
+        }
       }
 
       // Near Miss Detection

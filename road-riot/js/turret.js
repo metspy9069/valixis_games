@@ -507,24 +507,24 @@ export class TurretDefenseSystem {
 
     // 1. Hydraulic Mounting & Dismounting Animation (Human & Turret emerge / retract)
     if (this.isDeploying) {
-      this.deployProgress = Math.min(1, this.deployProgress + dt * 2.0);
+      this.deployProgress = Math.min(1, this.deployProgress + dt * 2.2);
       // Roof hatch slides open backward
-      this.roofHatch.position.z = -0.15 - this.deployProgress * 0.55;
+      this.roofHatch.position.z = -0.15 - this.deployProgress * 0.58;
       // Heavy turret base elevates out of car roof
-      this.turretBase.position.y = 0.35 + this.deployProgress * 0.55;
+      this.turretBase.position.y = 0.40 + this.deployProgress * 0.68;
       // 3D Human Gunner emerges from the cabin through roof hatch
       if (this.gunnerMesh) {
-        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.63;
+        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.65;
         this.gunnerMesh.scale.setScalar(Math.min(1, 0.1 + this.deployProgress * 0.9));
       }
       if (this.deployProgress >= 1) this.isDeploying = false;
     } else if (this.isRetracting) {
-      this.deployProgress = Math.max(0, this.deployProgress - dt * 2.2);
+      this.deployProgress = Math.max(0, this.deployProgress - dt * 2.4);
       // Human gunner lowers back inside vehicle cabin
-      this.roofHatch.position.z = -0.70 + (1 - this.deployProgress) * 0.55;
-      this.turretBase.position.y = 0.35 + this.deployProgress * 0.55;
+      this.roofHatch.position.z = -0.73 + (1 - this.deployProgress) * 0.58;
+      this.turretBase.position.y = 0.40 + this.deployProgress * 0.68;
       if (this.gunnerMesh) {
-        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.63;
+        this.gunnerMesh.position.y = -0.55 + this.deployProgress * 0.65;
         this.gunnerMesh.scale.setScalar(Math.max(0.05, this.deployProgress));
       }
       if (this.deployProgress <= 0) {

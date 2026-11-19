@@ -181,68 +181,74 @@
   <!-- MAIN MENU MODAL                                           -->
   <!-- ========================================================= -->
   <div id="menu-modal" class="modal-screen">
-    <div class="glass-panel modal-dialog">
-      <div class="modal-header">
+    <div class="glass-panel modal-dialog" style="width:min(860px, 94vw); max-width:860px;">
+      <div class="modal-header" style="padding-bottom:12px;">
         <div>
-          <div class="brand-eyebrow">VALIXIS GAMES STUDIO PRESENTS</div>
-          <h1 class="brand-title">ROAD RIOT 3D</h1>
+          <div class="brand-eyebrow" style="letter-spacing:3px; color:var(--neon-cyan);">VALIXIS ARCADE RACING</div>
+          <h1 class="brand-title" style="letter-spacing:3px;">ROAD RIOT 3D</h1>
+          <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; AIR DEFENSE CHECKPOINTS &bull; CAR TUNING</div>
         </div>
       </div>
 
-      <div class="modal-body">
-        <p style="color:#b6c8dc; font-size:14px; line-height:1.7;">
-          Experience pure arcade highway racing. Thread razor-thin near misses, draft behind long haulers, launch off high-angle stunt ramps, and carve corners to charge nitro. Start with an 80–120 KM/H stock GT and upgrade your engine, handling, and armor to unleash a 320+ KM/H hypercar.
-        </p>
+      <div class="modal-body" style="padding:16px 28px; gap:16px;">
+        <!-- Race Discipline Mode Cards -->
+        <div>
+          <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:#7ddcff; letter-spacing:1.5px; margin-bottom:8px;">SELECT RACE DISCIPLINE</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div id="mode-card-endless" class="race-mode-card active" style="background:rgba(0, 217, 255, 0.06); border:2px solid var(--neon-cyan); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">ENDLESS HIGHWAY</span>
+                <span style="font-size:18px;">♾️</span>
+              </div>
+              <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
+                Survive infinite dense traffic, leap high-angle stunt ramps, collect credits, and halt at milestone checkpoints to gun down enemy drone squadrons.
+              </p>
+              <button id="mode-endless-btn" class="setting-toggle active" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECTED &bull; ENDLESS</button>
+            </div>
 
-        <!-- Feature Pillars -->
-        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:4px 0;">
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(0,217,255,0.25); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">⚡</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">PROGRESSIVE SPEED</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">80–120 stock to 320+ KM/H</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,42,133,0.25); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">💥</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">HARD SOLID PHYSICS</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Impact recoil &amp; hull armor</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,184,0,0.25); border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:22px; margin-bottom:4px;">🏎️</div>
-            <div style="font-weight:800; font-size:12px; color:#fff;">GARAGE &amp; TUNING</div>
-            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">3D turntable &amp; performance</div>
+            <div id="mode-card-sprint" class="race-mode-card" style="background:rgba(255, 42, 133, 0.04); border:2px solid rgba(255, 42, 133, 0.25); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">4-CAR SPRINT</span>
+                <span style="font-size:18px;">🏁</span>
+              </div>
+              <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
+                High-stakes 3,000m dash against rival street drivers. Draft through traffic slipstreams, ram opponents, defend milestones, and claim 1st place!
+              </p>
+              <button id="mode-sprint-btn" class="setting-toggle" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECT SPRINT</button>
+            </div>
           </div>
         </div>
 
-        <!-- Mode & Biome Selectors -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:6px;">
-          <!-- Game Mode -->
-          <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(0,217,255,0.18); border-radius:10px; padding:12px;">
-            <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#7ddcff; letter-spacing:1px; margin-bottom:8px;">RACE DISCIPLINE</div>
-            <div style="display:flex; gap:6px;">
-              <button id="mode-endless-btn" class="setting-toggle active" style="flex:1; font-size:11px; padding:8px 4px;">ENDLESS</button>
-              <button id="mode-sprint-btn" class="setting-toggle" style="flex:1; font-size:11px; padding:8px 4px;">4-CAR SPRINT</button>
-            </div>
-          </div>
-
-          <!-- Highway Biome -->
-          <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,184,0,0.18); border-radius:10px; padding:12px;">
-            <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1px; margin-bottom:8px;">HIGHWAY BIOME</div>
-            <div style="display:flex; gap:5px;">
-              <button class="setting-toggle biome-btn active" data-biome="midnight" style="flex:1; font-size:10px; padding:8px 1px;">MIDNIGHT</button>
-              <button class="setting-toggle biome-btn" data-biome="canyon" style="flex:1; font-size:10px; padding:8px 1px;">SUNSET</button>
-              <button class="setting-toggle biome-btn" data-biome="neotokyo" style="flex:1; font-size:10px; padding:8px 1px;">NEO-RAIN</button>
-              <button class="setting-toggle biome-btn" data-biome="arctic" style="flex:1; font-size:10px; padding:8px 1px;">ARCTIC</button>
-            </div>
+        <!-- Highway Biome Selectors -->
+        <div style="background:rgba(0, 0, 0, 0.25); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:14px 16px;">
+          <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1.5px; margin-bottom:10px;">HIGHWAY BIOME &amp; ATMOSPHERE</div>
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+            <button class="setting-toggle biome-btn active" data-biome="midnight" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:16px;">🌃</span>
+              <span>MIDNIGHT</span>
+            </button>
+            <button class="setting-toggle biome-btn" data-biome="canyon" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:16px;">🌅</span>
+              <span>SUNSET</span>
+            </button>
+            <button class="setting-toggle biome-btn" data-biome="neotokyo" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:16px;">🌧️</span>
+              <span>NEO-RAIN</span>
+            </button>
+            <button class="setting-toggle biome-btn" data-biome="arctic" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
+              <span style="font-size:16px;">❄️</span>
+              <span>ARCTIC</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <a href="../" class="btn-secondary" style="text-decoration:none;">&larr; ARCADE PORTAL</a>
-        <div style="display:flex; gap:10px;">
-          <button id="menu-settings-btn" class="btn-secondary">SETTINGS ⚙️</button>
-          <button id="garage-btn" class="btn-secondary">GARAGE &amp; CARS</button>
-          <button id="start-btn" class="btn-primary">START RUN 🏁</button>
+      <div class="modal-footer" style="padding:14px 28px;">
+        <a href="../" class="btn-secondary" style="text-decoration:none; display:flex; align-items:center; gap:6px;">&larr; ARCADE HUB</a>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.4); color:#ffea00;">🏎️ GARAGE &amp; TUNING</button>
+          <button id="menu-settings-btn" class="btn-secondary">⚙️ CONTROLS</button>
+          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4);">START RACE 🏁</button>
         </div>
       </div>
     </div>

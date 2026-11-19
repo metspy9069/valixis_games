@@ -78,8 +78,8 @@ class RoadRiotGame {
     this.turretSystem = new TurretDefenseSystem(this.scene, this.player, audio);
 
     // 180° Sky Drone Checkpoint Sequence State
-    this.checkpointDistance = 1500;
-    this.checkpointInterval = 2000;
+    this.checkpointDistance = 600;
+    this.checkpointInterval = 1200;
     this.isStoppingForCheckpoint = false;
     this.isDynoTesting = false;
 
@@ -497,19 +497,32 @@ class RoadRiotGame {
     });
 
     // Game Mode & Biome Selectors
-    this.ui.modeEndlessBtn?.addEventListener('click', () => {
+    const cardEndless = document.querySelector('#mode-card-endless');
+    const cardSprint = document.querySelector('#mode-card-sprint');
+    const selectEndless = () => {
       this.gameMode = 'ENDLESS';
-      this.ui.modeEndlessBtn.classList.add('active');
+      this.ui.modeEndlessBtn?.classList.add('active');
+      if (this.ui.modeEndlessBtn) this.ui.modeEndlessBtn.textContent = 'SELECTED • ENDLESS';
       this.ui.modeSprintBtn?.classList.remove('active');
+      if (this.ui.modeSprintBtn) this.ui.modeSprintBtn.textContent = 'SELECT SPRINT';
+      cardEndless?.style.setProperty('border-color', 'var(--neon-cyan)');
+      cardSprint?.style.setProperty('border-color', 'rgba(255, 42, 133, 0.25)');
       this.toast('MODE: ENDLESS HIGHWAY', 'cyan');
-    });
-
-    this.ui.modeSprintBtn?.addEventListener('click', () => {
+    };
+    const selectSprint = () => {
       this.gameMode = 'SPRINT';
-      this.ui.modeSprintBtn.classList.add('active');
+      this.ui.modeSprintBtn?.classList.add('active');
+      if (this.ui.modeSprintBtn) this.ui.modeSprintBtn.textContent = 'SELECTED • SPRINT';
       this.ui.modeEndlessBtn?.classList.remove('active');
+      if (this.ui.modeEndlessBtn) this.ui.modeEndlessBtn.textContent = 'SELECT ENDLESS';
+      cardSprint?.style.setProperty('border-color', 'var(--neon-magenta)');
+      cardEndless?.style.setProperty('border-color', 'rgba(0, 217, 255, 0.25)');
       this.toast('MODE: 4-CAR RIVAL SPRINT (3,000M)', 'gold');
-    });
+    };
+    this.ui.modeEndlessBtn?.addEventListener('click', (e) => { e.stopPropagation(); selectEndless(); });
+    cardEndless?.addEventListener('click', selectEndless);
+    this.ui.modeSprintBtn?.addEventListener('click', (e) => { e.stopPropagation(); selectSprint(); });
+    cardSprint?.addEventListener('click', selectSprint);
 
     this.ui.biomeBtns?.forEach(b => {
       b.addEventListener('click', () => {
@@ -731,8 +744,9 @@ class RoadRiotGame {
     if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
     // Reset Checkpoint & Turret System
-    this.checkpointDistance = 1500;
+    this.checkpointDistance = 600;
     this.isStoppingForCheckpoint = false;
+    this.player.isBrakingToHalt = false;
     this.turretSystem.cleanup();
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
     if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
@@ -814,15 +828,8 @@ class RoadRiotGame {
   }
 
   spawnScorePopup(text, color = '#00ff88') {
-    if (!this.ui.floatingScores) return;
-    const el = document.createElement('div');
-    el.className = 'floating-score-popup';
-    el.textContent = text;
-    el.style.color = color;
-    el.style.left = `${window.innerWidth * 0.5 + (Math.random() - 0.5) * 160}px`;
-    el.style.top = `${window.innerHeight * 0.42 + (Math.random() - 0.5) * 80}px`;
-    this.ui.floatingScores.appendChild(el);
-    setTimeout(() => el.remove(), 1200);
+    // Suppressed center-screen score popups to keep road and car visibility 100% clean & unobstructed
+    return;
   }
 
   vibrate(pattern) {
@@ -1157,6 +1164,7 @@ class RoadRiotGame {
           this.state = 'RUNNING';
           audio.startEngine();
           audio.play('boost');
+          this.player.isBrakingToHalt = false;
           this.player.speed = 28; // Launch instantly at 100 km/h!
           this.player.triggerSpeedBoost(1.55, 3.0);
           this.checkpointDistance += this.checkpointInterval;
@@ -1219,32 +1227,35 @@ class RoadRiotGame {
     this.distance += currentSpeed * dt;
     this.score += Math.floor(currentSpeed * dt * 1.5 * this.multiplier);
 
-    // Checkpoint Approach & 180° Turret Defense Braking
-    if (this.gameMode === 'ENDLESS') {
-      if (this.distance >= this.checkpointDistance - 100 && !this.isStoppingForCheckpoint) {
-        this.isStoppingForCheckpoint = true;
-        if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.remove('hidden');
-        audio.play('turret_warning');
-        this.toast('⚠️ AIR DEFENSE CHECKPOINT AHEAD — HALT VEHICLE!', 'magenta');
-      }
+    // Milestone Checkpoint Approach & 180° Turret Defense Braking
+    if (this.distance >= this.checkpointDistance - 80 && !this.isStoppingForCheckpoint) {
+      this.isStoppingForCheckpoint = true;
+      this.player.isBrakingToHalt = true;
+      audio.play('turret_warning');
+      this.toast('⚠️ AIR DEFENSE CHECKPOINT AHEAD — BRING VEHICLE TO COMPLETE STOP!', 'magenta');
+    }
 
-      if (this.isStoppingForCheckpoint) {
-        // Airbrake smooth deceleration
-        this.player.speed = Math.max(0, this.player.speed - dt * 28);
-        if (Math.random() < 0.3) {
-          this.player.spawnSmokeParticle(new THREE.Vector3(this.player.x, 0, this.player.mesh.position.z + 1.2));
+    if (this.isStoppingForCheckpoint) {
+      this.player.isBrakingToHalt = true;
+      if (Math.random() < 0.4) {
+        this.player.spawnSmokeParticle(new THREE.Vector3(this.player.x, 0, this.player.mesh.position.z + 1.2));
+      }
+      if (this.player.speed <= 0.4) {
+        this.player.speed = 0;
+        this.player.isBrakingToHalt = false;
+        this.isStoppingForCheckpoint = false;
+        this.state = 'TURRET_DEFENSE';
+        audio.stopEngine();
+        audio.play('turret_deploy');
+        if (this.ui.checkpointBanner) {
+          this.ui.checkpointBanner.classList.remove('hidden');
+          setTimeout(() => {
+            if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+          }, 2400);
         }
-        if (this.player.speed <= 0.4) {
-          this.player.speed = 0;
-          this.isStoppingForCheckpoint = false;
-          this.state = 'TURRET_DEFENSE';
-          audio.stopEngine();
-          audio.play('turret_deploy');
-          if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
-          if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.remove('hidden');
-          this.turretSystem.startDefense(1);
-          return;
-        }
+        if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.remove('hidden');
+        this.turretSystem.startDefense(1);
+        return;
       }
     }
 
@@ -1334,35 +1345,7 @@ class RoadRiotGame {
       this.draftTimer = Math.max(0, (this.draftTimer || 0) - dt * 2);
     }
 
-    // 6. Drone Companion Auto-Shoot AI
-    if (this.player.droneActive) {
-      this.droneFireTimer -= dt;
-      if (this.droneFireTimer <= 0) {
-        this.droneFireTimer = 0.65;
-        // Find closest target
-        let closestTarget = null;
-        let closestDist = 45;
-        for (const v of this.traffic.vehicles) {
-          if (!v.hit && v.mesh.position.z < this.player.mesh.position.z) {
-            const dist = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestTarget = v;
-            }
-          }
-        }
-        if (closestTarget) {
-          this.weapons.fireDroneLaser(
-            this.player.mesh.position.x,
-            2.6,
-            this.player.mesh.position.z - 1.2,
-            closestTarget
-          );
-        }
-      }
-    }
-
-    // 7. Traffic & Obstacles System
+    // 6. Traffic & Obstacles System
     this.traffic.update(dt, currentSpeed, this.player.x, this.player.mesh.position.z, this.distance, {
       isMagnetActive: this.player.magnetActive,
       onNearMiss: (v) => {
@@ -1399,7 +1382,7 @@ class RoadRiotGame {
         const dz = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
         const dx = Math.abs(v.mesh.position.x - this.player.mesh.position.x);
 
-        if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.45 + 0.9)) {
+        if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.38 + 0.65)) {
           v.hit = true;
           const bounceDir = this.player.x < v.mesh.position.x ? -1 : 1;
 

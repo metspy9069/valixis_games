@@ -35,6 +35,11 @@ html, body {
   font-family: var(--font-display);
 }
 
+/* Global Visibility Utility */
+.hidden {
+  display: none !important;
+}
+
 #game-canvas {
   position: fixed;
   inset: 0;

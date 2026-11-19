@@ -179,13 +179,28 @@ export class WorldManager {
       this.weatherVelocities[i * 3 + 2] = 0;
     }
 
+    // High quality soft circular particle texture (eliminates square pixel boxes)
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 32;
+    pCanvas.height = 32;
+    const pctx = pCanvas.getContext('2d');
+    const grad = pctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.7)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    pctx.fillStyle = grad;
+    pctx.fillRect(0, 0, 32, 32);
+    const particleTex = new THREE.CanvasTexture(pCanvas);
+
     geo.setAttribute('position', new THREE.BufferAttribute(this.weatherPositions, 3));
     this.weatherMat = new THREE.PointsMaterial({
+      map: particleTex,
       color: 0x8ce2ff,
-      size: 1.2,
+      size: 0.8,
       transparent: true,
       opacity: 0.0,
-      depthWrite: false
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
     });
 
     this.weatherParticles = new THREE.Points(geo, this.weatherMat);
@@ -197,8 +212,8 @@ export class WorldManager {
     if (!this.weatherMat) return;
 
     if (type === 'rain') {
-      this.weatherMat.opacity = 0.65;
-      this.weatherMat.size = 1.6;
+      this.weatherMat.opacity = 0.45;
+      this.weatherMat.size = 0.85;
       this.weatherMat.color.setHex(0x55ccff);
       for (let i = 0; i < this.weatherParticleCount; i++) {
         this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 1.5;
@@ -206,24 +221,16 @@ export class WorldManager {
         this.weatherVelocities[i * 3 + 2] = -8;
       }
     } else if (type === 'snow') {
-      this.weatherMat.opacity = 0.85;
-      this.weatherMat.size = 2.4;
-      this.weatherMat.color.setHex(0xffffff);
+      this.weatherMat.opacity = 0.6;
+      this.weatherMat.size = 0.95;
+      this.weatherMat.color.setHex(0xe8f4ff);
       for (let i = 0; i < this.weatherParticleCount; i++) {
-        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 6.0; // Swirling blizzard
+        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 4.0; // Soft blizzard
         this.weatherVelocities[i * 3 + 1] = -8 - Math.random() * 5;
-        this.weatherVelocities[i * 3 + 2] = (Math.random() - 0.5) * 8.0;
-      }
-    } else if (type === 'dust') {
-      this.weatherMat.opacity = 0.35;
-      this.weatherMat.size = 1.8;
-      this.weatherMat.color.setHex(0xffb844);
-      for (let i = 0; i < this.weatherParticleCount; i++) {
-        this.weatherVelocities[i * 3] = 4.0 + Math.random() * 3.0; // Canyon crosswind
-        this.weatherVelocities[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
-        this.weatherVelocities[i * 3 + 2] = -5;
+        this.weatherVelocities[i * 3 + 2] = (Math.random() - 0.5) * 6.0;
       }
     } else {
+      // 'none' or 'dust': Crystal-clear skies, zero floating particles
       this.weatherMat.opacity = 0.0;
     }
   }
@@ -450,7 +457,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0xffaa66);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xffcc00);
       if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
-      this.setWeatherType('dust');
+      this.setWeatherType('none');
     } else if (biomeId === 'neotokyo') {
       // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
       this.skyMat.uniforms.topColor.value.setHex(0x020712);

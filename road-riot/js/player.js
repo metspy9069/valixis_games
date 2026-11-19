@@ -113,6 +113,7 @@ export class PlayerCar {
     this.maxNitro = 100;
     this.isBoosting = false;
     this.boostPadTimer = 0;
+    this.isBrakingToHalt = false;
     this.isDrifting = false;
     this.driftScore = 0;
     this.steerInput = 0;
@@ -220,10 +221,12 @@ export class PlayerCar {
     this.nitro = this.maxNitro * 0.5;
     this.isBoosting = false;
     this.boostPadTimer = 0;
+    this.isBrakingToHalt = false;
     this.isDrifting = false;
     this.driftScore = 0;
     this.steerInput = 0;
     this.steerAngle = 0;
+    this.vx = 0;
     this.suspensionPitch = 0;
     this.suspensionRoll = 0;
     this.wheelRotation = 0;
@@ -593,27 +596,31 @@ export class PlayerCar {
   steer(inputDir, dt, sensitivity = 1.0) {
     this.steerInput = inputDir;
 
-    // Steer responsiveness scaled by car handling and sensitivity
-    const steerSpeed = (this.handling * 0.48 * sensitivity) * dt;
-    this.x = THREE.MathUtils.clamp(this.x + inputDir * steerSpeed, -7.2, 7.2);
+    // Progressive lateral steering momentum with smooth damping (eliminates robotic twitch)
+    this.vx = this.vx || 0;
+    const targetVx = inputDir * (this.handling * 0.52 * sensitivity);
+    const damping = inputDir !== 0 ? 15 : 12;
+    this.vx += (targetVx - this.vx) * Math.min(1, dt * damping);
+    this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -7.2, 7.2);
     this.mesh.position.x = this.x;
 
     // Target Front Wheel Turn Angle
-    const targetWheelTurn = inputDir * 0.45;
-    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 12);
+    const maxSpeedHandling = Math.max(1, this.handling * 0.52 * sensitivity);
+    const normTurn = THREE.MathUtils.clamp(this.vx / maxSpeedHandling, -1, 1);
+    const targetWheelTurn = normTurn * 0.45;
+    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 14);
     if (this.wheels.fl && this.wheels.fr) {
       this.wheels.fl.rotation.y = this.steerAngle;
       this.wheels.fr.rotation.y = this.steerAngle;
     }
 
     // Suspension Body Roll into Turns
-    const targetRoll = -inputDir * (this.isDrifting ? 0.20 : 0.10);
-    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8);
+    const targetRoll = -normTurn * (this.isDrifting ? 0.22 : 0.12);
+    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 9);
 
-    // Car Yaw Slide: In Three.js looking towards -Z, yaw rotation must be -inputDir
-    // so turning right (+X) correctly points the car's nose right (towards +X)
-    const targetYaw = -inputDir * (this.isDrifting ? 0.38 : 0.09);
-    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7);
+    // Car Yaw Slide: In Three.js looking towards -Z, turning right (+X) points nose right
+    const targetYaw = -normTurn * (this.isDrifting ? 0.38 : 0.09);
+    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 8);
   }
 
   setDrift(drifting) {
@@ -723,7 +730,12 @@ export class PlayerCar {
 
   update(dt, onLandCallback = null) {
     // 1. Acceleration & Nitro Dynamics (Calibrated: 80-120 Stock, 150-160 Boost)
-    if (this.boostPadTimer > 0) {
+    if (this.isBrakingToHalt) {
+      this.targetSpeed = 0;
+      this.isBoosting = false;
+      this.speed = Math.max(0, this.speed - dt * 42);
+      this.suspensionPitch = 0.12; // Forward brake dive
+    } else if (this.boostPadTimer > 0) {
       this.boostPadTimer -= dt;
       this.isBoosting = true;
       this.targetSpeed = this.topSpeed * 1.55;
@@ -745,8 +757,10 @@ export class PlayerCar {
       this.suspensionPitch *= 0.9;
     }
 
-    // Smooth ground speed acceleration
-    this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2));
+    // Smooth ground speed acceleration (only when not braking to halt)
+    if (!this.isBrakingToHalt) {
+      this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2));
+    }
 
     // 2. Wheel Spinning Animation
     this.wheelRotation += (this.speed * dt) * 2.8;

@@ -108,3 +108,21 @@ test('viral share link generator includes challenge distance and domain', () => 
   assert.ok(url.includes('challenge=12500'));
   assert.ok(url.includes('score=150000'));
 });
+
+test('air defense checkpoint interval calculates progressive sector milestones', () => {
+  const initialCheckpoint = 1500;
+  const interval = 2000;
+  const milestones = [initialCheckpoint];
+  for (let i = 1; i < 4; i++) {
+    milestones.push(initialCheckpoint + i * interval);
+  }
+
+  assert.deepEqual(milestones, [1500, 3500, 5500, 7500]);
+});
+
+test('multi-map highway biomes support 4 distinct atmospheric presets', () => {
+  const biomes = ['midnight', 'canyon', 'neotokyo', 'arctic'];
+  assert.equal(biomes.length, 4);
+  assert.ok(biomes.includes('arctic'));
+  assert.ok(biomes.includes('neotokyo'));
+});

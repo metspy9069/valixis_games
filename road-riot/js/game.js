@@ -8,6 +8,7 @@ import { WorldManager } from './world.js';
 import { PlayerCar, VEHICLE_ROSTER } from './player.js';
 import { TrafficManager } from './traffic.js';
 import { WeaponSystem } from './weapons.js';
+import { TurretDefenseSystem } from './turret.js';
 import { progression, ACHIEVEMENTS } from './progression.js';
 
 class RoadRiotGame {
@@ -33,7 +34,7 @@ class RoadRiotGame {
     this.scene.fog = new THREE.Fog(0x0c1322, 45, 230);
 
     this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 320);
-    this.defaultCamPos = new THREE.Vector3(0, 4.8, 8.2);
+    this.defaultCamPos = new THREE.Vector3(0, 5.5, 8.6);
     this.camera.position.copy(this.defaultCamPos);
 
     // State Machine: 'MENU', 'COUNTDOWN', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
@@ -73,6 +74,13 @@ class RoadRiotGame {
     this.traffic = new TrafficManager(this.scene, this.assetPrototypes);
     this.player = new PlayerCar(this.scene, this.assetPrototypes);
     this.weapons = new WeaponSystem(this.scene, this.traffic, audio);
+    this.turretSystem = new TurretDefenseSystem(this.scene, this.player, audio);
+
+    // 180° Sky Drone Checkpoint Sequence State
+    this.checkpointDistance = 1500;
+    this.checkpointInterval = 2000;
+    this.isStoppingForCheckpoint = false;
+    this.isDynoTesting = false;
 
     // 3D Turntable Showcase Platform
     this.turntableMesh = this.buildTurntableMesh();
@@ -196,6 +204,13 @@ class RoadRiotGame {
       runDriftPts: document.querySelector('#run-drift-pts'),
       runRampsJumped: document.querySelector('#run-ramps-jumped'),
       runDamageTaken: document.querySelector('#run-damage-taken'),
+
+      // Checkpoint & Turret Gunner HUD
+      checkpointBanner: document.querySelector('#hud-checkpoint-banner'),
+      turretCrosshair: document.querySelector('#hud-turret-crosshair'),
+      turretDroneCount: document.querySelector('#turret-drone-count'),
+      turretWaveBadge: document.querySelector('#turret-wave-badge'),
+      garageDynoBtn: document.querySelector('#garage-dyno-btn'),
 
       // Network Modal
       networkModal: document.querySelector('#network-modal'),
@@ -523,7 +538,61 @@ class RoadRiotGame {
 
     window.addEventListener('pointerup', () => {
       this.isDraggingTurntable = false;
+      if (this.state === 'TURRET_DEFENSE') {
+        this.turretSystem.stopFire();
+      }
     });
+
+    // 180° Turret Gunner Mode Aim & Fire
+    window.addEventListener('pointermove', e => {
+      if (this.state === 'TURRET_DEFENSE') {
+        const normX = (e.clientX / window.innerWidth) * 2 - 1;
+        const normY = (e.clientY / window.innerHeight) * 2 - 1;
+        this.turretSystem.setAimNormalized(normX, normY);
+        if (this.ui.turretCrosshair) {
+          this.ui.turretCrosshair.style.left = `${e.clientX}px`;
+          this.ui.turretCrosshair.style.top = `${e.clientY}px`;
+        }
+      }
+    });
+
+    window.addEventListener('pointerdown', e => {
+      if (this.state === 'TURRET_DEFENSE') {
+        this.turretSystem.triggerFire();
+      }
+    });
+
+    // Garage Dyno Test Benchmark
+    this.ui.garageDynoBtn?.addEventListener('click', () => this.runDynoBenchmark());
+  }
+
+  runDynoBenchmark() {
+    if (this.isDynoTesting) return;
+    this.isDynoTesting = true;
+    this.toast('DYNO BENCHMARK ENGAGED! REV TO REDLINE 🏁', 'gold');
+    audio.resume();
+    audio.startEngine();
+
+    let timer = 0;
+    const interval = setInterval(() => {
+      timer += 0.06;
+      const progress = Math.min(1, timer / 3.2);
+      const simulatedKmh = Math.floor(progress * 340);
+      audio.updateEngine(simulatedKmh, progress > 0.6);
+
+      if (this.player.chassis) this.player.chassis.rotation.y += 0.25;
+      if (this.turntableMesh) this.turntableMesh.rotation.y += 0.25;
+
+      if (timer >= 3.2) {
+        clearInterval(interval);
+        this.isDynoTesting = false;
+        audio.stopEngine();
+        const zeroToHundred = (2.65 + Math.random() * 0.45).toFixed(2);
+        const horsepower = Math.floor(680 + Math.random() * 140);
+        this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP! ⚡`, 'cyan');
+        audio.play('fever');
+      }
+    }, 60);
   }
 
   loadAssets() {
@@ -540,7 +609,15 @@ class RoadRiotGame {
       { key: 'taxi', url: './assets/taxi.glb' },
       { key: 'ambulance', url: './assets/ambulance.glb' },
       { key: 'delivery', url: './assets/delivery.glb' },
-      { key: 'sedan', url: './assets/sedan.glb' }
+      { key: 'sedan', url: './assets/sedan.glb' },
+      { key: 'sedan-sports', url: './assets/sedan-sports.glb' },
+      { key: 'barrier', url: './assets/construction-barrier.glb' },
+      { key: 'cone', url: './assets/construction-cone.glb' },
+      { key: 'coin', url: './assets/coin-gold.glb' },
+      { key: 'building-a', url: './assets/building-a.glb' },
+      { key: 'building-b', url: './assets/building-b.glb' },
+      { key: 'tree-large', url: './assets/tree-large.glb' },
+      { key: 'tree-small', url: './assets/tree-small.glb' }
     ];
 
     assetsToLoad.forEach(item => {
@@ -550,6 +627,7 @@ class RoadRiotGame {
           this.assetPrototypes[item.key] = gltf.scene;
           this.player.assetPrototypes = this.assetPrototypes;
           this.traffic.assetPrototypes = this.assetPrototypes;
+          this.world.assetPrototypes = this.assetPrototypes;
           if (item.key === progression.data.selectedVehicle || item.key === 'player') {
             this.player.rebuildCarModel();
           }
@@ -646,6 +724,13 @@ class RoadRiotGame {
     this.isFever = false;
     this.camShake = 0;
 
+    // Reset Checkpoint & Turret System
+    this.checkpointDistance = 1500;
+    this.isStoppingForCheckpoint = false;
+    this.turretSystem.cleanup();
+    if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+    if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
+
     audio.startMusic();
     audio.play('boost');
     this.toast('GREEN LIGHT! GO GO GO!', 'green');
@@ -654,6 +739,9 @@ class RoadRiotGame {
 
   gameOver() {
     this.state = 'GAMEOVER';
+    this.turretSystem.cleanup();
+    if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+    if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
     audio.stopEngine();
     audio.stopMusic();
     audio.play('collision');
@@ -1013,6 +1101,65 @@ class RoadRiotGame {
       return;
     }
 
+    // --- 180° TURRET DEFENSE CHECKPOINT STATE ---
+    if (this.state === 'TURRET_DEFENSE') {
+      // 1. Camera smoothly locks over the roof gunner view
+      const targetCamPos = new THREE.Vector3(this.player.x * 0.35, 2.8, this.player.mesh.position.z + 4.5);
+      this.camera.position.lerp(targetCamPos, Math.min(1, dt * 7));
+      const lookAimX = this.player.x * 0.35 - Math.sin(this.turretSystem.aimYaw) * 16;
+      const lookAimY = 4.5 + Math.sin(this.turretSystem.aimPitch) * 16;
+      this.camera.lookAt(lookAimX, lookAimY, -45);
+
+      // 2. Keyboard spacebar / Enter firing in turret mode
+      if (this.keys.has(' ') || this.keys.has('Enter')) {
+        this.turretSystem.triggerFire();
+      }
+
+      // 3. Update Turret System
+      this.turretSystem.update(dt, {
+        onDroneKilled: (drone) => {
+          this.score += 400 * this.multiplier;
+          progression.activeRunStats.coinsEarned += 25;
+          this.spawnScorePopup('+400 DRONE DESTROYED! 💥', '#ff0055');
+          this.vibrate(60);
+          this.camShake = 0.35;
+          if (this.ui.turretDroneCount) {
+            const alive = this.turretSystem.drones.filter(d => !d.isDestroyed).length;
+            this.ui.turretDroneCount.textContent = `DRONES IN AIR: ${alive}`;
+          }
+        },
+        onWaveAdvancing: (wave) => {
+          this.toast(`⚠️ DRONE SQUADRON WAVE ${wave}/3 INCOMING!`, 'magenta');
+          audio.play('fever');
+          if (this.ui.turretWaveBadge) {
+            this.ui.turretWaveBadge.textContent = `WAVE ${wave}/3`;
+          }
+        },
+        onDefenseSecured: () => {
+          this.toast('🏆 SECTOR AIRSPACE SECURED! +2,000 COINS', 'gold');
+          progression.data.coins += 2000;
+          progression.save();
+          audio.play('fever');
+          this.vibrate([100, 100, 300]);
+          this.spawnScorePopup('+2,000 SECTOR CLEARED! 🏆', '#ffb800');
+        },
+        onComplete: () => {
+          // Re-accelerate into racing!
+          if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
+          this.state = 'RUNNING';
+          audio.startEngine();
+          audio.play('boost');
+          this.player.speed = 28; // Launch instantly at 100 km/h!
+          this.player.triggerSpeedBoost(1.55, 3.0);
+          this.checkpointDistance += this.checkpointInterval;
+          this.isStoppingForCheckpoint = false;
+          this.toast('HYPERSONIC RELAUNCH! 🚀', 'cyan');
+        }
+      });
+
+      return;
+    }
+
     if (this.state !== 'RUNNING') return;
 
     // 2. Poll Inputs (Keyboard, Gamepad, Mouse)
@@ -1063,6 +1210,35 @@ class RoadRiotGame {
 
     this.distance += currentSpeed * dt;
     this.score += Math.floor(currentSpeed * dt * 1.5 * this.multiplier);
+
+    // Checkpoint Approach & 180° Turret Defense Braking
+    if (this.gameMode === 'ENDLESS') {
+      if (this.distance >= this.checkpointDistance - 100 && !this.isStoppingForCheckpoint) {
+        this.isStoppingForCheckpoint = true;
+        if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.remove('hidden');
+        audio.play('turret_warning');
+        this.toast('⚠️ AIR DEFENSE CHECKPOINT AHEAD — HALT VEHICLE!', 'magenta');
+      }
+
+      if (this.isStoppingForCheckpoint) {
+        // Airbrake smooth deceleration
+        this.player.speed = Math.max(0, this.player.speed - dt * 28);
+        if (Math.random() < 0.3) {
+          this.player.spawnSmokeParticle(new THREE.Vector3(this.player.x, 0, this.player.mesh.position.z + 1.2));
+        }
+        if (this.player.speed <= 0.4) {
+          this.player.speed = 0;
+          this.isStoppingForCheckpoint = false;
+          this.state = 'TURRET_DEFENSE';
+          audio.stopEngine();
+          audio.play('turret_deploy');
+          if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+          if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.remove('hidden');
+          this.turretSystem.startDefense(1);
+          return;
+        }
+      }
+    }
 
     // Multiplier Timer
     if (this.multiplierTimer > 0) {
@@ -1378,15 +1554,15 @@ class RoadRiotGame {
     this.camShake = Math.max(0, this.camShake - dt * 2.2);
     const totalShake = this.camShake + speedRumble;
 
-    // Elevated Camera Height (Y = 4.8m) and Forward LookAt (Y = 1.45m, Z = -22m)
+    // Elevated Bird's-Eye Camera Height (Y = 5.5m) and Forward Sightline (Y = 1.55m, Z = -26m)
     const targetCamX = this.player.x * 0.42 + (Math.random() - 0.5) * totalShake;
-    const targetCamY = 4.8 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
-    const targetCamZ = 8.2 + (this.player.isBoosting ? 0.7 : 0);
+    const targetCamY = 5.5 + this.player.verticalY * 0.45 + (Math.random() - 0.5) * totalShake;
+    const targetCamZ = 8.6 + (this.player.isBoosting ? 0.7 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
     this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);
     this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 6);
-    this.camera.lookAt(this.player.x * 0.22, 1.45 + this.player.verticalY * 0.4, -22);
+    this.camera.lookAt(this.player.x * 0.22, 1.55 + this.player.verticalY * 0.35, -26);
 
     // Dynamic speed warp radial lines
     const warpOpacity = this.player.isBoosting ? '0.85' : (kmh > 260 ? String(Math.min(0.65, (kmh - 260) / 100)) : '0');

@@ -9,7 +9,7 @@ const heroRows = [
  ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',22,.8,110,7,['Virulence','Glass Garden','Antidote']],
  ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',39,.85,125,6.8,['Resonance','Echo Chamber','Sanctuary']],
 ];
-export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],sprite)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,sprite,unlockRuns:sprite,initialXp:[15,80,15,15,48,80,48,80][sprite],soulYield:id==='plague'?1.25:1}]));
+export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[15,80,15,15,48,80,48,80][index],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];
 const rows=[
  ['thrall','Ash Thrall','chase',42,2.2,2],['shield','Shieldbearer','guard',105,1.5,4],['censer','Censer Acolyte','ranged',65,1.9,4],['ringer','Bell Ringer','pulse',90,1.8,5],['hound','Ember Hound','charge',48,3.8,3],['gargoyle','Gargoyle','ambush',140,2.1,6],
@@ -17,7 +17,7 @@ const rows=[
  ['thornling','Thornling','swarm',62,3.5,3],['root','Root Brute','pulse',210,1.6,7],['stalker','Carrion Stalker','charge',95,3.7,5],['brood','Brood Mother','summon',165,1.6,7],['hex','Hex Weaver','pool',105,2.1,6],['sentinel','Ossuary Sentinel','guard',240,1.8,8],
  ['abbot','Cinder Abbot','boss',2200,1.8,40],['warden','Drowned Warden','boss',3400,1.7,55],['regent','Thorn Regent','boss',4800,1.6,70]
 ];
-export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,sprite:i+8,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));
+export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));
 export const BOSSES=['abbot','warden','regent'];
 export const ANIMATION_MANIFEST={version:4,source:'Articulated procedural 3D actors with batched geometry and equipment',collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['north','south','east','west']};
 export function branchEffect(hero,branch,rank){

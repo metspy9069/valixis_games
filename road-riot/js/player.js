@@ -334,11 +334,14 @@ export class PlayerCar {
 
             // 6. Primary High-Gloss Metallic Car Body Paint
             if (/CHASSIS|BODY|HOOD|DOOR|BOOT|BUMPER|PHONG4|COLORMAP/i.test(combined) || isFerrari) {
-              // If material has an existing texture map (e.g., Kenney colormap), preserve map!
+              // If material has an existing texture map (e.g., Kenney colormap, Ferrari livery), preserve map!
               if (m.map) {
                 const cloned = m.clone();
-                cloned.roughness = 0.35;
-                cloned.metalness = 0.55;
+                cloned.map.colorSpace = THREE.SRGBColorSpace;
+                cloned.map.anisotropy = 16;
+                cloned.map.flipY = false;
+                cloned.roughness = 0.28;
+                cloned.metalness = 0.65;
                 return cloned;
               }
               return new THREE.MeshStandardMaterial({
@@ -349,6 +352,10 @@ export class PlayerCar {
             }
 
             const cloned = m.clone();
+            if (cloned.map) {
+              cloned.map.colorSpace = THREE.SRGBColorSpace;
+              cloned.map.anisotropy = 16;
+            }
             return cloned;
           });
 
@@ -547,11 +554,12 @@ export class PlayerCar {
     }
 
     // Suspension Body Roll into Turns
-    const targetRoll = -inputDir * (this.isDrifting ? 0.24 : 0.12);
+    const targetRoll = -inputDir * (this.isDrifting ? 0.20 : 0.10);
     this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8);
 
-    // Car Yaw Slide during Drifts
-    const targetYaw = inputDir * (this.isDrifting ? 0.35 : 0.08);
+    // Car Yaw Slide: In Three.js looking towards -Z, yaw rotation must be -inputDir
+    // so turning right (+X) correctly points the car's nose right (towards +X)
+    const targetYaw = -inputDir * (this.isDrifting ? 0.38 : 0.09);
     this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7);
   }
 

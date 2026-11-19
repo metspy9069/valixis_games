@@ -28,10 +28,82 @@ export class WorldManager {
     this.challengeMarker = null;
     this.challengePassed = false;
 
+    // Environmental Dynamic Weather Particles (Rain / Snow / Canyon Dust)
+    this.weatherType = 'none';
+    this.weatherParticleCount = 800;
+    this.weatherParticles = null;
+    this.weatherPositions = null;
+    this.weatherVelocities = null;
+
     this.initLighting();
     this.initSky();
     this.initBillboardCanvases();
+    this.initWeatherParticles();
     this.buildInitialHighway();
+  }
+
+  initWeatherParticles() {
+    const geo = new THREE.BufferGeometry();
+    this.weatherPositions = new Float32Array(this.weatherParticleCount * 3);
+    this.weatherVelocities = new Float32Array(this.weatherParticleCount * 3);
+
+    for (let i = 0; i < this.weatherParticleCount; i++) {
+      this.weatherPositions[i * 3] = (Math.random() - 0.5) * 55;
+      this.weatherPositions[i * 3 + 1] = Math.random() * 30 + 1;
+      this.weatherPositions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 15;
+
+      this.weatherVelocities[i * 3] = 0;
+      this.weatherVelocities[i * 3 + 1] = -12;
+      this.weatherVelocities[i * 3 + 2] = 0;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(this.weatherPositions, 3));
+    this.weatherMat = new THREE.PointsMaterial({
+      color: 0x8ce2ff,
+      size: 1.2,
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false
+    });
+
+    this.weatherParticles = new THREE.Points(geo, this.weatherMat);
+    this.scene.add(this.weatherParticles);
+  }
+
+  setWeatherType(type) {
+    this.weatherType = type;
+    if (!this.weatherMat) return;
+
+    if (type === 'rain') {
+      this.weatherMat.opacity = 0.65;
+      this.weatherMat.size = 1.6;
+      this.weatherMat.color.setHex(0x55ccff);
+      for (let i = 0; i < this.weatherParticleCount; i++) {
+        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 1.5;
+        this.weatherVelocities[i * 3 + 1] = -42 - Math.random() * 15; // Fast vertical rain
+        this.weatherVelocities[i * 3 + 2] = -8;
+      }
+    } else if (type === 'snow') {
+      this.weatherMat.opacity = 0.85;
+      this.weatherMat.size = 2.4;
+      this.weatherMat.color.setHex(0xffffff);
+      for (let i = 0; i < this.weatherParticleCount; i++) {
+        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 6.0; // Swirling blizzard
+        this.weatherVelocities[i * 3 + 1] = -8 - Math.random() * 5;
+        this.weatherVelocities[i * 3 + 2] = (Math.random() - 0.5) * 8.0;
+      }
+    } else if (type === 'dust') {
+      this.weatherMat.opacity = 0.35;
+      this.weatherMat.size = 1.8;
+      this.weatherMat.color.setHex(0xffb844);
+      for (let i = 0; i < this.weatherParticleCount; i++) {
+        this.weatherVelocities[i * 3] = 4.0 + Math.random() * 3.0; // Canyon crosswind
+        this.weatherVelocities[i * 3 + 1] = (Math.random() - 0.5) * 2.0;
+        this.weatherVelocities[i * 3 + 2] = -5;
+      }
+    } else {
+      this.weatherMat.opacity = 0.0;
+    }
   }
 
   initLighting() {
@@ -256,6 +328,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0xffaa66);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xffcc00);
       if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
+      this.setWeatherType('dust');
     } else if (biomeId === 'neotokyo') {
       // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
       this.skyMat.uniforms.topColor.value.setHex(0x020712);
@@ -265,6 +338,17 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0x20e0ff);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0x00f0ff);
       if (this.scene.fog) this.scene.fog.color.setHex(0x061120);
+      this.setWeatherType('rain');
+    } else if (biomeId === 'arctic') {
+      // Arctic Frostway: Polar ice horizon, pale frost sun, swirling blizzard
+      this.skyMat.uniforms.topColor.value.setHex(0x040e1c);
+      this.skyMat.uniforms.midColor.value.setHex(0x163450);
+      this.skyMat.uniforms.botColor.value.setHex(0x8ce2ff);
+      if (this.dirLight) this.dirLight.color.setHex(0xa0e0ff);
+      if (this.hemiLight) this.hemiLight.color.setHex(0x60c0ff);
+      if (this.sunMesh) this.sunMesh.material.color.setHex(0xccf0ff);
+      if (this.scene.fog) this.scene.fog.color.setHex(0x0c223c);
+      this.setWeatherType('snow');
     } else {
       // Midnight Metropolis (Default)
       this.skyMat.uniforms.topColor.value.setHex(0x050c1e);
@@ -274,6 +358,7 @@ export class WorldManager {
       if (this.hemiLight) this.hemiLight.color.setHex(0x75c8ff);
       if (this.sunMesh) this.sunMesh.material.color.setHex(0xffaa33);
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c1322);
+      this.setWeatherType('none');
     }
   }
 
@@ -573,29 +658,59 @@ export class WorldManager {
   createRoadsideBuildings(parent, index) {
     const palette = [0x0e1726, 0x141f33, 0x1a243b, 0x0a121f];
     [-24, 24].forEach((x, side) => {
-      const height = 12 + ((index * 7 + side * 5) % 24);
-      const width = 8 + (index % 4) * 2;
-      const bGeo = new THREE.BoxGeometry(width, height, 11);
-      const bMat = new THREE.MeshStandardMaterial({
-        color: palette[(index + side) % palette.length],
-        roughness: 0.7,
-        metalness: 0.2
-      });
-      const building = new THREE.Mesh(bGeo, bMat);
-      building.position.set(x, height / 2 - 0.2, 0);
-      parent.add(building);
+      // 1. Detailed Kenney 3D Buildings & Trees if available
+      const bKey = (index % 2 === 0) ? 'building-a' : 'building-b';
+      const treeKey = (index % 2 === 0) ? 'tree-large' : 'tree-small';
 
-      const winGeo = new THREE.BoxGeometry(0.4, 0.6, 0.05);
-      const winMatA = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
-      const winMatB = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
+      if (this.assetPrototypes && this.assetPrototypes[bKey]) {
+        const b = this.assetPrototypes[bKey].clone(true);
+        b.scale.setScalar(4.5);
+        b.position.set(x + (side === 0 ? 3 : -3), 0, 0);
+        b.rotation.y = (side === 0 ? Math.PI / 2 : -Math.PI / 2);
+        b.traverse(n => {
+          if (n.isMesh) {
+            n.castShadow = true;
+            n.receiveShadow = true;
+            if (n.material && n.material.map) {
+              n.material.map.flipY = false;
+              n.material.map.colorSpace = THREE.SRGBColorSpace;
+            }
+          }
+        });
+        parent.add(b);
 
-      for (let r = 2; r < height - 2; r += 2.2) {
-        for (let c = -width / 2 + 1.2; c < width / 2 - 1.2; c += 1.8) {
-          if (((index + r + c) % 3) === 0) {
-            const win = new THREE.Mesh(winGeo, ((index + r) % 2 === 0) ? winMatA : winMatB);
-            win.position.set(x + (side === 0 ? width / 2 + 0.05 : -width / 2 - 0.05), r, c);
-            win.rotation.y = Math.PI / 2;
-            parent.add(win);
+        // Add Highway Verge Tree
+        if (this.assetPrototypes[treeKey] && index % 2 === 1) {
+          const tree = this.assetPrototypes[treeKey].clone(true);
+          tree.scale.setScalar(2.8);
+          tree.position.set(x + (side === 0 ? 8 : -8), 0, (side === 0 ? -4 : 4));
+          parent.add(tree);
+        }
+      } else {
+        const height = 12 + ((index * 7 + side * 5) % 24);
+        const width = 8 + (index % 4) * 2;
+        const bGeo = new THREE.BoxGeometry(width, height, 11);
+        const bMat = new THREE.MeshStandardMaterial({
+          color: palette[(index + side) % palette.length],
+          roughness: 0.7,
+          metalness: 0.2
+        });
+        const building = new THREE.Mesh(bGeo, bMat);
+        building.position.set(x, height / 2 - 0.2, 0);
+        parent.add(building);
+
+        const winGeo = new THREE.BoxGeometry(0.4, 0.6, 0.05);
+        const winMatA = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
+        const winMatB = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
+
+        for (let r = 2; r < height - 2; r += 2.2) {
+          for (let c = -width / 2 + 1.2; c < width / 2 - 1.2; c += 1.8) {
+            if (((index + r + c) % 3) === 0) {
+              const win = new THREE.Mesh(winGeo, ((index + r) % 2 === 0) ? winMatA : winMatB);
+              win.position.set(x + (side === 0 ? width / 2 + 0.05 : -width / 2 - 0.05), r, c);
+              win.rotation.y = Math.PI / 2;
+              parent.add(win);
+            }
           }
         }
       }
@@ -661,6 +776,26 @@ export class WorldManager {
     }
     if (this.stars) {
       this.stars.rotation.y += dt * 0.005;
+    }
+
+    // Dynamic Weather Particle Physics & Recycling
+    if (this.weatherParticles && this.weatherPositions && this.weatherType !== 'none') {
+      const pos = this.weatherPositions;
+      const vel = this.weatherVelocities;
+      for (let i = 0; i < this.weatherParticleCount; i++) {
+        const idx = i * 3;
+        pos[idx] += vel[idx] * dt;
+        pos[idx + 1] += vel[idx + 1] * dt;
+        pos[idx + 2] += (vel[idx + 2] + speed) * dt;
+
+        // Recycle particles that hit ground or pass behind camera
+        if (pos[idx + 1] < 0 || pos[idx + 2] > 18) {
+          pos[idx] = (Math.random() - 0.5) * 55;
+          pos[idx + 1] = Math.random() * 22 + 8;
+          pos[idx + 2] = -Math.random() * 90 - 10;
+        }
+      }
+      this.weatherParticles.geometry.attributes.position.needsUpdate = true;
     }
   }
 }

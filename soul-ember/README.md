@@ -1,6 +1,6 @@
 # Soul Ember — The Last Light
 
-A 3D dark-fantasy survival roguelite for desktop and mobile browsers, with illustrated menu portraits.
+A 3D dark-fantasy survival roguelite for desktop and mobile browsers. Every hero, monster, guardian, weapon and menu showcase is rendered as live articulated 3D geometry.
 
 - Eight heroes with distinct weapons, signatures, stats and three connected build branches
 - Eighteen monsters split across the Ashen Cathedral, Drowned Catacombs and Thornbound Ossuary

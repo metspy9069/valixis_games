@@ -237,29 +237,29 @@ class RoadAudioEngine {
   initProceduralEngine() {
     const t = this.ctx.currentTime;
 
-    // Soft Deep Sub-Bass Exhaust Purr (Triangle wave at 40 Hz - warm and punchy)
+    // Soft Deep Sub-Bass Exhaust Purr (Triangle wave at 38 Hz - warm and punchy)
     const subOsc = this.ctx.createOscillator();
     subOsc.type = 'triangle';
-    subOsc.frequency.setValueAtTime(40, t);
+    subOsc.frequency.setValueAtTime(38, t);
 
-    // Warm Low-Mid Harmonic (Sawtooth wave through shaper for automotive cylinder rumble)
+    // Warm Low-Mid Harmonic (Gentle triangle wave for smooth automotive rumble, no harsh buzzer)
     const midOsc = this.ctx.createOscillator();
-    midOsc.type = 'sawtooth';
-    midOsc.frequency.setValueAtTime(80, t);
+    midOsc.type = 'triangle';
+    midOsc.frequency.setValueAtTime(76, t);
 
-    // Gentle Waveshaper Saturation (eliminates sterile buzzer tone)
+    // Subtle Analog Warmth Saturation
     const shaper = this.ctx.createWaveShaper();
-    shaper.curve = this.makeDistortionCurve(6);
-    shaper.oversample = '4x';
+    shaper.curve = this.makeDistortionCurve(1.5);
+    shaper.oversample = '2x';
 
     const subGain = this.ctx.createGain();
-    subGain.gain.setValueAtTime(0.28, t);
+    subGain.gain.setValueAtTime(0.18, t);
 
-    // Resonant Lowpass Filter (eliminates all harshness)
+    // Resonant Lowpass Filter (velvety automotive rumble)
     const subFilter = this.ctx.createBiquadFilter();
     subFilter.type = 'lowpass';
-    subFilter.frequency.setValueAtTime(180, t);
-    subFilter.Q.setValueAtTime(1.8, t);
+    subFilter.frequency.setValueAtTime(160, t);
+    subFilter.Q.setValueAtTime(1.2, t);
 
     subOsc.connect(subFilter);
     midOsc.connect(subFilter);
@@ -578,7 +578,14 @@ class RoadAudioEngine {
         this.synthBoosterSurge(now);
         break;
       case 'laser':
+      case 'turret_fire':
         this.synthDroneLaser(now);
+        break;
+      case 'turret_deploy':
+        this.synthTurretDeploy(now);
+        break;
+      case 'turret_warning':
+        this.synthTurretWarning(now);
         break;
       case 'countdown_tick':
         this.synthCountdownTick(now);
@@ -734,6 +741,37 @@ class RoadAudioEngine {
     gain.connect(this.sfxGain);
     osc.start(t);
     osc.stop(t + 0.16);
+  }
+
+  synthTurretDeploy(t) {
+    // Pneumatic hiss & motorized servo rise
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.linearRampToValueAtTime(420, t + 0.45);
+    gain.gain.setValueAtTime(0.28, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(gain);
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + 0.52);
+  }
+
+  synthTurretWarning(t) {
+    // Two-tone air defense klaxon
+    [0, 0.22].forEach((offset, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(idx === 0 ? 520 : 660, t + offset);
+      gain.gain.setValueAtTime(0.35, t + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.2);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.22);
+    });
   }
 
   synthMissile(t) {

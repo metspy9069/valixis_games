@@ -158,20 +158,12 @@ export class TrafficManager {
             node.material.map = this.colormapTexture;
           }
 
-          const name = (node.name || '').toLowerCase();
-          if (name.includes('body') || name.includes('spoiler')) {
-            if (type === 'sports' || type === 'sedan' || type === 'suv') {
-              node.material.color.setHex(carColor);
-            }
-            node.material.roughness = 0.22;
-            node.material.metalness = 0.65;
-          } else if (name.includes('wheel')) {
-            node.material.roughness = 0.82;
-            node.material.metalness = 0.15;
-          } else {
-            node.material.roughness = 0.3;
-            node.material.metalness = 0.4;
-          }
+          // Keep base color pure white so the authentic Kenney texture atlas
+          // (tinted glass windows, crisp headlights, red taillights, black rubber tires)
+          // renders at full fidelity without becoming a monochrome clay blob!
+          node.material.color.setHex(0xffffff);
+          node.material.roughness = 0.28;
+          node.material.metalness = 0.45;
           node.material.needsUpdate = true;
         }
       });
@@ -517,44 +509,80 @@ export class TrafficManager {
         mesh.add(spike);
       }
     } else if (roll < 0.6) {
-      // Construction Hazard Barrel with Blinking LED
+      // Construction Hazard Cones / Barrels with Blinking LED
       isBarrel = true;
-      const barrelMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 });
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      if (this.assetPrototypes && this.assetPrototypes['cone']) {
+        const coneProto = this.assetPrototypes['cone'];
+        [-1.0, 0, 1.0].forEach(x => {
+          const c = coneProto.clone(true);
+          c.scale.setScalar(2.2);
+          c.position.set(x, 0, 0);
+          c.traverse(n => {
+            if (n.isMesh) {
+              n.castShadow = true;
+              if (n.material && n.material.map) {
+                n.material.map.flipY = false;
+                n.material.map.colorSpace = THREE.SRGBColorSpace;
+              }
+            }
+          });
+          mesh.add(c);
+        });
+      } else {
+        const barrelMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 });
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        [-0.8, 0.8].forEach(x => {
+          const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 1.1, 12), barrelMat);
+          barrel.position.set(x, 0.55, 0);
+          mesh.add(barrel);
+          const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.25, 12), stripeMat);
+          stripe.position.set(x, 0.65, 0);
+          mesh.add(stripe);
+        });
+      }
 
-      [-0.8, 0.8].forEach(x => {
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 1.1, 12), barrelMat);
-        barrel.position.set(x, 0.55, 0);
-        mesh.add(barrel);
-
-        const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.25, 12), stripeMat);
-        stripe.position.set(x, 0.65, 0);
-        mesh.add(stripe);
-
-        // Blinking Amber Light
-        const led = new THREE.PointLight(0xffb800, 2.0, 4);
-        led.position.set(x, 1.2, 0);
-        mesh.add(led);
-      });
+      const led = new THREE.PointLight(0xffb800, 2.5, 5);
+      led.position.set(0, 1.2, 0);
+      mesh.add(led);
     } else {
-      // Construction Barrier
+      // Heavy Construction Barrier
       isBarrier = true;
-      const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(3.2, 0.8, 0.3),
-        new THREE.MeshStandardMaterial({ color: 0xff5500, roughness: 0.7 })
-      );
-      bar.position.y = 0.5;
-      mesh.add(bar);
-
-      [-1.0, 0, 1.0].forEach(x => {
-        const stripe = new THREE.Mesh(
-          new THREE.BoxGeometry(0.35, 0.82, 0.32),
-          new THREE.MeshBasicMaterial({ color: 0xffffff })
+      if (this.assetPrototypes && this.assetPrototypes['barrier']) {
+        const barProto = this.assetPrototypes['barrier'];
+        const b = barProto.clone(true);
+        b.scale.setScalar(2.4);
+        b.traverse(n => {
+          if (n.isMesh) {
+            n.castShadow = true;
+            if (n.material && n.material.map) {
+              n.material.map.flipY = false;
+              n.material.map.colorSpace = THREE.SRGBColorSpace;
+            }
+          }
+        });
+        mesh.add(b);
+      } else {
+        const bar = new THREE.Mesh(
+          new THREE.BoxGeometry(3.2, 0.8, 0.3),
+          new THREE.MeshStandardMaterial({ color: 0xff5500, roughness: 0.7 })
         );
-        stripe.position.set(x, 0.5, 0);
-        stripe.rotation.z = 0.4;
-        mesh.add(stripe);
-      });
+        bar.position.y = 0.5;
+        mesh.add(bar);
+
+        [-1.0, 0, 1.0].forEach(x => {
+          const stripe = new THREE.Mesh(
+            new THREE.BoxGeometry(0.35, 0.82, 0.32),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+          );
+          stripe.position.set(x, 0.5, 0);
+          stripe.rotation.z = 0.4;
+          mesh.add(stripe);
+        });
+      }
+
+      const warnLight = new THREE.PointLight(0xff4400, 2.0, 4.5);
+      warnLight.position.set(0, 1.1, 0);
+      mesh.add(warnLight);
     }
 
     mesh.position.set(lane, 0, -145);
@@ -602,17 +630,32 @@ export class TrafficManager {
     const group = new THREE.Group();
 
     if (type === 'coin') {
-      const coinGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.16, 20);
-      coinGeo.rotateX(Math.PI / 2);
-      const coinMat = new THREE.MeshStandardMaterial({
-        color: 0xffb800,
-        emissive: 0xff9900,
-        emissiveIntensity: 0.5,
-        metalness: 0.95,
-        roughness: 0.15
-      });
-      const coin = new THREE.Mesh(coinGeo, coinMat);
-      group.add(coin);
+      if (this.assetPrototypes && this.assetPrototypes['coin']) {
+        const c = this.assetPrototypes['coin'].clone(true);
+        c.scale.setScalar(2.6);
+        c.traverse(n => {
+          if (n.isMesh) {
+            n.castShadow = true;
+            if (n.material) {
+              n.material.roughness = 0.15;
+              n.material.metalness = 0.95;
+            }
+          }
+        });
+        group.add(c);
+      } else {
+        const coinGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.16, 20);
+        coinGeo.rotateX(Math.PI / 2);
+        const coinMat = new THREE.MeshStandardMaterial({
+          color: 0xffb800,
+          emissive: 0xff9900,
+          emissiveIntensity: 0.5,
+          metalness: 0.95,
+          roughness: 0.15
+        });
+        const coin = new THREE.Mesh(coinGeo, coinMat);
+        group.add(coin);
+      }
 
       const coinGlow = new THREE.PointLight(0xffb800, 1.8, 3.5);
       group.add(coinGlow);

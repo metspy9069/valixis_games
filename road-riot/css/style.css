@@ -1408,3 +1408,107 @@ html, body {
   color: var(--neon-gold);
   margin-top: 4px;
 }
+
+/* ========================================================= */
+/* PHASE 3: 180° TURRET CHECKPOINT & WEATHER OVERLAYS       */
+/* ========================================================= */
+.checkpoint-banner {
+  position: fixed;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12, 18, 30, 0.88);
+  border: 2px solid var(--neon-magenta);
+  box-shadow: 0 0 35px rgba(255, 42, 133, 0.4), inset 0 0 20px rgba(255, 42, 133, 0.2);
+  border-radius: 12px;
+  padding: 14px 28px;
+  text-align: center;
+  z-index: 45;
+  animation: pulse-checkpoint 1.4s infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes pulse-checkpoint {
+  0% { transform: translateX(-50%) scale(0.98); box-shadow: 0 0 25px rgba(255, 42, 133, 0.3); }
+  100% { transform: translateX(-50%) scale(1.02); box-shadow: 0 0 45px rgba(255, 42, 133, 0.65); }
+}
+
+.checkpoint-glitch-badge {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255, 42, 133, 0.8);
+}
+
+.checkpoint-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--neon-cyan);
+  margin-top: 5px;
+  letter-spacing: 1.5px;
+}
+
+/* 180° Turret Gunner Crosshair */
+.turret-crosshair {
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 48;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.crosshair-ring {
+  width: 64px;
+  height: 64px;
+  border: 2px dashed var(--neon-cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 18px var(--neon-cyan-glow), inset 0 0 12px rgba(0, 217, 255, 0.25);
+  animation: spin-crosshair 6s linear infinite;
+}
+
+@keyframes spin-crosshair {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.crosshair-dot {
+  width: 6px;
+  height: 6px;
+  background: #ff0055;
+  box-shadow: 0 0 8px #ff0055;
+  border-radius: 50%;
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.crosshair-status {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(6, 12, 22, 0.8);
+  border: 1px solid var(--neon-cyan);
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+.crosshair-hint {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+

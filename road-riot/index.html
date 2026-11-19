@@ -110,6 +110,22 @@
     <!-- Center Floating Announcer & Combo Popups -->
     <div id="announcer-zone"></div>
 
+    <!-- Checkpoint Turret Defense Warning Banner -->
+    <div id="hud-checkpoint-banner" class="checkpoint-banner hidden">
+      <div class="checkpoint-glitch-badge">⚠️ AIR DEFENSE CHECKPOINT ACTIVE ⚠️</div>
+      <div class="checkpoint-sub">MOUNTING ROOF TURRET &bull; AIM &amp; FIRE ACROSS 180&deg; ARC</div>
+    </div>
+
+    <!-- 180° Turret Gunner Crosshair & Drone Wave HUD -->
+    <div id="hud-turret-crosshair" class="turret-crosshair hidden">
+      <div class="crosshair-ring"></div>
+      <div class="crosshair-dot"></div>
+      <div class="crosshair-status">
+        <span id="turret-drone-count">DRONES IN AIR: 4</span> &bull; <span id="turret-wave-badge">WAVE 1/3</span>
+      </div>
+      <div class="crosshair-hint">MOUSE / ARROWS: AIM 180&deg; &bull; SPACE / CLICK: FIRE PLASMA</div>
+    </div>
+
     <!-- Bottombar: Speedometer, Gear, Tachometer, and Nitro -->
     <footer class="hud-bottombar">
       <!-- Speedometer & Nitro Panel -->
@@ -211,10 +227,11 @@
           <!-- Highway Biome -->
           <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,184,0,0.18); border-radius:10px; padding:12px;">
             <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1px; margin-bottom:8px;">HIGHWAY BIOME</div>
-            <div style="display:flex; gap:6px;">
-              <button class="setting-toggle biome-btn active" data-biome="midnight" style="flex:1; font-size:10px; padding:8px 2px;">MIDNIGHT</button>
-              <button class="setting-toggle biome-btn" data-biome="canyon" style="flex:1; font-size:10px; padding:8px 2px;">SUNSET</button>
-              <button class="setting-toggle biome-btn" data-biome="neotokyo" style="flex:1; font-size:10px; padding:8px 2px;">NEO-RAIN</button>
+            <div style="display:flex; gap:5px;">
+              <button class="setting-toggle biome-btn active" data-biome="midnight" style="flex:1; font-size:10px; padding:8px 1px;">MIDNIGHT</button>
+              <button class="setting-toggle biome-btn" data-biome="canyon" style="flex:1; font-size:10px; padding:8px 1px;">SUNSET</button>
+              <button class="setting-toggle biome-btn" data-biome="neotokyo" style="flex:1; font-size:10px; padding:8px 1px;">NEO-RAIN</button>
+              <button class="setting-toggle biome-btn" data-biome="arctic" style="flex:1; font-size:10px; padding:8px 1px;">ARCTIC</button>
             </div>
           </div>
         </div>
@@ -292,6 +309,11 @@
               <div style="font-family:var(--font-mono); font-size:10px; color:#ffea00; margin-top:12px; font-weight:700; text-align:center; letter-spacing:1px; background:rgba(255,234,0,0.1); border:1px solid rgba(255,234,0,0.25); border-radius:6px; padding:6px 10px;">
                 🔄 3D TURNTABLE ACTIVE &bull; DRAG TO ROTATE 360&deg;
               </div>
+
+              <!-- Interactive Dyno Test Button -->
+              <button id="garage-dyno-btn" class="btn-primary" style="margin-top:12px; width:100%; font-size:11px; padding:10px; background:linear-gradient(135deg, #ff8800, #ff2a44); border-color:#ffaa00; font-weight:800;">
+                📊 RUN DYNO SPEED TEST BENCHMARK
+              </button>
             </div>
           </div>
 

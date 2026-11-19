@@ -1,6 +1,6 @@
-# Soul Ember illustrated rebuild
+# Soul Ember 3D rebuild
 
-`src/rebuild/main.js` is the active entry point. It connects the version 3 progression, interface, simulation, renderer and anonymous challenge adapter. The game keeps its data in `soul_ember_illustrated_v3`; it never imports or overwrites the older save.
+`src/rebuild/main.js` is the active entry point. It connects the version 3 progression, interface, simulation, renderer and anonymous challenge adapter. The game keeps its data in the existing version 3 save slot, `soul_ember_illustrated_v3`, so this visual upgrade preserves current progression while never importing or overwriting the older game save.
 
 ## Game structure
 
@@ -8,7 +8,7 @@
 
 Every hero has three ranks in each of three branches, plus two small shared survival blessings. Offers exclude capped choices. Rank three changes the attack pattern or dodge effect. The build panel shows branch ranks and damage contributions. The first choice is guaranteed by 50 seconds even if room geometry delays early drops; successful automated runs produce 10–13 choices in roughly 8–12 minutes. Human playtesting is still required to judge feel and tune outlier builds.
 
-`scene.js` builds articulated 3D actors from batched body, limb, armor, weapon, wing and creature geometry. Heroes and monsters have physical depth, lighting, ground shadows and equipment, with idle, movement, attack, dodge, hit and death poses driven by the simulation. The illustrated bestiary remains in the hero-selection interface only. `dungeon-view.js` provides worn masonry, carved floors, coffins, banners, cutaway entrances, torchlight and region-specific ash debris, water and roots. The simulation and renderer share `dungeon.js`, so visible walls, doors and pillars match collision.
+`model-catalog.js` defines a bespoke physical silhouette, headgear, equipment and material palette for every hero, monster and guardian. `scene.js` restores the older articulated hierarchy approach and expands it with nested limbs, armor, weapons, wings, capes, boss phase parts, evolution parts and creature-specific rigs. The same live 3D actors appear in combat and in the menu showcase; there is no sprite or portrait atlas in the active game. Idle, movement, attack, dodge, hit and death poses are driven by the simulation, while geometry is batched for rendering. `dungeon-view.js` provides worn masonry, carved floors, coffins, banners, cutaway entrances, torchlight and region-specific ash debris, water and roots. The simulation and renderer share `dungeon.js`, so visible walls, doors and pillars match collision.
 
 The opening screen exposes only Play, Heroes and Settings. Records and challenges appear after the first completed expedition. A first-run guide introduces movement, automatic attacks, dodge warnings and soul pickups. Locked heroes explain the required number of completed expeditions.
 

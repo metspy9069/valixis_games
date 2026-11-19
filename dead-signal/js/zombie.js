@@ -2,56 +2,11 @@
 // simple state machine (wander -> chase -> attack -> die).
 import * as THREE from 'three';
 import { resolveCircle } from './world.js';
+import { buildZombieModel } from './models.js';
 
-export const TYPES = {
-  walker: {
-    hp: 100, speed: 2.05, damage: 11, reach: 1.9, scale: 1, score: 100,
-    skin: 0x6f8a5a, shirt: 0x33382c, pants: 0x262a22, eye: 0xd6ff5c,
-  },
-  runner: {
-    hp: 58, speed: 4.2, damage: 7, reach: 1.75, scale: 0.93, score: 160,
-    skin: 0xa88a68, shirt: 0x48282a, pants: 0x2a2020, eye: 0xff7a3d,
-  },
-  brute: {
-    hp: 430, speed: 1.4, damage: 30, reach: 2.3, scale: 1.6, score: 450,
-    skin: 0x7d7452, shirt: 0x2c2822, pants: 0x1f1c18, eye: 0xff2f2f,
-  },
-};
+import { TYPES } from './data.js';
+export { TYPES };
 
-// Shared geometry so thirty zombies cost a handful of buffers, not hundreds.
-const G = {
-  torso: new THREE.BoxGeometry(0.52, 0.62, 0.3),
-  chest: new THREE.BoxGeometry(0.58, 0.24, 0.34),
-  head: new THREE.BoxGeometry(0.27, 0.29, 0.27),
-  jaw: new THREE.BoxGeometry(0.2, 0.09, 0.1),
-  eye: new THREE.BoxGeometry(0.038, 0.026, 0.03),
-  upperArm: new THREE.BoxGeometry(0.13, 0.42, 0.14),
-  foreArm: new THREE.BoxGeometry(0.11, 0.38, 0.12),
-  hand: new THREE.BoxGeometry(0.13, 0.16, 0.09),
-  thigh: new THREE.BoxGeometry(0.17, 0.46, 0.18),
-  shin: new THREE.BoxGeometry(0.14, 0.44, 0.15),
-  foot: new THREE.BoxGeometry(0.17, 0.1, 0.28),
-};
-
-const materials = {};
-function matFor(type) {
-  if (materials[type]) return materials[type];
-  const def = TYPES[type];
-  materials[type] = {
-    skin: new THREE.MeshStandardMaterial({ color: def.skin, roughness: 0.92, metalness: 0.02, flatShading: true }),
-    shirt: new THREE.MeshStandardMaterial({ color: def.shirt, roughness: 0.95, flatShading: true }),
-    pants: new THREE.MeshStandardMaterial({ color: def.pants, roughness: 0.95, flatShading: true }),
-    eye: new THREE.MeshStandardMaterial({ color: def.eye, emissive: def.eye, emissiveIntensity: 3.4 }),
-  };
-  return materials[type];
-}
-
-function part(geo, material, x, y, z) {
-  const m = new THREE.Mesh(geo, material);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  return m;
-}
 
 export class Zombie {
   constructor(typeKey, position, rng = Math.random) {
@@ -81,84 +36,33 @@ export class Zombie {
     this.avoidDir = new THREE.Vector3();
     this.avoidTime = 0;
     this.stuckTime = 0;
+    this.lodTimer = 0;
+    this.detailOn = true;
     this.home = position.clone();
     this.build();
     this.group.position.copy(position);
   }
 
   build() {
-    const m = matFor(this.type);
-    const g = new THREE.Group();
-    g.scale.setScalar(this.def.scale);
+    const model = buildZombieModel(this.type, this.def);
+    this.group = model.group;
+    this.rig = model.rig;
+    this.hitMeshes = model.hitMeshes;
+    this.detail = model.detail || [];
+    // Hit volumes: the head is a separate, smaller target.
+    for (const mesh of this.hitMeshes) mesh.userData.zombie = this;
+  }
 
-    // Root sits at the feet so the physics position is the ground point.
-    const hips = new THREE.Group();
-    hips.position.y = 0.9;
-    g.add(hips);
-
-    const torso = part(G.torso, m.shirt, 0, 0.3, 0);
-    hips.add(torso);
-
-    const chest = part(G.chest, m.shirt, 0, 0.52, 0);
-    hips.add(chest);
-
-    // Neck + head.
-    const neck = new THREE.Group();
-    neck.position.set(0, 0.62, 0);
-    hips.add(neck);
-    const head = part(G.head, m.skin, 0, 0.16, 0);
-    neck.add(head);
-    const jaw = part(G.jaw, m.skin, 0, 0.05, 0.09);
-    neck.add(jaw);
-    const eyeL = part(G.eye, m.eye, -0.062, 0.2, 0.137);
-    const eyeR = part(G.eye, m.eye, 0.062, 0.2, 0.137);
-    neck.add(eyeL, eyeR);
-
-    // Arms: shoulder pivot -> forearm pivot -> hand.
-    const arm = (side) => {
-      const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.33, 0.56, 0);
-      hips.add(shoulder);
-      shoulder.add(part(G.upperArm, m.skin, 0, -0.2, 0));
-
-      const elbow = new THREE.Group();
-      elbow.position.set(0, -0.4, 0);
-      shoulder.add(elbow);
-      elbow.add(part(G.foreArm, m.skin, 0, -0.18, 0));
-      elbow.add(part(G.hand, m.skin, 0, -0.4, 0.02));
-      return { shoulder, elbow };
-    };
-    const armL = arm(-1);
-    const armR = arm(1);
-
-    // Legs: hip pivot -> knee pivot -> foot.
-    const leg = (side) => {
-      const hip = new THREE.Group();
-      hip.position.set(side * 0.14, 0.02, 0);
-      hips.add(hip);
-      hip.add(part(G.thigh, m.pants, 0, -0.23, 0));
-
-      const knee = new THREE.Group();
-      knee.position.set(0, -0.45, 0);
-      hip.add(knee);
-      knee.add(part(G.shin, m.pants, 0, -0.22, 0));
-      knee.add(part(G.foot, m.skin, 0, -0.45, 0.06));
-      return { hip, knee };
-    };
-    const legL = leg(-1);
-    const legR = leg(1);
-
-    this.rig = { hips, torso, neck, head, jaw, armL, armR, legL, legR };
-    this.group = g;
-
-    // Hit volumes: headshots are a separate, smaller target.
-    this.hitMeshes = [head, torso, chest];
-    head.userData.part = 'head';
-    torso.userData.part = 'body';
-    chest.userData.part = 'body';
-    for (const mesh of this.hitMeshes) {
-      mesh.userData.zombie = this;
-    }
+  // Facial and hand detail only matters up close; dropping it further out is
+  // what keeps a forty-body wave inside the frame budget.
+  updateLod(dist, dt) {
+    this.lodTimer -= dt;
+    if (this.lodTimer > 0) return;
+    this.lodTimer = 0.35;
+    const on = dist < 40;
+    if (on === this.detailOn) return;
+    this.detailOn = on;
+    for (const mesh of this.detail) mesh.visible = on;
   }
 
   alert() {
@@ -343,6 +247,7 @@ export class Zombie {
 
     if (dist > 0.2) this.faceTowards(playerPos, dt, this.state === 'attack' ? 5 : 8);
 
+    this.updateLod(dist, dt);
     this.animate(dt, targetSpeed, dist);
   }
 

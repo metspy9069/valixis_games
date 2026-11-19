@@ -1,0 +1,11 @@
+{
+  "name": "dead-signal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dead Signal - procedural WebGL zombie shooter for the VALIXIS arcade.",
+  "scripts": {
+    "sim": "node tools/balance-sim.mjs",
+    "check": "node tools/check.mjs"
+  }
+}

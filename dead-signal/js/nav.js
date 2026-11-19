@@ -6,9 +6,10 @@
 import * as THREE from 'three';
 
 export class NavGrid {
-  constructor(colliders, cell = 2, extent = 72) {
+  constructor(colliders, cell = 2, extent = 72, radius = 64) {
     this.cell = cell;
     this.extent = extent;
+    this.radius = radius;
     this.n = Math.ceil((extent * 2) / cell);
     this.size = this.n * this.n;
     this.blocked = new Uint8Array(this.size);
@@ -36,7 +37,7 @@ export class NavGrid {
         const z = this.centreOf(j);
         let blocked = 0;
 
-        if (Math.hypot(x, z) > 64) blocked = 1;
+        if (Math.hypot(x, z) > this.radius) blocked = 1;
 
         if (!blocked) {
           for (const c of colliders) {

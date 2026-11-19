@@ -11,13 +11,143 @@ import { AudioEngine } from './audio.js';
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.22;
+renderer.toneMappingExposure = 1.38;
 renderer.autoClear = false;
+
+// Quality tiers. The game starts on high and steps down on its own if the
+// machine cannot hold the frame rate; nothing here changes gameplay.
+const QUALITY_TIERS = [
+  { name: 'low', ratio: 1.0, shadow: 1024, grade: false },
+  { name: 'medium', ratio: 1.25, shadow: 1536, grade: true },
+  { name: 'high', ratio: 1.75, shadow: 2048, grade: true },
+];
+let qualityTier = 2;
+
+// Post: a single full-screen grade pass (aberration, filmic contrast,
+// split-tone, vignette, grain). One extra draw call, no extra scene renders.
+const gradeTarget = new THREE.WebGLRenderTarget(1, 1, {
+  minFilter: THREE.LinearFilter,
+  magFilter: THREE.LinearFilter,
+  depthBuffer: true,
+  stencilBuffer: false,
+  samples: 4,
+});
+const gradeMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tDiffuse: { value: null },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uTime: { value: 0 },
+    uAberration: { value: 0.0035 },
+    uVignette: { value: 1.02 },
+    uGrain: { value: 0.016 },
+  },
+  depthTest: false,
+  depthWrite: false,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position.xy, 0.0, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform float uAberration;
+    uniform float uVignette;
+    uniform float uGrain;
+    varying vec2 vUv;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+
+    void main() {
+      vec2 centred = vUv - 0.5;
+      float r2 = dot(centred, centred);
+
+      // Lens aberration grows toward the edges, like a wide-angle lens.
+      vec2 shift = centred * uAberration * r2 * 4.0;
+      vec3 col;
+      col.r = texture2D(tDiffuse, vUv + shift).r;
+      col.g = texture2D(tDiffuse, vUv).g;
+      col.b = texture2D(tDiffuse, vUv - shift).b;
+      col = clamp(col, 0.0, 1.0);
+
+      // Filmic S-curve: deeper shadows, cleaner highlights.
+      col = mix(col, col * col * (3.0 - 2.0 * col), 0.24);
+
+      // Cool the shadows, warm the highlights.
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      vec3 cool = col * vec3(0.86, 0.96, 1.14);
+      vec3 warm = col * vec3(1.1, 1.0, 0.88);
+      col = mix(cool, warm, smoothstep(0.22, 0.85, lum));
+
+      // Vignette, heavier as health drops.
+      float vig = smoothstep(0.95, 0.22, sqrt(r2) * uVignette);
+      col *= mix(1.0, vig, 0.85);
+
+      // Animated grain, weakest in the highlights.
+      float n = hash(vUv * uResolution + fract(uTime) * 137.0) - 0.5;
+      col += n * uGrain * (1.0 - lum * 0.7);
+
+      gl_FragColor = vec4(col, 1.0);
+      #include <colorspace_fragment>
+    }
+  `,
+});
+const gradeScene = new THREE.Scene();
+const gradeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+gradeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), gradeMat));
+
+function sizeGradeTarget() {
+  const tier = QUALITY_TIERS[qualityTier];
+  const ratio = Math.min(window.devicePixelRatio || 1, tier.ratio);
+  const w = Math.max(1, Math.floor(window.innerWidth * ratio));
+  const h = Math.max(1, Math.floor(window.innerHeight * ratio));
+  gradeTarget.setSize(w, h);
+  gradeMat.uniforms.uResolution.value.set(w, h);
+}
+
+function applyQuality() {
+  const tier = QUALITY_TIERS[qualityTier];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier.ratio));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  if (world && world.moon) {
+    world.moon.shadow.mapSize.set(tier.shadow, tier.shadow);
+    if (world.moon.shadow.map) {
+      world.moon.shadow.map.dispose();
+      world.moon.shadow.map = null;
+    }
+  }
+  sizeGradeTarget();
+}
+
+// If the frame rate cannot hold, drop a tier. It never climbs back on its own,
+// so the view cannot oscillate mid-firefight.
+let perfAccum = 0;
+let perfFrames = 0;
+let perfCooldown = 4;
+function trackPerf(dt) {
+  perfAccum += dt;
+  perfFrames++;
+  perfCooldown -= dt;
+  if (perfAccum < 2.5 || perfCooldown > 0) return;
+  const fps = perfFrames / perfAccum;
+  perfAccum = 0;
+  perfFrames = 0;
+  if (fps < 42 && qualityTier > 0) {
+    qualityTier--;
+    applyQuality();
+    perfCooldown = 6;
+    showHint(`GRAPHICS: ${QUALITY_TIERS[qualityTier].name.toUpperCase()} Â· ${Math.round(fps)} FPS`);
+  }
+}
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.05, 240);
@@ -36,7 +166,8 @@ viewFill.position.set(-1.2, 0.4, 0.6);
 viewScene.add(viewFill);
 
 const world = buildWorld(scene);
-const nav = new NavGrid(world.colliders);
+const nav = new NavGrid(world.colliders, 2, world.navExtent, world.navRadius);
+applyQuality();
 let navTimer = 0;
 const audio = new AudioEngine();
 const viewModel = new ViewModel(viewScene, viewCamera);
@@ -59,6 +190,29 @@ let muzzleLightTimer = 0;
 
 // ---------------------------------------------------------------- state
 const rng = makeRng(1337);
+
+// ---------------------------------------------------------------- settings
+// Player-facing options, persisted next to the best-run record.
+const SETTINGS_KEY = 'deadSignalSettings';
+const settings = Object.assign({ sensitivity: 1, fov: 78, invertY: false }, loadSettings());
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) { return {}; }
+}
+
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (err) { /* storage can be blocked */ }
+}
+
+// ------------------------------------------------------------ launch params
+// ?wave=20 starts a run at wave 20, so the late curve is testable in one click.
+// ?stats=1 opens the frame-time readout; F3 toggles it at any time.
+const params = new URLSearchParams(location.search);
+const launchWave = Math.max(0, Math.min(99, Number.parseInt(params.get('wave') || '0', 10) || 0));
 
 const player = {
   pos: new THREE.Vector3(0, 0, 20),
@@ -103,6 +257,8 @@ const game = {
   headshots: 0,
   score: 0,
   elapsed: 0,
+  shots: 0,
+  hits: 0,
   intermission: 0,
   spawnQueue: [],
   spawnTimer: 0,
@@ -241,6 +397,9 @@ const hud = {
   wave: el('waveValue'), kills: el('killValue'), left: el('leftValue'), score: el('scoreValue'),
   surgeBadge: el('surgeBadge'),
   cross: el('cross'), blood: el('blood'), hurt: el('hurtFlash'),
+  dmgDir: el('dmgDir'), perf: el('perf'),
+  setSens: el('setSens'), setFov: el('setFov'), setInvert: el('setInvert'),
+  setSensVal: el('setSensVal'), setFovVal: el('setFovVal'),
   banner: el('banner'), bannerK: el('bannerK'), bannerT: el('bannerT'), bannerS: el('bannerS'),
   hint: el('hint'), flashBtn: el('flashBtn'), muteBtn: el('muteBtn'),
   menu: el('menuScreen'), pause: el('pauseScreen'), over: el('overScreen'),
@@ -315,6 +474,11 @@ document.addEventListener('pointerlockchange', () => {
 window.addEventListener('keydown', (e) => {
   const k = e.code;
   keys[k] = true;
+  if (k === 'F3') {
+    e.preventDefault();
+    hud.perf.classList.toggle('show');
+    return;
+  }
   if (k === 'Escape') {
     if (game.running && !game.paused && !game.over) pauseGame();
     return;
@@ -355,9 +519,10 @@ document.addEventListener('mousemove', (e) => {
   const mx = e.movementX || 0;
   const my = e.movementY || 0;
   if (!mx && !my) return;
-  const sens = (player.ads ? 0.0011 : 0.0021) * (mouseLocked ? 1 : 0.8);
+  const sens = (player.ads ? 0.0011 : 0.0021) * settings.sensitivity * (mouseLocked ? 1 : 0.8);
   player.yaw -= mx * sens;
-  player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - my * sens));
+  const pitchDelta = (settings.invertY ? my : -my) * sens;
+  player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch + pitchDelta));
   viewModelUpdateLook(mx, my);
 });
 
@@ -483,6 +648,7 @@ function tryFire() {
   }
   ammo.lastShot = now;
   ammo.mag[ammo.weapon] -= 1;
+  game.shots += 1;
   updateAmmoHud();
 
   audio.shot(def.sound);
@@ -520,6 +686,7 @@ function tryFire() {
       const head = mesh.userData.part === 'head';
       const falloff = damageFalloff(def, distance);
       const dmg = def.damage * falloff * (head ? 2.6 : 1);
+      game.hits += 1;
       const killed = zombie.takeDamage(dmg, head ? 'head' : 'body', makeContext());
       spawnParticles(point, head ? 12 : 7, 'blood', head ? 1.35 : 1);
       spawnDamageNumber(point, dmg, head);
@@ -653,14 +820,20 @@ function startWave(n) {
     // A surge opens with a burst, so the spike is visible in the first two
     // seconds instead of reading as the wave quietly finishing early.
     const lead = plan.surge && i < plan.burstLead;
+    // One heavy closes every tenth wave. Under the count cap a single dangerous
+    // body is both cheaper to draw and easier to read than ten more walkers.
+    const boss = plan.boss && i === plan.count - 1;
     game.spawnQueue.push({
-      type: rollType(plan),
+      type: boss ? 'brute' : rollType(plan),
       delay: lead ? 0.08 : 0.2 + (i - plan.burstLead) * plan.spacing,
       lead,
+      boss,
     });
   }
 
+  world.setBlackout(plan.modifier === 'blackout');
   audio.waveAlarm(plan.surge);
+  if (plan.modifier !== 'none') showHint(`WAVE MODIFIER: ${plan.modifier.toUpperCase()}`, 3200);
   const ramp = `Speed +${Math.round((plan.speedScale - 1) * 100)}% \u00b7 bite +${Math.round((plan.damageScale - 1) * 100)}%.`;
   const head = plan.wave === 1
     ? 'They heard the relay. Hold position.'
@@ -737,6 +910,15 @@ function spawnFromQueue() {
   z.speed *= game.speedScale || 1;
   z.damage = Math.round(z.damage * (game.damageScale || 1));
   z.state = 'chase';
+  if (entry.boss) {
+    z.isBoss = true;
+    z.maxHp = Math.round(z.maxHp * 2.6);
+    z.hp = z.maxHp;
+    z.damage = Math.round(z.damage * 1.35);
+    z.group.scale.multiplyScalar(1.35);
+    z.radius *= 1.35;
+    showBanner('HEAVY CONTACT', 'GATEKEEPER', 'It does not flinch. Keep moving.', 3000);
+  }
 }
 
 function aliveCount() {
@@ -831,6 +1013,24 @@ function damagePlayer(amount, from) {
   player.lastDamage = game.elapsed;
   player.shake = Math.min(1.1, player.shake + 0.4);
   audio.hurt();
+
+  // Tell the player where it came from: an arc that points at the attacker and
+  // a damage cue panned to that side. Surges open from random angles, so
+  // without this a hit from behind is unreadable.
+  if (from) {
+    const dx = from.group.position.x - player.pos.x;
+    const dz = from.group.position.z - player.pos.z;
+    const attacker = Math.atan2(dx, dz);
+    const forward = Math.atan2(-Math.sin(player.yaw), -Math.cos(player.yaw));
+    let rel = attacker - forward;
+    while (rel > Math.PI) rel -= Math.PI * 2;
+    while (rel < -Math.PI) rel += Math.PI * 2;
+    hud.dmgDir.style.transform = `rotate(${(-rel * 180) / Math.PI}deg)`;
+    hud.dmgDir.classList.add('show');
+    dmgDirTimer = 1.15;
+    audio.impact(Math.sin(-rel));
+  }
+
   hud.hurt.style.opacity = '0.85';
   setTimeout(() => { hud.hurt.style.opacity = '0'; }, 140);
   updateVitalsHud();
@@ -910,11 +1110,12 @@ function updatePlayer(dt) {
   player.pos.x += player.vel.x * dt;
   player.pos.z += player.vel.z * dt;
   resolveCircle(world.colliders, player.pos, player.radius);
+  world.setShadowFocus(player.pos.x, player.pos.z);
 
-  // Soft arena bound.
+  // City bound (the perimeter wall sits just outside it).
   const distFromCenter = Math.hypot(player.pos.x, player.pos.z);
-  if (distFromCenter > 62) {
-    const k = 62 / distFromCenter;
+  if (distFromCenter > world.bounds) {
+    const k = world.bounds / distFromCenter;
     player.pos.x *= k;
     player.pos.z *= k;
   }
@@ -939,7 +1140,7 @@ function updatePlayer(dt) {
   }
 
   // ADS FOV blend.
-  const wantFov = player.ads ? 58 : 78;
+  const wantFov = player.ads ? settings.fov * 0.74 : settings.fov;
   camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 10);
   camera.updateProjectionMatrix();
 
@@ -977,6 +1178,7 @@ function updateCamera(dt, planarSpeed) {
 
 // ---------------------------------------------------------------- HUD
 let hudTimer = 0;
+let dmgDirTimer = 0;
 function updateVitalsHud() {
   const hp = Math.max(0, player.health);
   hud.hpFill.style.width = `${(hp / player.maxHealth) * 100}%`;
@@ -1019,7 +1221,8 @@ function updateHudTick(dt) {
 }
 
 // ---------------------------------------------------------------- flow
-function startRun() {
+function startRun(atWave = 0) {
+  const jumpTo = Number.isFinite(atWave) ? Math.max(0, Math.min(99, Math.round(atWave))) : 0;
   audio.init();
   audio.resume();
   audio.setMuted(audio.muted);
@@ -1064,9 +1267,14 @@ function startRun() {
   game.headshots = 0;
   game.score = 0;
   game.elapsed = 0;
+  game.shots = 0;
+  game.hits = 0;
   game.plan = null;
   document.body.classList.remove('surge');
-  game.intermission = 2.2;
+  world.setBlackout(false);
+  // A launch parameter queues the requested wave; otherwise start from one.
+  game.wave = jumpTo > 0 ? jumpTo - 1 : 0;
+  game.intermission = jumpTo > 0 ? 0.8 : 2.2;
   game.spawnQueue = [];
   game.spawnTimer = 0;
   game.speedScale = 1;
@@ -1131,6 +1339,9 @@ function endRun() {
   el('overKills').textContent = String(game.kills);
   el('overHeads').textContent = String(game.headshots);
   el('overScore').textContent = String(score);
+  const accuracy = game.shots > 0 ? Math.round((game.hits / game.shots) * 100) : 0;
+  el('overAcc').textContent = game.shots > 0 ? `${accuracy}%` : '\u2014';
+  el('overBest').textContent = best.score > 0 ? `w${best.wave} ${best.score}` : '\u2014';
   el('overSub').textContent = isBest
     ? `New personal best. You held until wave ${game.wave}.`
     : `You held until wave ${game.wave}. The relay kept transmitting without you.`;
@@ -1289,17 +1500,56 @@ function simulate(dt) {
 }
 
 function render() {
-  renderer.clear();
-  renderer.render(scene, camera);
-  renderer.clearDepth();
-  renderer.render(viewScene, viewCamera);
+  // Health feeds the grade: the frame tightens and bleeds as you go down.
+  const hurt = Math.max(0, 1 - player.health / player.maxHealth);
+  gradeMat.uniforms.uTime.value = performance.now() * 0.001;
+  gradeMat.uniforms.uVignette.value = 1.02 + hurt * 0.4;
+  gradeMat.uniforms.uAberration.value = 0.0035 + hurt * 0.006;
+
+  if (QUALITY_TIERS[qualityTier].grade) {
+    renderer.setRenderTarget(gradeTarget);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.clearDepth();
+    renderer.render(viewScene, viewCamera);
+    renderer.setRenderTarget(null);
+    gradeMat.uniforms.tDiffuse.value = gradeTarget.texture;
+    renderer.clear();
+    renderer.render(gradeScene, gradeCamera);
+  } else {
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.clearDepth();
+    renderer.render(viewScene, viewCamera);
+  }
+}
+
+let fpsAvg = 60;
+let perfTick = 0;
+function updateOverlays(rawDt, dt) {
+  if (rawDt > 0) fpsAvg += (1 / rawDt - fpsAvg) * 0.08;
+  if (dmgDirTimer > 0) {
+    dmgDirTimer -= dt;
+    if (dmgDirTimer <= 0) hud.dmgDir.classList.remove('show');
+  }
+  if (!hud.perf.classList.contains('show')) return;
+  perfTick -= dt;
+  if (perfTick > 0) return;
+  perfTick = 0.25;
+  const info = renderer.info.render;
+  hud.perf.textContent = `${fpsAvg.toFixed(0)} FPS \u00b7 ${info.calls} calls \u00b7 ${(info.triangles / 1000).toFixed(0)}k tris\nbody ${aliveCount()} \u00b7 tier ${QUALITY_TIERS[qualityTier].name}`;
 }
 
 function frame(now) {
-  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  const rawDt = (now - lastFrame) / 1000;
+  const dt = Math.min(0.05, rawDt);
   lastFrame = now;
+  trackPerf(dt);
   simulate(dt);
   render();
+  // After render: renderer.info.render is reset at the start of every draw, so
+  // reading it before it would always report zero calls.
+  updateOverlays(rawDt, dt);
   requestAnimationFrame(frame);
 }
 
@@ -1344,17 +1594,53 @@ canvas.addEventListener('click', () => {
 });
 
 window.addEventListener('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  applyQuality();
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   viewCamera.aspect = camera.aspect;
   viewCamera.updateProjectionMatrix();
 });
 
-window.addEventListener('blur', () => {
+// Losing focus or hiding the tab pauses immediately: the game keeps running
+// even when pointer lock was refused, so this is the only thing stopping a
+// horde from eating you while the window is in the background.
+function pauseOnLeave() {
   ammo.triggerHeld = false;
   if (game.running && !game.paused && !game.over) pauseGame();
+}
+window.addEventListener('blur', pauseOnLeave);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pauseOnLeave();
 });
+
+function bindSettings() {
+  if (!hud.setSens) return;
+  hud.setSens.value = String(settings.sensitivity);
+  hud.setFov.value = String(settings.fov);
+  hud.setInvert.checked = !!settings.invertY;
+  hud.setSensVal.textContent = settings.sensitivity.toFixed(2);
+  hud.setFovVal.textContent = String(settings.fov);
+
+  camera.fov = settings.fov;
+  camera.updateProjectionMatrix();
+
+  hud.setSens.addEventListener('input', () => {
+    settings.sensitivity = Number(hud.setSens.value);
+    hud.setSensVal.textContent = settings.sensitivity.toFixed(2);
+    saveSettings();
+  });
+  hud.setFov.addEventListener('input', () => {
+    settings.fov = Number(hud.setFov.value);
+    hud.setFovVal.textContent = String(settings.fov);
+    camera.fov = settings.fov;
+    camera.updateProjectionMatrix();
+    saveSettings();
+  });
+  hud.setInvert.addEventListener('change', () => {
+    settings.invertY = hud.setInvert.checked;
+    saveSettings();
+  });
+}
 
 // ---------------------------------------------------------------- boot
 refreshBestLine();
@@ -1364,4 +1650,7 @@ hud.flashBtn.textContent = 'FLASHLIGHT [F] ON';
 hud.loading.classList.add('hidden');
 hud.menu.classList.remove('hidden');
 document.body.classList.add('in-menu');
+bindSettings();
+if (params.get('stats') === '1') hud.perf.classList.add('show');
+if (launchWave > 0) startRun(launchWave);
 requestAnimationFrame(frame);

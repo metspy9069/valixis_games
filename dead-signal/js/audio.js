@@ -39,6 +39,34 @@ export class AudioEngine {
     return buffer;
   }
 
+  _panner(pan) {
+    if (!this.ctx.createStereoPanner) return this.master;
+    const p = this.ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(this.master);
+    return p;
+  }
+
+  /** Damage cue panned to the side the hit came from. */
+  impact(pan = 0) {
+    if (!this.ctx) return;
+    const out = this._panner(pan);
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 260;
+    filter.Q.value = 1.1;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.4, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    src.connect(filter).connect(g).connect(out);
+    src.start(t);
+    src.stop(t + 0.2);
+  }
+
   _noise({ dur = 0.2, gain = 0.4, type = 'lowpass', freq = 1200, q = 1, sweepTo = 0, attack = 0.002 }) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;

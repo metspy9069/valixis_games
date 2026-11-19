@@ -20,6 +20,23 @@ export const MAX_WAVE_ENEMIES = 40;
 /** Fraction of a surge wave that arrives in the opening burst. */
 export const SURGE_LEAD = 0.4;
 
+/**
+ * Late-wave modifiers. The 40-body cap leaves no room for count to grow, so
+ * variety has to come from how a wave plays instead of how many arrive.
+ *   sprinters - almost no walkers; the whole wave closes fast
+ *   blackout  - the city lights go down and the fog thickens
+ *   elites    - a heavy brute majority
+ */
+export const MODIFIERS = ['sprinters', 'blackout', 'elites'];
+
+export function modifierFor(wave) {
+  if (wave < 6) return 'none';
+  if (wave % 10 === 0) return 'elites';
+  if (wave % 7 === 0) return 'blackout';
+  if (wave % 4 === 0) return 'sprinters';
+  return 'none';
+}
+
 export function wavePlan(n) {
   const wave = Math.max(1, Math.round(n));
 
@@ -40,16 +57,28 @@ export function wavePlan(n) {
   const speedScale = 1 + 0.6 * (1 - Math.exp(-(wave - 1) / 12));
   const damageScale = 1 + 1.0 * (1 - Math.exp(-(wave - 1) / 14));
 
-  const bruteChance = wave >= 7
-    ? Math.min(0.32, 0.22 + (wave - 7) * 0.006)
+  let bruteChance = wave >= 7
+    ? Math.min(0.28, 0.22 + (wave - 7) * 0.006)
     : wave >= 3 ? 0.12 : 0;
-  const runnerChance = wave >= 2 ? Math.min(0.58, 0.18 + wave * 0.03) : 0.1;
+  let runnerChance = wave >= 2 ? Math.min(0.58, 0.18 + wave * 0.03) : 0.1;
+
+  const modifier = modifierFor(wave);
+  if (modifier === 'sprinters') {
+    bruteChance = 0.08;
+    runnerChance = 0.9;
+  } else if (modifier === 'elites') {
+    // 30%, not 45%: at the 40-body cap, 45% brutes doubled the wave's health.
+    bruteChance = 0.3;
+    runnerChance = 0.3;
+  }
   const walkerChance = Math.max(0.05, 1 - bruteChance - runnerChance);
 
   return {
     wave,
     count,
     surge,
+    modifier,
+    boss: wave % 10 === 0,
     burstLead,
     spacing,
     speedScale,

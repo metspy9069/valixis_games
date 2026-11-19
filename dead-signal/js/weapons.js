@@ -1,39 +1,10 @@
 // Weapon definitions and the first-person viewmodel (a second scene rendered
 // over the world so the gun never clips into walls).
 import * as THREE from 'three';
+import { buildGun } from './models.js';
 
-export const WEAPONS = [
-  // Baseline targets: a walker (100 hp) dies to one pistol headshot, three
-  // pistol body shots (~0.4 s), six SMG rounds (~0.37 s) or one point-blank
-  // shell. Kept deliberately stable so headshots never stop working.
-  {
-    id: 'pistol', name: 'M9 SIDEARM', key: '1',
-    damage: 40, magSize: 15, reserveMax: Infinity,
-    rpm: 300, spread: 0.011, adsSpread: 0.0035, recoil: 1.6,
-    pellets: 1, reloadTime: 1.45, auto: false, sound: 'pistol',
-    falloffStart: 30, falloffEnd: 65, falloffMin: 0.6,
-  },
-  {
-    id: 'smg', name: 'VECTOR-9', key: '2',
-    damage: 19, magSize: 32, reserveMax: 224,
-    rpm: 820, spread: 0.03, adsSpread: 0.014, recoil: 0.8,
-    pellets: 1, reloadTime: 1.85, auto: true, sound: 'smg',
-    falloffStart: 15, falloffEnd: 40, falloffMin: 0.5,
-  },
-  {
-    id: 'shotgun', name: 'BREACHER 12', key: '3',
-    damage: 11, magSize: 6, reserveMax: 48,
-    rpm: 78, spread: 0.085, adsSpread: 0.055, recoil: 5.6,
-    pellets: 12, reloadTime: 2.5, auto: false, sound: 'shotgun',
-    falloffStart: 7, falloffEnd: 20, falloffMin: 0.3,
-  },
-];
-
-function boxMesh(w, h, d, material, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-  m.position.set(x, y, z);
-  return m;
-}
+import { WEAPONS } from './data.js';
+export { WEAPONS };
 
 export class ViewModel {
   constructor(scene, camera) {
@@ -50,8 +21,8 @@ export class ViewModel {
     this.reloadBlend = 0;
 
     this.root = new THREE.Group();
-    this.root.position.set(0.24, -0.16, -0.5);
-    this.root.scale.setScalar(0.55);
+    this.root.position.set(0.175, -0.17, -0.46);
+    this.root.scale.setScalar(0.72);
     scene.add(this.root);
 
     // Base pose: the gun is canted inward so the camera sees its flank, not
@@ -79,41 +50,9 @@ export class ViewModel {
   }
 
   buildModel(def, i) {
-    const group = new THREE.Group();
-    // Low metalness: without an environment map, metals render almost black
-    // and the gun disappears against the night scene.
-    const metal = new THREE.MeshStandardMaterial({ color: 0x596168, roughness: 0.52, metalness: 0.35 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x2c3236, roughness: 0.7, metalness: 0.25 });
-    const grip = new THREE.MeshStandardMaterial({ color: 0x2a322c, roughness: 0.9, metalness: 0.05 });
-    const accent = new THREE.MeshStandardMaterial({ color: 0xb6ff74, emissive: 0x7fe02a, emissiveIntensity: 0.7, roughness: 0.5 });
-
-    if (def.id === 'pistol') {
-      group.add(boxMesh(0.09, 0.11, 0.34, metal, 0, 0, -0.1));
-      group.add(boxMesh(0.075, 0.075, 0.2, dark, 0, 0.005, -0.31));
-      group.add(boxMesh(0.085, 0.2, 0.11, grip, 0, -0.14, 0.03));
-      group.add(boxMesh(0.05, 0.05, 0.05, accent, 0, 0.085, -0.22));
-      group.add(boxMesh(0.02, 0.03, 0.02, metal, 0, 0.075, -0.02));
-      group.add(boxMesh(0.02, 0.03, 0.02, metal, 0, 0.075, 0.06));
-      group.userData.muzzle = new THREE.Vector3(0, 0.01, -0.42);
-    } else if (def.id === 'smg') {
-      group.add(boxMesh(0.1, 0.13, 0.42, metal, 0, 0, -0.12));
-      group.add(boxMesh(0.05, 0.05, 0.26, dark, 0, 0.01, -0.42));
-      group.add(boxMesh(0.07, 0.22, 0.1, grip, 0, -0.15, 0.02));
-      group.add(boxMesh(0.06, 0.26, 0.09, dark, 0, -0.17, -0.16));
-      group.add(boxMesh(0.08, 0.09, 0.14, dark, 0, -0.02, 0.16));
-      group.add(boxMesh(0.03, 0.05, 0.03, accent, 0, 0.09, -0.3));
-      group.add(boxMesh(0.03, 0.03, 0.2, metal, 0, 0.085, -0.06));
-      group.userData.muzzle = new THREE.Vector3(0, 0.01, -0.56);
-    } else {
-      group.add(boxMesh(0.11, 0.13, 0.5, metal, 0, 0, -0.14));
-      group.add(boxMesh(0.06, 0.06, 0.44, dark, 0, 0.02, -0.55));
-      group.add(boxMesh(0.07, 0.2, 0.11, grip, 0, -0.14, 0.04));
-      group.add(boxMesh(0.09, 0.08, 0.26, dark, 0, -0.03, -0.36));
-      group.add(boxMesh(0.1, 0.09, 0.2, grip, 0, 0.01, 0.24));
-      group.add(boxMesh(0.04, 0.04, 0.06, accent, 0, 0.09, -0.2));
-      group.userData.muzzle = new THREE.Vector3(0, 0.02, -0.78);
-    }
-
+    // Built in models.js so the weapons share the same sculpted style as the
+    // rest of the game. The muzzle point travels with the model.
+    const group = buildGun(def.id);
     group.visible = i === 0;
     this.root.add(group);
     return group;

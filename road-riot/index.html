@@ -112,8 +112,8 @@
 
     <!-- Checkpoint Turret Defense Warning Banner -->
     <div id="hud-checkpoint-banner" class="checkpoint-banner hidden">
-      <div class="checkpoint-glitch-badge">⚠️ AIR DEFENSE CHECKPOINT ACTIVE ⚠️</div>
-      <div class="checkpoint-sub">MOUNTING ROOF TURRET &bull; AIM &amp; FIRE ACROSS 180&deg; ARC</div>
+      <div class="checkpoint-glitch-badge">⚠️ COMBAT SECTOR ACTIVE ⚠️</div>
+      <div class="checkpoint-sub">MOUNTING ROOF TURRET &bull; SHOOT DRONES, COMBAT PLANES &amp; ASSAULT ROBOTS</div>
     </div>
 
     <!-- 180° Turret Gunner Crosshair & Drone Wave HUD -->
@@ -121,7 +121,7 @@
       <div class="crosshair-ring"></div>
       <div class="crosshair-dot"></div>
       <div class="crosshair-status">
-        <span id="turret-drone-count">DRONES IN AIR: 4</span> &bull; <span id="turret-wave-badge">WAVE 1/3</span>
+        <span id="turret-drone-count">TARGETS REMAINING: 4</span> &bull; <span id="turret-wave-badge">WAVE 1/3</span>
       </div>
       <div class="crosshair-hint">MOUSE / ARROWS: AIM 180&deg; &bull; SPACE / CLICK: FIRE PLASMA</div>
     </div>
@@ -459,8 +459,8 @@
     <div class="glass-panel modal-dialog" style="max-width:680px;">
       <div class="modal-header">
         <div>
-          <div class="brand-eyebrow" style="color:#ff2a85;">RUN TERMINATED</div>
-          <h2 style="font-size:32px; font-weight:900; letter-spacing:1px; color:#fff;">DRIVER RECORD</h2>
+          <div id="gameover-status-eyebrow" class="brand-eyebrow" style="color:#ff2a85;">RUN TERMINATED</div>
+          <h2 id="gameover-status-title" style="font-size:32px; font-weight:900; letter-spacing:1px; color:#fff;">DRIVER RECORD</h2>
         </div>
         <div id="run-coins-awarded" style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:15px;">
           +0 COINS

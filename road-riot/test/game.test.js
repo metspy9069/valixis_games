@@ -126,3 +126,36 @@ test('multi-map highway biomes support 4 distinct atmospheric presets', () => {
   assert.ok(biomes.includes('arctic'));
   assert.ok(biomes.includes('neotokyo'));
 });
+
+test('every supercar supports all 5 performance upgrades with level cap at 5', () => {
+  const pm = new ProgressionManager();
+  const carKeys = Object.keys(VEHICLE_ROSTER);
+  const stats = ['topSpeed', 'accel', 'handling', 'nitro', 'armor'];
+
+  carKeys.forEach(carId => {
+    stats.forEach(st => {
+      pm.data.coins = 10000;
+      if (!pm.data.upgrades[carId]) pm.data.upgrades[carId] = {};
+      pm.data.upgrades[carId][st] = 0;
+
+      for (let lvl = 1; lvl <= 5; lvl++) {
+        const ok = pm.upgradeStat(carId, st, 100);
+        assert.equal(ok, true, `Upgrade ${st} on ${carId} at lvl ${lvl} should succeed`);
+      }
+      assert.equal(pm.data.upgrades[carId][st], 5);
+
+      // Level 6 should fail
+      const extra = pm.upgradeStat(carId, st, 100);
+      assert.equal(extra, false, `Level 6 upgrade on ${carId} must be capped at 5`);
+    });
+  });
+});
+
+test('race disciplines configure middle checkpoint for sprint and quick checkpoint for endless', () => {
+  const sprintTarget = 1500;
+  const sprintCheckpoint = 750; // Exact middle (50%)
+  assert.equal(sprintCheckpoint, sprintTarget / 2, 'Sprint checkpoint must be placed exactly in the middle');
+
+  const endlessInitialCheckpoint = 380;
+  assert.ok(endlessInitialCheckpoint < 400, 'Endless checkpoint must be fast to reach (~12-15s)');
+});

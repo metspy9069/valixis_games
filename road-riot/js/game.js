@@ -77,9 +77,9 @@ class RoadRiotGame {
     this.weapons = new WeaponSystem(this.scene, this.traffic, audio);
     this.turretSystem = new TurretDefenseSystem(this.scene, this.player, audio);
 
-    // 180° Sky Drone Checkpoint Sequence State
-    this.checkpointDistance = 600;
-    this.checkpointInterval = 1200;
+    // 180° Turret & Enemy Defense Checkpoint Sequence State
+    this.checkpointDistance = 380;
+    this.checkpointInterval = 850;
     this.isStoppingForCheckpoint = false;
     this.isDynoTesting = false;
 
@@ -194,6 +194,8 @@ class RoadRiotGame {
 
       // Game Over Screen
       gameoverModal: document.querySelector('#gameover-modal'),
+      gameoverStatusEyebrow: document.querySelector('#gameover-status-eyebrow'),
+      gameoverStatusTitle: document.querySelector('#gameover-status-title'),
       restartBtn: document.querySelector('#restart-btn'),
       gameoverGarageBtn: document.querySelector('#gameover-garage-btn'),
       runDist: document.querySelector('#run-distance'),
@@ -740,8 +742,17 @@ class RoadRiotGame {
     this.player.mesh.rotation.set(0, 0, 0);
     if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
-    // Reset Checkpoint & Turret System
-    this.checkpointDistance = 600;
+    // Calibrate Checkpoint Distance:
+    // Sprint Mode: Exactly halfway through the 1,500m race (750m)!
+    // Endless Mode: Quick to reach (380m, ~12-15s), repeats every 850m!
+    if (this.gameMode === 'SPRINT') {
+      this.sprintTargetDistance = 1500;
+      this.checkpointDistance = 750;
+      this.checkpointInterval = 2000;
+    } else {
+      this.checkpointDistance = 380;
+      this.checkpointInterval = 850;
+    }
     this.isStoppingForCheckpoint = false;
     this.player.isBrakingToHalt = false;
     this.turretSystem.cleanup();
@@ -754,15 +765,34 @@ class RoadRiotGame {
     this.vibrate(100);
   }
 
-  gameOver() {
+  gameOver(isSprintFinish = false, isWinner = false) {
     this.state = 'GAMEOVER';
     this.turretSystem.cleanup();
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
     if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
     audio.stopEngine();
     audio.stopMusic();
-    audio.play('collision');
-    this.vibrate([100, 50, 200]);
+
+    if (isSprintFinish) {
+      audio.play('fever');
+      this.vibrate([100, 100, 300]);
+    } else {
+      audio.play('collision');
+      this.vibrate([100, 50, 200]);
+    }
+
+    if (this.ui.gameoverStatusEyebrow) {
+      if (isSprintFinish) {
+        this.ui.gameoverStatusEyebrow.textContent = isWinner ? '🏆 1ST PLACE FINISH — SPRINT CHAMPION!' : `🏁 SPRINT FINISHED — ${this.racePosition}TH PLACE`;
+        this.ui.gameoverStatusEyebrow.style.color = isWinner ? '#00ff88' : '#ffb800';
+      } else {
+        this.ui.gameoverStatusEyebrow.textContent = 'RUN TERMINATED';
+        this.ui.gameoverStatusEyebrow.style.color = '#ff2a85';
+      }
+    }
+    if (this.ui.gameoverStatusTitle) {
+      this.ui.gameoverStatusTitle.textContent = isSprintFinish ? (isWinner ? 'VICTORY PODIUM' : 'RACE COMPLETE') : 'DRIVER RECORD';
+    }
 
     progression.activeRunStats.distance = this.distance;
     progression.activeRunStats.score = this.score;
@@ -1188,26 +1218,64 @@ class RoadRiotGame {
       const lookAimY = 2.4 + Math.sin(this.turretSystem.aimPitch) * 12;
       this.camera.lookAt(lookAimX, lookAimY, -60);
 
-      // 2. Keyboard spacebar / Enter firing in turret mode
+      // 2. Keyboard aiming & firing in turret mode
       if (this.keys.has(' ') || this.keys.has('Enter')) {
         this.turretSystem.triggerFire();
+      }
+      let keyAimX = 0;
+      let keyAimY = 0;
+      if (this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A')) keyAimX += 1;
+      if (this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D')) keyAimX -= 1;
+      if (this.keys.has('ArrowUp') || this.keys.has('w') || this.keys.has('W')) keyAimY += 1;
+      if (this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S')) keyAimY -= 1;
+      if (keyAimX !== 0 || keyAimY !== 0) {
+        this.turretSystem.adjustAim(keyAimX * dt * 2.2, keyAimY * dt * 1.8);
       }
 
       // 3. Update Turret System
       this.turretSystem.update(dt, {
-        onDroneKilled: (drone) => {
-          this.score += 400 * this.multiplier;
-          progression.activeRunStats.coinsEarned += 25;
-          this.spawnScorePopup('+400 DRONE DESTROYED! 💥', '#ff0055');
-          this.vibrate(60);
-          this.camShake = 0.35;
+        onDroneKilled: (enemy) => {
+          let pts = 400;
+          let coins = 25;
+          let label = '+400 DRONE DESTROYED! 💥';
+          if (enemy.category === 'plane') {
+            pts = 650;
+            coins = 45;
+            label = '+650 COMBAT JET DOWNED! ✈️💥';
+          } else if (enemy.category === 'robot') {
+            if (enemy.isBoss) {
+              pts = 2500;
+              coins = 250;
+              label = '+2,500 TITAN WAR MECH CRUSHED! 🏆🤖💥';
+            } else {
+              pts = 850;
+              coins = 70;
+              label = '+850 ASSAULT MECH DESTROYED! 🤖💥';
+            }
+          } else if (enemy.type === 'commander') {
+            pts = 1500;
+            coins = 120;
+            label = '+1,500 COMMANDER DRONE DOWNED! 💥';
+          }
+
+          this.score += pts * this.multiplier;
+          progression.activeRunStats.coinsEarned += coins;
+          this.spawnScorePopup(label, enemy.category === 'robot' ? '#ffaa00' : '#ff0055');
+          this.vibrate(enemy.isBoss ? [80, 50, 150] : 60);
+          this.camShake = enemy.isBoss ? 0.65 : 0.35;
           if (this.ui.turretDroneCount) {
             const alive = this.turretSystem.drones.filter(d => !d.isDestroyed).length;
-            this.ui.turretDroneCount.textContent = `DRONES IN AIR: ${alive}`;
+            this.ui.turretDroneCount.textContent = `TARGETS REMAINING: ${alive}`;
           }
         },
         onWaveAdvancing: (wave) => {
-          this.toast(`⚠️ DRONE SQUADRON WAVE ${wave}/3 INCOMING!`, 'magenta');
+          const waveNames = [
+            '',
+            'WAVE 1/3: AIRBORNE DRONES & JETS',
+            'WAVE 2/3: COMBINED AIR & GROUND ASSAULT',
+            'WAVE 3/3: TITAN WAR MECH & BOSS DRONE'
+          ];
+          this.toast(`⚠️ ${waveNames[wave] || `WAVE ${wave}/3 INCOMING`}`, 'magenta');
           audio.play('fever');
           if (this.ui.turretWaveBadge) {
             this.ui.turretWaveBadge.textContent = `WAVE ${wave}/3`;
@@ -1482,7 +1550,7 @@ class RoadRiotGame {
             this.showDamageOverlay();
             this.toast('HARD IMPACT! -24% HULL 💥', 'magenta');
             if (this.player.hull <= 0) {
-              this.gameOver();
+              this.gameOver(false, false);
               return;
             }
           }
@@ -1521,7 +1589,7 @@ class RoadRiotGame {
           }
           this.showDamageOverlay();
           if (this.player.hull <= 0) {
-            this.gameOver();
+            this.gameOver(false, false);
             return;
           }
         }
@@ -1593,7 +1661,7 @@ class RoadRiotGame {
           progression.save();
           this.toast(`SPRINT FINISHED: ${this.racePosition}TH PLACE! +400 COINS`, 'cyan');
         }
-        this.gameOver();
+        this.gameOver(true, won);
         return;
       }
     }

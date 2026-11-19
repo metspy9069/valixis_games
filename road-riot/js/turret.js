@@ -287,87 +287,312 @@ export class TurretDefenseSystem {
   }
 
   spawnWave(wave) {
-    // Clear any lingering drones
+    // Clear any lingering enemies
     this.drones.forEach(d => this.scene.remove(d.mesh));
     this.drones = [];
 
     // Wave Configurations:
-    // Wave 1: 4 Scout Drones swooping in formation
-    // Wave 2: 6 Assault Drones strafing
-    // Wave 3: 1 Heavy Commander Drone (6 HP) + 4 Escorts
-    const droneConfigs = [];
+    // Wave 1: 2 Recon Drones + 2 Supersonic Fighter Planes
+    // Wave 2: 2 Supersonic Combat Jets + 2 Heavy Ground Assault Robots + 1 Attack Drone
+    // Wave 3: Apex Boss Battle — 1 Titan War Mech Boss + 1 Commander Gunship Drone + 2 Escort Fighter Jets
+    const enemyConfigs = [];
     if (wave === 1) {
-      for (let i = 0; i < 4; i++) {
-        const spreadX = (i - 1.5) * 4.2;
-        droneConfigs.push({
+      // Wave 1: Airborne Incursion
+      [-4.0, 4.0].forEach((x, i) => {
+        enemyConfigs.push({
+          category: 'drone',
           type: 'scout',
           hp: 2,
           maxHp: 2,
-          x: spreadX,
-          y: 4.8 + (i % 2) * 1.5,
-          z: -52 - i * 5,
-          swoopSpeed: 1.2 + Math.random() * 0.4,
-          swoopPhase: i * 0.8,
+          x,
+          y: 5.2 + i * 0.8,
+          z: -50 - i * 6,
+          swoopSpeed: 1.4,
+          swoopPhase: i * 1.5,
           scale: 1.0
         });
-      }
-    } else if (wave === 2) {
-      for (let i = 0; i < 6; i++) {
-        const spreadX = (i - 2.5) * 3.6;
-        droneConfigs.push({
-          type: 'assault',
+      });
+      [-7.5, 7.5].forEach((x, i) => {
+        enemyConfigs.push({
+          category: 'plane',
+          type: 'fighter',
           hp: 2,
           maxHp: 2,
-          x: spreadX,
-          y: 5.2 + (i % 2) * 1.8,
-          z: -56 - (i % 3) * 6,
-          swoopSpeed: 1.6 + Math.random() * 0.5,
-          swoopPhase: i * 0.6,
-          scale: 1.1
+          x,
+          y: 9.8 + i * 1.2,
+          z: -62 - i * 8,
+          speed: 1.9,
+          sweepAmp: 8.5,
+          phase: i * Math.PI,
+          scale: 1.15
         });
-      }
+      });
+    } else if (wave === 2) {
+      // Wave 2: Combined Air-Ground Assault
+      enemyConfigs.push({
+        category: 'drone',
+        type: 'assault',
+        hp: 3,
+        maxHp: 3,
+        x: 0,
+        y: 6.2,
+        z: -48,
+        swoopSpeed: 1.6,
+        swoopPhase: 0,
+        scale: 1.2
+      });
+      [-6.5, 6.5].forEach((x, i) => {
+        enemyConfigs.push({
+          category: 'plane',
+          type: 'strike_jet',
+          hp: 3,
+          maxHp: 3,
+          x,
+          y: 11.2 + i * 1.5,
+          z: -66 - i * 6,
+          speed: 2.2,
+          sweepAmp: 9.5,
+          phase: (i + 0.5) * Math.PI,
+          scale: 1.2
+        });
+      });
+      [-3.2, 3.2].forEach((laneX, i) => {
+        enemyConfigs.push({
+          category: 'robot',
+          type: 'mech',
+          hp: 4,
+          maxHp: 4,
+          x: laneX,
+          y: 0.1,
+          z: -56 - i * 8,
+          walkSpeed: 1.2,
+          forwardSpeed: 4.8,
+          scale: 1.2
+        });
+      });
     } else {
-      // Commander Boss Wave
-      droneConfigs.push({
+      // Wave 3: Apex Boss Encounter
+      enemyConfigs.push({
+        category: 'robot',
+        type: 'titan_mech',
+        isBoss: true,
+        hp: 8,
+        maxHp: 8,
+        x: 0,
+        y: 0.1,
+        z: -60,
+        walkSpeed: 1.0,
+        forwardSpeed: 3.8,
+        scale: 1.85
+      });
+      enemyConfigs.push({
+        category: 'drone',
         type: 'commander',
+        isBoss: true,
         hp: 6,
         maxHp: 6,
         x: 0,
-        y: 6.8,
-        z: -60,
-        swoopSpeed: 0.9,
+        y: 7.2,
+        z: -54,
+        swoopSpeed: 1.1,
         swoopPhase: 0,
-        scale: 1.75
+        scale: 1.7
       });
-      [-5.5, -2.5, 2.5, 5.5].forEach((spreadX, idx) => {
-        droneConfigs.push({
-          type: 'escort',
+      [-7.5, 7.5].forEach((x, i) => {
+        enemyConfigs.push({
+          category: 'plane',
+          type: 'escort_jet',
           hp: 2,
           maxHp: 2,
-          x: spreadX,
-          y: 4.8 + (idx % 2) * 1.5,
-          z: -50 - idx * 4,
-          swoopSpeed: 1.5,
-          swoopPhase: idx * 0.9,
-          scale: 1.0
+          x,
+          y: 10.5 + i * 1.5,
+          z: -64 - i * 6,
+          speed: 2.2,
+          sweepAmp: 10.0,
+          phase: i * Math.PI,
+          scale: 1.15
         });
       });
     }
 
-    droneConfigs.forEach(cfg => {
-      const droneMesh = this.buildDroneMesh(cfg);
-      droneMesh.position.set(cfg.x, cfg.y, cfg.z);
-      this.scene.add(droneMesh);
+    enemyConfigs.forEach(cfg => {
+      let enemyMesh;
+      if (cfg.category === 'plane') {
+        enemyMesh = this.buildPlaneMesh(cfg);
+      } else if (cfg.category === 'robot') {
+        enemyMesh = this.buildRobotMesh(cfg);
+      } else {
+        enemyMesh = this.buildDroneMesh(cfg);
+      }
+
+      enemyMesh.position.set(cfg.x, cfg.y, cfg.z);
+      this.scene.add(enemyMesh);
 
       this.drones.push({
         ...cfg,
-        mesh: droneMesh,
+        mesh: enemyMesh,
         baseY: cfg.y,
         baseZ: cfg.z,
         time: 0,
         isDestroyed: false
       });
     });
+  }
+
+  buildPlaneMesh(cfg) {
+    const group = new THREE.Group();
+    group.scale.setScalar(cfg.scale || 1.0);
+
+    const stealthMat = new THREE.MeshStandardMaterial({
+      color: 0x141b27,
+      roughness: 0.35,
+      metalness: 0.85
+    });
+    const canopyMat = new THREE.MeshStandardMaterial({
+      color: 0x00d9ff,
+      metalness: 0.9,
+      roughness: 0.1,
+      transparent: true,
+      opacity: 0.75
+    });
+    const thrustMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+
+    // 1. Aerodynamic Sharp Fuselage
+    const fuseGeo = new THREE.CylinderGeometry(0.12, 0.42, 3.8, 8);
+    fuseGeo.rotateX(Math.PI / 2);
+    const fuse = new THREE.Mesh(fuseGeo, stealthMat);
+    fuse.scale.set(1.1, 0.65, 1.0);
+    group.add(fuse);
+
+    // 2. Cockpit Canopy Glass
+    const canopyGeo = new THREE.SphereGeometry(0.25, 8, 8);
+    canopyGeo.scale(0.8, 0.7, 1.8);
+    const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+    canopy.position.set(0, 0.22, -0.4);
+    group.add(canopy);
+
+    // 3. Swept Delta Main Wings
+    const wingGeo = new THREE.BoxGeometry(4.4, 0.05, 1.4);
+    const wing = new THREE.Mesh(wingGeo, stealthMat);
+    wing.position.set(0, 0.02, 0.2);
+    group.add(wing);
+
+    // Wingtip LED Navigation Beacons
+    [-2.15, 2.15].forEach((wx, i) => {
+      const led = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 6, 6),
+        new THREE.MeshBasicMaterial({ color: i === 0 ? 0xff0044 : 0x00ff88 })
+      );
+      led.position.set(wx, 0.03, 0.2);
+      group.add(led);
+    });
+
+    // 4. Twin Cant-Angled Vertical Rudder Fins
+    [-0.55, 0.55].forEach((rx, i) => {
+      const finGeo = new THREE.BoxGeometry(0.06, 0.75, 0.6);
+      const fin = new THREE.Mesh(finGeo, stealthMat);
+      fin.position.set(rx, 0.42, 1.3);
+      fin.rotation.z = (i === 0 ? 1 : -1) * 0.25;
+      group.add(fin);
+    });
+
+    // 5. Twin Glowing Afterburner Engines
+    [-0.28, 0.28].forEach(ex => {
+      const burnGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.35, 10);
+      burnGeo.rotateX(Math.PI / 2);
+      const burn = new THREE.Mesh(burnGeo, thrustMat);
+      burn.position.set(ex, 0.02, 1.95);
+      group.add(burn);
+    });
+
+    return group;
+  }
+
+  buildRobotMesh(cfg) {
+    const group = new THREE.Group();
+    group.scale.setScalar(cfg.scale || 1.0);
+
+    const isBoss = cfg.isBoss;
+    const armorMat = new THREE.MeshStandardMaterial({
+      color: isBoss ? 0x240d16 : 0x162030,
+      roughness: 0.4,
+      metalness: 0.8
+    });
+    const jointMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0f16,
+      roughness: 0.6,
+      metalness: 0.9
+    });
+    const visorMat = new THREE.MeshBasicMaterial({
+      color: isBoss ? 0xff0044 : 0x00f0ff
+    });
+
+    // 1. Armored Bipedal Torso
+    const torsoGeo = new THREE.BoxGeometry(1.2, 1.4, 0.85);
+    const torso = new THREE.Mesh(torsoGeo, armorMat);
+    torso.position.y = 2.1;
+    group.add(torso);
+
+    // Glowing Horizontal Visor Scanner
+    const visorGeo = new THREE.BoxGeometry(0.85, 0.14, 0.12);
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.set(0, 2.45, 0.44);
+    group.add(visor);
+
+    // Heavy Shoulder Armor Pads & Weapon Mounts
+    const armGroup = new THREE.Group();
+    [-0.85, 0.85].forEach(sx => {
+      const pauldron = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.36, 0.6), armorMat);
+      pauldron.position.set(sx, 2.5, 0);
+      group.add(pauldron);
+
+      // Arm Blaster / Missile Tube
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.2, 8), jointMat);
+      arm.rotateX(Math.PI / 2);
+      arm.position.set(sx, 2.1, 0.35);
+      armGroup.add(arm);
+
+      const muzzle = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.04, 6, 12), visorMat);
+      muzzle.position.set(sx, 2.1, 0.96);
+      armGroup.add(muzzle);
+    });
+    group.add(armGroup);
+
+    // 2. Articulated Bipedal Legs (Left & Right)
+    const leftLegGroup = new THREE.Group();
+    leftLegGroup.position.set(-0.42, 1.4, 0);
+    const rightLegGroup = new THREE.Group();
+    rightLegGroup.position.set(0.42, 1.4, 0);
+
+    [leftLegGroup, rightLegGroup].forEach(lg => {
+      const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.75, 0.32), armorMat);
+      thigh.position.y = -0.35;
+      lg.add(thigh);
+
+      const knee = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.34, 8), jointMat);
+      knee.rotateZ(Math.PI / 2);
+      knee.position.y = -0.72;
+      lg.add(knee);
+
+      const shin = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.72, 0.34), armorMat);
+      shin.position.y = -1.1;
+      lg.add(shin);
+
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.16, 0.62), jointMat);
+      foot.position.set(0, -1.45, 0.1);
+      lg.add(foot);
+    });
+
+    group.add(leftLegGroup);
+    group.add(rightLegGroup);
+
+    group.userData = {
+      leftLegGroup,
+      rightLegGroup,
+      armGroup
+    };
+
+    return group;
   }
 
   buildDroneMesh(cfg) {
@@ -429,8 +654,14 @@ export class TurretDefenseSystem {
   setAimNormalized(normX, normY) {
     // 180-Degree Panoramic Aim Arc: Horizontal -PI/2 (-90 deg) to +PI/2 (+90 deg)
     this.targetYaw = -normX * (Math.PI * 0.52);
-    // Vertical Elevation: 0 (level) to ~0.7 rad (40 degrees skyward)
-    this.targetPitch = THREE.MathUtils.clamp(-normY * 0.5 + 0.15, -0.1, 0.75);
+    // Vertical Elevation: -0.2 rad (depressed toward road pavement) to ~0.75 rad (skyward)
+    this.targetPitch = THREE.MathUtils.clamp(-normY * 0.55 + 0.15, -0.22, 0.75);
+  }
+
+  // Relative Aim Adjustment for Arrow Keys / WASD
+  adjustAim(deltaYaw, deltaPitch) {
+    this.targetYaw = THREE.MathUtils.clamp(this.targetYaw + deltaYaw, -Math.PI * 0.52, Math.PI * 0.52);
+    this.targetPitch = THREE.MathUtils.clamp(this.targetPitch + deltaPitch, -0.22, 0.75);
   }
 
   triggerFire() {
@@ -566,12 +797,13 @@ export class TurretDefenseSystem {
       b.life -= dt;
       b.mesh.position.addScaledVector(b.dir, b.speed * dt);
 
-      // Hit check against active drones
+      // Hit check against active enemies (drones, planes, ground robots)
       let boltRemoved = false;
       for (const d of this.drones) {
         if (d.isDestroyed) continue;
+        const hitRadius = (d.category === 'robot' ? 2.8 : (d.category === 'plane' ? 2.5 : 2.0)) * d.scale;
         const dist = b.mesh.position.distanceTo(d.mesh.position);
-        if (dist < 2.0 * d.scale) {
+        if (dist < hitRadius) {
           d.hp -= 1;
           this.spawnExplosion(b.mesh.position, 0x00f0ff);
           this.audio.play('collision');
@@ -579,7 +811,8 @@ export class TurretDefenseSystem {
           if (d.hp <= 0) {
             d.isDestroyed = true;
             this.scene.remove(d.mesh);
-            this.spawnExplosion(d.mesh.position, d.type === 'commander' ? 0xffaa00 : 0xff2a44);
+            const expColor = d.category === 'robot' ? 0xffaa00 : (d.category === 'plane' ? 0xff4400 : (d.type === 'commander' ? 0xff0055 : 0xff2a44));
+            this.spawnExplosion(d.mesh.position, expColor);
             this.audio.play('fever');
             if (callbacks.onDroneKilled) callbacks.onDroneKilled(d);
           }
@@ -597,22 +830,46 @@ export class TurretDefenseSystem {
       }
     }
 
-    // 5. Update Drone Swarm AI & Flight Dynamics
+    // 5. Update Swarm Dynamics (Drones, Supersonic Jets, Ground Mechs)
     let aliveDronesCount = 0;
     this.drones.forEach(d => {
       if (d.isDestroyed) return;
       aliveDronesCount++;
-      d.time += dt * d.swoopSpeed;
 
-      // Dynamic swooping 3D flight paths
-      const swoopX = Math.sin(d.time + d.swoopPhase) * 6.5;
-      const swoopY = Math.sin(d.time * 1.5 + d.swoopPhase) * 1.5;
-      d.mesh.position.x = d.x + swoopX;
-      d.mesh.position.y = d.baseY + swoopY;
-
-      // Slight banking turn rotation
-      d.mesh.rotation.z = Math.cos(d.time + d.swoopPhase) * 0.35;
-      d.mesh.rotation.x = Math.sin(d.time * 1.5) * 0.2;
+      if (d.category === 'plane') {
+        d.time += dt * (d.speed || 1.8);
+        const sweepX = Math.sin(d.time + d.phase) * (d.sweepAmp || 8.5);
+        const sweepY = Math.cos(d.time * 1.3 + d.phase) * 1.5;
+        d.mesh.position.x = d.x + sweepX;
+        d.mesh.position.y = d.baseY + sweepY;
+        // Supersonic banking turn roll
+        d.mesh.rotation.z = -Math.cos(d.time + d.phase) * 0.42;
+        d.mesh.rotation.y = -Math.cos(d.time + d.phase) * 0.22;
+      } else if (d.category === 'robot') {
+        d.time += dt * (d.walkSpeed || 1.2);
+        // March forward on the highway pavement towards the car!
+        if (d.mesh.position.z < -14) {
+          d.mesh.position.z += (d.forwardSpeed || 4.2) * dt;
+        }
+        const cycle = Math.sin(d.time * 5.5);
+        if (d.mesh.userData && d.mesh.userData.leftLegGroup) {
+          d.mesh.userData.leftLegGroup.rotation.x = cycle * 0.48;
+          d.mesh.userData.rightLegGroup.rotation.x = -cycle * 0.48;
+        }
+        if (d.mesh.userData && d.mesh.userData.armGroup) {
+          d.mesh.userData.armGroup.rotation.x = -cycle * 0.25;
+        }
+        d.mesh.position.y = d.baseY + Math.abs(cycle) * 0.14;
+      } else {
+        // Quad-rotor drone flight dynamics
+        d.time += dt * d.swoopSpeed;
+        const swoopX = Math.sin(d.time + d.swoopPhase) * 6.5;
+        const swoopY = Math.sin(d.time * 1.5 + d.swoopPhase) * 1.5;
+        d.mesh.position.x = d.x + swoopX;
+        d.mesh.position.y = d.baseY + swoopY;
+        d.mesh.rotation.z = Math.cos(d.time + d.swoopPhase) * 0.35;
+        d.mesh.rotation.x = Math.sin(d.time * 1.5) * 0.2;
+      }
     });
 
     // 6. Update Particle Explosions

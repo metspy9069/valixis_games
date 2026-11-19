@@ -2,444 +2,384 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Road Riot 3D | VALIXIS Games</title>
-  <style>
-    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; overflow: hidden; background: #070b16; }
-    #game { width: 100vw; height: 100vh; display: block; cursor: crosshair; }
-    .hud { position: fixed; inset: 0; padding: 18px; pointer-events: none; }
-    .panel { padding: 11px 15px; border: 1px solid rgba(125, 220, 255, .28); border-radius: 12px; background: rgba(4, 10, 20, .74); backdrop-filter: blur(9px); }
-    .topbar { display: flex; justify-content: space-between; gap: 10px; }
-    .label { color: #7ddcff; font: 700 11px/1.2 ui-monospace, monospace; letter-spacing: 1.5px; }
-    .value { color: #fff; font: 800 24px/1.1 ui-monospace, monospace; }
-    #status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 470px; text-align: center; pointer-events: auto; }
-    h1 { margin: 0 0 8px; color: #fff; font-size: clamp(32px, 7vw, 72px); letter-spacing: -3px; text-shadow: 0 0 28px #00bfff; }
-    p { margin: 8px 0 18px; color: #b6c8dc; line-height: 1.5; }
-    button { border: 1px solid #65dcff; border-radius: 9px; padding: 12px 22px; color: #04111a; background: linear-gradient(135deg, #7dffe3, #57bfff); font-weight: 900; cursor: pointer; }
-    #speedometer { position: absolute; left: 18px; bottom: 18px; width: 164px; }
-    #speed { color: #fff; font: 800 30px/1 ui-monospace, monospace; }
-    .unit { color: #7ddcff; font: 700 11px ui-monospace, monospace; }
-    .needle, .bar { height: 8px; overflow: hidden; margin-top: 8px; border-radius: 99px; background: #253343; }
-    .needle i, .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7dffe3, #ffc857, #ff4d6d); transition: width .1s linear; }
-    #hint { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); color: #b6c8dc; font: 700 12px ui-monospace, monospace; text-align: center; }
-    #mobile-controls { display: none; position: absolute; inset: auto 18px 22px; justify-content: space-between; align-items: end; pointer-events: auto; }
-    .touch-cluster { display: flex; gap: 10px; }
-    .touch-button { width: 58px; height: 58px; border: 1px solid rgba(125, 220, 255, .55); border-radius: 50%; color: #fff; background: rgba(4, 10, 20, .72); font: 800 18px ui-monospace, monospace; touch-action: none; user-select: none; }
-    #upgrade { position: absolute; right: 18px; bottom: 18px; pointer-events: auto; }
-    #upgrade button { padding: 9px 12px; font-size: 11px; }
-    @media (max-width: 720px), (pointer: coarse) {
-      #hint { display: none; }
-      #mobile-controls { display: flex; }
-      #speedometer { bottom: 92px; left: 18px; }
-      #upgrade { bottom: 92px; right: 18px; }
-      .topbar { gap: 5px; }
-      .topbar .panel { padding: 8px 9px; }
-      .value { font-size: 18px; }
-      #status { width: min(88vw, 430px); }
-    }
-    .hidden { display: none; }
-  </style>
+  <meta name="description" content="Road Riot 3D - High-octane arcade highway combat racer by VALIXIS Games. Thread near misses, drift at 300+ KM/H, unleash missiles & EMPs, and challenge your friends.">
+  <meta name="theme-color" content="#060911">
+
+  <!-- Google tag (gtag.js) / Google Tag Manager -->
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KTXSRLWK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'GTM-KTXSRLWK');
+    gtag('config', 'G-9SGCBYSRYB');
+  </script>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VALIXIS Games">
+  <meta property="og:title" content="Road Riot 3D — Next-Gen Arcade Highway Racer">
+  <meta property="og:description" content="High-octane browser-native 3D combat racing by VALIXIS Games. Zero downloads, pure hyperspeed.">
+  <meta property="og:url" content="https://games.valixis.tech/road-riot/">
+  <meta property="og:image" content="https://games.valixis.tech/icon-512.png">
+
+  <!-- Favicons -->
+  <link rel="icon" href="../favicon-32x32.png">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <div class="hud">
-    <div class="topbar">
-      <a href="../" class="panel" style="pointer-events:auto;color:#7ddcff;text-decoration:none;font:700 12px ui-monospace,monospace">&larr; ARCADE HUB</a>
-      <div class="panel"><div class="label">DISTANCE</div><div class="value"><span id="distance">0</span>m</div></div>
-      <div class="panel"><div class="label">SCORE</div><div class="value" id="score">0</div></div>
-      <div class="panel"><div class="label">HULL</div><div class="bar"><i id="hull"></i></div></div>
-    </div>
-    <div id="status" class="panel">
-      <h1>ROAD RIOT</h1>
-      <p>Race through the midnight city, thread three clean lanes, dodge obstacles, collect power-ups, and own the boulevard.</p>
-      <button id="start">START RUN</button>
-    </div>
-    <div id="speedometer" class="panel"><div class="label">SPEED</div><span id="speed">0</span> <span class="unit">KM/H</span><div class="needle"><i id="speedNeedle"></i></div></div>
-    <div id="upgrade" class="panel"><button id="upgradeButton">UPGRADE CAR</button></div>
-    <div id="mobile-controls" aria-label="Touch controls">
-      <div class="touch-cluster"><button class="touch-button" data-key="ArrowLeft">‹</button><button class="touch-button" data-key="ArrowRight">›</button></div>
-      <div class="touch-cluster"><button class="touch-button" data-key=" ">BOOST</button></div>
-    </div>
-    <div id="hint">A / D or ARROWS: CHANGE LANES &nbsp; SPACE: BOOST</div>
+  <!-- 3D Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Screen FX Overlays -->
+  <div id="overlay-damage"></div>
+  <div id="overlay-warp"></div>
+  <div id="overlay-shield"></div>
+
+  <!-- In-Game HUD -->
+  <div id="hud" class="hidden">
+    <!-- Topbar -->
+    <header class="hud-topbar">
+      <div class="hud-nav-group">
+        <a href="../" class="glass-panel hub-btn" title="Return to VALIXIS Games Portal">
+          <span>&larr; ARCADE HUB</span>
+        </a>
+        <button id="network-btn" class="hud-icon-btn" title="VALIXIS Games Network">🎮</button>
+        <button id="audio-btn" class="hud-icon-btn" title="Toggle Sound">🔊</button>
+      </div>
+
+      <div class="hud-stats-group">
+        <div class="glass-panel hud-stat-box">
+          <div class="hud-stat-label">DISTANCE</div>
+          <div class="hud-stat-value"><span id="hud-distance">0</span><span class="hud-stat-unit">m</span></div>
+        </div>
+        <div class="glass-panel hud-stat-box">
+          <div class="hud-stat-label">SCORE</div>
+          <div class="hud-stat-value"><span id="hud-score">0</span><span id="hud-multiplier" class="multiplier-badge">x1</span></div>
+        </div>
+        <div class="glass-panel hud-stat-box">
+          <div class="hud-stat-label">COINS</div>
+          <div class="hud-stat-value" style="color:#ffb800">🪙 <span id="hud-coins">0</span></div>
+        </div>
+        <div id="hud-hull-box" class="glass-panel hud-stat-box hull-box">
+          <div class="hud-stat-label">HULL INTEGRITY</div>
+          <div class="hull-bar-track">
+            <div id="hud-hull-fill" class="hull-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Floating Announcer & Combo Popups -->
+    <div id="announcer-zone"></div>
+
+    <!-- Bottombar: Speedometer, Nitro, and Weapons -->
+    <footer class="hud-bottombar">
+      <!-- Speedometer & Nitro Panel -->
+      <div class="glass-panel speed-panel">
+        <div class="speed-readout">
+          <span id="hud-speed" class="speed-number">0</span>
+          <span class="speed-unit">KM/H</span>
+        </div>
+        <div class="speed-bar-track">
+          <div id="hud-speed-fill" class="speed-bar-fill"></div>
+        </div>
+
+        <div class="nitro-container">
+          <div class="nitro-label-row">
+            <span>NITRO TANK</span>
+            <span>SPACEBAR</span>
+          </div>
+          <div id="hud-nitro-track" class="nitro-bar-track">
+            <div id="hud-nitro-fill" class="nitro-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Weapon / Power-Up Slot -->
+      <div id="weapon-panel" class="glass-panel weapon-panel">
+        <div id="weapon-slot" class="weapon-slot">—</div>
+        <div id="weapon-name" class="weapon-name">NO WEAPON</div>
+        <div class="weapon-keyhint">PRESS [E / F]</div>
+      </div>
+    </footer>
+
+    <!-- Desktop Controls Hint -->
+    <div id="controls-hint">A / D or ARROWS: STEER &bull; S / DOWN: DRIFT &bull; SPACE: BOOST &bull; E / F: FIRE WEAPON</div>
   </div>
+
+  <!-- Mobile Touch Controls -->
+  <div id="mobile-controls">
+    <div class="touch-cluster">
+      <button class="touch-btn" data-key="ArrowLeft" aria-label="Steer Left">‹</button>
+      <button class="touch-btn" data-key="ArrowRight" aria-label="Steer Right">›</button>
+      <button class="touch-btn" data-key="ArrowDown" aria-label="Drift">DRIFT</button>
+    </div>
+    <div class="touch-cluster">
+      <button class="touch-btn weapon-touch-btn" data-key="Weapon" aria-label="Use Weapon">WEAPON</button>
+      <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">BOOST</button>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MAIN MENU MODAL                                           -->
+  <!-- ========================================================= -->
+  <div id="menu-modal" class="modal-screen">
+    <div class="glass-panel modal-dialog">
+      <div class="modal-header">
+        <div>
+          <div class="brand-eyebrow">VALIXIS GAMES STUDIO PRESENTS</div>
+          <h1 class="brand-title">ROAD RIOT 3D</h1>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <p style="color:#b6c8dc; font-size:14px; line-height:1.7;">
+          Race down the neon-lit midnight boulevard at Mach speeds. Thread tight near-misses, slipstream drafting behind haulers, drift corners to supercharge your nitro, and blast through syndicate rivals with homing missiles and EMP shockwaves.
+        </p>
+
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:8px 0;">
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(0,217,255,0.2); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:24px; margin-bottom:4px;">⚡</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">320+ KM/H NITRO</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Near-misses &amp; drift fill boost</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,42,133,0.2); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:24px; margin-bottom:4px;">🚀</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">COMBAT ARSENAL</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Missiles, EMPs, Hex Shields</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,184,0,0.2); border-radius:10px; padding:12px; text-align:center;">
+            <div style="font-size:24px; margin-bottom:4px;">🏎️</div>
+            <div style="font-weight:800; font-size:12px; color:#fff;">5 SUPERCARS</div>
+            <div style="font-size:10px; color:#8fa0b5; margin-top:3px; font-family:var(--font-mono)">Tuners, SUVs, Hypercars</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <a href="../" class="btn-secondary" style="text-decoration:none;">&larr; ARCADE PORTAL</a>
+        <div style="display:flex; gap:10px;">
+          <button id="garage-btn" class="btn-secondary">GARAGE &amp; CARS</button>
+          <button id="start-btn" class="btn-primary">START RUN 🏁</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- GARAGE & VEHICLE CUSTOMIZATION MODAL                      -->
+  <!-- ========================================================= -->
+  <div id="garage-modal" class="modal-screen hidden">
+    <div class="glass-panel modal-dialog" style="width:min(900px, 95vw);">
+      <div class="modal-header">
+        <div>
+          <div class="brand-eyebrow">CUSTOM WORKSHOP</div>
+          <h2 style="font-size:28px; font-weight:900; letter-spacing:1px; color:#fff;">GARAGE &amp; TUNING</h2>
+        </div>
+        <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:16px;">
+          🪙 <span id="garage-coins">0</span> COINS
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="garage-container">
+          <!-- 3D Car Showcase Details -->
+          <div class="car-showcase">
+            <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
+            <div id="garage-car-title" class="car-preview-title">Valixis Apex</div>
+            <p id="garage-car-desc" style="font-size:12px; color:#8fa0b5; margin-top:6px; max-width:320px; line-height:1.5;">
+              Precision aerodynamics &amp; razor-sharp lane transition.
+            </p>
+
+            <div class="car-nav-controls">
+              <button id="garage-prev-btn" class="car-nav-btn">&lsaquo;</button>
+              <button id="garage-buy-btn" class="btn-primary" style="padding:10px 24px; font-size:12px;">EQUIPPED</button>
+              <button id="garage-next-btn" class="car-nav-btn">&rsaquo;</button>
+            </div>
+
+            <!-- Custom Paint & Neon Underglow -->
+            <div style="margin-top:16px; width:100%; text-align:left;">
+              <div style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700;">BODY PAINT</div>
+              <div class="color-picker-group">
+                <div class="color-swatch paint-swatch active" data-color="d71920" style="background:#d71920;" title="Rosso Corsa"></div>
+                <div class="color-swatch paint-swatch" data-color="00d9ff" style="background:#00d9ff;" title="Cyber Cyan"></div>
+                <div class="color-swatch paint-swatch" data-color="9d4edd" style="background:#9d4edd;" title="Neon Purple"></div>
+                <div class="color-swatch paint-swatch" data-color="00ff88" style="background:#00ff88;" title="Toxic Green"></div>
+                <div class="color-swatch paint-swatch" data-color="ffb800" style="background:#ffb800;" title="Electric Gold"></div>
+                <div class="color-swatch paint-swatch" data-color="101622" style="background:#101622;" title="Stealth Shadow"></div>
+              </div>
+
+              <div style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700; margin-top:10px;">NEON UNDERGLOW</div>
+              <div class="color-picker-group">
+                <div class="color-swatch glow-swatch active" data-color="00d9ff" style="background:#00d9ff;" title="Cyan Neon"></div>
+                <div class="color-swatch glow-swatch" data-color="ff2a85" style="background:#ff2a85;" title="Magenta Glow"></div>
+                <div class="color-swatch glow-swatch" data-color="00ff88" style="background:#00ff88;" title="Green Laser"></div>
+                <div class="color-swatch glow-swatch" data-color="ffaa00" style="background:#ffaa00;" title="Amber Flare"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Car Stats & Tuning -->
+          <div class="car-specs" id="garage-stats-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- GAME OVER / RUN SUMMARY & VIRAL CHALLENGE CARD            -->
+  <!-- ========================================================= -->
+  <div id="gameover-modal" class="modal-screen hidden">
+    <div class="glass-panel modal-dialog" style="max-width:680px;">
+      <div class="modal-header">
+        <div>
+          <div class="brand-eyebrow" style="color:#ff2a85;">RUN TERMINATED</div>
+          <h2 style="font-size:32px; font-weight:900; letter-spacing:1px; color:#fff;">DRIVER RECORD</h2>
+        </div>
+        <div id="run-coins-awarded" style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:15px;">
+          +0 COINS
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="driver-card">
+          <!-- Rank Banner -->
+          <div class="run-rank-banner">
+            <div style="font-family:var(--font-mono); font-size:9px; letter-spacing:2px; color:#8fa0b5;">OFFICIAL DRIVER LICENSE CLASSIFICATION</div>
+            <div id="run-rank" class="rank-tier-title">HIGHWAY OUTLAW</div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="run-stats-grid">
+            <div class="run-stat-cell">
+              <div class="label">DISTANCE</div>
+              <div id="run-distance" class="val">0m</div>
+            </div>
+            <div class="run-stat-cell">
+              <div class="label">SCORE</div>
+              <div id="run-score" class="val">0</div>
+            </div>
+            <div class="run-stat-cell">
+              <div class="label">TOP SPEED</div>
+              <div id="run-speed" class="val">0 KM/H</div>
+            </div>
+            <div class="run-stat-cell">
+              <div class="label">NEAR MISSES</div>
+              <div id="run-nearmiss" class="val">0</div>
+            </div>
+          </div>
+
+          <!-- Viral Challenge & Share Engine -->
+          <div class="viral-share-container">
+            <div class="share-headline">CHALLENGE YOUR FRIENDS TO BEAT THIS RUN</div>
+            <div class="share-buttons-row">
+              <button id="challenge-friend-btn" class="share-pill-btn copy-link-btn">
+                <span>📋 COPY CHALLENGE LINK</span>
+              </button>
+              <button id="share-twitter-btn" class="share-pill-btn" style="background:#1da1f2;">
+                <span>POST TO X / TWITTER</span>
+              </button>
+              <button id="share-whatsapp-btn" class="share-pill-btn" style="background:#25d366;">
+                <span>WHATSAPP</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <a href="../" class="btn-secondary" style="text-decoration:none;">&larr; ARCADE HUB</a>
+        <div style="display:flex; gap:10px;">
+          <button id="gameover-garage-btn" class="btn-secondary">GARAGE</button>
+          <button id="restart-btn" class="btn-primary">PLAY AGAIN 🏎️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- VALIXIS ARCADE NETWORK QUICK SWITCHER MODAL               -->
+  <!-- ========================================================= -->
+  <div id="network-modal" class="modal-screen hidden">
+    <div class="glass-panel modal-dialog" style="max-width:820px;">
+      <div class="modal-header">
+        <div>
+          <div class="brand-eyebrow">VALIXIS GAMES STUDIO</div>
+          <h2 style="font-size:28px; font-weight:900; color:#fff;">BROWSER ARCADE NETWORK</h2>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <p style="color:#8fa0b5; font-size:13px; line-height:1.6;">
+          Explore other high-performance, browser-native 3D simulations and roguelikes crafted by VALIXIS Technologies:
+        </p>
+
+        <div class="arcade-games-grid">
+          <!-- Soul Ember -->
+          <a href="../soul-ember/index.html" class="arcade-game-card" style="border-color:rgba(255,106,0,0.35);">
+            <div class="arcade-game-badge" style="color:#ff6a00;">SURVIVORS ROGUELIKE</div>
+            <div class="arcade-game-title">Soul Ember</div>
+            <div class="arcade-game-desc">
+              Fast-paced survivor combat across 3 biomes with 8 unique heroes, 18 enemies, and epic guardian boss encounters.
+            </div>
+            <div class="arcade-game-action" style="color:#ff8533;">PLAY SOUL EMBER &rarr;</div>
+          </a>
+
+          <!-- Dead Signal -->
+          <a href="../dead-signal/index.html" class="arcade-game-card" style="border-color:rgba(157,255,77,0.35);">
+            <div class="arcade-game-badge" style="color:#9dff4d;">FIRST-PERSON SHOOTER</div>
+            <div class="arcade-game-title">Dead Signal</div>
+            <div class="arcade-game-desc">
+              Atmospheric zombie survival shooter. Defend the relay station through waves of infected with precision firearms and flashlight.
+            </div>
+            <div class="arcade-game-action" style="color:#9dff4d;">PLAY DEAD SIGNAL &rarr;</div>
+          </a>
+
+          <!-- Dev Tycoon -->
+          <a href="../dev-tycoon/index.html" class="arcade-game-card" style="border-color:rgba(0,217,255,0.35);">
+            <div class="arcade-game-badge" style="color:#00d9ff;">STUDIO SIMULATION</div>
+            <div class="arcade-game-title">Dev Tycoon</div>
+            <div class="arcade-game-desc">
+              Build and scale your tech startup empire from a garage to global software powerhouse in Flutter Web.
+            </div>
+            <div class="arcade-game-action" style="color:#00d9ff;">PLAY DEV TYCOON &rarr;</div>
+          </a>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <a href="../" class="btn-primary" style="text-decoration:none;">VISIT ARCADE HOMEPAGE</a>
+        <button id="network-close-btn" class="btn-secondary">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
   <script type="importmap">
-    { "imports": { "three": "../node_modules/three/build/three.module.js" } }
+    {
+      "imports": {
+        "three": "../node_modules/three/build/three.module.js",
+        "three/addons/": "../node_modules/three/examples/jsm/"
+      }
+    }
   </script>
-  <script type="module">
-    import * as THREE from '../node_modules/three/build/three.module.js';
-    import { GLTFLoader } from '../node_modules/three/examples/jsm/loaders/GLTFLoader.js';
-    import { DRACOLoader } from '../node_modules/three/examples/jsm/loaders/DRACOLoader.js';
-
-    const canvas = document.querySelector('#game');
-    const mobileDevice = matchMedia('(max-width: 720px), (pointer: coarse)').matches;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobileDevice, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobileDevice ? 1.35 : 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x121728, 42, 210);
-    const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 280);
-    camera.position.set(0, 7.4, 8);
-    const hemi = new THREE.HemisphereLight(0x91cfff, 0x141827, 1.8);
-    scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffbf94, 3.2);
-    sun.position.set(-35, 44, -80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); scene.add(sun);
-    const moon = new THREE.DirectionalLight(0x4b79ff, .7); moon.position.set(30, 18, 30); scene.add(moon);
-
-    const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(240, 32, 16),
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        uniforms: { top: { value: new THREE.Color(0x071633) }, mid: { value: new THREE.Color(0x50365d) }, low: { value: new THREE.Color(0xef946c) } },
-        vertexShader: 'varying vec3 p; void main(){p=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}',
-        fragmentShader: 'uniform vec3 top;uniform vec3 mid;uniform vec3 low;varying vec3 p;void main(){float h=normalize(p).y;vec3 c=mix(low,mid,smoothstep(-.2,.25,h));c=mix(c,top,smoothstep(.25,.8,h));gl_FragColor=vec4(c,1.);}'
-      })
-    );
-    scene.add(sky);
-    const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(8, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffc36e }));
-    sunDisc.position.set(-72, 48, -170); scene.add(sunDisc);
-
-    const roadWidth = 18, segmentLength = 13.5, segmentDepth = 14.5, segmentCount = 26;
-    const segments = [], traffic = [], obstacles = [], powerups = [], particles = [], pedestrians = [];
-    const keys = new Set();
-    const state = { running: false, distance: 0, score: 0, hull: 100, speed: 20, spawn: 0, obstacle: 1.5, powerup: 1.8, shake: 0, boosts: 0, shield: 0, pickups: 0, dodges: 0, upgrades: 0, carLevel: 1 };
-    const audio = { clips: {}, context: null, engineBuffer: null, engineSource: null, engineGain: null, engineFilter: null, engineLoading: null };
-    const gltfLoader = new GLTFLoader();
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('./assets/draco/');
-    gltfLoader.setDRACOLoader(dracoLoader);
-    const assetPrototypes = {};
-    let activePlayerModel = null;
-    const assetFiles = {
-      player: './assets/player-ferrari.glb',
-      sports: './assets/sports.glb',
-      suv: './assets/suv.glb',
-      van: './assets/van.glb',
-      buildingA: './assets/building-a.glb',
-      buildingB: './assets/building-b.glb',
-      treeLarge: './assets/tree-large.glb',
-      treeSmall: './assets/tree-small.glb',
-      cone: './assets/construction-cone.glb',
-      barrier: './assets/construction-barrier.glb',
-      coin: './assets/coin-gold.glb'
-    };
-    const ui = { status: document.querySelector('#status'), start: document.querySelector('#start'), distance: document.querySelector('#distance'), score: document.querySelector('#score'), hull: document.querySelector('#hull'), speed: document.querySelector('#speed'), speedNeedle: document.querySelector('#speedNeedle'), upgrade: document.querySelector('#upgradeButton') };
-
-    function material(color, emissive = 0, metalness = .25, roughness = .5) {
-      return new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: emissive ? 1.8 : 0, metalness, roughness });
-    }
-    function loadAsset(name, url) {
-      return new Promise(resolve => gltfLoader.load(url, result => { assetPrototypes[name] = result.scene; resolve(result.scene); }, undefined, error => { window.__roadAssetError = `${name}: ${error?.message || 'load failed'}`; resolve(null); }));
-    }
-    function assetInstance(name, targetLength = 3.8, role = 'prop', paint = null, rotationY = 0) {
-      const source = assetPrototypes[name];
-      if (!source) return null;
-      const model = source.clone(true);
-      model.traverse(node => {
-        if (!node.isMesh) return;
-        node.castShadow = true;
-        node.receiveShadow = true;
-        if (role === 'vehicle') {
-          if (!node.material) return;
-          node.material = Array.isArray(node.material) ? node.material.map(item => item.clone()) : node.material.clone();
-          const preserve = /wheel|tire|rubber|glass|window|light|lamp|chrome|mirror/i.test(`${node.name} ${node.material.name || ''}`);
-          if (!preserve) {
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach(item => {
-              if (item.color && paint !== null) item.color.setHex(paint);
-              if (item.emissive && paint) item.emissive.setHex(0x000000);
-            });
-          }
-        }
-      });
-      const bounds = new THREE.Box3().setFromObject(model);
-      const size = bounds.getSize(new THREE.Vector3());
-      const longest = Math.max(size.x, size.y, size.z) || 1;
-      model.scale.setScalar(targetLength / longest);
-      if (role === 'vehicle') model.rotation.y = rotationY;
-      return model;
-    }
-    function attachImportedDecor() {
-      segments.forEach((segment, i) => {
-        const leftBuilding = assetInstance(i % 2 ? 'buildingA' : 'buildingB', 11);
-        const rightBuilding = assetInstance(i % 2 ? 'buildingB' : 'buildingA', 11);
-        const leftTree = assetInstance(i % 2 ? 'treeSmall' : 'treeLarge', 3.8);
-        const rightTree = assetInstance(i % 3 ? 'treeLarge' : 'treeSmall', 3.8);
-        if (leftBuilding) { leftBuilding.position.set(-18, 0, -2); segment.add(leftBuilding); }
-        if (rightBuilding) { rightBuilding.position.set(18, 0, 2); segment.add(rightBuilding); }
-        if (leftTree) { leftTree.position.set(-11.4, 0, -3.8); segment.add(leftTree); }
-        if (rightTree) { rightTree.position.set(11.4, 0, 3.8); segment.add(rightTree); }
-      });
-    }
-    function applyPlayerModel(name, targetLength = 5.3) {
-      const importedPlayer = assetInstance(name, targetLength, 'vehicle', name === 'playerUpgrade' ? 0xd4a017 : 0xd71920, Math.PI);
-      if (!importedPlayer) return false;
-      if (activePlayerModel) player.remove(activePlayerModel);
-      player.children.forEach(child => { if (child.isMesh) child.visible = false; });
-      importedPlayer.userData.playerModel = true;
-      player.add(importedPlayer);
-      activePlayerModel = importedPlayer;
-      return true;
-    }
-    function loadGameAssets() {
-      Promise.all(Object.entries(assetFiles).map(([name, url]) => loadAsset(name, url))).then(() => {
-        applyPlayerModel('player');
-        attachImportedDecor();
-      });
-    }
-    function box(w, h, d, color, emissive = 0) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(color, emissive));
-      mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-    }
-    function roadSurface(w, h, d) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(0x202838, 0x080b12, .05, .82));
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      return mesh;
-    }
-    function cylinder(r, h, color, segments = 10) {
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.05, h, segments), material(color, 0, .1, .85));
-      mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-    }
-    function wheels(group, width, length) {
-      [-width, width].forEach(x => [-length, length].forEach(z => {
-        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .25, 16), material(0x0b111c, 0, .05, .95));
-        wheel.rotation.z = Math.PI / 2; wheel.position.set(x, .42, z); group.add(wheel);
-      }));
-    }
-    function sportsCar(color, hostile = false) {
-      const group = new THREE.Group(), dark = hostile ? 0x250718 : 0x06121e, glass = hostile ? 0x260d25 : 0x0b3854, accent = hostile ? 0xff3f70 : 0x36efff;
-      const base = box(2.3, .46, 3.8, color, hostile ? 0x24000c : 0x002f48); base.position.y = .65; group.add(base);
-      const lower = box(2.45, .22, 3.2, dark); lower.position.y = .43; group.add(lower);
-      const cabin = new THREE.Mesh(new THREE.CylinderGeometry(.72, .92, 1.7, 4), material(glass, 0, .35, .18));
-      cabin.rotation.x = Math.PI / 2; cabin.scale.z = .7; cabin.position.set(0, 1.08, .1); group.add(cabin);
-      const nose = new THREE.Mesh(new THREE.CylinderGeometry(.7, 1.05, 1.3, 4), material(color, 0, .5, .28));
-      nose.rotation.x = Math.PI / 2; nose.scale.z = 1.15; nose.position.set(0, .75, -1.35); group.add(nose);
-      const windshield = box(1.2, .22, .08, hostile ? 0x6d183d : 0x63eaff, hostile ? 0x21000d : 0x007da8);
-      windshield.position.set(0, 1.21, -.7); windshield.rotation.x = -.3; group.add(windshield);
-      const spoiler = box(1.9, .12, .18, accent, hostile ? 0x360013 : 0x00bfff); spoiler.position.set(0, 1.17, 1.62); group.add(spoiler);
-      [-.68, .68].forEach(x => {
-        const lamp = box(.34, .12, .08, 0xfff0b0, 0xffa51e); lamp.position.set(x, .8, -2.02); group.add(lamp);
-        const tail = box(.4, .1, .08, 0xff1649, 0xff0030); tail.position.set(x, .78, 2.03); group.add(tail);
-        const mirror = box(.18, .14, .3, color); mirror.position.set(x * 1.03, 1.1, -.5); group.add(mirror);
-      });
-      wheels(group, .84, 1.25);
-      const glow = new THREE.PointLight(hostile ? 0xff1649 : 0x00d9ff, hostile ? 0 : 5, 10); glow.position.set(0, .7, 1.8); group.add(glow);
-      return group;
-    }
-    function van(color) {
-      const group = new THREE.Group(), body = box(2.4, 1.1, 3.5, color); body.position.y = .82; group.add(body);
-      const windshield = box(1.75, .4, .08, 0x21364e); windshield.position.set(0, 1.25, -1.78); windshield.rotation.x = -.12; group.add(windshield);
-      const stripe = box(2.42, .13, 2.2, 0xf1f4f8); stripe.position.set(0, .93, .2); group.add(stripe); wheels(group, .86, 1.15); return group;
-    }
-    function truck(color) {
-      const group = new THREE.Group(), cab = box(2.35, 1.45, 1.55, color); cab.position.set(0, 1.02, -1.1); group.add(cab);
-      const cargo = box(2.55, 1.85, 2.3, 0xe7edf5); cargo.position.set(0, 1.12, .9); group.add(cargo);
-      const glass = box(1.75, .4, .08, 0x20364d); glass.position.set(0, 1.38, -1.9); group.add(glass); wheels(group, .88, 1.25); return group;
-    }
-    function bike(color) {
-      const group = new THREE.Group(), frame = box(.38, .25, 1.8, color); frame.position.y = .72; group.add(frame);
-      [-.72, .72].forEach(z => { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .12, 14), material(0x10151c, 0, .05, .9)); wheel.rotation.z = Math.PI / 2; wheel.position.set(0, .42, z); group.add(wheel); });
-      const rider = box(.34, .72, .3, 0x9b8cff); rider.position.set(0, 1.1, .1); group.add(rider); return group;
-    }
-    function trafficVehicle(color) {
-      const roll = Math.random();
-      const imported = roll < .26 ? assetInstance('van', 4.8, 'vehicle', color, 0) : roll < .58 ? assetInstance('suv', 4.8, 'vehicle', color, 0) : assetInstance('sports', 4.8, 'vehicle', color, 0);
-      return imported || (roll < .18 ? truck(color) : roll < .42 ? van(color) : roll < .58 ? bike(color) : sportsCar(color, true));
-    }
-    function startAudio() {
-      if (!audio.context) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        audio.context = new AudioContext();
-        audio.engineGain = audio.context.createGain();
-        audio.engineFilter = audio.context.createBiquadFilter();
-        audio.engineFilter.type = 'lowpass';
-        audio.engineFilter.frequency.value = 1800;
-        audio.engineGain.gain.value = 0;
-        audio.engineFilter.connect(audio.engineGain);
-        audio.engineGain.connect(audio.context.destination);
-        audio.clips.pickup = './assets/audio/pickup.wav';
-        audio.clips.boost = './assets/audio/boost.wav';
-        audio.clips.collision = './assets/audio/crash.wav';
-      }
-      audio.context.resume().catch(() => {});
-      if (!audio.engineBuffer && !audio.engineLoading) {
-        audio.engineLoading = fetch('./assets/audio/engine-natural.mp3')
-          .then(response => {
-            if (!response.ok) throw new Error(`engine audio failed: ${response.status}`);
-            return response.arrayBuffer();
-          })
-          .then(buffer => audio.context.decodeAudioData(buffer))
-          .then(decoded => {
-            audio.engineBuffer = decoded;
-            if (state.running) startEngineLoop();
-          })
-          .catch(error => { window.__roadAudioError = error.message; });
-      }
-    }
-    function startEngineLoop() {
-      if (!audio.context || !audio.engineBuffer || audio.engineSource) return;
-      const source = audio.context.createBufferSource();
-      source.buffer = audio.engineBuffer;
-      source.loop = true;
-      source.loopStart = Math.min(2.15, Math.max(0, audio.engineBuffer.duration * .42));
-      source.loopEnd = Math.max(source.loopStart + 1, audio.engineBuffer.duration - .15);
-      source.playbackRate.value = .92;
-      source.connect(audio.engineFilter);
-      source.start();
-      audio.engineSource = source;
-    }
-    function stopEngineLoop() {
-      if (audio.engineSource) {
-        audio.engineSource.stop();
-        audio.engineSource.disconnect();
-        audio.engineSource = null;
-      }
-    }
-    function sound(type) {
-      const clipUrl = audio.clips[type];
-      if (clipUrl) { const clip = new Audio(clipUrl); clip.volume = type === 'collision' ? .28 : .24; clip.play().catch(() => {}); }
-    }
-    function updateEngineSound() {
-      if (audio.context && audio.engineGain) {
-        if (state.running) startEngineLoop();
-        const speedRatio = THREE.MathUtils.clamp(state.speed / 28, 0, 1.35);
-        audio.engineSource?.playbackRate.setTargetAtTime(.82 + speedRatio * .34, audio.context.currentTime, .06);
-        audio.engineFilter.frequency.setTargetAtTime(1100 + speedRatio * 1400, audio.context.currentTime, .08);
-        audio.engineGain.gain.setTargetAtTime(state.running ? .16 + speedRatio * .08 : 0, audio.context.currentTime, .1);
-      }
-    }
-    function coneObstacle(lane) {
-      const imported = assetInstance('cone', 1.8);
-      if (imported) { imported.position.set(lane, 0, -130); scene.add(imported); return imported; }
-      const group = new THREE.Group();
-      const base = box(.9, .18, .9, 0x252b38); base.position.y = .1; group.add(base);
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(.38, 1.05, 10), material(0xff7b28, 0xff3512, .15, .55)); cone.position.y = .68; group.add(cone);
-      const stripe = box(.62, .12, .08, 0xf6f7df); stripe.position.set(0, .66, -.28); group.add(stripe);
-      group.position.set(lane, 0, -130); scene.add(group); return group;
-    }
-    function barrierObstacle(lane) {
-      const imported = assetInstance('barrier', 3.2);
-      if (imported) { imported.position.set(lane, 0, -130); scene.add(imported); return imported; }
-      const group = new THREE.Group();
-      const base = box(2.1, .38, .55, 0x263244); base.position.y = .2; group.add(base);
-      const board = box(1.9, .55, .16, 0xf05a42, 0x5d0d10); board.position.y = .7; group.add(board);
-      for (let i = -1; i <= 1; i++) { const stripe = box(.22, .58, .18, 0xf7df9a); stripe.position.set(i * .6, .7, -.02); stripe.rotation.z = -.45; group.add(stripe); }
-      group.position.set(lane, 0, -130); scene.add(group); return group;
-    }
-    function building(x, z, width, height, color, parent) {
-      const mesh = box(width, height, 10, color); mesh.position.set(x, height / 2 - .25, z); parent.add(mesh);
-      for (let row = 0; row < Math.floor(height / 1.7); row++) for (let col = 0; col < Math.max(1, Math.floor(width / 1.5)); col++) {
-        const window = box(.3, .43, .04, (row + col) % 4 === 0 ? 0xffc857 : 0x5bcfff, (row + col) % 4 === 0 ? 0x8c4b00 : 0x00516e);
-        window.position.set(x - width / 2 + .75 + col * 1.35, 1 + row * 1.7, z - 5.03); parent.add(window);
-      }
-    }
-    function tree(x, z, parent) { const trunk = cylinder(.18, 1.8, 0x694229, 8); trunk.position.set(x, .8, z); parent.add(trunk); const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1), material(0x258b68, 0, 0, .9)); crown.position.set(x, 2.1, z); parent.add(crown); }
-    function streetLight(x, z, parent) { const pole = cylinder(.06, 3.6, 0x8795a5, 8); pole.position.set(x, 1.7, z); parent.add(pole); const lamp = box(.3, .1, .44, 0xffd789, 0xff9d20); lamp.position.set(x + (x < 0 ? .18 : -.18), 3.45, z); parent.add(lamp); }
-    function pedestrian(x, z, parent, shirt) { const person = new THREE.Group(); const body = box(.28, .65, .2, shirt); body.position.y = 1.05; person.add(body); const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 8, 6), material(0xf0b58a, 0, 0, .8)); head.position.y = 1.55; person.add(head); for (const [xOffset, side] of [[-.13, -1], [.13, 1]]) { const leg = box(.08, .45, .08, 0x243b53); leg.position.set(xOffset, .5, 0); person.add(leg); const arm = box(.07, .42, .07, shirt); arm.position.set(side * .25, 1.08, 0); person.add(arm); } person.position.set(x, 0, z); person.userData.phase = Math.random() * 6; parent.add(person); pedestrians.push(person); }
-    function roadSegment(i) {
-      const group = new THREE.Group(); group.position.z = -i * segmentLength;
-      const road = roadSurface(roadWidth + .18, .3, segmentDepth); road.position.y = -.22; group.add(road);
-      const sidewalk = box(5.5, .18, segmentDepth, 0x697584); sidewalk.castShadow = false; sidewalk.receiveShadow = false; sidewalk.position.set(-13, -.1, 0); group.add(sidewalk); const rightWalk = sidewalk.clone(); rightWalk.position.x = 13; group.add(rightWalk);
-      [-3, 3].forEach(x => { const line = box(.12, .025, 3.4, 0x7ceeff, 0x00bfff); line.position.set(x, -.03, 0); group.add(line); });
-      building(-18, -2, 7 + i % 3, 7 + i % 4 * 2, [0x26374d, 0x36465c, 0x4a425c][i % 3], group);
-      building(18, 2, 7 + (i + 1) % 3, 8 + (i + 2) % 4 * 1.6, [0x293f4f, 0x4a4658, 0x31535a][i % 3], group);
-      tree(-11.4, -3.8, group); tree(11.4, 3.8, group); streetLight(-10.2, 0, group); streetLight(10.2, 0, group);
-      if (i % 2 === 0) pedestrian(-11.4, 3.2, group, 0xff6b6b); if (i % 3 === 0) pedestrian(11.4, -3.2, group, 0x9b8cff);
-      scene.add(group); segments.push(group);
-    }
-    for (let i = 0; i < segmentCount; i++) roadSegment(i);
-    const roadFoundation = roadSurface(roadWidth + .4, .12, 10000);
-    roadFoundation.position.set(0, -.38, -4990);
-    scene.add(roadFoundation);
-
-    const player = sportsCar(0x19b9ff); player.position.set(0, 0, -8); player.scale.setScalar(1.12); scene.add(player);
-    const exhaust = new THREE.PointLight(0xff6a00, 2, 8); exhaust.position.set(0, .5, 2.1); player.add(exhaust);
-    async function upgradePlayer() {
-      if (state.carLevel >= 2) return;
-      if (!assetPrototypes.playerUpgrade) await loadAsset('playerUpgrade', './assets/player-lamborghini.glb');
-      if (applyPlayerModel('playerUpgrade', 5.3)) {
-        state.carLevel = 2;
-        state.upgrades = 1;
-        state.speed = Math.max(state.speed, 24);
-        ui.upgrade.textContent = 'CAR UPGRADED';
-        ui.upgrade.disabled = true;
-        ui.upgrade.style.opacity = '.65';
-        sound('boost');
-      }
-    }
-    loadGameAssets();
-
-    function updateHud() { const kmh = Math.round(state.speed * 3.6); ui.distance.textContent = Math.floor(state.distance); ui.score.textContent = state.score; ui.hull.style.width = `${Math.max(0, state.hull)}%`; ui.speed.textContent = kmh; ui.speedNeedle.style.width = `${Math.min(100, kmh / 1.8)}%`; }
-    function reset() { startAudio(); traffic.splice(0).forEach(item => scene.remove(item.mesh)); obstacles.splice(0).forEach(item => scene.remove(item.mesh)); powerups.splice(0).forEach(item => scene.remove(item.mesh)); Object.assign(state, { running: true, distance: 0, score: 0, hull: 100, speed: state.carLevel >= 2 ? 24 : 20, spawn: 0, obstacle: 1.5, powerup: 1.5, shake: 0, pickups: 0, dodges: 0, boosts: 0, shield: 0 }); player.position.x = 0; ui.start.textContent = 'START RUN'; ui.status.classList.add('hidden'); updateHud(); sound('boost'); }
-    function gameOver() { state.running = false; stopEngineLoop(); sound('collision'); ui.status.classList.remove('hidden'); ui.status.querySelector('h1').textContent = 'RUN OVER'; ui.status.querySelector('p').textContent = `You reached ${Math.floor(state.distance)}m and scored ${state.score}.`; ui.start.textContent = 'RESTART RUN'; }
-    function laneClear(lane) { return traffic.every(item => Math.abs(item.lane - lane) > .3 || Math.abs(item.mesh.position.z + 135) > 20); }
-    function spawnTraffic() {
-      const lanes = [-6, 0, 6];
-      const blockedCount = state.distance < 180 ? 1 : Math.random() < .72 ? 1 : 2;
-      const blocked = lanes.sort(() => Math.random() - .5).slice(0, blockedCount);
-      blocked.forEach(lane => {
-        const mesh = trafficVehicle([0xff335f, 0xffa31a, 0xb35cff, 0x39c68c][Math.floor(Math.random() * 4)]);
-        mesh.position.set(lane, 0, -135); scene.add(mesh);
-        traffic.push({ mesh, lane, speed: 13 + Math.random() * 5, hit: 0, radius: mesh.children.length > 12 ? 1.25 : 1.05 });
-      });
-    }
-    function spawnObstacle() {
-      const occupied = new Set(traffic.filter(item => Math.abs(item.mesh.position.z + 135) < 18).map(item => item.lane));
-      const choices = [-6, 0, 6].filter(lane => !occupied.has(lane));
-      if (!choices.length) return;
-      const lane = choices[Math.floor(Math.random() * choices.length)];
-      const mesh = Math.random() < .62 ? coneObstacle(lane) : barrierObstacle(lane);
-      obstacles.push({ mesh, lane, hit: false });
-    }
-    function spawnPowerup() {
-      const types = [{ type: 'boost', color: 0x40eaff }, { type: 'shield', color: 0x9b7dff }, { type: 'repair', color: 0x65ff9a }];
-      const data = types[Math.floor(Math.random() * types.length)];
-      const mesh = assetInstance('coin', 1.15) || new THREE.Mesh(new THREE.OctahedronGeometry(.58), material(data.color, data.color));
-      mesh.position.set([-6, 0, 6][Math.floor(Math.random() * 3)], 1, -130);
-      scene.add(mesh); powerups.push({ mesh, type: data.type, color: data.color });
-    }
-    function burst(position, color) { for (let i = 0; i < 9; i++) { const mesh = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 6), new THREE.MeshBasicMaterial({ color })); mesh.position.copy(position); scene.add(mesh); particles.push({ mesh, life: .5, velocity: new THREE.Vector3((Math.random() - .5) * 9, Math.random() * 6, (Math.random() - .5) * 9) }); } }
-    function update(dt) {
-      const steer = (keys.has('ArrowLeft') || keys.has('a') ? -1 : 0) + (keys.has('ArrowRight') || keys.has('d') ? 1 : 0);
-      const boosting = keys.has(' ') || keys.has('Shift') || state.boosts > 0;
-      const targetSpeed = boosting ? 34 : 20; state.speed += (targetSpeed - state.speed) * Math.min(1, dt * 4); if (state.boosts > 0) state.boosts -= dt;
-      player.position.x = THREE.MathUtils.clamp(player.position.x + steer * dt * 13, -7, 7); player.rotation.z += (-steer * .08 - player.rotation.z) * Math.min(1, dt * 8); exhaust.intensity = boosting ? 11 : 2; state.shield = Math.max(0, state.shield - dt);
-      state.distance += state.speed * dt; state.score = Math.floor(state.distance * 2) + state.pickups * 100 + state.dodges * 40;
-      state.spawn -= dt; state.obstacle -= dt; state.powerup -= dt; if (state.spawn <= 0) { spawnTraffic(); state.spawn = Math.max(.8, 1.65 - state.distance / 7000); } if (state.obstacle <= 0) { spawnObstacle(); state.obstacle = 2.2 + Math.random() * 1.8; } if (state.powerup <= 0) { spawnPowerup(); state.powerup = 4 + Math.random() * 3; }
-      const trackLength = segmentCount * segmentLength;
-      segments.forEach(segment => { segment.position.z += state.speed * dt; while (segment.position.z > segmentLength) segment.position.z -= trackLength; });
-      traffic.forEach(item => { item.mesh.position.z += (state.speed - item.speed) * dt; item.mesh.position.x += (item.lane - item.mesh.position.x) * Math.min(1, dt * 10); item.mesh.rotation.y = (item.lane - item.mesh.position.x) * -.05; item.hit = Math.max(0, item.hit - dt); if (Math.abs(item.mesh.position.z - player.position.z) < 2.5 && Math.abs(item.mesh.position.x - player.position.x) < item.radius + .9 && item.hit <= 0) { item.hit = 1; if (!state.shield) state.hull -= 18; state.shake = .24; burst(item.mesh.position, 0xff305f); sound('collision'); } });
-      for (let i = 0; i < traffic.length; i++) for (let j = i + 1; j < traffic.length; j++) { const a = traffic[i], b = traffic[j]; if (Math.abs(a.lane - b.lane) < .3 && Math.abs(a.mesh.position.z - b.mesh.position.z) < 6) { if (a.mesh.position.z > b.mesh.position.z) a.mesh.position.z = b.mesh.position.z + 6; else b.mesh.position.z = a.mesh.position.z + 6; } }
-      for (let i = traffic.length - 1; i >= 0; i--) if (traffic[i].mesh.position.z > 18) { scene.remove(traffic[i].mesh); traffic.splice(i, 1); }
-      obstacles.forEach(item => { item.mesh.position.z += state.speed * dt; if (!item.hit && Math.abs(item.mesh.position.z - player.position.z) < 2.1 && Math.abs(item.mesh.position.x - player.position.x) < 1.65) { item.hit = true; if (!state.shield) state.hull -= 12; state.shake = .18; sound('collision'); burst(item.mesh.position, 0xff8a3d); } });
-      for (let i = obstacles.length - 1; i >= 0; i--) if (obstacles[i].mesh.position.z > 18) { if (!obstacles[i].hit && obstacles[i].mesh.position.z > player.position.z + 2) state.dodges++; scene.remove(obstacles[i].mesh); obstacles.splice(i, 1); }
-      powerups.forEach(item => { item.mesh.position.z += state.speed * dt; item.mesh.rotation.y += dt * 4; });
-      for (let i = powerups.length - 1; i >= 0; i--) { const item = powerups[i]; if (item.mesh.position.distanceTo(player.position) < 2.4) { state.pickups++; if (item.type === 'boost') state.boosts = 2.5; if (item.type === 'shield') state.shield = 5; if (item.type === 'repair') state.hull = Math.min(100, state.hull + 25); sound(item.type === 'boost' ? 'boost' : 'pickup'); burst(item.mesh.position, item.color); scene.remove(item.mesh); powerups.splice(i, 1); } else if (item.mesh.position.z > 18) { scene.remove(item.mesh); powerups.splice(i, 1); } }
-      particles.forEach(item => { item.life -= dt; item.mesh.position.addScaledVector(item.velocity, dt); item.velocity.y -= 9 * dt; item.mesh.material.transparent = true; item.mesh.material.opacity = Math.max(0, item.life * 2); }); for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) { scene.remove(particles[i].mesh); particles.splice(i, 1); }
-      pedestrians.forEach(person => { const stride = Math.sin(state.distance * .22 + person.userData.phase) * .28; person.children[2].rotation.x = stride; person.children[3].rotation.x = -stride; person.children[4].rotation.x = -stride; person.children[5].rotation.x = stride; });
-      state.shake = Math.max(0, state.shake - dt); camera.position.x += (player.position.x * .35 - camera.position.x) * dt * 4; camera.position.y = 7.4 + (Math.random() - .5) * state.shake; camera.lookAt(player.position.x * .12, .9, -10); updateEngineSound(); updateHud(); if (state.hull <= 0) gameOver();
-    }
-    let last = performance.now(); function render(now = performance.now()) { const dt = Math.min(.08, (now - last) / 1000); last = now; if (state.running) update(dt); renderer.render(scene, camera); requestAnimationFrame(render); }
-    addEventListener('keydown', event => { keys.add(event.key); if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) event.preventDefault(); }); addEventListener('keyup', event => keys.delete(event.key));
-    document.querySelectorAll('.touch-button').forEach(button => {
-      const key = button.dataset.key;
-      const press = event => { event.preventDefault(); keys.add(key); };
-      const release = event => { event.preventDefault(); keys.delete(key); };
-      button.addEventListener('pointerdown', press, { passive: false });
-      button.addEventListener('pointerup', release, { passive: false });
-      button.addEventListener('pointercancel', release, { passive: false });
-      button.addEventListener('pointerleave', release, { passive: false });
-    });
-    addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }); ui.start.addEventListener('click', reset); ui.upgrade.addEventListener('click', upgradePlayer); updateHud(); render();
-  </script>
+  <script type="module" src="./js/game.js"></script>
 </body>
 </html>

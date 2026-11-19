@@ -7,9 +7,14 @@
     "dev:soul-ember": "npm --prefix soul-ember run dev",
     "build:soul-ember": "npm --prefix soul-ember run build",
     "test:soul-ember": "npm --prefix soul-ember run test",
-    "test": "node soul-ember/test/test_suite.js"
+    "test:road-riot": "node --test road-riot/test/game.test.js",
+    "test": "node --test soul-ember/test/rebuild.test.js road-riot/test/game.test.js",
+    "build": "npm run build:soul-ember && node scripts/build-site.mjs"
   },
   "workspaces": [
     "soul-ember"
-  ]
+  ],
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
 }

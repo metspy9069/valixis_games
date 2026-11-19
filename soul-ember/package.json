@@ -2,21 +2,16 @@
   "name": "valixis-soul-ember",
   "version": "2.0.0",
   "description": "Soul Ember Survivors - Modern Dark-Fantasy Roguelite Engine by Valixis Games Studio",
-  "main": "src/main.js",
+  "main": "src/rebuild/main.js",
   "type": "module",
   "scripts": {
-    "deploy": "gh-pages -d dist",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/test_suite.js",
-    "bundle": "node build_bundle.js",
+    "test": "node --test test/rebuild.test.js",
     "backend": "node server/index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
     "three": "^0.165.0"
   },
   "keywords": [
@@ -31,8 +26,7 @@
   "author": "Valixis Games Studio",
   "license": "MIT",
   "devDependencies": {
-    "gh-pages": "^5.0.0",
     "terser": "^5.51.2",
-    "vite": "^6.2.0"
+    "vite": "^8.3.8"
   }
 }

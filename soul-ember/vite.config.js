@@ -1,20 +1,21 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: './',
+  base: "./",
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
+    outDir: "dist",
+    assetsDir: "assets",
     sourcemap: true,
-    minify: 'terser',
+    minify: "terser",
     rollupOptions: {
       output: {
-        manualChunks: undefined
-      }
-    }
+        manualChunks: (id) => (id.includes("/three/") ? "three" : undefined),
+      },
+    },
   },
   server: {
     port: 8080,
-    open: true
-  }
+    open: false,
+    proxy: { "/api": "http://127.0.0.1:3001" },
+  },
 });

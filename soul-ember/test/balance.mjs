@@ -1,0 +1,7 @@
+import {Game} from '../src/rebuild/game.js';
+import {HEROES} from '../src/rebuild/roster.js';
+import {clearLine,Navigation} from '../src/rebuild/dungeon.js';
+// Invulnerable collection bot isolates progression throughput; not a difficulty verdict.
+const output=[];
+for(const hero of (process.argv.length>2?process.argv.slice(2):Object.keys(HEROES)))for(const seed of [17]){const g=new Game({hero,seed}),nav=new Navigation();for(let i=0;i<20*720;i++){if(g.state==='victory')break;if(g.state==='upgrade'){const c=g.choices.find(c=>c.branch===0)||g.choices.find(c=>c.branch===1)||g.choices[0];g.upgrade(c.id);}g.player.invuln=10;if(g.player.ult>=100)g.ultimate();const targets=[...g.loot.filter(l=>l.kind==='xp'),...g.enemies].sort((a,b)=>Math.hypot(a.x-g.player.x,a.z-g.player.z)-Math.hypot(b.x-g.player.x,b.z-g.player.z));const target=targets.find(e=>clearLine(g.player,e))||targets[0];let x=0,z=0;if(target){const d=Math.hypot(target.x-g.player.x,target.z-g.player.z);if(d>.2){const a=clearLine(g.player,target)?Math.atan2(target.x-g.player.x,target.z-g.player.z):(nav.update(target),nav.direction(g.player,target));x=Math.sin(a);z=Math.cos(a);}}g.update(1/20,{x,z});g.events.length=0;}output.push({hero,seed,first:Math.round(g.levelTimes[0]||0),choices:g.levelTimes.length,time:Math.round(g.time),bosses:g.bossKills,kills:g.kills});console.log(JSON.stringify(output.at(-1)));}
+console.table(output);

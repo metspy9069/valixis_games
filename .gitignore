@@ -4,3 +4,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 inspect_loop.js
+
+/site/
+.env
+.env.*
+!.env.example

@@ -5,7 +5,10 @@ import { buildWorld, resolveCircle, makeRng } from './world.js';
 import { Zombie } from './zombie.js';
 import { WEAPONS, ViewModel } from './weapons.js';
 import { NavGrid } from './nav.js';
-import { wavePlan, rollType } from './waves.js';
+import { wavePlan, rollType, MAX_WAVE_ENEMIES } from './waves.js';
+import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE } from './data.js';
+import { SHOP_ITEMS, SHOP_SECTIONS, itemCost, itemMaxed } from './shop.js';
+import { challengeFor, markChallengeDone, clearedCount } from './challenges.js';
 import { AudioEngine } from './audio.js';
 
 // ---------------------------------------------------------------- renderer
@@ -145,7 +148,7 @@ function trackPerf(dt) {
     qualityTier--;
     applyQuality();
     perfCooldown = 6;
-    showHint(`GRAPHICS: ${QUALITY_TIERS[qualityTier].name.toUpperCase()} Â· ${Math.round(fps)} FPS`);
+    showHint(`GRAPHICS: ${QUALITY_TIERS[qualityTier].name.toUpperCase()} \u00b7 ${Math.round(fps)} FPS`);
   }
 }
 
@@ -213,6 +216,9 @@ function saveSettings() {
 // ?stats=1 opens the frame-time readout; F3 toggles it at any time.
 const params = new URLSearchParams(location.search);
 const launchWave = Math.max(0, Math.min(99, Number.parseInt(params.get('wave') || '0', 10) || 0));
+// ?credits=N stocks the wallet at the start of a run, so the depot can be
+// exercised without grinding a wave first.
+const launchCredits = Math.max(0, Math.min(99999, Number.parseInt(params.get('credits') || '0', 10) || 0));
 
 const player = {
   pos: new THREE.Vector3(0, 0, 20),
@@ -223,7 +229,12 @@ const player = {
   radius: 0.36,
   health: 100,
   maxHealth: 100,
+  armor: 0,
+  maxArmor: ARMOR_MAX,
   stamina: 100,
+  maxStamina: 100,
+  grenades: GRENADE.startCount,
+  grenadeMax: GRENADE.maxCount,
   grounded: true,
   bob: 0,
   lastDamage: -99,
@@ -242,16 +253,26 @@ const ammo = {
   mag: WEAPONS.map((w) => w.magSize),
   reserve: WEAPONS.map((w) => (w.reserveMax === Infinity ? Infinity : Math.round(w.reserveMax * 0.7))),
   weapon: 0,
+  // The AR-style rifle is standard issue; the heavy LMG has to be recovered
+  // from a weapon cache during the run.
+  unlocked: WEAPONS.map((w) => !w.locked),
+  meleeCooldown: 0,
   reloading: false,
   reloadTimer: 0,
   lastShot: 0,
   triggerHeld: false,
 };
 
+// Per-run progression. Bought at the depot with credits earned in the run and
+// reset when a new run starts, so the shop is a decision, not a grind.
+const upgrades = { damage: 0, mag: 0, reload: 0, stability: 0, health: 0, armor: 0, stamina: 0 };
+
 const game = {
   running: false,
   paused: true,
   over: false,
+  shopOpen: false,
+  credits: 0,
   wave: 0,
   kills: 0,
   headshots: 0,
@@ -263,6 +284,12 @@ const game = {
   spawnQueue: [],
   spawnTimer: 0,
   zombiesSpawned: 0,
+  boss: null,
+  hordeTimer: 0,
+  moanTimer: 9,
+  meleeTier: 0,
+  mods: null,
+  challenge: null,
 };
 
 const zombies = [];
@@ -271,6 +298,7 @@ let hitMeshesDirty = true;
 const raycaster = new THREE.Raycaster();
 
 const pickups = [];
+const pickupProbe = new THREE.Vector3();
 
 // ---------------------------------------------------------------- particles
 const bloodMat = new THREE.MeshBasicMaterial({ color: 0x8e1119 });
@@ -290,7 +318,7 @@ function spawnParticles(point, count, kind, power = 1) {
   for (let i = 0; i < count; i++) {
     const p = particles[particleCursor];
     particleCursor = (particleCursor + 1) % particles.length;
-    p.mesh.material = kind === 'blood' ? bloodMat : sparkMat;
+    p.mesh.material = kind === 'blood' ? bloodMat : kind === 'acid' ? acidParticleMat : sparkMat;
     p.mesh.position.copy(point);
     p.mesh.scale.setScalar(0.6 + Math.random() * 0.9);
     p.mesh.visible = true;
@@ -381,6 +409,8 @@ function updateDamageNumbers(dt) {
     if (d.life <= 0) { d.el.style.display = 'none'; continue; }
     d.pos.y += d.vy * dt;
     projVec.copy(d.pos).project(camera);
+    // Behind the camera the projection mirrors onto the screen: hide instead.
+    if (projVec.z > 1) { d.el.style.opacity = '0'; continue; }
     const x = (projVec.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-projVec.y * 0.5 + 0.5) * window.innerHeight;
     d.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${(0.85 + (0.85 - d.life) * 0.5).toFixed(2)})`;
@@ -392,10 +422,14 @@ function updateDamageNumbers(dt) {
 const el = (id) => document.getElementById(id);
 const hud = {
   hpFill: el('hpFill'), hpValue: el('hpValue'), stamFill: el('stamFill'),
+  armorFill: el('armorFill'), armorValue: el('armorValue'), armorRow: el('armorRow'),
   weaponName: el('weaponName'), ammoMag: el('ammoMag'), ammoReserve: el('ammoReserve'),
   ammoPanel: el('ammoPanel'), reloadFill: el('reloadFill'),
   wave: el('waveValue'), kills: el('killValue'), left: el('leftValue'), score: el('scoreValue'),
   surgeBadge: el('surgeBadge'),
+  boss: el('bossBar'), bossName: el('bossName'), bossFill: el('bossFill'), bossHp: el('bossHp'),
+  credits: el('creditValue'), grenadeCount: el('grenadeCount'),
+  shop: el('shopScreen'), shopItems: el('shopItems'), shopCredits: el('shopCredits'),
   cross: el('cross'), blood: el('blood'), hurt: el('hurtFlash'),
   dmgDir: el('dmgDir'), perf: el('perf'),
   setSens: el('setSens'), setFov: el('setFov'), setInvert: el('setInvert'),
@@ -480,17 +514,28 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 'Escape') {
+    if (game.shopOpen) { closeShop(); return; }
     if (game.running && !game.paused && !game.over) pauseGame();
     return;
   }
+  // The depot toggles even though it holds the game paused.
+  if (k === 'KeyB') {
+    if (game.shopOpen) closeShop();
+    else if (game.running && !game.over) openShop();
+    return;
+  }
   if (!game.running || game.paused || game.over) return;
+  if (k === 'KeyG') { throwGrenade(); return; }
   if (k === 'KeyR') startReload();
   if (k === 'KeyF') toggleFlashlight();
   if (k === 'KeyM') toggleMute();
-  if (k === 'Digit1' || k === 'Numpad1') selectWeapon(0);
-  if (k === 'Digit2' || k === 'Numpad2') selectWeapon(1);
-  if (k === 'Digit3' || k === 'Numpad3') selectWeapon(2);
+  if (k === 'Digit1' || k === 'Numpad1') selectWeapon(0, true);
+  if (k === 'Digit2' || k === 'Numpad2') selectWeapon(1, true);
+  if (k === 'Digit3' || k === 'Numpad3') selectWeapon(2, true);
+  if (k === 'Digit4' || k === 'Numpad4') selectWeapon(3, true);
+  if (k === 'Digit5' || k === 'Numpad5') selectWeapon(4, true);
   if (k === 'KeyQ') selectWeapon(ammo.weapon + 1);
+  if (k === 'KeyV') swingMelee();
   if (k === 'Space' && player.grounded) {
     player.vel.y = 4.7;
     player.grounded = false;
@@ -500,6 +545,9 @@ window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
 canvas.addEventListener('mousedown', (e) => {
   if (!game.running || game.paused || game.over) return;
+  // Autoplay policy: a context created before a gesture (?wave= launch) is
+  // suspended, so the first trigger pull has to wake it as well.
+  audio.resume();
   // Firing must never depend on pointer lock succeeding.
   if (!mouseLocked) requestLock();
   if (e.button === 0) { ammo.triggerHeld = true; tryFire(); }
@@ -591,14 +639,70 @@ if (isTouch) {
   fireBtn.addEventListener('touchend', () => { ammo.triggerHeld = false; });
   el('reloadBtn').addEventListener('click', () => startReload());
   el('swapBtn').addEventListener('click', () => selectWeapon(ammo.weapon + 1));
+  el('meleeBtn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    swingMelee();
+  }, { passive: false });
+  el('meleeBtn').addEventListener('click', () => swingMelee());
+  el('nadeBtn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    throwGrenade();
+  }, { passive: false });
+  el('nadeBtn').addEventListener('click', () => throwGrenade());
 }
 
 // ---------------------------------------------------------------- weapons
 function weaponDef() { return WEAPONS[ammo.weapon]; }
 
-function selectWeapon(index) {
-  const next = ((index % WEAPONS.length) + WEAPONS.length) % WEAPONS.length;
-  if (next === ammo.weapon) return;
+// ------------------------------------------------------------- upgrades
+// Every one of these reads from the depot upgrade table, so the shop and the
+// weapon maths can never disagree.
+function magSizeFor(def) {
+  return def.magSize + upgrades.mag * (def.id === 'shotgun' ? 1 : 4);
+}
+
+function reloadTimeFor(def) {
+  return def.reloadTime * Math.max(0.5, 1 - upgrades.reload * 0.1);
+}
+
+function weaponDamageMul() {
+  const mods = game.mods || {};
+  return (1 + upgrades.damage * 0.12) * (mods.damageMul || 1);
+}
+
+function weaponSpreadMul() {
+  return Math.max(0.6, 1 - upgrades.stability * 0.12);
+}
+
+function weaponRecoilMul() {
+  return Math.max(0.6, 1 - upgrades.stability * 0.12);
+}
+
+function weaponAvailable(index) {
+  // A challenge can pin the player to one gun for the whole contract.
+  if (game.mods && game.mods.weaponLock !== undefined) return index === game.mods.weaponLock;
+  return !!ammo.unlocked[index];
+}
+
+function selectWeapon(index, strict = false) {
+  let next = ((index % WEAPONS.length) + WEAPONS.length) % WEAPONS.length;
+  if (strict) {
+    // A direct number key never quietly hands you a different gun: pressing 5
+    // with the LMG still locked should say so, not swap to the pistol.
+    if (!weaponAvailable(next)) {
+      showHint(game.mods && game.mods.weaponLock !== undefined
+        ? 'CONTRACT LOADOUT \u2014 ONE WEAPON ONLY'
+        : 'WEAPON LOCKED \u2014 SUPPLY DEPOT [B]', 1500);
+      audio.dryFire();
+      return;
+    }
+  } else {
+    // Cycling skips anything this run has not unlocked or is not allowed to use.
+    for (let i = 0; i < WEAPONS.length && !weaponAvailable(next); i++) {
+      next = (next + 1) % WEAPONS.length;
+    }
+  }
+  if (!weaponAvailable(next) || next === ammo.weapon) return;
   ammo.weapon = next;
   ammo.reloading = false;
   ammo.reloadTimer = 0;
@@ -610,20 +714,22 @@ function selectWeapon(index) {
 function startReload() {
   const def = weaponDef();
   if (ammo.reloading) return;
-  if (ammo.mag[ammo.weapon] >= def.magSize) return;
+  if (ammo.mag[ammo.weapon] >= magSizeFor(def)) return;
   if (ammo.reserve[ammo.weapon] <= 0 && def.reserveMax !== Infinity) return;
+  const time = reloadTimeFor(def);
   ammo.reloading = true;
-  ammo.reloadTimer = def.reloadTime;
+  ammo.reloadTimer = time;
   audio.reloadStart();
-  setTimeout(() => { if (ammo.reloading) audio.reloadStep(); }, def.reloadTime * 400);
-  setTimeout(() => { if (ammo.reloading) audio.reloadEnd(); }, def.reloadTime * 850);
+  setTimeout(() => { if (ammo.reloading) audio.reloadStep(); }, time * 400);
+  setTimeout(() => { if (ammo.reloading) audio.reloadEnd(); }, time * 850);
 }
 
 function finishReload() {
   const def = weaponDef();
-  const need = def.magSize - ammo.mag[ammo.weapon];
+  const size = magSizeFor(def);
+  const need = size - ammo.mag[ammo.weapon];
   if (def.reserveMax === Infinity) {
-    ammo.mag[ammo.weapon] = def.magSize;
+    ammo.mag[ammo.weapon] = size;
   } else {
     const take = Math.min(need, ammo.reserve[ammo.weapon]);
     ammo.mag[ammo.weapon] += take;
@@ -653,51 +759,61 @@ function tryFire() {
 
   audio.shot(def.sound);
   viewModel.flash();
-  viewModel.recoil(def.recoil);
+  viewModel.recoil(def.recoil * weaponRecoilMul());
   muzzleLightTimer = 0.06;
-  player.shake = Math.min(0.5, player.shake + def.recoil * 0.016);
+  player.shake = Math.min(0.5, player.shake + def.recoil * weaponRecoilMul() * 0.016);
 
   // Recoil pushes the view up; aim down sights halves it.
-  recoil.pitch += (def.recoil * 0.0038) * (player.ads ? 0.55 : 1);
-  recoil.yaw += (Math.random() - 0.5) * def.recoil * 0.0012;
+  recoil.pitch += (def.recoil * weaponRecoilMul() * 0.0038) * (player.ads ? 0.55 : 1);
+  recoil.yaw += (Math.random() - 0.5) * def.recoil * weaponRecoilMul() * 0.0012;
 
   spreadBloom = Math.min(0.05, spreadBloom + def.spread * 0.5);
 
-  const origin = new THREE.Vector3();
-  const dir = new THREE.Vector3();
-  camera.getWorldPosition(origin);
-  camera.getWorldDirection(dir);
+  // The round leaves the barrel, not the eye. Aim is resolved from the camera
+  // first so the shot still lands under the crosshair, and the muzzle is then
+  // the origin of a ray that converges on that point. This is what makes the
+  // tracer come out of the gun while keeping the sight honest.
+  const eye = new THREE.Vector3();
+  const aimDir = new THREE.Vector3();
+  camera.getWorldPosition(eye);
+  camera.getWorldDirection(aimDir);
+  const aimWall = rayWorld(eye, aimDir, 160);
+  const aimPoint = eye.clone().addScaledVector(aimDir, aimWall ? Math.max(3.5, aimWall.distance) : 90);
 
   const muzzle = new THREE.Vector3();
   viewModel.muzzleWorld(muzzle);
   muzzleLight.position.copy(muzzle);
 
-  const baseSpread = player.ads ? def.adsSpread : def.spread;
-  const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1);
+  const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul();
+  const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul();
+  const aimDistance = Math.max(4, muzzle.distanceTo(aimPoint));
 
   for (let p = 0; p < def.pellets; p++) {
-    const shotDir = applySpread(origin, dir, spread, p);
+    const point = jitterPoint(aimPoint, aimDir, Math.tan(spread) * aimDistance, p);
+    const shotDir = point.sub(muzzle).normalize();
 
-    const wallHit = rayWorld(origin, shotDir, 90);
-    const zombieHit = rayZombies(origin, shotDir, wallHit ? wallHit.distance : 90);
+    const wallHit = rayWorld(muzzle, shotDir, 160);
+    const zombieHit = rayZombies(muzzle, shotDir, wallHit ? wallHit.distance : 160);
 
     if (zombieHit) {
-      const { zombie, mesh, point, distance } = zombieHit;
+      const { zombie, mesh, point: hitPoint, distance } = zombieHit;
       const head = mesh.userData.part === 'head';
       const falloff = damageFalloff(def, distance);
-      const dmg = def.damage * falloff * (head ? 2.6 : 1);
+      const mods = game.mods || {};
+      const dmg = def.damage * falloff * (head ? 2.6 : 1) * weaponDamageMul()
+        * (head ? 1 : (mods.headshotOnly ? 0.34 : 1));
       game.hits += 1;
       const killed = zombie.takeDamage(dmg, head ? 'head' : 'body', makeContext());
-      spawnParticles(point, head ? 12 : 7, 'blood', head ? 1.35 : 1);
-      spawnDamageNumber(point, dmg, head);
-      spawnTracer(muzzle, point);
+      spawnParticles(hitPoint, head ? 12 : 7, 'blood', head ? 1.35 : 1);
+      spawnDamageNumber(hitPoint, dmg, head);
+      spawnTracer(muzzle, hitPoint);
       flashCrosshair(killed ? 'kill' : 'hit');
       // Kill bookkeeping happens in onDeath -> onZombieKilled (no double count).
     } else if (wallHit) {
       spawnParticles(wallHit.point, 4, 'spark', 0.7);
       spawnTracer(muzzle, wallHit.point);
     } else {
-      spawnTracer(muzzle, origin.clone().addScaledVector(shotDir, 60));
+      spawnTracer(muzzle, muzzle.clone().addScaledVector(shotDir, 60));
     }
   }
 
@@ -711,19 +827,237 @@ function damageFalloff(def, distance) {
   return 1 - t * (1 - def.falloffMin);
 }
 
+// ---------------------------------------------------------------- melee
+// The machete is free, always equipped, and the reason to let a zombie get
+// close: one swing drops a walker, knocks a crowd apart and costs no ammo.
+function swingMelee() {
+  if (!game.running || game.paused || game.over) return;
+  if (ammo.meleeCooldown > 0) return;
+  const melee = MELEE_TIERS[game.meleeTier] || MELEE_TIERS[0];
+  ammo.meleeCooldown = melee.cooldown;
+  viewModel.swing();
+  audio.melee();
+
+  const eye = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  camera.getWorldPosition(eye);
+  camera.getWorldDirection(dir);
+  dir.y *= 0.35;
+  dir.normalize();
+
+  let hits = 0;
+  for (const z of zombies) {
+    if (!z.alive) continue;
+    const to = new THREE.Vector3(z.group.position.x - player.pos.x, 0, z.group.position.z - player.pos.z);
+    const dist = to.length();
+    if (dist > melee.range + z.radius) continue;
+    if (dist > 1e-3) to.divideScalar(dist);
+    if (to.dot(dir) < Math.cos(melee.halfAngle)) continue;
+
+    // Blades scale gently with the wave so a brute never walks through five
+    // swings, while a walker still dies to one from wave 1 to wave 40.
+    const dmg = melee.damage * (1 + Math.min(1.2, game.wave * 0.03));
+    const at = z.group.position.clone();
+    at.y = 0.95;
+    z.takeDamage(dmg, 'body', makeContext());
+    z.group.position.addScaledVector(to, MELEE_KNOCKBACK);
+    z.flinch = 1;
+    spawnParticles(at, 10, 'blood', 1.25);
+    spawnDamageNumber(at, dmg, false);
+    hits++;
+  }
+
+  if (hits) {
+    player.shake = Math.min(0.7, player.shake + 0.16);
+    flashCrosshair('kill');
+    audio.meleeHit();
+  }
+}
+
+// ---------------------------------------------------------------- acid
+// Spitter projectiles: a lobbed glob with its own gravity, trail and splash.
+const acidParticleMat = new THREE.MeshBasicMaterial({ color: 0x9dff3d });
+const acidShotMat = new THREE.MeshStandardMaterial({
+  color: 0xaaff4d, emissive: 0x6cff1a, emissiveIntensity: 2.8, roughness: 0.3, toneMapped: false,
+});
+const acidShotGeo = new THREE.IcosahedronGeometry(0.16, 1);
+const acidShots = [];
+for (let i = 0; i < 10; i++) {
+  const mesh = new THREE.Mesh(acidShotGeo, acidShotMat);
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  acidShots.push({ mesh, vel: new THREE.Vector3(), life: 0 });
+}
+
+function spitAcid(zombie) {
+  const shot = acidShots.find((s) => s.life <= 0) || acidShots[0];
+  const from = zombie.group.position.clone();
+  from.y = 1.2 * (zombie.def.scale || 1);
+  const target = new THREE.Vector3(player.pos.x, player.pos.y + 1.0, player.pos.z);
+  const dist = Math.max(2, from.distanceTo(target));
+  const speed = 18;
+  const flight = Math.max(0.32, dist / speed);
+
+  shot.mesh.position.copy(from);
+  shot.mesh.visible = true;
+  shot.vel.copy(target).sub(from).divideScalar(flight);
+  // Compensate the arc: gravity pulls the glob down over the flight time.
+  shot.vel.y += 0.5 * 22 * flight;
+  shot.life = flight + 1.4;
+  audio.spit();
+}
+
+function updateAcid(dt) {
+  const chest = new THREE.Vector3(player.pos.x, player.pos.y + 0.95, player.pos.z);
+  for (const s of acidShots) {
+    if (s.life <= 0) continue;
+    s.life -= dt;
+    s.vel.y -= 22 * dt;
+    s.mesh.position.addScaledVector(s.vel, dt);
+    s.mesh.rotation.x += dt * 7;
+    s.mesh.rotation.y += dt * 5;
+    if (Math.random() < 0.35) spawnParticles(s.mesh.position, 1, 'acid', 0.22);
+
+    let burst = false;
+    if (s.mesh.position.distanceTo(chest) < 0.95) {
+      damagePlayer(13 * (game.damageScale || 1), null);
+      player.vel.x += s.vel.x * 0.06;
+      player.vel.z += s.vel.z * 0.06;
+      burst = true;
+    } else if (s.mesh.position.y <= 0.12
+      || pointBlocked(s.mesh.position.x, s.mesh.position.y, s.mesh.position.z)) {
+      // Acid stops at walls instead of sailing through a building to reach you.
+      burst = true;
+    }
+
+    if (burst || s.life <= 0) {
+      spawnParticles(s.mesh.position, 9, 'acid', 0.7);
+      s.life = 0;
+      s.mesh.visible = false;
+    }
+  }
+}
+
+// ---------------------------------------------------------------- grenades
+const grenadeGeo = new THREE.SphereGeometry(0.085, 10, 8);
+const grenadeMat = new THREE.MeshStandardMaterial({ color: 0x39412c, roughness: 0.55, metalness: 0.35 });
+const grenadePool = [];
+for (let i = 0; i < 8; i++) {
+  const mesh = new THREE.Mesh(grenadeGeo, grenadeMat);
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  grenadePool.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), fuse: 0, live: false });
+}
+
+function throwGrenade() {
+  if (!game.running || game.paused || game.over) return;
+  if (player.grenades <= 0) {
+    showHint('NO GRENADES \u2014 SUPPLY DEPOT [B]', 1600);
+    audio.dryFire();
+    return;
+  }
+  player.grenades--;
+  const g = grenadePool.find((x) => !x.live) || grenadePool[0];
+  const dir = new THREE.Vector3();
+  camera.getWorldPosition(g.mesh.position);
+  camera.getWorldDirection(dir);
+  g.mesh.position.addScaledVector(dir, 0.6);
+  g.vel.copy(dir).multiplyScalar(GRENADE.throwSpeed).addScaledVector(player.vel, 0.35);
+  g.vel.y += 5.4;
+  g.spin.set(Math.random() * 9, Math.random() * 9, Math.random() * 9);
+  g.fuse = GRENADE.fuse;
+  g.live = true;
+  g.mesh.visible = true;
+  audio.pinPull();
+  updateAmmoHud();
+}
+
+function explodeGrenade(at) {
+  audio.explosion();
+  player.shake = Math.min(1.5, player.shake + 0.85);
+  muzzleLight.position.copy(at);
+  muzzleLight.intensity = 120;
+  muzzleLightTimer = 0.2;
+  spawnParticles(at, 30, 'spark', 2.1);
+
+  for (const z of zombies) {
+    if (!z.alive) continue;
+    const d = z.group.position.distanceTo(at);
+    if (d > GRENADE.radius) continue;
+    const t = 1 - d / GRENADE.radius;
+    const dmg = GRENADE.minDamage + (GRENADE.damage - GRENADE.minDamage) * t;
+    const point = z.group.position.clone();
+    point.y = 1.0;
+    z.takeDamage(dmg, 'body', makeContext());
+    spawnDamageNumber(point, dmg, false);
+    const push = new THREE.Vector3(z.group.position.x - at.x, 0, z.group.position.z - at.z);
+    if (push.lengthSq() > 1e-4) push.normalize();
+    z.group.position.addScaledVector(push, t * 1.6);
+    z.flinch = 1;
+  }
+
+  // Standing on your own frag still hurts.
+  const self = new THREE.Vector3(player.pos.x, 1, player.pos.z).distanceTo(at);
+  const reach = GRENADE.radius * 0.85;
+  if (self < reach) damagePlayer(Math.round(38 * (1 - self / reach)), null);
+}
+
+function updateGrenades(dt) {
+  for (const g of grenadePool) {
+    if (!g.live) continue;
+    g.vel.y -= GRENADE.gravity * dt;
+    g.mesh.position.addScaledVector(g.vel, dt);
+    g.mesh.rotation.x += g.spin.x * dt;
+    g.mesh.rotation.y += g.spin.y * dt;
+    g.mesh.rotation.z += g.spin.z * dt;
+
+    if (g.mesh.position.y < 0.1) {
+      g.mesh.position.y = 0.1;
+      if (Math.abs(g.vel.y) > 2.2) audio.grenadeBounce();
+      g.vel.y = Math.abs(g.vel.y) * 0.34;
+      g.vel.x *= 0.68;
+      g.vel.z *= 0.68;
+    }
+    resolveCircle(world.colliders, g.mesh.position, 0.12);
+
+    g.fuse -= dt;
+    if (g.fuse <= 0) {
+      g.live = false;
+      g.mesh.visible = false;
+      explodeGrenade(g.mesh.position.clone());
+    }
+  }
+}
+
 const tmpRight = new THREE.Vector3();
 const tmpUp = new THREE.Vector3();
-function applySpread(origin, dir, spread, pelletIndex) {
-  if (spread <= 0) return dir.clone();
+/**
+ * Nudges an aim point sideways by up to `radius` in world units. Working on
+ * the target plane (rather than bending the direction) keeps every pellet
+ * converging where the crosshair is, whether it leaves the barrel or not.
+ */
+function jitterPoint(point, dir, radius, pelletIndex) {
+  if (radius <= 1e-5) return point.clone();
   tmpRight.crossVectors(dir, camera.up).normalize();
   tmpUp.crossVectors(tmpRight, dir).normalize();
   // Shotgun pellets get a fixed ring pattern plus jitter, so they read as a cone.
   const angle = Math.random() * Math.PI * 2 + pelletIndex * 0.7;
-  const radius = Math.sqrt(Math.random()) * spread;
-  const out = dir.clone()
-    .addScaledVector(tmpRight, Math.cos(angle) * radius)
-    .addScaledVector(tmpUp, Math.sin(angle) * radius);
-  return out.normalize();
+  const r = Math.sqrt(Math.random()) * radius;
+  return point.clone()
+    .addScaledVector(tmpRight, Math.cos(angle) * r)
+    .addScaledVector(tmpUp, Math.sin(angle) * r);
+}
+
+// True when a point sits inside a solid volume (building, wreck, wall).
+function pointBlocked(x, y, z) {
+  for (const c of world.colliders) {
+    const h = c.height === undefined ? 4 : c.height;
+    if (y > h) continue;
+    if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ) return true;
+  }
+  return false;
 }
 
 function refreshHitMeshes() {
@@ -745,11 +1079,15 @@ function rayZombies(origin, dir, maxDist) {
   raycaster.set(origin, dir);
   raycaster.far = maxDist;
   const hits = raycaster.intersectObjects(hitMeshCache, false);
-  if (!hits.length) return null;
-  const hit = hits[0];
-  const zombie = hit.object.userData.zombie;
-  if (!zombie || !zombie.alive) return null;
-  return { zombie, mesh: hit.object, point: hit.point, distance: hit.distance };
+  // A body stays hittable for a few seconds after it dies, and its meshes stay
+  // in the cache until the body is removed. Take the first LIVE hit instead of
+  // letting a corpse swallow the round aimed past it.
+  for (const hit of hits) {
+    const zombie = hit.object.userData.zombie;
+    if (!zombie || !zombie.alive) continue;
+    return { zombie, mesh: hit.object, point: hit.point, distance: hit.distance };
+  }
+  return null;
 }
 
 function rayWorld(origin, dir, maxDist) {
@@ -808,39 +1146,71 @@ function flashCrosshair(kind) {
 // while every enemy keeps the same hit points, so headshots stay one-shot.
 // The curve itself lives in waves.js so it can be printed and checked.
 function startWave(n) {
+  const mods = game.mods || {};
   const plan = wavePlan(n);
+  // Challenge overrides: a contract can change the boss cadence or force the
+  // spitter mix without touching the shared curve.
+  if (mods.bossEvery) {
+    const hadBoss = plan.boss;
+    plan.boss = plan.wave % mods.bossEvery === 0;
+    // A boss the curve did not plan for still has to pay for itself with
+    // escort bodies, or a twin-boss contract doubles the wave for free.
+    if (plan.boss && !hadBoss) plan.count = Math.max(5, Math.round(plan.count * 0.62));
+  }
+  if (mods.stalkers) {
+    plan.spitterChance = 0.28;
+    plan.runnerChance = Math.max(0.3, plan.runnerChance);
+    plan.bruteChance = Math.max(0.1, plan.bruteChance);
+    plan.walkerChance = Math.max(0.05, 1 - plan.bruteChance - plan.runnerChance - plan.spitterChance);
+  }
+
   game.plan = plan;
   game.wave = plan.wave;
-  game.speedScale = plan.speedScale;
+  game.speedScale = plan.speedScale * (mods.enemySpeedMul || 1);
   game.damageScale = plan.damageScale;
 
   game.spawnQueue = [];
   game.spawnTimer = 0;
+  game.boss = null;
+  game.hordeTimer = plan.horde ? 1.4 : 9 + Math.random() * 9;
+
+  // The boss lands first, so it is the thing you see instead of one body in a
+  // crowd. Its escort follows at the wave's normal spacing.
+  if (plan.boss) {
+    const boss = bossFor(plan.wave);
+    game.spawnQueue.push({ type: boss.base, delay: 0.6, lead: true, boss: true, bossId: boss.id });
+  }
+
+  const spacing = plan.spacing * (mods.spawnMul || 1);
   for (let i = 0; i < plan.count; i++) {
     // A surge opens with a burst, so the spike is visible in the first two
     // seconds instead of reading as the wave quietly finishing early.
     const lead = plan.surge && i < plan.burstLead;
-    // One heavy closes every tenth wave. Under the count cap a single dangerous
-    // body is both cheaper to draw and easier to read than ten more walkers.
-    const boss = plan.boss && i === plan.count - 1;
     game.spawnQueue.push({
-      type: boss ? 'brute' : rollType(plan),
-      delay: lead ? 0.08 : 0.2 + (i - plan.burstLead) * plan.spacing,
+      type: rollType(plan),
+      delay: lead ? 0.08 : 0.2 + (i - (plan.surge ? plan.burstLead : 0)) * spacing,
       lead,
-      boss,
+      boss: false,
     });
   }
 
-  world.setBlackout(plan.modifier === 'blackout');
-  audio.waveAlarm(plan.surge);
+  world.setBlackout(!!mods.alwaysBlackout || plan.modifier === 'blackout');
+  audio.waveAlarm(plan.surge || plan.boss);
   if (plan.modifier !== 'none') showHint(`WAVE MODIFIER: ${plan.modifier.toUpperCase()}`, 3200);
-  const ramp = `Speed +${Math.round((plan.speedScale - 1) * 100)}% \u00b7 bite +${Math.round((plan.damageScale - 1) * 100)}%.`;
+  const ramp = `Speed +${Math.round((game.speedScale - 1) * 100)}% \u00b7 bite +${Math.round((plan.damageScale - 1) * 100)}%.`;
   const head = plan.wave === 1
-    ? 'They heard the relay. Hold position.'
-    : plan.surge
-      ? `${plan.count} inbound \u00b7 ${plan.burstLead} at once. ${ramp}`
-      : `${plan.count} inbound. ${ramp}`;
-  showBanner(plan.surge ? 'SURGE WAVE' : 'WAVE', String(plan.wave), head, plan.surge ? 3400 : 3000);
+    ? 'Five of them. One magazine is enough.'
+    : plan.wave === 2
+      ? 'More footsteps. Watch the cross streets.'
+      : plan.boss
+        ? `BOSS + ${plan.count} escort. ${ramp}`
+        : plan.horde
+          ? `${plan.count} inbound, then a flanking pack. ${ramp}`
+          : plan.surge
+            ? `${plan.count} inbound \u00b7 ${plan.burstLead} at once. ${ramp}`
+            : `${plan.count} inbound. ${ramp}`;
+  const kicker = plan.surge ? 'SURGE WAVE' : plan.boss ? 'BOSS WAVE' : 'WAVE';
+  showBanner(kicker, String(plan.wave), head, plan.surge || plan.boss ? 3400 : 3000);
   updateWaveHud();
 }
 
@@ -911,13 +1281,21 @@ function spawnFromQueue() {
   z.damage = Math.round(z.damage * (game.damageScale || 1));
   z.state = 'chase';
   if (entry.boss) {
+    // Resolve from the wave, not the queued id, so the tier growth built into
+    // bossFor() survives the trip through the spawn queue.
+    const boss = bossFor(game.wave);
     z.isBoss = true;
-    z.maxHp = Math.round(z.maxHp * 2.6);
+    z.bossName = boss.name;
+    z.maxHp = Math.round(z.maxHp * boss.hpMul);
     z.hp = z.maxHp;
-    z.damage = Math.round(z.damage * 1.35);
-    z.group.scale.multiplyScalar(1.35);
-    z.radius *= 1.35;
-    showBanner('HEAVY CONTACT', 'GATEKEEPER', 'It does not flinch. Keep moving.', 3000);
+    z.damage = Math.round(z.damage * boss.dmgMul);
+    z.speed *= boss.speedMul;
+    z.group.scale.multiplyScalar(boss.scaleMul);
+    z.radius *= boss.scaleMul;
+    z.attackCooldown = 1.2;
+    game.boss = z;
+    showBanner('BOSS CONTACT', boss.name, boss.line, 3400);
+    audio.bossAlarm();
   }
 }
 
@@ -927,39 +1305,84 @@ function aliveCount() {
   return n;
 }
 
+// Stereo position of a world point relative to where the player is looking.
+function panFor(worldPos) {
+  const dx = worldPos.x - player.pos.x;
+  const dz = worldPos.z - player.pos.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const rightX = Math.cos(player.yaw);
+  const rightZ = -Math.sin(player.yaw);
+  return Math.max(-1, Math.min(1, (dx * rightX + dz * rightZ) / len));
+}
+
+// Contract score multiplier. It was declared on every challenge but nothing
+// ever read it, so the harder contracts were paying the same as a normal run.
+function scoreMulFor() {
+  return (game.mods && game.mods.scoreMul) || 1;
+}
+
+function creditsFor(zombie) {
+  if (zombie.isBoss) return 280;
+  if (zombie.type === 'brute') return 58;
+  if (zombie.type === 'spitter') return 36;
+  if (zombie.type === 'runner') return 22;
+  return 14;
+}
+
 function onZombieKilled(zombie, head) {
   game.kills++;
   if (head) game.headshots++;
-  game.score += Math.round(zombie.def.score * (head ? 1.6 : 1));
+  game.score += Math.round(zombie.def.score * (head ? 1.6 : 1) * scoreMulFor());
+  game.credits += creditsFor(zombie) + (head ? 3 : 0);
   audio.kill();
   world.addDecal(zombie.group.position.x, zombie.group.position.z, 0.55 + Math.random() * 0.35);
 
   const roll = Math.random();
   const at = zombie.group.position.clone();
   at.y = 0.35;
-  if (roll < 0.16) addPickup('ammo', at);
-  else if (roll < 0.26) addPickup('health', at);
+  const mods = game.mods || {};
+  if (zombie.isBoss) {
+    // A boss always pays out: a weapon cache and a fresh plate.
+    addPickup('weapon', at);
+    addPickup('armor', at.clone().add(new THREE.Vector3(1.1, 0, 0.4)));
+    addPickup('health', at.clone().add(new THREE.Vector3(-1.1, 0, -0.4)));
+    if (game.meleeTier < MELEE_TIERS.length - 1) addPickup('blade', at.clone().add(new THREE.Vector3(0, 0, 1.2)));
+  } else if (zombie.type === 'spitter' && roll < 0.4) {
+    addPickup('ammo', at);
+  } else if (roll < 0.2) addPickup('ammo', at);
+  else if (roll < 0.3) addPickup('health', at);
+  else if (roll < 0.38 && !mods.noArmor) addPickup('armor', at);
+  else if (roll < 0.4 && game.meleeTier < MELEE_TIERS.length - 1) addPickup('blade', at);
+  else if (roll < 0.42 && !ammo.unlocked[WEAPONS.length - 1]) addPickup('weapon', at);
 
   updateWaveHud();
 }
 
 // ---------------------------------------------------------------- pickups
 const pickupGeo = new THREE.BoxGeometry(0.34, 0.34, 0.34);
+const PICKUP_STYLE = {
+  ammo: { color: 0xd8b25a, emissive: 0xffcc66, light: 0xffcc66 },
+  health: { color: 0x5aff8a, emissive: 0x2aff6a, light: 0x66ff9c },
+  armor: { color: 0x6ab8ff, emissive: 0x2a7dff, light: 0x5aa8ff },
+  blade: { color: 0xd6e0e8, emissive: 0x9fb4c8, light: 0xbcd0e4 },
+  weapon: { color: 0xd08cff, emissive: 0x8a3cff, light: 0xb46bff },
+};
+const pickupMats = {};
 function addPickup(kind, position) {
-  const mat = new THREE.MeshStandardMaterial({
-    color: kind === 'ammo' ? 0xd8b25a : 0x5aff8a,
-    emissive: kind === 'ammo' ? 0xffcc66 : 0x2aff6a,
-    emissiveIntensity: 2.2,
-    roughness: 0.4,
-  });
-  const mesh = new THREE.Mesh(pickupGeo, mat);
+  const style = PICKUP_STYLE[kind] || PICKUP_STYLE.ammo;
+  if (!pickupMats[kind]) {
+    pickupMats[kind] = new THREE.MeshStandardMaterial({
+      color: style.color, emissive: style.emissive, emissiveIntensity: 2.2, roughness: 0.4,
+    });
+  }
+  const mesh = new THREE.Mesh(pickupGeo, pickupMats[kind]);
   mesh.position.copy(position);
   mesh.position.y = 0.45;
   scene.add(mesh);
-  const light = new THREE.PointLight(kind === 'ammo' ? 0xffcc66 : 0x66ff9c, 3.4, 4.5, 2);
+  const light = new THREE.PointLight(style.light, 3.4, 4.5, 2);
   light.position.copy(mesh.position);
   scene.add(light);
-  pickups.push({ kind, mesh, light, life: 26, spin: Math.random() * 3 });
+  pickups.push({ kind, mesh, light, life: 32, spin: Math.random() * 3 });
 }
 
 function updatePickups(dt) {
@@ -969,7 +1392,8 @@ function updatePickups(dt) {
     p.mesh.rotation.y += dt * 2.4;
     p.mesh.position.y = 0.45 + Math.sin(performance.now() * 0.002 + p.spin) * 0.08;
 
-    const d = p.mesh.position.distanceTo(new THREE.Vector3(player.pos.x, 0.45, player.pos.z));
+    pickupProbe.set(player.pos.x, 0.45, player.pos.z);
+    const d = p.mesh.position.distanceTo(pickupProbe);
     if (d < 1.35) {
       if (p.kind === 'ammo') {
         const def = weaponDef();
@@ -977,13 +1401,45 @@ function updatePickups(dt) {
           // Pistol is already infinite: top up the other guns instead.
           ammo.reserve[1] = Math.min(WEAPONS[1].reserveMax, ammo.reserve[1] + 32);
           ammo.reserve[2] = Math.min(WEAPONS[2].reserveMax, ammo.reserve[2] + 8);
+          ammo.reserve[3] = Math.min(WEAPONS[3].reserveMax, ammo.reserve[3] + 20);
         } else {
-          ammo.reserve[ammo.weapon] = Math.min(def.reserveMax, ammo.reserve[ammo.weapon] + Math.ceil(def.magSize * 1.5));
+          ammo.reserve[ammo.weapon] = Math.min(def.reserveMax, ammo.reserve[ammo.weapon] + Math.ceil(magSizeFor(def) * 1.5));
         }
         showHint('AMMO RECOVERED', 1200);
-      } else {
+      } else if (p.kind === 'health') {
         player.health = Math.min(player.maxHealth, player.health + 35);
         showHint('FIELD DRESSING +35', 1200);
+      } else if (p.kind === 'armor') {
+        player.armor = Math.min(player.maxArmor, player.armor + 55);
+        showHint('PLATE CARRIER +55', 1200);
+      } else if (p.kind === 'blade') {
+        const nextTier = Math.min(MELEE_TIERS.length - 1, game.meleeTier + 1);
+        if (nextTier !== game.meleeTier) {
+          game.meleeTier = nextTier;
+          viewModel.setMelee(nextTier);
+          const tier = MELEE_TIERS[nextTier];
+          showBanner('BLADE RECOVERED', tier.name, `${tier.damage} damage per swing. Press V.`, 2800);
+        } else {
+          player.stamina = 100;
+          showHint('BLADE FLAT \u2014 NOTHING BETTER YET', 1400);
+        }
+      } else if (p.kind === 'weapon') {
+        // The first locked gun in the table is the one this cache unlocks, so
+        // the slot it reports is the one that actually got filled.
+        const lockedIndex = WEAPONS.findIndex((w, i) => w.locked && !ammo.unlocked[i]);
+        if (lockedIndex >= 0) {
+          ammo.unlocked[lockedIndex] = true;
+          ammo.mag[lockedIndex] = magSizeFor(WEAPONS[lockedIndex]);
+          ammo.reserve[lockedIndex] = WEAPONS[lockedIndex].reserveMax;
+          if (weaponAvailable(lockedIndex)) selectWeapon(lockedIndex);
+          showBanner('WEAPON CACHE', WEAPONS[lockedIndex].name,
+            `Recovered. Press ${WEAPONS[lockedIndex].key}.`, 3000);
+        } else {
+          ammo.reserve[1] = Math.min(WEAPONS[1].reserveMax, ammo.reserve[1] + 64);
+          ammo.reserve[2] = Math.min(WEAPONS[2].reserveMax, ammo.reserve[2] + 16);
+          ammo.reserve[3] = Math.min(WEAPONS[3].reserveMax, ammo.reserve[3] + 30);
+          showHint('CACHE SALVAGED \u2014 AMMO', 1400);
+        }
       }
       audio.pickup();
       scene.remove(p.mesh);
@@ -1009,7 +1465,14 @@ function damagePlayer(amount, from) {
   // Short grace window so a ring of zombies cannot delete you in one frame.
   if (player.iframes > 0) return;
   player.iframes = 0.32;
-  player.health -= amount;
+  // Armour eats most of the hit before vitals see it, then breaks away.
+  let incoming = amount;
+  if (player.armor > 0) {
+    const absorbed = Math.min(player.armor, incoming * ARMOR_ABSORB);
+    player.armor = Math.max(0, player.armor - absorbed);
+    incoming -= absorbed;
+  }
+  player.health -= incoming;
   player.lastDamage = game.elapsed;
   player.shake = Math.min(1.1, player.shake + 0.4);
   audio.hurt();
@@ -1059,6 +1522,8 @@ function makeContext() {
     zombies,
     nav,
     damage: (dmg, from) => damagePlayer(dmg, from),
+    spit: (z) => spitAcid(z),
+    panOf: (worldPos) => panFor(worldPos),
     onDeath: (z, part) => onZombieKilled(z, part === 'head'),
   };
 }
@@ -1095,7 +1560,7 @@ function updatePlayer(dt) {
   if (wantsSprint) {
     player.stamina = Math.max(0, player.stamina - 20 * dt);
   } else {
-    player.stamina = Math.min(100, player.stamina + 16 * dt);
+    player.stamina = Math.min(player.maxStamina, player.stamina + 16 * (1 + upgrades.stamina * 0.15) * dt);
   }
 
   // Gravity + jumping.
@@ -1109,6 +1574,23 @@ function updatePlayer(dt) {
 
   player.pos.x += player.vel.x * dt;
   player.pos.z += player.vel.z * dt;
+  resolveCircle(world.colliders, player.pos, player.radius);
+
+  // BODIES ARE SOLID. Without this you can walk straight through a zombie,
+  // which reads as a ghost hitbox the moment the horde closes in.
+  for (const z of zombies) {
+    if (!z.alive) continue;
+    const dx = player.pos.x - z.group.position.x;
+    const dz = player.pos.z - z.group.position.z;
+    const minD = player.radius + z.radius;
+    const d2 = dx * dx + dz * dz;
+    if (d2 > 1e-6 && d2 < minD * minD) {
+      const d = Math.sqrt(d2);
+      const push = minD - d;
+      player.pos.x += (dx / d) * push;
+      player.pos.z += (dz / d) * push;
+    }
+  }
   resolveCircle(world.colliders, player.pos, player.radius);
   world.setShadowFocus(player.pos.x, player.pos.z);
 
@@ -1183,7 +1665,12 @@ function updateVitalsHud() {
   const hp = Math.max(0, player.health);
   hud.hpFill.style.width = `${(hp / player.maxHealth) * 100}%`;
   hud.hpValue.textContent = String(Math.ceil(hp));
-  hud.stamFill.style.width = `${player.stamina}%`;
+  hud.stamFill.style.width = `${(player.stamina / player.maxStamina) * 100}%`;
+  if (hud.armorRow) {
+    hud.armorRow.hidden = player.armor <= 0;
+    hud.armorFill.style.width = `${(player.armor / player.maxArmor) * 100}%`;
+    hud.armorValue.textContent = String(Math.ceil(player.armor));
+  }
   document.body.classList.toggle('lowhp', hp > 0 && hp < 35);
   hud.blood.style.opacity = hp < 45 ? String((1 - hp / 45) * 0.85) : '0';
 }
@@ -1194,16 +1681,34 @@ function updateAmmoHud() {
   hud.ammoMag.textContent = String(ammo.mag[ammo.weapon]);
   hud.ammoReserve.textContent = def.reserveMax === Infinity ? '\u221e' : String(ammo.reserve[ammo.weapon]);
   hud.ammoPanel.classList.toggle('reloading', ammo.reloading);
+  if (hud.grenadeCount) hud.grenadeCount.textContent = String(player.grenades);
+  updateEconomyHud();
+}
+
+function updateBossHud() {
+  const boss = game.boss;
+  if (!boss || !boss.alive) {
+    if (hud.boss) hud.boss.classList.remove('show');
+    return;
+  }
+  if (!hud.boss) return;
+  hud.boss.classList.add('show');
+  hud.bossName.textContent = boss.bossName || 'BOSS';
+  hud.bossFill.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
+  hud.bossHp.textContent = `${Math.max(0, Math.ceil(boss.hp))} / ${boss.maxHp}`;
 }
 
 function updateWaveHud() {
   const surge = !!(game.plan && game.plan.surge);
-  hud.wave.textContent = String(game.wave);
+  // The opening intermission runs at wave 0 internally; showing "WAVE 0" for
+  // the first two seconds of a run reads as a bug, so clamp it to one.
+  hud.wave.textContent = String(Math.max(1, game.wave));
   hud.surgeBadge.hidden = !surge;
   document.body.classList.toggle('surge', surge);
   hud.kills.textContent = String(game.kills);
   hud.left.textContent = String(aliveCount() + game.spawnQueue.length);
   hud.score.textContent = String(game.score);
+  updateEconomyHud();
 }
 
 function updateHudTick(dt) {
@@ -1213,15 +1718,16 @@ function updateHudTick(dt) {
     updateVitalsHud();
     updateWaveHud();
     updateAmmoHud();
+    updateBossHud();
     if (ammo.reloading) {
       const def = weaponDef();
-      hud.reloadFill.style.width = `${(1 - ammo.reloadTimer / def.reloadTime) * 100}%`;
+      hud.reloadFill.style.width = `${(1 - ammo.reloadTimer / reloadTimeFor(def)) * 100}%`;
     }
   }
 }
 
 // ---------------------------------------------------------------- flow
-function startRun(atWave = 0) {
+function startRun(atWave = 0, mods = null, challenge = null) {
   const jumpTo = Number.isFinite(atWave) ? Math.max(0, Math.min(99, Math.round(atWave))) : 0;
   audio.init();
   audio.resume();
@@ -1234,14 +1740,25 @@ function startRun(atWave = 0) {
   pickups.length = 0;
   for (const p of particles) { p.life = 0; p.mesh.visible = false; }
   for (const t of tracers) { t.life = 0; t.line.visible = false; }
+  // Grenades and acid in flight belong to the old run; without this a live
+  // grenade from a run you just lost detonates in the new one.
+  for (const s of acidShots) { s.life = 0; s.mesh.visible = false; }
+  for (const g of grenadePool) { g.live = false; g.mesh.visible = false; }
   hitMeshesDirty = true;
 
   player.pos.set(0, 0, 20);
   player.vel.set(0, 0, 0);
   player.yaw = Math.PI;
   player.pitch = -0.02;
+  // Progression is per-run: the depot resets alongside the wallet.
+  for (const key of Object.keys(upgrades)) upgrades[key] = 0;
+  player.maxHealth = Math.round(100 * ((mods && mods.healthMul) || 1));
   player.health = player.maxHealth;
+  player.armor = 0;
+  player.maxArmor = ARMOR_MAX;
+  player.maxStamina = 100;
   player.stamina = 100;
+  player.grenades = GRENADE.startCount;
   player.shake = 0;
   player.grounded = true;
   player.ads = false;
@@ -1250,14 +1767,24 @@ function startRun(atWave = 0) {
   recoil.pitch = 0;
   recoil.yaw = 0;
 
-  ammo.mag = WEAPONS.map((w) => w.magSize);
+  ammo.mag = WEAPONS.map((w) => magSizeFor(w));
   ammo.reserve = WEAPONS.map((w) => (w.reserveMax === Infinity ? Infinity : Math.round(w.reserveMax * 0.7)));
-  ammo.weapon = 0;
+  ammo.unlocked = WEAPONS.map((w) => !w.locked);
+  // A contract that pins a weapon also puts it in your hands to begin with.
+  if (mods && (mods.weaponLock !== undefined || mods.startWeapon !== undefined)) {
+    ammo.unlocked[mods.weaponLock !== undefined ? mods.weaponLock : mods.startWeapon] = true;
+  }
+  ammo.weapon = mods && mods.startWeapon !== undefined
+    ? mods.startWeapon
+    : mods && mods.weaponLock !== undefined ? mods.weaponLock : 0;
+  ammo.meleeCooldown = 0;
+  game.meleeTier = 0;
+  viewModel.setMelee(0);
   ammo.reloading = false;
   ammo.reloadTimer = 0;
   ammo.lastShot = 0;
   ammo.triggerHeld = false;
-  viewModel.select(0, true);
+  viewModel.select(ammo.weapon, true);
 
   game.running = true;
   game.paused = false;
@@ -1266,10 +1793,19 @@ function startRun(atWave = 0) {
   game.kills = 0;
   game.headshots = 0;
   game.score = 0;
+  game.credits = launchCredits;
+  game.shopOpen = false;
+  shopFromPause = false;
+  document.body.classList.remove('shopping', 'paused');
+  if (hud.shop) hud.shop.classList.add('hidden');
   game.elapsed = 0;
   game.shots = 0;
   game.hits = 0;
   game.plan = null;
+  game.mods = mods || null;
+  game.challenge = challenge || null;
+  game.boss = null;
+  game.hordeTimer = 0;
   document.body.classList.remove('surge');
   world.setBlackout(false);
   // A launch parameter queues the requested wave; otherwise start from one.
@@ -1279,6 +1815,7 @@ function startRun(atWave = 0) {
   game.spawnTimer = 0;
   game.speedScale = 1;
   game.damageScale = 1;
+  if (mods && mods.alwaysBlackout) world.setBlackout(true);
 
   hud.menu.classList.add('hidden');
   hud.pause.classList.add('hidden');
@@ -1295,7 +1832,7 @@ function startRun(atWave = 0) {
 }
 
 function pauseGame() {
-  if (!game.running || game.over) return;
+  if (!game.running || game.over || game.shopOpen) return;
   game.paused = true;
   document.body.classList.add('paused');
   hud.pause.classList.remove('hidden');
@@ -1308,7 +1845,7 @@ function pauseGame() {
 }
 
 function resumeGame() {
-  if (!game.running) return;
+  if (!game.running || game.shopOpen) return;
   game.paused = false;
   document.body.classList.remove('paused');
   hud.pause.classList.add('hidden');
@@ -1329,8 +1866,23 @@ function endRun() {
   document.body.classList.remove('in-run');
   document.body.classList.add('in-menu');
 
+  // Contract result: cleared if the run reached the target wave.
+  let challengeLine = '';
+  if (game.challenge) {
+    const cleared = game.wave >= game.challenge.targetWave;
+    if (cleared) {
+      const first = markChallengeDone(game.challenge.id);
+      challengeLine = first
+        ? ` ${game.challenge.name} cleared \u2014 contract logged.`
+        : ` ${game.challenge.name} cleared again.`;
+    } else {
+      challengeLine = ` ${game.challenge.name}: ${game.wave}/${game.challenge.targetWave} waves.`;
+    }
+    renderChallenges();
+  }
+
   const best = loadBest();
-  const score = game.score;
+  const score = game.score + (game.challenge && game.wave >= game.challenge.targetWave ? 5000 : 0);
   const isBest = score > best.score;
   if (isBest) saveBest({ wave: game.wave, kills: game.kills, score });
   refreshBestLine();
@@ -1339,12 +1891,14 @@ function endRun() {
   el('overKills').textContent = String(game.kills);
   el('overHeads').textContent = String(game.headshots);
   el('overScore').textContent = String(score);
-  const accuracy = game.shots > 0 ? Math.round((game.hits / game.shots) * 100) : 0;
+  // Pellets count as hits but only one shot is fired, so clamp a shotgun
+  // pattern from reporting 300% accuracy.
+  const accuracy = game.shots > 0 ? Math.min(100, Math.round((game.hits / game.shots) * 100)) : 0;
   el('overAcc').textContent = game.shots > 0 ? `${accuracy}%` : '\u2014';
   el('overBest').textContent = best.score > 0 ? `w${best.wave} ${best.score}` : '\u2014';
-  el('overSub').textContent = isBest
+  el('overSub').textContent = (isBest
     ? `New personal best. You held until wave ${game.wave}.`
-    : `You held until wave ${game.wave}. The relay kept transmitting without you.`;
+    : `You held until wave ${game.wave}. The relay kept transmitting without you.`) + challengeLine;
   hud.over.classList.remove('hidden');
 }
 
@@ -1368,6 +1922,224 @@ function refreshBestLine() {
   hud.best.textContent = best.score > 0
     ? `wave ${best.wave} \u00b7 ${best.kills} kills \u00b7 ${best.score} pts`
     : 'no run recorded';
+}
+
+// ---------------------------------------------------------------- challenges
+// The menu shows the contract for today and for this week. Both are derived
+// from the calendar date, so they change on their own without a redeploy.
+function renderChallenge(kind, prefix) {
+  const card = el(`${prefix}Card`);
+  if (!card) return;
+  const c = challengeFor(kind);
+  const nameEl = el(`${prefix}Name`);
+  if (nameEl) nameEl.textContent = c.name;
+  const descEl = el(`${prefix}Desc`);
+  if (descEl) descEl.textContent = c.desc;
+  const targetEl = el(`${prefix}Target`);
+  if (targetEl) targetEl.textContent = c.targetLabel;
+  const stateEl = el(`${prefix}State`);
+  if (stateEl) stateEl.textContent = c.done ? 'CLEARED' : 'OPEN';
+  card.classList.toggle('done', c.done);
+  const btn = el(`${prefix}Btn`);
+  if (btn) {
+    btn.textContent = c.done ? 'REPLAY' : 'START';
+    btn.onclick = () => startRun(0, c.mods, c);
+  }
+}
+
+function renderChallenges() {
+  renderChallenge('daily', 'daily');
+  renderChallenge('weekly', 'weekly');
+  const counter = el('challengeCount');
+  if (counter) counter.textContent = String(clearedCount());
+}
+
+// ---------------------------------------------------------------- depot
+// The supply depot: credits earned in the run buy weapons, weapon upgrades and
+// body upgrades. It pauses the street while it is open, which is the trade for
+// being able to use it at any point in a wave.
+function shopLevel(item) {
+  if (item.weaponIndex !== undefined) return ammo.unlocked[item.weaponIndex] ? 1 : 0;
+  if (item.id === 'grenade') return player.grenades;
+  if (item.repeat) return 0;
+  // The armoury id and the upgrade key differ here, which is why this read has
+  // to be explicit: otherwise REINFORCED PLATES never levelled or maxed.
+  if (item.id === 'armorcap') return upgrades.armor || 0;
+  return upgrades[item.id] || 0;
+}
+
+function shopState(item) {
+  const level = shopLevel(item);
+  const cost = item.repeat ? item.baseCost : itemCost(item, level);
+  // A contract that pins the loadout also locks the armoury: buying a gun the
+  // contract will not let you hold is credits thrown away.
+  const contract = item.weaponIndex !== undefined && !!game.mods
+    && game.mods.weaponLock !== undefined && item.weaponIndex !== game.mods.weaponLock;
+  const maxed = contract || (item.weaponIndex !== undefined
+    ? !!ammo.unlocked[item.weaponIndex]
+    : item.id === 'grenade'
+      ? player.grenades >= GRENADE.maxCount
+      : itemMaxed(item, level));
+  return { level, cost, maxed, contract, affordable: game.credits >= cost };
+}
+
+function buyItem(item) {
+  if (!game.running || game.over) return;
+  const state = shopState(item);
+  if (state.maxed || !state.affordable) { audio.dryFire(); return; }
+  game.credits -= state.cost;
+  audio.pickup();
+
+  switch (item.id) {
+    case 'ammo':
+      for (let i = 0; i < WEAPONS.length; i++) {
+        if (WEAPONS[i].reserveMax !== Infinity) ammo.reserve[i] = WEAPONS[i].reserveMax;
+      }
+      showHint('RESUPPLIED', 1200);
+      break;
+    case 'medkit':
+      player.health = Math.min(player.maxHealth, player.health + 100);
+      break;
+    case 'armor':
+      player.armor = Math.min(player.maxArmor, player.armor + 60);
+      break;
+    case 'grenade':
+      player.grenades = Math.min(GRENADE.maxCount, player.grenades + 1);
+      break;
+    case 'rifle':
+    case 'ripper': {
+      const idx = item.weaponIndex;
+      ammo.unlocked[idx] = true;
+      ammo.mag[idx] = magSizeFor(WEAPONS[idx]);
+      ammo.reserve[idx] = WEAPONS[idx].reserveMax;
+      selectWeapon(idx);
+      break;
+    }
+    case 'health':
+      upgrades.health++;
+      player.maxHealth += 20;
+      player.health = Math.min(player.maxHealth, player.health + 20);
+      break;
+    case 'armorcap':
+      upgrades.armor++;
+      player.maxArmor += 25;
+      break;
+    case 'stamina':
+      upgrades.stamina++;
+      player.maxStamina = Math.round(100 * (1 + upgrades.stamina * 0.15));
+      player.stamina = player.maxStamina;
+      break;
+    default:
+      upgrades[item.id] = (upgrades[item.id] || 0) + 1;
+      break;
+  }
+
+  // Purchase feedback lives inside the depot: the in-world hint is hidden
+  // while the shop owns the screen, so using it here said nothing.
+  const msg = el('shopMsg');
+  if (msg) msg.textContent = `${item.name} ACQUIRED`;
+  updateVitalsHud();
+  updateAmmoHud();
+  updateWaveHud();
+  renderShop();
+}
+
+function renderShop() {
+  const host = hud.shopItems;
+  if (!host) return;
+  if (hud.shopCredits) hud.shopCredits.textContent = String(game.credits);
+  host.innerHTML = '';
+
+  for (const section of SHOP_SECTIONS) {
+    const title = document.createElement('div');
+    title.className = 'shop-section-title';
+    title.textContent = section;
+    host.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'shop-grid';
+    host.appendChild(grid);
+
+    for (const item of SHOP_ITEMS.filter((i) => i.section === section)) {
+      const state = shopState(item);
+      const card = document.createElement('div');
+      card.className = 'shop-item' + (state.maxed ? ' maxed' : state.affordable ? '' : ' poor');
+
+      const name = document.createElement('div');
+      name.className = 'shop-name';
+      name.textContent = item.name;
+
+      const level = document.createElement('div');
+      level.className = 'shop-level';
+      if (item.weaponIndex !== undefined) level.textContent = state.contract ? 'CONTRACT LOCK' : state.maxed ? 'OWNED' : 'LOCKED';
+      else if (item.id === 'grenade') level.textContent = `${player.grenades} / ${GRENADE.maxCount}`;
+      else if (item.repeat) level.textContent = 'CONSUMABLE';
+      else level.textContent = `LEVEL ${state.level} / ${item.max}`;
+
+      const desc = document.createElement('div');
+      desc.className = 'shop-desc';
+      desc.textContent = item.desc;
+
+      const btn = document.createElement('button');
+      btn.className = 'shop-buy';
+      btn.textContent = state.contract ? 'CONTRACT' : state.maxed ? (item.weaponIndex !== undefined ? 'OWNED' : 'MAXED') : `${state.cost} CR`;
+      btn.disabled = state.maxed || !state.affordable;
+      btn.addEventListener('click', () => buyItem(item));
+
+      const foot = document.createElement('div');
+      foot.className = 'shop-foot';
+      foot.appendChild(level);
+      foot.appendChild(btn);
+
+      card.appendChild(name);
+      card.appendChild(desc);
+      card.appendChild(foot);
+      grid.appendChild(card);
+    }
+  }
+}
+
+function updateEconomyHud() {
+  if (hud.credits) hud.credits.textContent = String(game.credits);
+}
+
+// Opening the depot from the pause menu must return there when it closes, not
+// drop the player straight back into a wave they had not resumed yet.
+let shopFromPause = false;
+
+function openShop() {
+  if (!game.running || game.over || !hud.shop || game.shopOpen) return;
+  shopFromPause = game.paused;
+  game.shopOpen = true;
+  game.paused = true;
+  ammo.triggerHeld = false;
+  player.ads = false;
+  if (document.pointerLockElement === canvas) {
+    suppressLockEvent = true;
+    document.exitPointerLock();
+  }
+  hud.pause.classList.add('hidden');
+  hud.shop.classList.remove('hidden');
+  document.body.classList.add('shopping', 'paused');
+  const msg = el('shopMsg');
+  if (msg) msg.textContent = '';
+  renderShop();
+}
+
+function closeShop() {
+  if (!game.shopOpen) return;
+  game.shopOpen = false;
+  hud.shop.classList.add('hidden');
+  document.body.classList.remove('shopping');
+  if (shopFromPause) {
+    game.paused = true;
+    document.body.classList.add('paused');
+    hud.pause.classList.remove('hidden');
+    return;
+  }
+  game.paused = false;
+  document.body.classList.remove('paused');
+  requestLock();
 }
 
 // ---------------------------------------------------------------- systems
@@ -1406,6 +2178,7 @@ function stepSimulation(dt) {
     if (ammo.reloadTimer <= 0) finishReload();
   }
   if (ammo.triggerHeld && weaponDef().auto) tryFire();
+  ammo.meleeCooldown = Math.max(0, ammo.meleeCooldown - dt);
 
   spreadBloom = Math.max(0, spreadBloom - dt * 0.05);
 
@@ -1424,6 +2197,24 @@ function stepSimulation(dt) {
     game.intermission -= dt;
     if (game.intermission <= 0) startWave(game.wave + 1);
   } else {
+    // Hordes: an unscripted flanking pack, from a random direction at a random
+    // moment, so a wave never arrives on a schedule you can memorise.
+    if (game.plan && game.plan.wave >= 4 && !game.plan.boss) {
+      game.hordeTimer -= dt;
+      if (game.hordeTimer <= 0) {
+        game.hordeTimer = 12 + Math.random() * 12;
+        const room = MAX_WAVE_ENEMIES - (aliveCount() + game.spawnQueue.length);
+        const pack = Math.min(Math.max(0, room), 3 + Math.floor(Math.random() * 4) + Math.floor(game.wave / 8));
+        if (pack > 0) {
+          for (let i = 0; i < pack; i++) {
+            game.spawnQueue.unshift({ type: rollType(game.plan), delay: 0.14, lead: true, boss: false });
+          }
+          showBanner('HORDE INBOUND', `${pack} MORE`, 'They are flanking the relay.', 2400);
+          audio.waveAlarm(true);
+        }
+      }
+    }
+
     if (game.spawnQueue.length) {
       game.spawnTimer -= dt;
       if (game.spawnTimer <= 0) {
@@ -1433,15 +2224,26 @@ function stepSimulation(dt) {
       }
     } else if (aliveCount() === 0 && !game.over) {
       game.intermission = 4.5;
-      const bonus = Math.round(250 * game.wave * (game.plan && game.plan.surge ? 1.5 : 1));
+      const bonus = Math.round(250 * game.wave * (game.plan && game.plan.surge ? 1.5 : 1) * scoreMulFor());
+      const pay = 45 * game.wave + (game.plan && game.plan.boss ? 150 : 0);
       game.score += bonus;
-      showBanner('WAVE CLEARED', `+${bonus}`, 'Reload. They are regrouping.', 2400);
+      game.credits += pay;
+      showBanner('WAVE CLEARED', `+${bonus}`, `+${pay} CR \u00b7 press B for the supply depot.`, 2600);
       updateWaveHud();
     }
   }
 
+  // Distant moans between the close ones: the city is still full of them.
+  game.moanTimer -= dt;
+  if (game.moanTimer <= 0) {
+    game.moanTimer = 16 + Math.random() * 26;
+    audio.distantMoan();
+  }
+
   updateParticles(dt);
   updateTracers(dt);
+  updateAcid(dt);
+  updateGrenades(dt);
   updatePickups(dt);
   updateDamageNumbers(dt);
   world.update(dt);
@@ -1588,6 +2390,12 @@ el('menuBtn').addEventListener('click', () => {
 });
 el('muteBtn').addEventListener('click', toggleMute);
 el('flashBtn').addEventListener('click', toggleFlashlight);
+el('depotBtn').addEventListener('click', () => openShop());
+el('shopBtn').addEventListener('click', () => {
+  hud.pause.classList.add('hidden');
+  openShop();
+});
+el('shopClose').addEventListener('click', closeShop);
 
 canvas.addEventListener('click', () => {
   if (game.running && !game.paused && !game.over) requestLock();
@@ -1651,6 +2459,7 @@ hud.loading.classList.add('hidden');
 hud.menu.classList.remove('hidden');
 document.body.classList.add('in-menu');
 bindSettings();
+renderChallenges();
 if (params.get('stats') === '1') hud.perf.classList.add('show');
 if (launchWave > 0) startRun(launchWave);
 requestAnimationFrame(frame);

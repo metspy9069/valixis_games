@@ -7,17 +7,22 @@
 //
 //   node tools/balance-sim.mjs
 import { waveTable } from '../js/waves.js';
-import { WEAPONS, TYPES, ATTACK_CYCLE } from '../js/data.js';
+import { WEAPONS, TYPES, ATTACK_CYCLE, bossFor } from '../js/data.js';
 
 const PISTOL = WEAPONS.find((w) => w.id === 'pistol');
 const SMG = WEAPONS.find((w) => w.id === 'smg');
 const SHOTGUN = WEAPONS.find((w) => w.id === 'shotgun');
+const RIFLE = WEAPONS.find((w) => w.id === 'rifle');
 const IFrames = 0.32;      // seconds of damage gating in game.js
 const PLAYER_HP = 100;
 
-/** Total hit points a wave's composition contains. */
+/** Total hit points a wave's composition contains, boss included. */
 function waveHealth(plan, mix) {
-  return mix.walkers * TYPES.walker.hp + mix.runners * TYPES.runner.hp + mix.brutes * TYPES.brute.hp;
+  const base = mix.walkers * TYPES.walker.hp + mix.runners * TYPES.runner.hp
+    + mix.brutes * TYPES.brute.hp + (mix.spitters || 0) * TYPES.spitter.hp;
+  if (!plan.boss) return base;
+  const boss = bossFor(plan.wave);
+  return base + Math.round(TYPES[boss.base].hp * boss.hpMul);
 }
 
 /** Seconds to fire `shots` rounds including magazine reloads. */
@@ -33,7 +38,8 @@ function incomingDps(plan, mix) {
   const avgDamage = (
     mix.walkers * TYPES.walker.damage +
     mix.runners * TYPES.runner.damage +
-    mix.brutes * TYPES.brute.damage
+    mix.brutes * TYPES.brute.damage +
+    (mix.spitters || 0) * TYPES.spitter.damage
   ) / total;
   // The gate allows at most one accepted hit per IFrames window.
   const gated = avgDamage / IFrames;
@@ -43,8 +49,8 @@ function incomingDps(plan, mix) {
 }
 
 const rows = waveTable(30);
-console.log('wave  body  surge  modifier   health   body   all-head  arrive  die   verdict');
-console.log('                                 clear    clear     (s)    (s)');
+console.log('wave  body  boss  surge  modifier   health   body   all-head  arrive  die   verdict');
+console.log('                                       clear    clear     (s)    (s)');
 
 const HEADSHOT = 2.6; // damage multiplier in game.js
 let flagged = 0;
@@ -71,6 +77,7 @@ for (const plan of rows) {
     console.log(
       String(plan.wave).padStart(4),
       String(plan.count).padStart(5),
+      (plan.boss ? 'yes' : '-').padStart(5),
       (plan.surge ? 'yes' : '-').padStart(6),
       (plan.modifier === 'none' ? '-' : plan.modifier).padStart(10),
       String(Math.round(hp)).padStart(8),
@@ -87,7 +94,7 @@ for (const plan of rows) {
 const capWave = rows.find((r) => r.count >= 40);
 const capHp = waveHealth(capWave, capWave.mix);
 console.log(`\nFirst capped wave: ${capWave.wave} (${capWave.count} bodies, ${Math.round(capHp)} hp)`);
-for (const w of [PISTOL, SMG, SHOTGUN]) {
+for (const w of [PISTOL, SMG, SHOTGUN, RIFLE]) {
   const perShot = w.damage * (w.pellets || 1);
   const shots = Math.ceil(capHp / perShot);
   console.log(

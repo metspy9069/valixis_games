@@ -38,6 +38,18 @@ export class Zombie {
     this.stuckTime = 0;
     this.lodTimer = 0;
     this.detailOn = true;
+    // Per-body asymmetry. No two bodies walk the same way: one leg drags, the
+    // back is bent a little differently, the head hangs at its own angle.
+    this.limp = 0.6 + rng() * 0.72;
+    this.hunch = 0.08 + rng() * 0.18;
+    this.headTilt = (rng() - 0.5) * 0.28;
+    this.twitchTimer = 1.2 + rng() * 3.4;
+    this.twitch = 0;
+    this.deathRoll = 0;
+    this.deathPitch = -Math.PI / 2;
+    this.ranged = !!this.def.ranged;
+    this.isBoss = false;
+    this.bossName = '';
     this.home = position.clone();
     this.build();
     this.group.position.copy(position);
@@ -53,13 +65,14 @@ export class Zombie {
     for (const mesh of this.hitMeshes) mesh.userData.zombie = this;
   }
 
-  // Facial and hand detail only matters up close; dropping it further out is
-  // what keeps a forty-body wave inside the frame budget.
+  // Facial, finger and cloth detail only reads inside ~24 m, and that is what
+  // keeps a forty-body wave inside the frame budget: at forty bodies this is
+  // the difference between roughly 350 and 1200 extra draw calls.
   updateLod(dist, dt) {
     this.lodTimer -= dt;
     if (this.lodTimer > 0) return;
     this.lodTimer = 0.35;
-    const on = dist < 40;
+    const on = dist < 24;
     if (on === this.detailOn) return;
     this.detailOn = on;
     for (const mesh of this.detail) mesh.visible = on;
@@ -89,6 +102,9 @@ export class Zombie {
     this.alive = false;
     this.state = 'dead';
     this.deadTimer = 0;
+    // Bodies drop the way they were pushed, not always face-first.
+    this.deathRoll = (Math.random() - 0.5) * 1.1;
+    this.deathPitch = -Math.PI / 2 * (0.78 + Math.random() * 0.4);
     if (ctx && ctx.audio) ctx.audio.zombieDeath();
     if (ctx && ctx.onDeath) ctx.onDeath(this, part);
   }
@@ -111,7 +127,8 @@ export class Zombie {
       this.deadTimer += dt;
       // Fall forward, then sink through the road.
       const fall = Math.min(1, this.deadTimer / 0.55);
-      this.group.rotation.x = -Math.PI / 2 * easeOut(fall);
+      this.group.rotation.x = this.deathPitch * easeOut(fall);
+      this.group.rotation.z = this.deathRoll * easeOut(fall);
       this.group.position.y = -Math.max(0, this.deadTimer - 2.4) * 0.45;
       if (this.deadTimer > 3.6) {
         this.removed = true;
@@ -136,8 +153,16 @@ export class Zombie {
     this.growlTimer -= dt;
     if (this.growlTimer <= 0) {
       this.growlTimer = 2.5 + this.rng() * 5;
-      if (dist < 30 && audio) audio.growl(dist);
+      if (dist < 30 && audio) audio.growl(dist, ctx.panOf ? ctx.panOf(pos) : 0);
     }
+
+    // A body that is standing still still twitches.
+    this.twitchTimer -= dt;
+    if (this.twitchTimer <= 0) {
+      this.twitchTimer = 1.4 + this.rng() * 4;
+      this.twitch = 0.32;
+    }
+    this.twitch = Math.max(0, this.twitch - dt);
 
     const move = new THREE.Vector3();
     let targetSpeed = 0;
@@ -164,6 +189,21 @@ export class Zombie {
         // Keep a body's width of space: they claw at you, they do not stand
         // inside the camera.
         if (dist < 1.55) targetSpeed = 0;
+
+        // Spitters work the middle distance. They stop, rear back and lob acid
+        // rather than closing to bite, and shuffle backwards if you rush them.
+        if (this.ranged) {
+          const spitRange = this.def.spitRange || 24;
+          if (dist > 6 && dist < spitRange && this.attackCooldown <= 0) {
+            this.state = 'spit';
+            this.windup = 0;
+            this.struck = false;
+            targetSpeed = 0;
+          } else if (dist < 6) {
+            targetSpeed = this.speed * 0.45;
+            move.set(-toPlayer.x, 0, -toPlayer.z).normalize();
+          }
+        }
         // Follow the flow field around buildings; close in straight when near.
         if (ctx.nav && dist > 2.6) {
           const navDir = ctx.nav.direction(pos.x, pos.z);
@@ -193,6 +233,7 @@ export class Zombie {
         this.state = 'attack';
         this.windup = 0;
         this.attackTimer = 0;
+        if (audio) audio.snarl(dist, ctx.panOf ? ctx.panOf(pos) : 0);
       }
     }
 
@@ -207,6 +248,21 @@ export class Zombie {
         this.attackCooldown = this.type === 'brute' ? 1.7 : 1.05;
       }
       if (this.windup > 0.85) {
+        this.state = 'chase';
+        this.struck = false;
+        this.windup = 0;
+      }
+    }
+
+    if (this.state === 'spit') {
+      this.windup += dt;
+      targetSpeed = 0;
+      if (this.windup > 0.62 && !this.struck) {
+        this.struck = true;
+        if (ctx.spit && dist < (this.def.spitRange || 24) + 4) ctx.spit(this);
+        this.attackCooldown = this.def.spitCooldown || 2.7;
+      }
+      if (this.windup > 1.1) {
         this.state = 'chase';
         this.struck = false;
         this.windup = 0;
@@ -256,26 +312,30 @@ export class Zombie {
     const walking = speed > 0.05;
     const stride = walking ? Math.sin(this.phase) : Math.sin(this.phase) * 0.12;
     const strideOpp = walking ? Math.sin(this.phase + Math.PI) : -Math.sin(this.phase) * 0.12;
-    const lean = this.type === 'runner' ? 0.34 : this.type === 'brute' ? 0.22 : 0.16;
+    const lean = (this.type === 'runner' ? 0.34 : this.type === 'brute' ? 0.22 : 0.16) + this.hunch;
 
-    // Legs.
+    // Legs. The trailing leg swings less and the hips hitch, which reads as a
+    // limp without needing a second animation state.
     r.legL.hip.rotation.x = stride * 0.62;
-    r.legR.hip.rotation.x = strideOpp * 0.62;
+    r.legR.hip.rotation.x = strideOpp * 0.62 * this.limp;
     r.legL.knee.rotation.x = Math.max(0, -stride) * 0.85;
-    r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85;
+    r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85 * this.limp;
 
     // Arms: the classic outstretched shamble, swinging a little with the gait.
-    const armOut = this.type === 'runner' ? -0.55 : -1.35;
+    const armOut = this.type === 'runner' ? -0.55 : this.ranged ? -0.9 : -1.35;
     const swing = walking ? Math.sin(this.phase + Math.PI) * 0.18 : Math.sin(this.phase * 0.7) * 0.05;
 
     let attackOverlay = 0;
     if (this.state === 'attack') {
       attackOverlay = Math.min(1, this.windup / 0.42);
+    } else if (this.state === 'spit') {
+      attackOverlay = Math.min(1, this.windup / 0.62) * 0.45;
     }
     const slam = attackOverlay * attackOverlay;
 
     r.armL.shoulder.rotation.x = armOut + swing - slam * 1.15;
-    r.armR.shoulder.rotation.x = armOut - swing - slam * 1.15;
+    // One arm always hangs lower: the classic uneven reach.
+    r.armR.shoulder.rotation.x = armOut * 0.78 - swing - slam * 1.15;
     r.armL.shoulder.rotation.z = 0.22 + slam * 0.1;
     r.armR.shoulder.rotation.z = -0.22 - slam * 0.1;
     r.armL.elbow.rotation.x = -0.5 + slam * 0.35;
@@ -283,13 +343,15 @@ export class Zombie {
 
     // Body: lean into the run, bounce with the stride, flinch when shot.
     r.hips.rotation.x = lean + slam * 0.18 + this.flinch * 0.18;
-    r.hips.position.y = 0.9 + Math.abs(Math.sin(this.phase)) * (walking ? 0.045 : 0.012);
-    r.hips.rotation.z = Math.sin(this.phase) * 0.05;
+    r.hips.position.y = 0.9 + Math.abs(Math.sin(this.phase)) * (walking ? 0.045 : 0.012)
+      + Math.sin(this.phase) * (1 - this.limp) * 0.012;
+    r.hips.rotation.z = Math.sin(this.phase) * 0.05 + Math.sin(this.phase * 0.5) * (1 - this.limp) * 0.06;
 
     // Head tracks the player a little; jaw hangs open.
     const headTrack = Math.max(-0.5, Math.min(0.5, -dist * 0.02));
-    r.neck.rotation.x = headTrack + Math.sin(this.phase * 0.5) * 0.06 - this.flinch * 0.35;
-    r.neck.rotation.z = Math.sin(this.phase * 0.4) * 0.08;
+    r.neck.rotation.x = headTrack + Math.sin(this.phase * 0.5) * 0.06 - this.flinch * 0.35 + this.twitch * 0.25;
+    r.neck.rotation.z = Math.sin(this.phase * 0.4) * 0.08 + this.headTilt + this.twitch * 0.18;
+    r.neck.rotation.y = Math.sin(this.phase * 0.23) * 0.12 + this.twitch * 0.2;
     r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + slam * 0.4;
     r.jaw.position.y = 0.05;
 

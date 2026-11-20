@@ -1,7 +1,7 @@
 // Weapon definitions and the first-person viewmodel (a second scene rendered
 // over the world so the gun never clips into walls).
 import * as THREE from 'three';
-import { buildGun } from './models.js';
+import { buildGun, buildMelee } from './models.js';
 
 import { WEAPONS } from './data.js';
 export { WEAPONS };
@@ -24,6 +24,19 @@ export class ViewModel {
     this.root.position.set(0.175, -0.17, -0.46);
     this.root.scale.setScalar(0.72);
     scene.add(this.root);
+
+    // The blade lives in the left hand for the whole run: it is a tool you
+    // always have, not a pickup, and it keeps the close-range answer free.
+    this.meleeRoot = new THREE.Group();
+    this.meleeRoot.position.set(-0.27, -0.3, -0.5);
+    this.meleeRoot.scale.setScalar(0.68);
+    this.meleeRoot.rotation.set(0.1, 0.62, -0.34);
+    scene.add(this.meleeRoot);
+    this.meleeTier = -1;
+    this.setMelee(0);
+    this.meleeBob = 0;
+    this.swingTimer = 0;
+    this.swingDuration = 0.34;
 
     // Base pose: the gun is canted inward so the camera sees its flank, not
     // the end of the barrel.
@@ -60,6 +73,16 @@ export class ViewModel {
 
   get def() { return WEAPONS[this.index]; }
 
+  /** Swap the left-hand weapon as the run's blade tier changes. */
+  setMelee(tier) {
+    if (this.meleeTier === tier) return;
+    this.meleeTier = tier;
+    if (this.melee) this.meleeRoot.remove(this.melee);
+    const kinds = ['knife', 'machete', 'bat'];
+    this.melee = buildMelee(kinds[Math.max(0, Math.min(kinds.length - 1, tier))]);
+    this.meleeRoot.add(this.melee);
+  }
+
   select(index, silent = false) {
     this.index = ((index % WEAPONS.length) + WEAPONS.length) % WEAPONS.length;
     this.models.forEach((m, i) => { m.visible = i === this.index; });
@@ -82,6 +105,11 @@ export class ViewModel {
   recoil(amount) {
     this.kick = Math.min(0.16, this.kick + amount * 0.014);
     this.kickRot = Math.min(0.5, this.kickRot + amount * 0.045);
+  }
+
+  /** Start one machete swing; the animation is driven from update(). */
+  swing() {
+    this.swingTimer = this.swingDuration;
   }
 
   update(dt, state) {
@@ -128,6 +156,8 @@ export class ViewModel {
       this.root.rotation.x += 0.06;
     }
 
+    this.updateMelee(dt, state);
+
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
       if (this.flashTimer <= 0) {
@@ -140,11 +170,59 @@ export class ViewModel {
     }
   }
 
+  /**
+   * Left arm. It carries the same bob and sway as the gun so the two hands
+   * read as one body, then sweeps a diagonal cut across the frame on a swing.
+   */
+  updateMelee(dt, state) {
+    const { moving = 0, ads = false, aspect = 1.6 } = state || {};
+    this.meleeBob += dt * (5.4 + moving * 1.4);
+    const aspectK = Math.min(1.15, Math.max(0.34, aspect / 1.6));
+
+    let sx = 0, sy = 0, sz = 0, rx = 0, ry = 0, rz = 0;
+    if (this.swingTimer > 0) {
+      this.swingTimer = Math.max(0, this.swingTimer - dt);
+      const t = 1 - this.swingTimer / this.swingDuration;   // 0 -> 1
+      // Wind up briefly, then cut across and recover.
+      const wind = Math.min(1, t / 0.24);
+      const cut = Math.max(0, (t - 0.24) / 0.76);
+      const ease = cut * cut * (3 - 2 * cut);
+      sx = -0.02 + ease * 0.34;
+      sy = 0.1 * wind - ease * 0.12;
+      sz = ease * 0.2;
+      ry = 0.62 - wind * 0.5 + ease * 1.5;
+      rx = 0.1 - wind * 0.6 + ease * 1.0;
+      rz = -0.34 + wind * 0.5 - ease * 1.35;
+    }
+
+    const bob = Math.sin(this.meleeBob) * (0.008 + moving * 0.012);
+    const drop = ads ? 0.12 : 0;
+    this.meleeRoot.position.set(
+      (-0.27 + sx) * aspectK,
+      -0.3 + sy - bob - drop - this.sprintBlend * 0.1,
+      -0.5 + sz + this.swayX * 1.4,
+    );
+    this.meleeRoot.rotation.set(
+      0.1 + rx + this.swayY * 2.4,
+      0.62 + ry + this.swayX * 3,
+      -0.34 + rz + this.sprintBlend * 0.2,
+    );
+  }
+
+  /**
+   * Muzzle position in WORLD space.
+   *
+   * The viewmodel renders in its own scene with the camera fixed at the
+   * origin, so localToWorld() only gets us back to camera space. Applying the
+   * camera's world matrix is what puts the barrel in the street; without it
+   * every tracer started near the map origin instead of at the gun.
+   */
   muzzleWorld(target) {
     this.scene.updateMatrixWorld(true);
+    this.camera.updateMatrixWorld(true);
     const m = this.models[this.index];
     const local = m.userData.muzzle.clone();
     m.localToWorld(local);
-    return target.copy(local);
+    return target.copy(local).applyMatrix4(this.camera.matrixWorld);
   }
 }

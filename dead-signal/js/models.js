@@ -226,6 +226,16 @@ function sharedBody(typeKey, def) {
       heavy ? 0.52 : 0.46, 14, 3, true), heavy ? 0.16 : 0.11),
     hip: new THREE.CapsuleGeometry(thin ? 0.12 : heavy ? 0.2 : 0.15, 0.08, 3, 10),
     plate: new THREE.BoxGeometry(0.46, 0.34, 0.1),
+    // Close-up detail (registered in `detail`, dropped past 40 m).
+    rib: new THREE.CapsuleGeometry(0.011, 0.115, 3, 6),
+    finger: new THREE.CapsuleGeometry(0.0075, 0.028, 3, 6),
+    hair: new THREE.SphereGeometry(0.032, 6, 5),
+    tongue: new THREE.CapsuleGeometry(0.017, 0.045, 3, 6),
+    strip: new THREE.BoxGeometry(0.04, 0.11, 0.012),
+    bandage: new THREE.BoxGeometry(0.2, 0.05, 0.024),
+    stain: new THREE.SphereGeometry(0.07, 8, 6),
+    tooth: new THREE.BoxGeometry(0.026, 0.038, 0.02),
+    sac: new THREE.SphereGeometry(0.145, 14, 10),
   };
   bodyCache.set(typeKey, geo);
   return geo;
@@ -244,6 +254,8 @@ function part(geo, material, x, y, z, opts = {}) {
  * elbows / hips / knees at the same offsets as the original rig) so the
  * animation and hit-detection code keeps working unchanged.
  */
+const plateMat = new THREE.MeshStandardMaterial({ color: 0x3a3d38, roughness: 0.7, metalness: 0.35 });
+
 const matCache = new Map();
 function matsFor(typeKey, def) {
   if (matCache.has(typeKey)) return matCache.get(typeKey);
@@ -274,6 +286,16 @@ function matsFor(typeKey, def) {
     }),
     bone: new THREE.MeshStandardMaterial({ color: 0xd8d2b4, roughness: 0.75 }),
     socket: new THREE.MeshStandardMaterial({ color: 0x140c0a, roughness: 1 }),
+    hair: new THREE.MeshStandardMaterial({ color: 0x16120f, roughness: 1 }),
+    bandage: new THREE.MeshStandardMaterial({
+      color: 0xa8a08a, map: clothTexture(0xa8a08a), roughness: 1, side: THREE.DoubleSide,
+    }),
+    blood: new THREE.MeshStandardMaterial({ color: 0x3f090b, roughness: 0.55 }),
+    tongue: new THREE.MeshStandardMaterial({ color: 0x6b2b30, roughness: 0.45 }),
+    acid: new THREE.MeshStandardMaterial({
+      color: 0x9dff3d, emissive: 0x63ff14, emissiveIntensity: 2.4,
+      roughness: 0.35, transparent: true, opacity: 0.92, toneMapped: false,
+    }),
   };
   matCache.set(typeKey, set);
   return set;
@@ -282,6 +304,8 @@ function matsFor(typeKey, def) {
 export function buildZombieModel(typeKey, def) {
   const g = sharedBody(typeKey, def);
   const heavy = typeKey === 'brute';
+  const thin = typeKey === 'runner';
+  const spitter = typeKey === 'spitter';
   const M = matsFor(typeKey, def);
   const skinMat = M.skin;
   const clothMat = M.cloth;
@@ -310,10 +334,52 @@ export function buildZombieModel(typeKey, def) {
   hips.add(shirt);
 
   if (heavy) {
-    const plate = part(g.plate, new THREE.MeshStandardMaterial({ color: 0x3a3d38, roughness: 0.7, metalness: 0.35 }), 0, 0.52, 0.13);
+    // One shared plate material: a fresh MeshStandardMaterial per brute leaked
+    // a material every time a heavy spawned during a long run.
+    const plate = part(g.plate, plateMat, 0, 0.52, 0.13);
     plate.rotation.x = 0.1;
     hips.add(plate);
+    const strap = part(g.bandage, M.bandage, 0, 0.52, 0.19);
+    strap.rotation.z = 0.24;
+    hips.add(strap);
   }
+
+  // ---- close-up detail ------------------------------------------------
+  // Everything built below is registered in `detail`, so it is dropped past
+  // 40 m and a forty-body wave stays cheap to draw.
+  const detail = [];
+
+  // Torn hem: a ring of loose cloth strips. They catch the light as a body
+  // turns, which is most of what sells a ripped shirt at a glance.
+  const hemR = heavy ? 0.27 : thin ? 0.19 : 0.22;
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + 0.2;
+    const len = 0.6 + ((i * 37) % 11) / 18;
+    const strip = part(g.strip, clothMat, Math.cos(a) * hemR, 0.12 - len * 0.055, Math.sin(a) * hemR);
+    strip.rotation.set(Math.sin(a) * 0.32, a, Math.cos(a) * 0.34);
+    strip.scale.y = len;
+    hips.add(strip);
+    detail.push(strip);
+  }
+
+  // Ribs showing through the tear on one flank.
+  for (let i = 0; i < 4; i++) {
+    const rib = part(g.rib, boneMat, heavy ? 0.245 : 0.175, 0.33 + i * 0.052, 0.03);
+    rib.rotation.z = Math.PI / 2;
+    rib.rotation.y = -0.24;
+    rib.scale.setScalar(1 - i * 0.09);
+    hips.add(rib);
+    detail.push(rib);
+  }
+
+  // Bloodied field dressing across the chest, and the dark soak under it.
+  const wrap = part(g.bandage, M.bandage, -0.01, 0.5, 0.15);
+  wrap.rotation.z = 0.55;
+  hips.add(wrap);
+  const stain = part(g.stain, M.blood, -0.025, 0.52, 0.155);
+  stain.scale.set(1.5, 0.72, 0.32);
+  hips.add(stain);
+  detail.push(wrap, stain);
 
   // Neck + head.
   const neck = new THREE.Group();
@@ -339,11 +405,42 @@ export function buildZombieModel(typeKey, def) {
   const jaw = part(g.jaw, skinMat, 0, 0.055, 0.055);
   jaw.rotation.x = 0.2;
   neck.add(jaw);
-  // Teeth.
-  for (let i = -1; i <= 1; i++) {
-    const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.038, 0.02), boneMat);
-    tooth.position.set(i * 0.045, 0.095, 0.12);
+  // Teeth, top and bottom rows, unevenly spaced so the grin reads as broken.
+  for (let i = -2; i <= 2; i++) {
+    const tooth = part(g.tooth, boneMat, i * 0.038, 0.098, 0.118);
+    tooth.rotation.z = i * 0.09;
     neck.add(tooth);
+    const lower = part(g.tooth, boneMat, i * 0.034, 0.062, 0.112);
+    lower.rotation.z = i * -0.12;
+    lower.scale.setScalar(0.8);
+    neck.add(lower);
+  }
+  const tongue = part(g.tongue, M.tongue, 0, 0.088, 0.108);
+  tongue.rotation.x = 1.15;
+  jaw.add(tongue);
+  detail.push(tongue);
+
+  // Matted hair on the crown: a cheap, unmistakable silhouette change.
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + 0.4;
+    const tuft = part(g.hair, M.hair, Math.cos(a) * 0.086, 0.285 + (i % 3) * 0.014, Math.sin(a) * 0.086);
+    tuft.scale.set(1, 0.65 + (i % 4) * 0.22, 1);
+    neck.add(tuft);
+    detail.push(tuft);
+  }
+
+  if (spitter) {
+    // Swollen acid sac: the one thing you need to read from across the street.
+    const sac = part(g.sac, M.acid, 0, 0.34, -0.15);
+    sac.scale.set(1.05, 0.92, 0.8);
+    hips.add(sac);
+    const sacGlow = glowSprite(0x9dff3d, 0.85, 0.5);
+    sacGlow.position.set(0, 0.36, -0.22);
+    hips.add(sacGlow);
+    const drool = part(g.tongue, M.acid, 0, 0.045, 0.125);
+    drool.scale.set(0.8, 1.5, 0.8);
+    jaw.add(drool);
+    detail.push(sac, drool);
   }
 
   // Arms: shoulder -> elbow -> hand.
@@ -352,15 +449,27 @@ export function buildZombieModel(typeKey, def) {
     shoulder.position.set(side * 0.28, 0.56, 0);
     hips.add(shoulder);
     shoulder.add(part(g.shoulder, clothMat, 0, 0, 0));
-    shoulder.add(part(g.upperArm, skinMat, 0, -0.2, 0, { castShadow: true }));
+    const upper = part(g.upperArm, skinMat, 0, -0.2, 0, { castShadow: true });
+    shoulder.add(upper);
 
     const elbow = new THREE.Group();
     elbow.position.set(0, -0.4, 0);
     shoulder.add(elbow);
-    elbow.add(part(g.foreArm, skinMat, 0, -0.18, 0));
+    const fore = part(g.foreArm, skinMat, 0, -0.18, 0);
+    elbow.add(fore);
     const hand = part(g.hand, skinMat, 0, -0.39, 0.015);
     elbow.add(hand);
-    return { shoulder, elbow, hand };
+    // Fingers and a thumb, parented to the hand so the distance LOD drops
+    // them together with it.
+    for (let f = 0; f < 4; f++) {
+      const finger = part(g.finger, skinMat, -0.021 + f * 0.014, -0.046, 0.014);
+      finger.rotation.x = 0.4;
+      hand.add(finger);
+    }
+    const thumb = part(g.finger, skinMat, 0.03, -0.014, 0.004);
+    thumb.rotation.z = -0.85;
+    hand.add(thumb);
+    return { shoulder, elbow, hand, upper, fore };
   };
   const armL = arm(-1);
   const armR = arm(1);
@@ -370,14 +479,16 @@ export function buildZombieModel(typeKey, def) {
     const hip = new THREE.Group();
     hip.position.set(side * 0.14, 0.02, 0);
     hips.add(hip);
-    hip.add(part(g.thigh, pantsMat, 0, -0.23, 0, { castShadow: true }));
+    const thigh = part(g.thigh, pantsMat, 0, -0.23, 0, { castShadow: true });
+    hip.add(thigh);
 
     const knee = new THREE.Group();
     knee.position.set(0, -0.45, 0);
     hip.add(knee);
-    knee.add(part(g.shin, pantsMat, 0, -0.22, 0));
+    const shin = part(g.shin, pantsMat, 0, -0.22, 0);
+    knee.add(shin);
     knee.add(part(g.foot, skinMat, 0, -0.45, 0));
-    return { hip, knee };
+    return { hip, knee, thigh, shin };
   };
   const legL = leg(-1);
   const legR = leg(1);
@@ -386,14 +497,23 @@ export function buildZombieModel(typeKey, def) {
   head.userData.part = 'head';
   chest.userData.part = 'body';
   belly.userData.part = 'body';
+  shirt.userData.part = 'body';
+  // Limbs and the loose shirt were not hit volumes, so a round that hit an arm
+  // or a leg passed through the zombie and struck the wall behind it.
+  const limbHits = [
+    shirt,
+    armL.upper, armL.fore, armR.upper, armR.fore,
+    legL.thigh, legL.shin, legR.thigh, legR.shin,
+  ];
+  for (const limb of limbHits) limb.userData.part = 'body';
 
   // Small facial and hand detail is skipped with distance: at forty bodies it
   // is the difference between a few hundred draw calls and a thousand.
   return {
     group,
     rig: { hips, torso: belly, neck, head, jaw, armL, armR, legL, legR },
-    hitMeshes: [head, chest, belly],
-    detail: [brow, nose, jaw, socketL, socketR, armL.hand, armR.hand],
+    hitMeshes: [head, chest, belly, ...limbHits],
+    detail: [brow, nose, jaw, socketL, socketR, ...detail, armL.hand, armR.hand],
   };
 }
 
@@ -741,10 +861,186 @@ function buildShotgun() {
   return g;
 }
 
+function buildRifle() {
+  const M = gunMats;
+  const g = new THREE.Group();
+
+  // Receiver with a flat top rail.
+  g.add(bx(0.05, 0.072, 0.36, M.steel, 0, 0.006, -0.1));
+  g.add(bx(0.044, 0.016, 0.36, M.dark, 0, 0.049, -0.1));
+  for (let i = 0; i < 7; i++) {
+    g.add(bx(0.046, 0.008, 0.004, M.steel, 0, 0.057, -0.24 + i * 0.026));
+  }
+
+  // Barrel, muzzle brake and handguard venting.
+  g.add(cyl(0.0125, 0.0125, 0.42, M.steel, 0, 0.012, -0.48, Math.PI / 2, 0, 0, 14));
+  g.add(cyl(0.026, 0.024, 0.2, M.polymer, 0, 0.012, -0.36, Math.PI / 2, 0, 0, 12));
+  for (let i = 0; i < 5; i++) {
+    g.add(cyl(0.0275, 0.0275, 0.008, M.dark, 0, 0.012, -0.29 - i * 0.036, Math.PI / 2, 0, 0, 12));
+  }
+  g.add(cyl(0.021, 0.019, 0.07, M.dark, 0, 0.012, -0.71, Math.PI / 2, 0, 0, 12));
+  g.add(cyl(0.008, 0.008, 0.012, new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 1 }), 0, 0.012, -0.748, Math.PI / 2));
+
+  // Scope: tube, both bells, mounts, glowing glass.
+  g.add(bx(0.022, 0.026, 0.05, M.dark, 0, 0.082, -0.16));
+  g.add(bx(0.022, 0.026, 0.05, M.dark, 0, 0.082, -0.05));
+  g.add(cyl(0.021, 0.021, 0.19, M.dark, 0, 0.104, -0.105, Math.PI / 2, 0, 0, 14));
+  g.add(cyl(0.029, 0.023, 0.05, M.steel, 0, 0.104, -0.215, Math.PI / 2, 0, 0, 14));
+  g.add(cyl(0.026, 0.023, 0.04, M.steel, 0, 0.104, 0.005, Math.PI / 2, 0, 0, 14));
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16), new THREE.MeshStandardMaterial({
+    color: 0x1b3a4a, emissive: 0x3fa0c8, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.4,
+  }));
+  lens.position.set(0, 0.104, -0.241);
+  lens.rotation.y = Math.PI;
+  g.add(lens);
+  g.add(cyl(0.011, 0.011, 0.022, M.steel, 0, 0.128, -0.1));
+
+  // Magazine, pistol grip, trigger, stock and cheek riser.
+  g.add(bx(0.036, 0.15, 0.06, M.polymer, 0, -0.11, -0.06, 0.1));
+  g.add(bx(0.034, 0.1, 0.048, M.polymer, 0, -0.08, 0.055, -0.22));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.004, 6, 14, Math.PI * 1.3), M.dark);
+  guard.position.set(0, -0.045, 0.008);
+  guard.rotation.set(Math.PI / 2, 0, Math.PI * 0.92);
+  g.add(guard);
+  g.add(bx(0.007, 0.02, 0.006, M.steel, 0, -0.045, 0.005, 0.2));
+  g.add(bx(0.036, 0.062, 0.2, M.polymer, 0, 0.0, 0.2, 0.04));
+  g.add(bx(0.03, 0.03, 0.16, M.polymer, 0, 0.038, 0.2));
+  g.add(bx(0.044, 0.1, 0.026, M.dark, 0, -0.01, 0.3));
+
+  // Folded bipod under the handguard.
+  for (const s of [-1, 1]) {
+    g.add(bx(0.008, 0.008, 0.14, M.steel, s * 0.018, -0.026, -0.34, 0.3, s * 0.12));
+  }
+
+  glovedHand(g, -0.075, 0.075, 1, 0);
+  const support = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.16, 4, 10), M.glove);
+  support.position.set(-0.03, -0.055, -0.34);
+  support.rotation.set(0.35, 0, -0.5);
+  g.add(support);
+
+  g.userData.muzzle = new THREE.Vector3(0, 0.012, -0.755);
+  return g;
+}
+
+function buildLmg() {
+  const M = gunMats;
+  const g = new THREE.Group();
+
+  // Boxy receiver and top cover with a carry handle.
+  g.add(bx(0.075, 0.095, 0.34, M.dark, 0, 0.005, -0.06));
+  g.add(bx(0.06, 0.03, 0.3, M.steel, 0, 0.068, -0.06));
+  for (const s of [-1, 1]) {
+    g.add(bx(0.01, 0.03, 0.02, M.steel, s * 0.03, 0.092, -0.1));
+  }
+  g.add(bx(0.05, 0.012, 0.02, M.steel, 0, 0.108, -0.1));
+
+  // Barrel shroud with cooling slots and a heavy flash hider.
+  g.add(cyl(0.028, 0.028, 0.3, M.polymer, 0, 0.02, -0.34, Math.PI / 2, 0, 0, 14));
+  for (let i = 0; i < 4; i++) {
+    g.add(bx(0.058, 0.014, 0.022, M.dark, 0, 0.02, -0.26 - i * 0.06));
+  }
+  g.add(cyl(0.017, 0.017, 0.14, M.steel, 0, 0.02, -0.55, Math.PI / 2, 0, 0, 14));
+  g.add(cyl(0.026, 0.022, 0.06, M.dark, 0, 0.02, -0.62, Math.PI / 2, 0, 0, 12));
+  g.add(cyl(0.009, 0.009, 0.012, new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 1 }), 0, 0.02, -0.648, Math.PI / 2));
+
+  // Ammo drum: a cylinder lying across the receiver.
+  g.add(cyl(0.105, 0.105, 0.075, M.polymer, 0, -0.1, -0.05, 0, 0, Math.PI / 2, 18));
+  g.add(cyl(0.108, 0.108, 0.012, M.steel, 0.04, -0.1, -0.05, 0, 0, Math.PI / 2, 18));
+
+  // Bipod, angled out and planted, plus the sling loops.
+  for (const s of [-1, 1]) {
+    g.add(bx(0.008, 0.1, 0.008, M.steel, s * 0.05, -0.075, -0.4, 0, 0, s * 0.45));
+  }
+  g.add(bx(0.012, 0.012, 0.03, M.dark, -0.075, 0.0, -0.02));
+
+  // Grip, trigger, stock.
+  g.add(bx(0.036, 0.11, 0.052, M.polymer, 0, -0.085, 0.075, -0.2));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0045, 6, 14, Math.PI * 1.3), M.dark);
+  guard.position.set(0, -0.045, 0.03);
+  guard.rotation.set(Math.PI / 2, 0, Math.PI * 0.92);
+  g.add(guard);
+  g.add(bx(0.04, 0.07, 0.2, M.polymer, 0, -0.005, 0.24, 0.05));
+  g.add(bx(0.05, 0.11, 0.028, M.dark, 0, -0.02, 0.34, 0.05));
+
+  glovedHand(g, -0.08, 0.09, 1, 0);
+
+  g.userData.muzzle = new THREE.Vector3(0, 0.02, -0.655);
+  return g;
+}
+
+/**
+ * Left hand melee weapon. Built around the wrist origin, blade forward on -Z,
+ * so the viewmodel can bob it with the same root transform as the firearm.
+ */
+export function buildMelee(kind = 'machete') {
+  const M = gunMats;
+  const g = new THREE.Group();
+
+  // Forearm + sleeve, entering from the lower left of frame.
+  const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.038, 0.22, 4, 10), M.glove);
+  forearm.position.set(0.02, -0.05, 0.17);
+  forearm.rotation.x = 0.5;
+  g.add(forearm);
+
+  // Glove: palm, wrapped fingers, thumb.
+  const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.06, 4, 10), M.glove);
+  palm.position.set(0, 0, 0.02);
+  palm.rotation.set(0.1, 0, 0.2);
+  g.add(palm);
+  for (let f = 0; f < 4; f++) {
+    const finger = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.03, 3, 7), M.glove);
+    finger.position.set(-0.012, 0.026 - f * 0.019, -0.012);
+    finger.rotation.set(1.35, 0, 0.1);
+    g.add(finger);
+  }
+
+  // Handle with grip rings, guard and pommel.
+  const handleMat = kind === 'bat' ? M.steel : M.polymer;
+  g.add(cyl(0.017, 0.017, 0.14, handleMat, 0, 0, 0.03, Math.PI / 2, 0, 0, 10));
+  for (let i = 0; i < 5; i++) {
+    g.add(cyl(0.019, 0.019, 0.006, M.dark, 0, 0, -0.02 + i * 0.024, Math.PI / 2, 0, 0, 10));
+  }
+  if (kind === 'knife') {
+    // Short, thin, taped: visibly a worse tool than the machete.
+    g.add(bx(0.05, 0.014, 0.012, M.dark, 0, 0, -0.04));
+    g.add(bx(0.009, 0.036, 0.24, M.steel, 0, -0.003, -0.16));
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.07, 4), M.steel);
+    tip.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
+    tip.position.set(0, -0.003, -0.315);
+    tip.scale.set(0.4, 1, 1);
+    g.add(tip);
+    g.add(bx(0.015, 0.015, 0.06, M.polymer, 0, 0.018, -0.07));
+  } else if (kind === 'bat') {
+    // Aluminium bat: thick barrel, taped grip, dented end cap.
+    g.add(cyl(0.026, 0.038, 0.52, M.steel, 0, 0, -0.29, Math.PI / 2, 0, 0, 14));
+    g.add(cyl(0.04, 0.04, 0.03, M.dark, 0, 0, -0.55, Math.PI / 2, 0, 0, 14));
+    for (let i = 0; i < 3; i++) {
+      g.add(cyl(0.03, 0.03, 0.018, M.polymer, 0, 0, -0.09 - i * 0.03, Math.PI / 2, 0, 0, 12));
+    }
+  } else {
+    // Machete: guard, wide spine, tapered point.
+    g.add(bx(0.075, 0.016, 0.014, M.steel, 0, 0, -0.045));
+    const blade = bx(0.012, 0.062, 0.4, M.steel, 0, -0.004, -0.25);
+    g.add(blade);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.031, 0.12, 4), M.steel);
+    tip.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
+    tip.position.set(0, -0.004, -0.51);
+    tip.scale.set(0.4, 1, 1);
+    g.add(tip);
+    // Old blood down the edge and a taped-up spine.
+    g.add(bx(0.004, 0.02, 0.3, new THREE.MeshStandardMaterial({ color: 0x3f090b, roughness: 0.5 }), 0.007, -0.014, -0.22));
+    g.add(bx(0.016, 0.016, 0.1, M.polymer, 0, 0.026, -0.11));
+  }
+
+  return g;
+}
+
 /** First-person weapon, pointing down -Z. */
 export function buildGun(kind) {
   if (kind === 'smg') return buildSmg();
   if (kind === 'shotgun') return buildShotgun();
+  if (kind === 'rifle') return buildRifle();
+  if (kind === 'lmg') return buildLmg();
   return buildPistol();
 }
 

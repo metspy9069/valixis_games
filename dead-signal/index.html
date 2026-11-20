@@ -29,7 +29,9 @@
     font-family: var(--display); user-select: none;
   }
   #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
-  body.paused #scene, body.in-menu #scene { cursor: default; }
+  body.paused #scene, body.in-menu #scene, body.shopping #scene { cursor: default; }
+  /* The depot owns the screen: no crosshair or floating hints over the till. */
+  body.shopping #cross, body.shopping #hint, body.shopping #dmgLayer { opacity: 0 !important; }
 
   /* ---------- full screen effects ---------- */
   #blood { position: fixed; inset: 0; pointer-events: none; z-index: 22; opacity: 0;
@@ -145,6 +147,11 @@
   .touch-side { position: absolute; right: 18px; bottom: 214px; display: flex; gap: 8px; pointer-events: auto; }
   .touch-side button { width: 58px; height: 44px; border-radius: 10px; font: 800 9px/1 var(--mono); color: #dfeadb;
     background: rgba(10,16,12,0.7); border: 1px solid rgba(157,255,77,0.35); }
+
+  .nade-row { margin-top: 6px; font: 700 9px/1 var(--mono); letter-spacing: 1.6px; color: #93a08f; }
+  .nade-row b { color: #fff; font-size: 12px; }
+  .nade-row span { color: #6f7c6e; margin-left: 3px; }
+  .stat-cell.credits b { color: var(--amber); }
   #lookZone { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
 
   /* ---------- screens ---------- */
@@ -163,7 +170,7 @@
   .tag { font: 700 9px/1 var(--mono); letter-spacing: 1.4px; padding: 6px 9px; border-radius: 99px;
     border: 1px solid rgba(157, 255, 77, 0.3); color: #c8f79b; background: rgba(157, 255, 77, 0.07); }
 
-  .loadout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(860px, 100%); }
+  .loadout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: min(940px, 100%); }
   .gun-card { background: linear-gradient(160deg, rgba(16, 24, 18, 0.95), rgba(7, 10, 8, 0.95)); border: 1px solid rgba(255,255,255,0.09);
     border-radius: 13px; padding: 13px; text-align: left; position: relative; }
   .gun-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--toxic), transparent); opacity: .55; }
@@ -224,8 +231,78 @@
   .settings input[type=checkbox] { accent-color: #a6ff6a; width: 14px; height: 14px; }
   .settings .val { color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
 
+  /* armour strip under vitals */
+  #armorRow { margin-top: 8px; }
+  #armorFill { background: linear-gradient(90deg, #3f8fff, #9fd0ff); box-shadow: 0 0 12px rgba(80, 150, 255, 0.6); }
+
+  /* boss health */
+  #bossBar { position: fixed; left: 50%; top: 96px; transform: translate(-50%, -8px); z-index: 24;
+    width: min(620px, 76vw); opacity: 0; transition: opacity .25s ease, transform .25s ease; pointer-events: none; }
+  #bossBar.show { opacity: 1; transform: translate(-50%, 0); }
+  #bossBar .row { display: flex; justify-content: space-between; align-items: baseline;
+    font: 800 11px/1 var(--mono); letter-spacing: 3px; color: #ffd6d6; margin-bottom: 6px; text-shadow: 0 2px 6px #000; }
+  #bossBar .track { height: 10px; border-radius: 99px; background: rgba(20, 4, 6, 0.85);
+    border: 1px solid rgba(255, 80, 90, 0.45); overflow: hidden; box-shadow: 0 0 22px rgba(255, 40, 60, 0.3); }
+  #bossFill { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff2b3a, #ff7a4d); transition: width .12s linear; }
+
+  /* daily + weekly contracts */
+  .challenges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(860px, 100%); }
+  .challenge-card { background: linear-gradient(160deg, rgba(20, 26, 20, 0.96), rgba(7, 10, 8, 0.96));
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 13px; padding: 13px 14px; text-align: left; }
+  .challenge-card.done { border-color: rgba(157, 255, 77, 0.55); }
+  .challenge-head { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    font: 700 9px/1 var(--mono); letter-spacing: 2px; color: var(--toxic); margin-bottom: 8px; }
+  .challenge-head em { font-style: normal; color: #8d9a8c; }
+  .challenge-card.done .challenge-head em { color: var(--toxic); }
+  .challenge-name { font: 900 14px/1.2 var(--display); letter-spacing: 1.4px; color: #fff; margin-bottom: 5px; }
+  .challenge-desc { font: 500 11px/1.5 var(--mono); color: #9dab9a; min-height: 33px; }
+  .challenge-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+  .challenge-foot span { font: 700 9px/1 var(--mono); letter-spacing: 1.6px; color: #7f8c80; }
+  .challenge-foot button { cursor: pointer; font: 800 10px/1 var(--mono); letter-spacing: 1.6px; color: #08110a;
+    padding: 9px 13px; border-radius: 8px; border: 0; background: linear-gradient(135deg, #ecffcf, #9dff4d); }
+  .challenge-foot button:hover { filter: brightness(1.08); }
+
+  /* supply depot */
+  .shop-panel { width: min(1040px, 100%); margin: auto; text-align: left;
+    background: linear-gradient(165deg, rgba(18, 26, 20, 0.99), rgba(6, 9, 7, 0.99));
+    border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
+  .shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+  .shop-head .eyebrow { font: 700 9px/1 var(--mono); letter-spacing: 4px; color: var(--toxic); }
+  .shop-head h2 { margin: 8px 0 0; font: 900 clamp(22px, 3.4vw, 32px)/1 var(--display); letter-spacing: 3px; color: #fff; }
+  .wallet { text-align: right; border: 1px solid rgba(255,179,71,0.35); border-radius: 10px; padding: 8px 12px; background: rgba(255,179,71,0.06); }
+  .wallet span { display: block; font: 700 8px/1 var(--mono); letter-spacing: 2px; color: #b79a6a; margin-bottom: 5px; }
+  .wallet b { font: 900 20px/1 var(--mono); color: var(--amber); }
+  .shop-msg { min-height: 15px; margin: 0 0 6px; font: 700 9px/1.4 var(--mono); letter-spacing: 1.6px; color: var(--toxic); }
+  .shop-section-title { font: 800 9px/1 var(--mono); letter-spacing: 3px; color: var(--toxic); margin: 14px 0 8px; }
+  .shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .shop-item { display: flex; flex-direction: column; justify-content: space-between; gap: 6px;
+    background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.09); border-radius: 11px; padding: 11px 12px; }
+  .shop-item.poor { opacity: 0.55; }
+  .shop-item.maxed { border-color: rgba(157,255,77,0.45); background: rgba(157,255,77,0.05); }
+  .shop-name { font: 900 12px/1.2 var(--display); letter-spacing: 1px; color: #fff; }
+  .shop-desc { font: 500 10px/1.45 var(--mono); color: #96a494; min-height: 29px; }
+  .shop-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  .shop-level { font: 700 8px/1 var(--mono); letter-spacing: 1.4px; color: #7f8c80; }
+  .shop-buy { cursor: pointer; font: 800 9px/1 var(--mono); letter-spacing: 1.3px; color: #0b1207;
+    padding: 8px 10px; border-radius: 7px; border: 0; background: linear-gradient(135deg, #ecffcf, #9dff4d); }
+  .shop-buy:disabled { cursor: not-allowed; color: #79837a; background: rgba(255,255,255,0.08); }
+  .shop-note { margin: 12px 0 0; text-align: center; font: 600 9px/1.6 var(--mono); letter-spacing: 1.2px; color: #6f7c6e; }
+  .shop-note b { color: var(--toxic-2); }
+
+  @media (max-width: 900px) {
+    .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .shop-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 900px) {
+    .loadout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   @media (max-width: 760px) {
     .loadout { grid-template-columns: 1fr; }
+    .challenges { grid-template-columns: 1fr; }
     .hud-top { gap: 8px; }
     .stats { gap: 10px; }
     .stat-cell { min-width: 38px; }
@@ -262,11 +339,13 @@
       <div class="stat-cell"><span>KILLS</span><b id="killValue">0</b></div>
       <div class="stat-cell"><span>LEFT</span><b id="leftValue">0</b></div>
       <div class="stat-cell"><span>SCORE</span><b id="scoreValue">0</b></div>
+      <div class="stat-cell credits"><span>CREDITS</span><b id="creditValue">0</b></div>
     </div>
 
     <div class="hud-right">
       <div class="hud-actions">
         <button id="flashBtn">FLASHLIGHT [F]</button>
+        <button id="depotBtn">DEPOT [B]</button>
         <button id="muteBtn">SOUND ON</button>
         <button id="pauseBtn">PAUSE</button>
       </div>
@@ -281,12 +360,17 @@
         <div class="bar-label"><span>STAMINA</span><span>SPRINT</span></div>
         <div class="bar"><i id="stamFill"></i></div>
       </div>
+      <div id="armorRow" hidden>
+        <div class="bar-label"><span>ARMOR</span><b id="armorValue">0</b></div>
+        <div class="bar"><i id="armorFill"></i></div>
+      </div>
     </div>
 
     <div class="panel ammo" id="ammoPanel">
       <div class="wname" id="weaponName">M9 SIDEARM</div>
       <div class="count"><span id="ammoMag">15</span><small> / <span id="ammoReserve">∞</span></small></div>
       <div id="reloadBar"><i id="reloadFill"></i></div>
+      <div class="nade-row">FRAG &times;<b id="grenadeCount">2</b><span>[G]</span></div>
     </div>
   </div>
 </div>
@@ -294,10 +378,17 @@
 <div id="banner"><span class="k" id="bannerK">WAVE</span><span class="t" id="bannerT">1</span><span class="s" id="bannerS"></span></div>
 <div id="hint"></div>
 
+<div id="bossBar">
+  <div class="row"><span id="bossName">BOSS</span><span id="bossHp">0 / 0</span></div>
+  <div class="track"><i id="bossFill"></i></div>
+</div>
+
 <div id="touch">
   <div id="lookZone"></div>
   <div id="stick"><div id="stickKnob"></div></div>
   <div class="touch-side">
+    <button id="nadeBtn">NADE</button>
+    <button id="meleeBtn">MELEE</button>
     <button id="reloadBtn">RELOAD</button>
     <button id="swapBtn">SWAP</button>
   </div>
@@ -314,16 +405,34 @@
     </p>
     <div class="tags">
       <span class="tag">ENDLESS WAVES</span>
-      <span class="tag">3 WEAPONS</span>
+      <span class="tag">5 WEAPONS</span>
+      <span class="tag">KNIFE &rarr; MACHETE &rarr; BAT</span>
+      <span class="tag">BOSS EVERY 3 WAVES</span>
+      <span class="tag">DAILY + WEEKLY CONTRACTS</span>
+      <span class="tag">ACID SPITTERS</span>
       <span class="tag">HEADSHOTS</span>
-      <span class="tag">FLASHLIGHT</span>
       <span class="tag">PROCEDURAL TOWN</span>
-      <span class="tag">TOUCH + GAMEPAD</span>
       <span class="tag">ESCALATING WAVES</span>
     </div>
   </div>
 
   <div class="record">BEST RUN &middot; <b id="bestValue">wave 0 &middot; 0 kills</b></div>
+
+  <div class="challenges">
+    <div class="challenge-card" id="dailyCard">
+      <div class="challenge-head"><span>DAILY CONTRACT</span><em id="dailyState">OPEN</em></div>
+      <div class="challenge-name" id="dailyName">&mdash;</div>
+      <div class="challenge-desc" id="dailyDesc"></div>
+      <div class="challenge-foot"><span id="dailyTarget"></span><button id="dailyBtn">START</button></div>
+    </div>
+    <div class="challenge-card" id="weeklyCard">
+      <div class="challenge-head"><span>WEEKLY CONTRACT</span><em id="weeklyState">OPEN</em></div>
+      <div class="challenge-name" id="weeklyName">&mdash;</div>
+      <div class="challenge-desc" id="weeklyDesc"></div>
+      <div class="challenge-foot"><span id="weeklyTarget"></span><button id="weeklyBtn">START</button></div>
+    </div>
+  </div>
+  <div class="record">CONTRACTS CLEARED &middot; <b id="challengeCount">0</b></div>
 
   <div class="loadout">
     <div class="gun-card">
@@ -335,16 +444,24 @@
     <div class="gun-card">
       <div class="gun-key">2</div>
       <div class="gun-name">VECTOR-9</div>
-      <div class="gun-stats"><span>DMG <b>19</b></span><span>MAG <b>32</b></span><span>RPM <b>820</b></span></div>
+      <div class="gun-stats"><span>DMG <b>21</b></span><span>MAG <b>32</b></span><span>RPM <b>820</b></span></div>
       <div class="gun-note">Close-quarters spray. Burns ammo fast, saves your life faster.</div>
     </div>
     <div class="gun-card">
       <div class="gun-key">3</div>
       <div class="gun-name">BREACHER 12</div>
-      <div class="gun-stats"><span>DMG <b>11x12</b></span><span>MAG <b>6</b></span><span>RPM <b>78</b></span></div>
+      <div class="gun-stats"><span>DMG <b>12x12</b></span><span>MAG <b>6</b></span><span>RPM <b>78</b></span></div>
       <div class="gun-note">Point-blank problem removal. Useless past ten metres.</div>
     </div>
+    <div class="gun-card">
+      <div class="gun-key">4</div>
+      <div class="gun-name">LONGSHOT 7</div>
+      <div class="gun-stats"><span>DMG <b>62</b></span><span>MAG <b>10</b></span><span>RPM <b>165</b></span></div>
+      <div class="gun-note">Bought in the depot. One headshot deletes a spitter at range.</div>
+    </div>
   </div>
+
+  <div class="record" style="margin-top:-4px">DEPOT OR DROP &middot; <b>RIPPER LMG</b> &middot; 560 credits, boss kills or weapon caches</div>
 
   <div class="row">
     <button class="btn" id="startBtn">DEPLOY</button>
@@ -352,8 +469,8 @@
 
   <div class="controls-hint">
     <b>WASD</b> move &middot; <b>SHIFT</b> sprint &middot; <b>SPACE</b> jump &middot; <b>CLICK</b> fire &middot; <b>RMB</b> aim down sights &middot;
-    <b>R</b> reload &middot; <b>1 2 3</b> weapons &middot; <b>F</b> flashlight &middot; <b>ESC</b> pause &middot; <b>M</b> mute &middot; <b>F3</b> stats<br>
-    <b>SHIFT</b> to sprint &middot; mouse sensitivity and FOV live in the pause menu.<br>
+    <b>R</b> reload &middot; <b>V</b> melee &middot; <b>G</b> grenade &middot; <b>B</b> supply depot &middot; <b>1&ndash;5</b> weapons &middot; <b>F</b> flashlight &middot; <b>ESC</b> pause &middot; <b>M</b> mute &middot; <b>F3</b> stats<br>
+    Kills pay credits: buy guns, gun upgrades, health, armour and grenades in the depot. A boss closes every third wave.<br>
     Click the window to lock the mouse. On mobile: left stick moves, drag the right side to aim, FIRE to shoot.
   </div>
 </div>
@@ -369,6 +486,7 @@
     </div>
     <div class="row">
       <button class="btn" id="resumeBtn">RESUME</button>
+      <button class="btn ghost" id="shopBtn">SUPPLY DEPOT [B]</button>
       <button class="btn ghost" id="quitBtn">ABANDON RUN</button>
     </div>
   </div>
@@ -390,6 +508,22 @@
       <button class="btn" id="againBtn">REDEPLOY</button>
       <button class="btn ghost" id="menuBtn">ARCADE HUB</button>
     </div>
+  </div>
+</div>
+
+<div id="shopScreen" class="screen hidden">
+  <div class="shop-panel">
+    <div class="shop-head">
+      <div>
+        <div class="eyebrow">RELAY STATION &middot; SALVAGE ECONOMY</div>
+        <h2>SUPPLY DEPOT</h2>
+      </div>
+      <div class="wallet"><span>CREDITS</span><b id="shopCredits">0</b></div>
+    </div>
+    <div id="shopMsg" class="shop-msg"></div>
+    <div id="shopItems"></div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="shopClose">BACK TO THE STREET</button></div>
+    <p class="shop-note">The street is paused while the depot is open &middot; <b>B</b> or <b>ESC</b> closes it</p>
   </div>
 </div>
 

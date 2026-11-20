@@ -191,6 +191,11 @@ const muzzleLight = new THREE.PointLight(0xffc887, 0, 18, 2);
 scene.add(muzzleLight);
 let muzzleLightTimer = 0;
 
+// Green flash for a bloater rupture, kept separate so it never tints gunfire.
+const burstLight = new THREE.PointLight(0xaaff4d, 0, 14, 2);
+scene.add(burstLight);
+let burstLightTimer = 0;
+
 // ---------------------------------------------------------------- state
 const rng = makeRng(1337);
 
@@ -480,6 +485,10 @@ let lockHintUntil = 0;
 function showLockHint() {
   const now = performance.now();
   if (now < lockHintUntil) return;
+  // A gameplay hint (locked weapon, wave payout) outranks this notice. The
+  // lock rejection lands a moment after the click, so without the check it
+  // erased whatever the game had just told the player.
+  if (hintTimer > 0.6) return;
   lockHintUntil = now + 8000;
   showHint(LOCK_HINT, 5200);
 }
@@ -1321,8 +1330,52 @@ function scoreMulFor() {
   return (game.mods && game.mods.scoreMul) || 1;
 }
 
+/**
+ * Bloaters rupture when they die. The horde's own bodies become the hazard:
+ * a kill next to the pack turns into damage on the pack, so the correct play
+ * is to drop them at range instead of letting one reach the barricade.
+ */
+function bloaterBurst(zombie) {
+  const def = zombie.def || {};
+  const at = zombie.group.position.clone();
+  at.y = 0.9;
+  const radius = def.burstRadius || 4.6;
+  const peak = def.burstDamage || 95;
+
+  audio.bloaterBurst();
+  player.shake = Math.min(1.3, player.shake + 0.5);
+  spawnParticles(at, 26, 'acid', 1.5);
+  spawnParticles(at, 10, 'spark', 1.1);
+  burstLight.position.copy(at);
+  burstLight.intensity = 70;
+  burstLightTimer = 0.3;
+
+  for (const other of zombies) {
+    if (!other.alive || other === zombie) continue;
+    const d = other.group.position.distanceTo(at);
+    if (d > radius) continue;
+    const t = 1 - d / radius;
+    const dmg = peak * (0.35 + 0.65 * t);
+    other.takeDamage(dmg, 'body', makeContext());
+    other.flinch = 1;
+  }
+
+  const self = Math.hypot(player.pos.x - at.x, player.pos.z - at.z);
+  if (self < radius && self > 1e-3) {
+    // A solid wall between the burst and the player takes the hit instead.
+    const toPlayer = new THREE.Vector3((player.pos.x - at.x) / self, 0, (player.pos.z - at.z) / self);
+    const wall = rayWorld(new THREE.Vector3(at.x, 1.0, at.z), toPlayer, self);
+    if (!wall || wall.distance >= self - 0.25) {
+      player.vel.x += toPlayer.x * 3.2;
+      player.vel.z += toPlayer.z * 3.2;
+      damagePlayer(Math.round(peak * 0.75 * (1 - self / radius)), null);
+    }
+  }
+}
+
 function creditsFor(zombie) {
   if (zombie.isBoss) return 280;
+  if (zombie.type === 'bloater') return 65;
   if (zombie.type === 'brute') return 58;
   if (zombie.type === 'spitter') return 36;
   if (zombie.type === 'runner') return 22;
@@ -1336,6 +1389,7 @@ function onZombieKilled(zombie, head) {
   game.credits += creditsFor(zombie) + (head ? 3 : 0);
   audio.kill();
   world.addDecal(zombie.group.position.x, zombie.group.position.z, 0.55 + Math.random() * 0.35);
+  if (zombie.type === 'bloater') bloaterBurst(zombie);
 
   const roll = Math.random();
   const at = zombie.group.position.clone();
@@ -1744,6 +1798,8 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   // grenade from a run you just lost detonates in the new one.
   for (const s of acidShots) { s.life = 0; s.mesh.visible = false; }
   for (const g of grenadePool) { g.live = false; g.mesh.visible = false; }
+  burstLightTimer = 0;
+  burstLight.intensity = 0;
   hitMeshesDirty = true;
 
   player.pos.set(0, 0, 20);
@@ -2253,6 +2309,12 @@ function stepSimulation(dt) {
     muzzleLight.intensity = Math.max(0, muzzleLightTimer / 0.06) * 60;
   } else {
     muzzleLight.intensity = 0;
+  }
+  if (burstLightTimer > 0) {
+    burstLightTimer -= dt;
+    burstLight.intensity = Math.max(0, burstLightTimer / 0.3) * 70;
+  } else {
+    burstLight.intensity = 0;
   }
 
   if (bannerTimer > 0) {

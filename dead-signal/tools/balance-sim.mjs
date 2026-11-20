@@ -19,7 +19,8 @@ const PLAYER_HP = 100;
 /** Total hit points a wave's composition contains, boss included. */
 function waveHealth(plan, mix) {
   const base = mix.walkers * TYPES.walker.hp + mix.runners * TYPES.runner.hp
-    + mix.brutes * TYPES.brute.hp + (mix.spitters || 0) * TYPES.spitter.hp;
+    + mix.brutes * TYPES.brute.hp + (mix.spitters || 0) * TYPES.spitter.hp
+    + (mix.bloaters || 0) * TYPES.bloater.hp;
   if (!plan.boss) return base;
   const boss = bossFor(plan.wave);
   return base + Math.round(TYPES[boss.base].hp * boss.hpMul);
@@ -34,12 +35,13 @@ function clearTime(weapon, shots) {
 
 /** Worst-case incoming damage per second once the wave is on top of you. */
 function incomingDps(plan, mix) {
-  const total = Math.max(1, mix.walkers + mix.runners + mix.brutes);
+  const total = Math.max(1, mix.walkers + mix.runners + mix.brutes + (mix.bloaters || 0));
   const avgDamage = (
     mix.walkers * TYPES.walker.damage +
     mix.runners * TYPES.runner.damage +
     mix.brutes * TYPES.brute.damage +
-    (mix.spitters || 0) * TYPES.spitter.damage
+    (mix.spitters || 0) * TYPES.spitter.damage +
+    (mix.bloaters || 0) * TYPES.bloater.damage
   ) / total;
   // The gate allows at most one accepted hit per IFrames window.
   const gated = avgDamage / IFrames;

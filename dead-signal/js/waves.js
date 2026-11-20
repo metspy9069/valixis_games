@@ -80,21 +80,27 @@ export function wavePlan(n) {
   else if (wave >= 6) bruteChance = Math.min(0.3, 0.16 + (wave - 6) * 0.009);
 
   let spitterChance = wave >= 5 ? Math.min(0.18, 0.06 + (wave - 5) * 0.008) : 0;
+  // Bloaters appear once the player has met brutes and spitters. They are few:
+  // one in the wrong place does more than a dozen walkers could.
+  let bloaterChance = wave >= 7 ? Math.min(0.12, 0.04 + (wave - 7) * 0.006) : 0;
 
   const modifier = modifierFor(wave);
   if (modifier === 'sprinters') {
     bruteChance = 0.06;
-    runnerChance = 0.88;
+    runnerChance = 0.86;
     spitterChance = 0.04;
+    bloaterChance = 0.02;
   } else if (modifier === 'elites') {
     // 30%, not 45%: at the 40-body cap, 45% brutes doubled the wave's health.
     bruteChance = 0.3;
     runnerChance = 0.32;
     spitterChance = 0.08;
+    bloaterChance = 0.1;
   } else if (modifier === 'stalkers') {
     bruteChance = 0.08;
     runnerChance = 0.38;
     spitterChance = 0.24;
+    bloaterChance = 0.04;
   }
 
   // Boss waves keep the escort lean but nasty.
@@ -103,7 +109,18 @@ export function wavePlan(n) {
     spitterChance = Math.max(spitterChance, 0.1);
   }
 
-  const walkerChance = Math.max(0.05, 1 - bruteChance - runnerChance - spitterChance);
+  // Keep the mix a real distribution. Modifiers and the boss bumps stack, and
+  // on a sprinter boss wave the specials alone used to total 119%: rollType is
+  // checked in order, so the excess silently starved walkers and spitters.
+  const specials = bruteChance + runnerChance + spitterChance + bloaterChance;
+  if (specials > 0.95) {
+    const k = 0.95 / specials;
+    bruteChance *= k;
+    runnerChance *= k;
+    spitterChance *= k;
+    bloaterChance *= k;
+  }
+  const walkerChance = Math.max(0.05, 1 - bruteChance - runnerChance - spitterChance - bloaterChance);
 
   // A horde wave is a mid-fight flanking pack; which direction it comes from
   // is rolled live in the game, not here.
@@ -124,6 +141,7 @@ export function wavePlan(n) {
     bruteChance,
     runnerChance,
     spitterChance,
+    bloaterChance,
     walkerChance,
   };
 }
@@ -137,6 +155,8 @@ export function rollType(plan, rng = Math.random) {
   if (r < edge) return 'runner';
   edge += plan.spitterChance || 0;
   if (r < edge) return 'spitter';
+  edge += plan.bloaterChance || 0;
+  if (r < edge) return 'bloater';
   return 'walker';
 }
 
@@ -145,7 +165,11 @@ export function expectedMix(plan) {
   const brutes = Math.round(plan.count * plan.bruteChance);
   const runners = Math.round(plan.count * plan.runnerChance);
   const spitters = Math.round(plan.count * (plan.spitterChance || 0));
-  return { walkers: Math.max(0, plan.count - brutes - runners - spitters), runners, brutes, spitters };
+  const bloaters = Math.round(plan.count * (plan.bloaterChance || 0));
+  return {
+    walkers: Math.max(0, plan.count - brutes - runners - spitters - bloaters),
+    runners, brutes, spitters, bloaters,
+  };
 }
 
 /** Every wave from 1..n, for inspection. */

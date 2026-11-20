@@ -199,7 +199,7 @@ function jitterHem(geometry, amount) {
 function sharedBody(typeKey, def) {
   if (bodyCache.has(typeKey)) return bodyCache.get(typeKey);
   const thin = typeKey === 'runner';
-  const heavy = typeKey === 'brute';
+  const heavy = typeKey === 'brute' || typeKey === 'bloater';
 
   const geo = {
     head: new THREE.SphereGeometry(0.145, 14, 12).scale(1, 1.16, 1.02),
@@ -306,6 +306,8 @@ export function buildZombieModel(typeKey, def) {
   const heavy = typeKey === 'brute';
   const thin = typeKey === 'runner';
   const spitter = typeKey === 'spitter';
+  const bloater = typeKey === 'bloater';
+  const bulky = heavy || bloater;
   const M = matsFor(typeKey, def);
   const skinMat = M.skin;
   const clothMat = M.cloth;
@@ -348,10 +350,11 @@ export function buildZombieModel(typeKey, def) {
   // Everything built below is registered in `detail`, so it is dropped past
   // 40 m and a forty-body wave stays cheap to draw.
   const detail = [];
+  const extraHits = [];
 
   // Torn hem: a ring of loose cloth strips. They catch the light as a body
   // turns, which is most of what sells a ripped shirt at a glance.
-  const hemR = heavy ? 0.27 : thin ? 0.19 : 0.22;
+  const hemR = bulky ? 0.29 : thin ? 0.19 : 0.22;
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2 + 0.2;
     const len = 0.6 + ((i * 37) % 11) / 18;
@@ -364,7 +367,7 @@ export function buildZombieModel(typeKey, def) {
 
   // Ribs showing through the tear on one flank.
   for (let i = 0; i < 4; i++) {
-    const rib = part(g.rib, boneMat, heavy ? 0.245 : 0.175, 0.33 + i * 0.052, 0.03);
+    const rib = part(g.rib, boneMat, heavy ? 0.245 : bloater ? 0.29 : 0.175, 0.33 + i * 0.052, 0.03);
     rib.rotation.z = Math.PI / 2;
     rib.rotation.y = -0.24;
     rib.scale.setScalar(1 - i * 0.09);
@@ -429,18 +432,32 @@ export function buildZombieModel(typeKey, def) {
     detail.push(tuft);
   }
 
-  if (spitter) {
+  if (spitter || bloater) {
     // Swollen acid sac: the one thing you need to read from across the street.
+    // It stays visible at every distance (unlike the LOD detail) because it is
+    // the read that tells you to shoot at range.
     const sac = part(g.sac, M.acid, 0, 0.34, -0.15);
-    sac.scale.set(1.05, 0.92, 0.8);
+    sac.scale.set(bloater ? 1.85 : 1.05, bloater ? 1.6 : 0.92, bloater ? 1.3 : 0.8);
     hips.add(sac);
-    const sacGlow = glowSprite(0x9dff3d, 0.85, 0.5);
+    sac.userData.part = 'body';
+    extraHits.push(sac);
+    const sacGlow = glowSprite(0x9dff3d, bloater ? 1.7 : 0.85, bloater ? 0.62 : 0.5);
     sacGlow.position.set(0, 0.36, -0.22);
     hips.add(sacGlow);
+    if (bloater) {
+      // Flank sacs: the silhouette that separates a bloater from a brute.
+      for (const s of [-1, 1]) {
+        const side = part(g.sac, M.acid, s * 0.21, 0.18, -0.01);
+        side.scale.set(0.85, 1.25, 0.85);
+        side.userData.part = 'body';
+        hips.add(side);
+        extraHits.push(side);
+      }
+    }
     const drool = part(g.tongue, M.acid, 0, 0.045, 0.125);
     drool.scale.set(0.8, 1.5, 0.8);
     jaw.add(drool);
-    detail.push(sac, drool);
+    detail.push(drool);
   }
 
   // Arms: shoulder -> elbow -> hand.
@@ -512,7 +529,7 @@ export function buildZombieModel(typeKey, def) {
   return {
     group,
     rig: { hips, torso: belly, neck, head, jaw, armL, armR, legL, legR },
-    hitMeshes: [head, chest, belly, ...limbHits],
+    hitMeshes: [head, chest, belly, ...limbHits, ...extraHits],
     detail: [brow, nose, jaw, socketL, socketR, ...detail, armL.hand, armR.hand],
   };
 }

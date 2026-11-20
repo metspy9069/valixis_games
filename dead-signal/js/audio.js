@@ -265,6 +265,16 @@ export class AudioEngine {
 
   grenadeBounce() { this._tone({ freq: 420, to: 260, dur: 0.05, gain: 0.08, type: 'triangle' }); }
 
+  /** A bloater coming apart: wet tearing over a low, gassy thump. */
+  bloaterBurst() {
+    this._noise({ dur: 0.55, gain: 0.5, type: 'lowpass', freq: 1100, sweepTo: 110, q: 1.1, attack: 0.004, send: 0.8 });
+    this._tone({ freq: 72, to: 28, dur: 0.5, gain: 0.4, type: 'sine', attack: 0.003, send: 0.5 });
+    this._noise({ dur: 0.34, gain: 0.3, type: 'bandpass', freq: 680, q: 1.4, sweepTo: 220 });
+    for (let i = 0; i < 3; i++) {
+      this._noise({ dur: 0.09 + Math.random() * 0.08, gain: 0.09, type: 'bandpass', freq: 500 + Math.random() * 900, q: 3, send: 0.4 });
+    }
+  }
+
   hit(head) {
     if (head) {
       this._tone({ freq: 1450, to: 620, dur: 0.1, gain: 0.22, type: 'triangle' });

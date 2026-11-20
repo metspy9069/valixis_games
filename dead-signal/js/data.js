@@ -77,6 +77,13 @@ export const TYPES = {
     ranged: true, spitRange: 24, spitCooldown: 2.7,
     skin: 0x94a06a, shirt: 0x3b452c, pants: 0x23271d, eye: 0xb6ff3d,
   },
+  bloater: {
+    // A walking gas bag: slow and tough, and it ruptures when it dies. Killing
+    // one inside the horde is a trade, which is the point.
+    hp: 195, speed: 1.15, damage: 24, reach: 2.25, scale: 1.38, score: 380,
+    skin: 0x8f9a52, shirt: 0x3a3a24, pants: 0x23251c, eye: 0xffc23d,
+    explode: true, burstRadius: 4.6, burstDamage: 95,
+  },
 };
 
 /**

@@ -29,7 +29,7 @@ Development runs at <http://127.0.0.1:8080>. The root build creates `site/` and 
 
 ## Challenges, privacy and ads
 
-The optional endpoint is `/api/soul-ember`. Configure server-only `DATABASE_URL` and a random `CHALLENGE_SECRET` of at least 32 bytes, then apply `server/schema.sql`. Without those values the endpoint returns 503 and solo play remains fully available. Version 3 challenge IDs and boards are separate from the former game.
+The optional endpoint is `/api/soul-ember`. Configure server-only `DATABASE_URL` and a random `CHALLENGE_SECRET` of at least 32 bytes, then apply `../api/soul-ember-schema.sql`. Without those values the endpoint returns 503 and solo play remains fully available. Version 3 challenge IDs and boards are separate from the former game.
 
 Daily and weekly challenges assign the same hero, seed and modifier to every anonymous player. A signed, expiring, single-use token accompanies a run. The server validates timing and plausible bounds, calculates the score and stores the top records. These are plausibility checks rather than authoritative replay verification; prize competition requires server-side replay validation. No account, name or persistent visitor identifier is collected.
 

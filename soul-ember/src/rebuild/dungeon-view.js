@@ -11,8 +11,8 @@ function stoneTexture(){
   if(rand()>.35){ctx.strokeStyle='#242b2788';ctx.lineWidth=1+rand();ctx.beginPath();ctx.moveTo(x+40,y+3);ctx.lineTo(x+51,y+32);ctx.lineTo(x+44,y+48);ctx.lineTo(x+65,y+74);ctx.lineTo(x+58,y+123);ctx.stroke();}
   if(rand()>.6){ctx.fillStyle='#343d3030';for(let j=0;j<30;j++){ctx.beginPath();ctx.ellipse(x+rand()*120,y+120-rand()*8,rand()*8,rand()*3,0,0,7);ctx.fill();}}
  }
- // Faint carved medallion and worn processional linework.
- ctx.strokeStyle='#b6a77935';ctx.lineWidth=3;for(const radius of [171,180,220]){ctx.beginPath();ctx.arc(512,512,radius,0,Math.PI*2);ctx.stroke();}for(let i=0;i<12;i++){const a=i*Math.PI/6;ctx.beginPath();ctx.moveTo(512+Math.sin(a)*184,512+Math.cos(a)*184);ctx.lineTo(512+Math.sin(a)*215,512+Math.cos(a)*215);ctx.stroke();}
+ // Worn processional cuts avoid circular targeting-like marks under actors.
+ ctx.strokeStyle='#b6a7792b';ctx.lineWidth=3;for(let i=-3;i<=3;i++){ctx.beginPath();ctx.moveTo(430+i*24,430);ctx.lineTo(448+i*21,448);ctx.lineTo(430+i*24,466);ctx.stroke();ctx.beginPath();ctx.moveTo(594-i*24,558);ctx.lineTo(576-i*21,576);ctx.lineTo(594-i*24,594);ctx.stroke();}
  const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(2,2);tex.anisotropy=4;return tex;
 }
 export class DungeonView{
@@ -51,8 +51,6 @@ export class DungeonView{
     add(this.brass,room.x+side*7,1.7,room.z-11.2,.06,1.1,.02);add(this.brass,room.x+side*7,1.9,room.z-11.2,.55,.06,.02);
    }
    for(const [material,geometries]of buckets){const merged=mergeGeometries(geometries);geometries.forEach(g=>g.dispose());const mesh=new T.Mesh(merged,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);}
-   const seal=new T.Mesh(new T.RingGeometry(2.8,2.86,64),this.brass);seal.rotation.x=-Math.PI/2;seal.position.set(room.x,.025,room.z);group.add(seal);
-   const inner=new T.Mesh(new T.RingGeometry(2.3,2.34,48),this.stone[3]);inner.rotation.x=-Math.PI/2;inner.position.set(room.x,.027,room.z);group.add(inner);
   });box.dispose();
   for(const f of FLOORS){const mesh=new T.Mesh(new T.BoxGeometry(f.w,.5,f.d),this.floorMaterial);mesh.position.set(f.x,-.26,f.z);mesh.receiveShadow=true;this.root.add(mesh);}
   this.regionProps=[];

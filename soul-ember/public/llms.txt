@@ -1,0 +1,15 @@
+# Soul Ember
+
+Soul Ember: The Last Light is a free-to-play dark-fantasy action roguelite by VALIXIS Games.
+
+## Gameplay
+
+- Eight playable heroes with distinct weapons, active skills, and signatures.
+- Eighteen enemy archetypes and three multi-phase guardians.
+- Keyboard-first combat: move with WASD or arrows, use Q and E skills, dodge with Space, and activate the signature with R.
+- No account is required to play.
+
+## Publisher
+
+- VALIXIS Games
+- Website: https://valixis.tech/

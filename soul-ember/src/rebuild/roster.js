@@ -12,9 +12,9 @@ const heroRows = [
 export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[15,80,15,15,48,80,48,80][index],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];
 const rows=[
- ['thrall','Ash Thrall','chase',42,2.2,2],['shield','Shieldbearer','guard',105,1.5,4],['censer','Censer Acolyte','ranged',65,1.9,4],['ringer','Bell Ringer','pulse',90,1.8,5],['hound','Ember Hound','charge',48,3.8,3],['gargoyle','Gargoyle','ambush',140,2.1,6],
- ['husk','Drowned Husk','chase',78,2.1,3],['archer','Bone Archer','ranged',62,2.3,4],['leech','Leech Swarm','swarm',30,4,2],['mimic','Coffin Mimic','ambush',135,3.5,6],['spitter','Mire Spitter','pool',90,1.8,5],['wraith','Lantern Wraith','ranged',70,2.8,5],
- ['thornling','Thornling','swarm',62,3.5,3],['root','Root Brute','pulse',210,1.6,7],['stalker','Carrion Stalker','charge',95,3.7,5],['brood','Brood Mother','summon',165,1.6,7],['hex','Hex Weaver','pool',105,2.1,6],['sentinel','Ossuary Sentinel','guard',240,1.8,8],
+ ['thrall','Ash Thrall','chase',42,2.7,2],['shield','Shieldbearer','guard',105,1.85,4],['censer','Censer Acolyte','ranged',65,2.25,4],['ringer','Bell Ringer','pulse',90,2.2,5],['hound','Ember Hound','charge',48,4.45,3],['gargoyle','Gargoyle','ambush',140,2.55,6],
+ ['husk','Drowned Husk','chase',78,2.5,3],['archer','Bone Archer','ranged',62,2.7,4],['leech','Leech Swarm','swarm',30,4.7,2],['mimic','Coffin Mimic','ambush',135,4.05,6],['spitter','Mire Spitter','pool',90,2.2,5],['wraith','Lantern Wraith','ranged',70,3.3,5],
+ ['thornling','Thornling','swarm',62,4.15,3],['root','Root Brute','pulse',210,1.95,7],['stalker','Carrion Stalker','charge',95,4.4,5],['brood','Brood Mother','summon',165,1.95,7],['hex','Hex Weaver','pool',105,2.55,6],['sentinel','Ossuary Sentinel','guard',240,2.15,8],
  ['abbot','Cinder Abbot','boss',2200,1.8,40],['warden','Drowned Warden','boss',3400,1.7,55],['regent','Thorn Regent','boss',4800,1.6,70]
 ];
 export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));

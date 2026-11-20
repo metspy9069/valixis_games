@@ -4,15 +4,17 @@
 
 ## Game structure
 
-`roster.js` is the shared source of truth for eight heroes, their weapons, signatures and build branches, plus eighteen regional monsters and three guardians. `game.js` runs deterministic fixed-step combat. Automatic targeting requires line of sight, projectiles collide with walls, enemies use the shared navigation field, and attacks expose a windup before damage. The three guardians use separate radial, lane-and-pool, and root-summoning patterns with three health phases.
+`roster.js` is the shared source of truth for eight heroes, their weapons, signatures and build branches, plus eighteen regional monsters and three guardians. `combat-content.js` assigns every monster and guardian a deterministic rotation of named attacks, ranges, windups, recovery times and movement preferences. `game.js` runs fixed-step combat and a hidden deterministic director that adjusts composition, speed, aggression and elite frequency from player performance without scaling damage or health. Automatic targeting requires line of sight, projectiles collide with walls, enemies use the shared navigation field, and all attacks expose a readable windup before damage.
 
 Every hero has three ranks in each of three branches, two manually triggered active skills and a signature. Offers exclude capped choices. Rank three changes the attack pattern or dodge effect. The build panel shows skills, relics, branch ranks and damage contributions. The first choice is guaranteed by 50 seconds even if room geometry delays early drops. The camp Armory adds capped account and hero mastery upgrades, while seeded merchants after the first two guardians sell one run-only relic. Ranked challenges ignore permanent Armory bonuses.
 
 `model-catalog.js` defines a bespoke physical silhouette, headgear, equipment and material palette for every hero, monster and guardian. `scene.js` restores the older articulated hierarchy approach and expands it with nested limbs, armor, weapons, wings, capes, boss phase parts, evolution parts and creature-specific rigs. The same live 3D actors appear in combat and in the menu showcase; there is no sprite or portrait atlas in the active game. Idle, movement, attack, dodge, hit and death poses are driven by the simulation, while geometry is batched for rendering. `dungeon-view.js` provides worn masonry, carved floors, coffins, banners, cutaway entrances, torchlight and region-specific ash debris, water and roots. The simulation and renderer share `dungeon.js`, so visible walls, doors and pillars match collision.
 
-The opening screen exposes only Play, Heroes and Settings. Records and challenges appear after the first completed expedition. A first-run guide introduces movement, automatic attacks, dodge warnings and soul pickups. Locked heroes explain the required number of completed expeditions.
+The cinematic cathedral screen exposes Play, Heroes, Armory and Settings. Records and challenges appear after the first completed expedition. The full pause composition shows the current hero and run state, and requires confirmation before abandoning a run. A first-run guide introduces movement, automatic attacks, smart-target skills, dodge warnings and soul pickups. Locked heroes explain the required number of completed expeditions.
 
-Controls: WASD or arrows move, Q and E cast aimed skills, R uses the signature, Space dodges, B or Tab opens the build panel, Escape or P pauses, and 1–3 choose a blessing. Mouse position aims skills; mobile skill buttons support tap targeting and drag aiming. Backgrounding the page pauses play.
+Controls: WASD or arrows move, Q and E cast smart-target skills, R uses the signature, Space dodges, B or Tab opens the build panel, Escape or P pauses, and 1–3 choose a blessing. Combat does not require the mouse: smart casting prioritizes guardians, winding-up threats, elites and then the nearest visible enemy, with facing direction as its fallback. Mobile skill buttons use the same targeting rules. Backgrounding the page pauses play.
+
+`AudioSynth.js` creates all music, ambience and effects through the Web Audio API. It contains no recordings or third-party samples. Separate master, music, effects and ambience buses are saved with progression, while the score moves between menu, exploration, danger, boss, victory and defeat states.
 
 ## Local development and production
 
@@ -37,6 +39,6 @@ Ads remain disabled unless a provider installs `window.soulEmberAds` and confirm
 
 ## Verification and release limits
 
-The automated suite covers all heroes, active skills, branch caps and effects, signatures, every monster behavior, guardian phases, merchants, Armory progression, v3 migration, physical drops, targeting walls, collision, deterministic seeds and first-choice timing. Browser checks cover finite actor transforms, desktop and mobile layouts, touch controls, upgrade application, console errors and an 80-enemy stress scene.
+The automated suite covers all heroes, smart-target skills, branch caps and effects, signatures, all eighteen attack profiles, guardian phase scripts, adaptive pressure, merchants, Armory progression, v3 migration, physical drops, targeting walls, collision, deterministic seeds and first-choice timing. Browser checks cover finite actor transforms, desktop and mobile layouts, pause/settings flows, touch controls, upgrade application, console errors and an 80-enemy stress scene.
 
 Before a public release, complete human playtests for every hero, check each guardian on real touch devices, validate sound balance, test the configured database and ad provider, and gather frame-time traces from the minimum supported desktop and mobile hardware.

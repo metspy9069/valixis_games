@@ -1389,7 +1389,7 @@ function onZombieKilled(zombie, head) {
   game.credits += creditsFor(zombie) + (head ? 3 : 0);
   audio.kill();
   world.addDecal(zombie.group.position.x, zombie.group.position.z, 0.55 + Math.random() * 0.35);
-  if (zombie.type === 'bloater') bloaterBurst(zombie);
+  if (zombie.def && zombie.def.explode) bloaterBurst(zombie);
 
   const roll = Math.random();
   const at = zombie.group.position.clone();

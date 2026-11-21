@@ -115,9 +115,9 @@ export const TYPES = {
   // enough that a shotgun sweep or a rifle burst answers them, fast enough that
   // ignoring one is a mistake.
   lurker: {
-    hp: 78, speed: 4.9, damage: 15, reach: 1.85, scale: 0.86, score: 200,
+    hp: 86, speed: 5.0, damage: 15, reach: 1.85, scale: 0.86, score: 200,
     skin: 0x3a3532, shirt: 0x221f1c, pants: 0x161412, eye: 0xffb04d,
-    nightSpeed: 6.3,
+    nightSpeed: 6.5,
   },
 };
 
@@ -170,7 +170,7 @@ export const ATTACK_CYCLE = { walker: 1.47, runner: 1.47, brute: 2.12, spitter: 
 export const MELEE_TIERS = [
   { id: 'knife', name: 'COMBAT KNIFE', damage: 150, range: 2.4, halfAngle: 0.58, cooldown: 0.36, maxUses: 90 },
   { id: 'machete', name: 'MACHETE', damage: 215, range: 2.9, halfAngle: 0.72, cooldown: 0.5, maxUses: 130 },
-  { id: 'bat', name: 'BALL BAT', damage: 290, range: 3.15, halfAngle: 0.86, cooldown: 0.62, maxUses: 170 },
+  { id: 'bat', name: 'BALL BAT', damage: 275, range: 3.15, halfAngle: 0.86, cooldown: 0.62, maxUses: 170 },
 ];
 export const MELEE_KNOCKBACK = 0.6;
 

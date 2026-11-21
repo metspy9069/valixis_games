@@ -269,7 +269,7 @@ export class Zombie {
         if (dist < this.def.reach + 0.55) {
           ctx.damage(this.damage, this);
         }
-        const cd = this.type === 'brute' ? 1.7 : this.type === 'lurker' ? 0.5 : 1.05;
+        const cd = this.type === 'brute' ? 1.7 : this.type === 'lurker' ? 0.46 : 1.05;
         this.attackCooldown = cd;
         if (audio && this.type === 'lurker') audio.lurkerCry(dist, ctx.panOf ? ctx.panOf(pos) : 0);
       }

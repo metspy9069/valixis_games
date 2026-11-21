@@ -124,6 +124,9 @@ p{line-height:1.65}
 .ranks{display:flex;gap:9px;color:#6b745d}
 .ranks span{padding:5px 9px;border:1px solid #4c5944}
 .ranks .lit{color:#edd9a5;border-color:#c0a566}
+.chronicle{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0 24px}
+.chronicle p{margin:0;padding:12px 14px;border:1px solid #414a3b;background:#11181399;color:#777d6e;font-size:11px;letter-spacing:.3px}
+.chronicle p.complete{border-color:#9e8959;color:#e1c98e;background:linear-gradient(90deg,#3d3523aa,#182019aa)}
 #stick{display:none;touch-action:none;width:112px;height:112px;border:1px solid #c3b78b88;border-radius:50%;background:#19251c77;position:fixed;bottom:30px;left:24px;align-items:center;justify-content:center}
 #stick span{width:43px;height:43px;border-radius:50%;background:#b8b59377;border:1px solid #d7d3ae88}
 
@@ -155,6 +158,7 @@ h2{font-size:29px}
 .statline strong{font-size:24px}
 .armory-head,.merchant-head,.mastery-card{align-items:flex-start;flex-direction:column}
 .settings-grid,.pause-layout{grid-template-columns:1fr;gap:18px}
+.chronicle{grid-template-columns:1fr}
 .volume-setting{grid-template-columns:100px 1fr 34px}
 .pause-hero{padding:14px}.pause-stats{margin-top:14px}.pause-hero h3{font-size:29px}
 #boss{left:18%;right:18%;top:92px}

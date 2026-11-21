@@ -34,5 +34,19 @@ export const RELICS={
  hunterSigil:{name:"Hunter's Sigil",cost:30,desc:'+25% damage against elites and guardians.'},
 };
 
+export const RITES={
+ warfire:{name:'Rite of Warfire',cost:35,desc:'+6% damage. Repeatable in the endless descent.'},
+ warding:{name:'Rite of Warding',cost:30,desc:'+12 maximum vitality and restore 12. Repeatable.'},
+ celerity:{name:'Rite of Celerity',cost:35,desc:'+5% skill recovery and +3% weapon speed. Repeatable.'},
+ harvest:{name:'Rite of Harvest',cost:25,desc:'+5% gold chance and +0.25 soul reach. Repeatable.'},
+};
+
+export const ASCENSIONS={
+ relentless:{name:'Relentless',desc:'Enemies move and recover faster.',speed:1.12,recovery:.9,hp:1,spawn:1,elite:0,reward:1.12},
+ legion:{name:'The Legion',desc:'Larger waves arrive more frequently.',speed:1.03,recovery:1,hp:1.08,spawn:.72,elite:.02,reward:1.15},
+ ironbound:{name:'Ironbound',desc:'Foes gain heavier bodies and more elites awaken.',speed:1,recovery:.96,hp:1.35,spawn:1.04,elite:.09,reward:1.22},
+ hunted:{name:'The Hunted',desc:'Swift elites track the ember through every room.',speed:1.08,recovery:.93,hp:1.12,spawn:.88,elite:.14,reward:1.25},
+};
+
 export function blankArmory(){return Object.fromEntries(Object.keys(ARMORY).map(id=>[id,0]));}
 export function blankMastery(heroIds=[]){return Object.fromEntries(heroIds.map(id=>[id,0]));}

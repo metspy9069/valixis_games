@@ -8,8 +8,11 @@ A 3D dark-fantasy survival roguelite for desktop and mobile browsers. Every hero
 - Three multi-phase guardians with unique pattern rotations, transitions and readable windups
 - A hidden deterministic combat director that adjusts pressure without secretly increasing damage
 - Physical rarity-coded drops, post-guardian merchants and a permanent gold-funded Armory
+- A complete three-guardian expedition followed by an optional endless ascension mode
+- Four rotating ascension laws, cross-region enemy mixes and steadily stronger guardian cycles
+- One hundred late-game echo ranks, repeatable merchant rites and a persistent milestone Chronicle
 - Automatic line-of-sight targeting, responsive movement, dodge invulnerability and wall-aware projectiles
-- Ten to thirteen meaningful choices across a successful 8–12 minute expedition
+- Ten to thirteen core choices in the opening expedition, followed by long-form repeatable build growth
 - Local progression with a separate versioned save; no account is required
 - Original procedural music, ambience and combat audio generated entirely in the browser
 - Optional anonymous daily/weekly challenges when the backend is configured

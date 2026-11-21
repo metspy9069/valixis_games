@@ -30,6 +30,14 @@ export function upgradeOffers(game){
  const h=HEROES[game.hero], p=game.player;
  const choices=h.branches.map((name,branch)=>{const rank=p.ranks[branch];return {id:`branch-${branch}`,branch,name,rank,max:3,desc:`${branchEffect(h.id,branch,rank)} → ${branchEffect(h.id,branch,rank+1)}`,connection:branch===0?'Power → empowered impact':branch===1?'Pattern → converging spread':'Defense → protective dodge'};}).filter(c=>c.rank<3);
  for(const [id,name,desc] of [['vitality','Mended Vessel','+15 maximum health; restore 15 health'],['stride','Sure Footing','+5% movement speed; +8% stamina recovery']]){const rank=p.shared[id]||0;if(rank<2)choices.push({id,name,desc,rank,max:2,connection:'Shared survival blessing'});}
+ const echoes=[
+  ['emberMight','Ember Temper','+8% damage','Endless echo · damage',20],
+  ['emberTempo','Ashen Rhythm','+6% weapon speed','Endless echo · weapon cadence',20],
+  ['emberGuard','Vessel Memory','+10 maximum vitality and restore 10','Endless echo · survival',20],
+  ['emberReach','Soul Current','+0.4 pickup reach and +1% movement speed','Endless echo · mobility',20],
+  ['emberRecovery','Runic Memory','+4% skill and signature recovery','Endless echo · abilities',20],
+ ];
+ if(!choices.length||p.level>=12)for(const [id,name,desc,connection,max] of echoes){const rank=p.shared[id]||0;if(rank<max)choices.push({id,name,desc,rank,max,connection});}
  for(let i=choices.length-1;i>0;i--){const j=Math.floor(game.rng()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
  return choices.slice(0,3);
 }

@@ -40,6 +40,10 @@ export class TrafficManager {
     this.obstacles = [];
     this.collectibles = [];
     this.particles = [];
+
+    this.trafficTimer = 2.2;
+    this.obstacleTimer = 4.0;
+    this.collectibleTimer = 2.0;
   }
 
   spawnTraffic(currentDistance) {
@@ -726,7 +730,6 @@ export class TrafficManager {
       const light = new THREE.PointLight(0x00f0ff, 2.5, 6.0);
       light.position.set(0, 0, 0);
       group.add(light);
-    }
     } else if (type === 'shield') {
       const orb = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.72, 1),

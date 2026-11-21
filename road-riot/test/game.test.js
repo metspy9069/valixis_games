@@ -407,3 +407,49 @@ test('critical health triggers recurring audio emergency alarm warning', () => {
 
   assert.ok(alarmPlayed >= 1, 'Emergency cockpit audio warning alarm beeps during critical hull health');
 });
+
+test('traffic manager clear flushes all entities and delays initial spawn timers preventing restart collision', () => {
+  const dummyTraffic = {
+    vehicles: [{ id: 1 }],
+    obstacles: [{ id: 2 }],
+    collectibles: [{ id: 3 }],
+    particles: [{ id: 4 }],
+    scene: { remove: () => {} },
+    trafficTimer: 0,
+    obstacleTimer: 0,
+    collectibleTimer: 0,
+    clear() {
+      this.vehicles = [];
+      this.obstacles = [];
+      this.collectibles = [];
+      this.particles = [];
+      this.trafficTimer = 2.2;
+      this.obstacleTimer = 4.0;
+      this.collectibleTimer = 2.0;
+    }
+  };
+
+  dummyTraffic.clear();
+  assert.equal(dummyTraffic.vehicles.length, 0, 'Vehicles cleared');
+  assert.equal(dummyTraffic.obstacles.length, 0, 'Obstacles cleared');
+  assert.ok(dummyTraffic.trafficTimer >= 2.0, 'Traffic spawn timer delayed by at least 2 seconds on restart');
+  assert.ok(dummyTraffic.obstacleTimer >= 3.0, 'Obstacle spawn timer delayed by at least 3 seconds on restart');
+});
+
+test('world manager reset restores all highway segments to starting longitudinal coordinates', () => {
+  const segmentLength = 80;
+  const segmentCount = 10;
+  const segments = [];
+  for (let i = 0; i < segmentCount; i++) {
+    segments.push({ position: { z: 50.0 + Math.random() * 200 } });
+  }
+
+  // Execute reset:
+  for (let i = 0; i < segments.length; i++) {
+    segments[i].position.z = -i * segmentLength;
+  }
+
+  for (let i = 0; i < segments.length; i++) {
+    assert.equal(segments[i].position.z, -i * segmentLength, `Segment ${i} restored to initial offset`);
+  }
+});

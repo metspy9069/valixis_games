@@ -79,6 +79,9 @@
       position: relative;
     }
 
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background: linear-gradient(180deg, transparent 0%, rgba(0,229,255,.025) 50%, transparent 100%); background-size: 100% 9px; opacity: .45; animation: scan-drift 12s linear infinite; }
+    body::after { content: ''; position: fixed; width: 52vw; height: 52vw; max-width: 720px; max-height: 720px; left: 50%; top: 30%; transform: translate(-50%, -50%); border: 1px solid rgba(124,58,237,.1); border-radius: 50%; box-shadow: 0 0 130px rgba(0,229,255,.06), inset 0 0 120px rgba(217,70,239,.04); pointer-events: none; z-index: -1; animation: core-pulse 9s ease-in-out infinite; }
+
     /* Tactile Fine Film Grain Texture Overlay (Human-Crafted Depth) */
     .film-grain-overlay {
       position: fixed;
@@ -238,7 +241,12 @@
       margin-bottom: 60px;
       position: relative;
       overflow: hidden;
+      transform-style: preserve-3d;
+      transition: transform .5s cubic-bezier(.16,1,.3,1), border-color .35s ease, box-shadow .35s ease;
     }
+
+    .featured-card::after { content: ''; position: absolute; inset: -30%; background: linear-gradient(115deg, transparent 40%, rgba(0,229,255,.1) 50%, transparent 60%); transform: translateX(-60%) rotate(8deg); pointer-events: none; transition: transform 1s ease; }
+    .featured-card:hover::after { transform: translateX(60%) rotate(8deg); }
 
     .featured-card::before {
       content: '';
@@ -422,7 +430,15 @@
       flex-direction: column;
       justify-content: space-between;
       transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+      will-change: transform;
     }
+
+    .game-mini-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(260px circle at var(--card-x, 50%) var(--card-y, 0%), rgba(0,229,255,.16), transparent 60%); transition: opacity .35s ease; }
+    .game-mini-card:hover::before { opacity: 1; }
+    .game-mini-card > * { position: relative; z-index: 1; }
 
     .game-mini-card:hover {
       border-color: rgba(0, 229, 255, 0.55);
@@ -468,7 +484,11 @@
     .section-heading { position: relative; }
     .section-heading::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(0,229,255,.35), transparent); }
     @keyframes portal-orbit { to { transform: translateX(-50%) rotate(4deg) scale(1.04); opacity: .7; } }
-    @media (prefers-reduced-motion: reduce) { .hero-banner::after { animation: none; } .game-mini-card:hover { transform: none; } }
+    @keyframes scan-drift { to { background-position-y: 100%; } }
+    @keyframes core-pulse { 50% { transform: translate(-50%, -50%) scale(1.08); opacity: .72; } }
+    .portal-motion-ready .portal-reveal { opacity: 0; transform: translateY(24px); transition: opacity .75s ease, transform .75s cubic-bezier(.16,1,.3,1); }
+    .portal-motion-ready .portal-reveal.is-visible { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) { body::before, body::after, .hero-banner::after { animation: none; } .game-mini-card:hover, .featured-card:hover { transform: none !important; } .portal-motion-ready .portal-reveal, .portal-motion-ready .portal-reveal.is-visible { opacity: 1; transform: none; transition: none; } }
 
     /* Footer */
     footer {
@@ -539,7 +559,7 @@
       </p>
     </div>
 
-    <section class="portal-return" aria-label="Your arcade status">
+    <section class="portal-return portal-reveal" aria-label="Your arcade status">
       <div class="return-card">
         <div>
           <span class="return-label">Daily portal drop</span>
@@ -555,7 +575,7 @@
     </section>
 
     <!-- Featured Flagship Game: Soul Ember -->
-    <article class="featured-card">
+    <article class="featured-card portal-reveal">
       <div>
         <div class="tag-row">
           <span class="game-tag tag-featured">FLAGSHIP RELEASE</span>
@@ -605,7 +625,7 @@
       </div>
     </article>
 
-    <section class="games-grid" aria-label="New releases" style="margin-bottom: 40px;">
+    <section class="games-grid portal-reveal" aria-label="New releases" style="margin-bottom: 40px;">
       <a class="game-mini-card" href="dead-signal/index.html" data-game-id="dead-signal" style="text-decoration: none; color: inherit; border-color: rgba(157, 255, 77, 0.35); background: linear-gradient(145deg, rgba(16, 30, 18, 0.92), rgba(8, 14, 10, 0.95));">
         <div style="background: linear-gradient(135deg, rgba(8, 22, 10, 0.95), rgba(60, 140, 30, 0.38)); border: 1px solid rgba(157, 255, 77, 0.3); border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 16px; position: relative; overflow: hidden;">
           <span style="font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px rgba(157, 255, 77, 0.65);">DEAD SIGNAL</span>
@@ -649,12 +669,12 @@
     </section>
 
     <!-- VALIXIS Game Studio Titles & Pipeline -->
-    <h3 class="section-heading">
+    <h3 class="section-heading portal-reveal">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3-2h.01"></path></svg>
       VALIXIS Games &bull; Production Pipeline
     </h3>
 
-    <div class="games-grid">
+    <div class="games-grid portal-reveal">
       <div class="game-mini-card">
         <div>
           <div class="mini-status" style="color: var(--accent-cyan);">In Active Development &bull; Procedural Action</div>
@@ -738,6 +758,40 @@
         });
       });
       if (typeof window.gtag === 'function') window.gtag('event', 'arcade_visit', { event_category: 'arcade', streak: state.streak });
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.body.classList.add('portal-motion-ready');
+      const revealItems = document.querySelectorAll('.portal-reveal');
+      if (reduceMotion || !('IntersectionObserver' in window)) {
+        revealItems.forEach((item) => item.classList.add('is-visible'));
+      } else {
+        const revealObserver = new IntersectionObserver((entries, observer) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          });
+        }, { threshold: .12, rootMargin: '0px 0px -35px' });
+        revealItems.forEach((item) => revealObserver.observe(item));
+      }
+
+      if (!reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        document.querySelectorAll('.game-mini-card, .featured-card').forEach((card) => {
+          card.addEventListener('pointermove', (event) => {
+            const rect = card.getBoundingClientRect();
+            const x = (event.clientX - rect.left) / rect.width;
+            const y = (event.clientY - rect.top) / rect.height;
+            card.style.setProperty('--card-x', `${Math.round(x * 100)}%`);
+            card.style.setProperty('--card-y', `${Math.round(y * 100)}%`);
+            const tiltX = (y - .5) * -3.2;
+            const tiltY = (x - .5) * 3.2;
+            card.style.transform = `perspective(1100px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) translateY(-4px)`;
+          }, { passive: true });
+          card.addEventListener('pointerleave', () => {
+            card.style.transform = '';
+          });
+        });
+      }
     })();
   </script>
 

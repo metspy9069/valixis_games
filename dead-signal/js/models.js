@@ -543,50 +543,175 @@ function propMat(key, make) {
   return propCache.get(key);
 }
 
-/** Beat-up sedan, long axis on X. */
-export function buildCar(rng, colors = [0x4a2b2b, 0x2c3a44, 0x3b3b30, 0x40323f]) {
+/**
+ * Street wreck: sedan, van or pickup, long axis on X. Three silhouettes keep
+ * the roads from reading as the same car cloned twelve times, and the trim
+ * (chrome, rust, plates, mirrors) is what makes them look abandoned rather
+ * than freshly modelled.
+ */
+export function buildCar(rng, colors = [0x4a2b2b, 0x2c3a44, 0x3b3b30, 0x40323f, 0x51402f, 0x2b3a35]) {
   const color = colors[Math.floor(rng() * colors.length)];
   const g = new THREE.Group();
-  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.45 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x0a1218, roughness: 0.18, metalness: 0.65 });
+  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.35 });
+  const paintDark = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color).multiplyScalar(0.52), roughness: 0.85, metalness: 0.2,
+  });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a1218, roughness: 0.14, metalness: 0.7 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x0e0e10, roughness: 0.95 });
-
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(4.25, 0.6, 1.86), paint);
-  lower.position.y = 0.62;
-  lower.castShadow = true;
-  g.add(lower);
-
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 1.8), paint);
-  hood.position.set(1.45, 0.99, 0);
-  g.add(hood);
-
-  const boot = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.2, 1.8), paint);
-  boot.position.set(-1.65, 0.98, 0);
-  g.add(boot);
-
-  // Tapered cabin: a scaled capsule reads far better than a box.
-  const cabin = new THREE.Mesh(new THREE.CapsuleGeometry(0.86, 1.05, 4, 12), glass);
-  cabin.scale.set(1, 0.62, 0.98);
-  cabin.position.set(-0.15, 1.24, 0);
-  cabin.castShadow = true;
-  g.add(cabin);
-
-  const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.26, 14);
-  for (const [wx, wz] of [[-1.4, 0.92], [1.4, 0.92], [-1.4, -0.92], [1.4, -0.92]]) {
-    const wheel = new THREE.Mesh(wheelGeo, rubber);
-    wheel.rotation.x = Math.PI / 2;
-    wheel.position.set(wx, 0.42, wz);
-    wheel.castShadow = true;
-    g.add(wheel);
-  }
-
+  const chrome = new THREE.MeshStandardMaterial({ color: 0x98a2a8, roughness: 0.34, metalness: 0.85 });
+  const rust = new THREE.MeshStandardMaterial({ color: 0x6b3a22, roughness: 1, metalness: 0.05 });
   const headlightMat = propMat('headlight', () => new THREE.MeshStandardMaterial({
     color: 0xfff3d0, emissive: 0xffd9a0, emissiveIntensity: 0.6, roughness: 0.3,
   }));
-  for (const wz of [-0.62, 0.62]) {
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, 0.34), headlightMat);
-    lamp.position.set(2.12, 0.86, wz);
-    g.add(lamp);
+  const taillightMat = propMat('taillight', () => new THREE.MeshStandardMaterial({
+    color: 0x5a0d0d, emissive: 0x8a1010, emissiveIntensity: 0.45, roughness: 0.4,
+  }));
+
+  const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.26, 16);
+  const hubGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.27, 12);
+  const wheel = (wx, wz) => {
+    const tyre = new THREE.Mesh(wheelGeo, rubber);
+    tyre.rotation.x = Math.PI / 2;
+    tyre.position.set(wx, 0.42, wz);
+    tyre.castShadow = true;
+    g.add(tyre);
+    const hub = new THREE.Mesh(hubGeo, chrome);
+    hub.rotation.x = Math.PI / 2;
+    hub.position.set(wx, 0.42, wz);
+    g.add(hub);
+  };
+
+  const lights = (frontX, backX, y, spread = 0.64) => {
+    for (const wz of [-spread, spread]) {
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 0.3), headlightMat);
+      head.position.set(frontX, y, wz);
+      g.add(head);
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.26), taillightMat);
+      tail.position.set(backX, y + 0.03, wz);
+      g.add(tail);
+    }
+  };
+
+  // Rust blooms sit low on the doors, where water actually collects.
+  const rustPatches = (len, y, side) => {
+    for (let i = 0; i < 3; i++) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.18 + rng() * 0.4, 0.08 + rng() * 0.16, 0.015), rust);
+      p.position.set((rng() - 0.5) * len, y - 0.1 + rng() * 0.18, side);
+      g.add(p);
+    }
+  };
+
+  const roll = rng();
+  const van = roll > 0.74;
+  const pickup = roll > 0.5 && roll <= 0.74;
+
+  if (van) {
+    // Box van: tall slab sides, a raked windscreen and a roof rack.
+    const body = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.55, 2.0), paint);
+    body.position.y = 1.06;
+    body.castShadow = true;
+    g.add(body);
+    const roofRail = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.09, 0.09), paintDark);
+    roofRail.position.set(-0.5, 2.2, 0.85);
+    g.add(roofRail);
+    const roofRail2 = roofRail.clone();
+    roofRail2.position.z = -0.85;
+    g.add(roofRail2);
+    const windscreen = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.62, 1.78), glass);
+    windscreen.position.set(2.14, 1.62, 0);
+    windscreen.rotation.z = -0.22;
+    g.add(windscreen);
+    for (const wz of [-0.94, 0.94]) {
+      const window = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 0.03), glass);
+      window.position.set(0.55, 1.58, wz);
+      g.add(window);
+      const doorLine = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.1, 0.02), paintDark);
+      doorLine.position.set(0.4, 0.95, wz);
+      g.add(doorLine);
+      rustPatches(3.4, 0.75, wz * 1.01);
+    }
+    const rearDoor = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.5, 1.9), paintDark);
+    rearDoor.position.set(-2.26, 1.06, 0);
+    g.add(rearDoor);
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 2.02), chrome);
+    bumper.position.set(-2.32, 0.55, 0);
+    g.add(bumper);
+    wheel(1.55, 0.94); wheel(-1.5, 0.94); wheel(1.55, -0.94); wheel(-1.5, -0.94);
+    lights(2.26, -2.3, 0.92, 0.7);
+  } else if (pickup) {
+    // Pickup: separate cab and open bed, with a tailgate and bed rails.
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.55, 0.34, 1.9), paintDark);
+    chassis.position.y = 0.62;
+    chassis.castShadow = true;
+    g.add(chassis);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.92, 1.86), paint);
+    cab.position.set(0.55, 1.16, 0);
+    cab.castShadow = true;
+    g.add(cab);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.5, 1.68), glass);
+    cabin.position.set(0.5, 1.62, 0);
+    g.add(cabin);
+    const bedFloor = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 1.76), paintDark);
+    bedFloor.position.set(-1.35, 0.84, 0);
+    g.add(bedFloor);
+    for (const wz of [-0.88, 0.88]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.42, 0.08), paint);
+      wall.position.set(-1.35, 1.06, wz);
+      g.add(wall);
+      rustPatches(2.2, 1.0, wz * 1.06);
+    }
+    const tailgate = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 1.78), paint);
+    tailgate.position.set(-2.4, 1.06, 0);
+    g.add(tailgate);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.13, 0.34), chrome);
+    plate.position.set(-2.46, 0.92, 0);
+    g.add(plate);
+    wheel(1.55, 0.92); wheel(-1.45, 0.92); wheel(1.55, -0.92); wheel(-1.45, -0.92);
+    lights(2.28, -2.44, 0.9);
+  } else {
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(4.25, 0.6, 1.86), paint);
+    lower.position.y = 0.62;
+    lower.castShadow = true;
+    g.add(lower);
+
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 1.8), paint);
+    hood.position.set(1.45, 0.99, 0);
+    g.add(hood);
+
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.2, 1.8), paint);
+    boot.position.set(-1.65, 0.98, 0);
+    g.add(boot);
+
+    // Tapered cabin: a scaled capsule reads far better than a box.
+    const cabin = new THREE.Mesh(new THREE.CapsuleGeometry(0.86, 1.05, 4, 12), glass);
+    cabin.scale.set(1, 0.62, 0.98);
+    cabin.position.set(-0.15, 1.24, 0);
+    cabin.castShadow = true;
+    g.add(cabin);
+
+    // Door seams, mirrors, plate and a rusted sill.
+    for (const wz of [-0.93, 0.93]) {
+      for (const dx of [0.2, -0.6]) {
+        const seam = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.44, 0.018), paintDark);
+        seam.position.set(dx, 0.68, wz);
+        g.add(seam);
+      }
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 0.06), paintDark);
+      sill.position.set(-0.2, 0.36, wz);
+      g.add(sill);
+      rustPatches(3.2, 0.6, wz * 1.02);
+    }
+    for (const wz of [-1.0, 1.0]) {
+      const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.2), paintDark);
+      mirror.position.set(0.72, 1.18, wz);
+      g.add(mirror);
+    }
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.13, 0.34), chrome);
+    plate.position.set(2.14, 0.63, 0);
+    g.add(plate);
+
+    wheel(1.4, 0.92); wheel(-1.4, 0.92); wheel(1.4, -0.92); wheel(-1.4, -0.92);
+    lights(2.12, -2.16, 0.86, 0.66);
   }
 
   return g;

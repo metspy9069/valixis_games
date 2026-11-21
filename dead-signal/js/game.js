@@ -6,10 +6,12 @@ import { Zombie } from './zombie.js';
 import { WEAPONS, ViewModel } from './weapons.js';
 import { NavGrid } from './nav.js';
 import { wavePlan, rollType, MAX_WAVE_ENEMIES } from './waves.js';
-import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE } from './data.js';
+import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE, ALT_FIRE, ATTACHMENTS } from './data.js';
 import { SHOP_ITEMS, SHOP_SECTIONS, itemCost, itemMaxed } from './shop.js';
 import { challengeFor, markChallengeDone, clearedCount } from './challenges.js';
 import { recordRun, noteContractClear, loadCareer, activeStreak } from './career.js';
+import { ladderFor, recordLadder, seedForKey } from './ladder.js';
+import { endlessEffects } from './endless.js';
 import { AudioEngine } from './audio.js';
 
 // ---------------------------------------------------------------- renderer
@@ -109,6 +111,14 @@ const gradeScene = new THREE.Scene();
 const gradeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 gradeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), gradeMat));
 
+// Photo mode carries its own tiny post pass: the world is drawn into a target
+// with a depth texture, then a quad blurs each pixel by its circle of
+// confusion. It costs nothing unless photo mode has depth of field switched on.
+const photoTarget = new THREE.WebGLRenderTarget(1, 1, {
+  minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+});
+photoTarget.depthTexture = new THREE.DepthTexture(1, 1);
+
 function sizeGradeTarget() {
   const tier = QUALITY_TIERS[qualityTier];
   const ratio = Math.min(window.devicePixelRatio || 1, tier.ratio);
@@ -116,6 +126,8 @@ function sizeGradeTarget() {
   const h = Math.max(1, Math.floor(window.innerHeight * ratio));
   gradeTarget.setSize(w, h);
   gradeMat.uniforms.uResolution.value.set(w, h);
+  photoTarget.setSize(w, h);
+  dofMat.uniforms.uTexel.value.set(1 / Math.max(1, w), 1 / Math.max(1, h));
 }
 
 function applyQuality() {
@@ -171,7 +183,6 @@ viewScene.add(viewFill);
 
 const world = buildWorld(scene);
 const nav = new NavGrid(world.colliders, 2, world.navExtent, world.navRadius);
-applyQuality();
 let navTimer = 0;
 const audio = new AudioEngine();
 const viewModel = new ViewModel(viewScene, viewCamera);
@@ -198,12 +209,45 @@ scene.add(burstLight);
 let burstLightTimer = 0;
 
 // ---------------------------------------------------------------- state
-const rng = makeRng(1337);
+let rng = makeRng(1337);
 
 // ---------------------------------------------------------------- settings
 // Player-facing options, persisted next to the best-run record.
 const SETTINGS_KEY = 'deadSignalSettings';
-const settings = Object.assign({ sensitivity: 1, fov: 78, invertY: false }, loadSettings());
+const settings = Object.assign({
+  sensitivity: 1, fov: 78, invertY: false,
+  master: 0.7, effects: 0.85, ambience: 0.75,
+  shake: 1, reduceFlash: false, colorblind: false,
+  keybinds: {}, aimAssist: true,
+}, loadSettings());
+if (!settings.keybinds || typeof settings.keybinds !== 'object') settings.keybinds = {};
+
+// Action keys can be rebound; movement stays on WASD so the layout never
+// depends on a saved file.
+const DEFAULT_BINDS = {
+  altFire: 'KeyX', reload: 'KeyR', melee: 'KeyV', grenade: 'KeyG',
+  depot: 'KeyB', flashlight: 'KeyF', mute: 'KeyM', photo: 'KeyP',
+};
+const BIND_ACTIONS = [
+  ['altFire', 'ALT-FIRE'], ['reload', 'RELOAD'], ['melee', 'MELEE'],
+  ['grenade', 'GRENADE'], ['depot', 'SUPPLY DEPOT'], ['flashlight', 'FLASHLIGHT'],
+  ['mute', 'MUTE'], ['photo', 'PHOTO MODE'],
+];
+let rebinding = null;
+
+function bindFor(action) {
+  return (settings.keybinds && settings.keybinds[action]) || DEFAULT_BINDS[action];
+}
+
+function actionFor(code) {
+  for (const [action] of BIND_ACTIONS) if (bindFor(action) === code) return action;
+  return null;
+}
+
+function keyLabel(code) {
+  if (!code) return '\u2014';
+  return code.replace(/^Key|^Digit|^Numpad/, '').replace('Shift', 'SHIFT').toUpperCase();
+}
 
 function loadSettings() {
   try {
@@ -267,17 +311,113 @@ const ammo = {
   reloadTimer: 0,
   lastShot: 0,
   triggerHeld: false,
+  // Alt-fire state: a burst queue, the two timed stances, the cooldown and the
+  // one found attachment per gun.
+  altCooldown: 0,
+  burstLeft: 0,
+  burstTimer: 0,
+  burstInterval: 0,
+  burstOpts: null,
+  steadyTimer: 0,
+  bipodTimer: 0,
+  attachment: WEAPONS.map(() => null),
 };
 
 // Per-run progression. Bought at the depot with credits earned in the run and
 // reset when a new run starts, so the shop is a decision, not a grind.
 const upgrades = { damage: 0, mag: 0, reload: 0, stability: 0, health: 0, armor: 0, stamina: 0 };
 
+const photo = { active: false, dof: false, pos: new THREE.Vector3(), yaw: 0, pitch: 0, focus: 14 };
+
+// Photo mode carries its own tiny post pass; declared up with the other
+// render targets because applyQuality() sizes it during boot.
+const dofMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: null },
+    uNear: { value: 0.05 },
+    uFar: { value: 240 },
+    uFocus: { value: 14 },
+    uRange: { value: 18 },
+    uMax: { value: 2.2 },
+    uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
+  },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: [
+    'uniform sampler2D tDiffuse; uniform sampler2D tDepth;',
+    'uniform float uNear; uniform float uFar; uniform float uFocus; uniform float uRange; uniform float uMax;',
+    'uniform vec2 uTexel; varying vec2 vUv;',
+    'float linearDepth(vec2 uv) {',
+    '  float d = texture2D(tDepth, uv).x;',
+    '  float z = d * 2.0 - 1.0;',
+    '  return (2.0 * uNear * uFar) / (uFar + uNear - z * (uFar - uNear));',
+    '}',
+    'void main() {',
+    '  float z = linearDepth(vUv);',
+    '  float coc = clamp(abs(z - uFocus) / uRange, 0.0, 1.0);',
+    '  coc = coc * coc * uMax;',
+    '  vec3 col = texture2D(tDiffuse, vUv).rgb;',
+    '  if (coc > 0.002) {',
+    '    vec3 sum = col; float weight = 1.0;',
+    '    for (int i = 0; i < 8; i++) {',
+    '      float a = 6.2831853 * float(i) / 8.0;',
+    '      vec2 off = vec2(cos(a), sin(a)) * coc * uTexel * 6.0;',
+    '      sum += texture2D(tDiffuse, vUv + off).rgb; weight += 1.0;',
+    '    }',
+    '    col = sum / weight;',
+    '  }',
+    '  gl_FragColor = vec4(col, 1.0);',
+    '}',
+  ].join('\n'),
+});
+const dofScene = new THREE.Scene();
+dofScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), dofMat));
+
+function togglePhoto() {
+  if (!game.running || game.over) return;
+  photo.active = !photo.active;
+  if (photo.active) {
+    game.paused = true;
+    ammo.triggerHeld = false;
+    player.ads = false;
+    photo.pos.copy(camera.position);
+    photo.yaw = player.yaw;
+    photo.pitch = player.pitch;
+    if (hud.pause) hud.pause.classList.add('hidden');
+    document.body.classList.remove('paused');
+    document.body.classList.add('photo');
+    if (document.pointerLockElement === canvas) {
+      suppressLockEvent = true;
+      document.exitPointerLock();
+    }
+    showHint(`PHOTO MODE \u00b7 WASD FLY \u00b7 SPACE/CTRL HEIGHT \u00b7 WHEEL FOCUS \u00b7 ${keyLabel(bindFor('photo'))} EXIT`, 5200);
+  } else {
+    document.body.classList.remove('photo');
+    game.paused = false;
+    requestLock();
+    showHint('PHOTO MODE OFF', 1000);
+  }
+}
+
+function updatePhotoCamera(dt) {
+  const speed = (keys['ShiftLeft'] || keys['ShiftRight'] ? 14 : 5.5) * dt;
+  const forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+  const strafe = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+  const lift = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
+  const sin = Math.sin(photo.yaw);
+  const cos = Math.cos(photo.yaw);
+  photo.pos.x += (-sin * forward + cos * strafe) * speed;
+  photo.pos.z += (-cos * forward - sin * strafe) * speed;
+  photo.pos.y = Math.max(0.3, Math.min(90, photo.pos.y + lift * speed));
+}
+
 const game = {
   running: false,
   paused: true,
   over: false,
   shopOpen: false,
+  seed: 1337,
+  endlessStacks: [],
   credits: 0,
   wave: 0,
   kills: 0,
@@ -403,6 +543,7 @@ function spawnDamageNumber(worldPos, amount, crit) {
   d.life = 0.85;
   d.el.textContent = crit ? `${Math.round(amount)}!` : String(Math.round(amount));
   d.el.className = crit ? 'dmg crit' : 'dmg';
+  if (settings.colorblind) d.el.classList.add('cb');
   d.el.style.display = 'block';
   d.el.style.opacity = '1';
 }
@@ -440,6 +581,13 @@ const hud = {
   dmgDir: el('dmgDir'), perf: el('perf'),
   setSens: el('setSens'), setFov: el('setFov'), setInvert: el('setInvert'),
   setSensVal: el('setSensVal'), setFovVal: el('setFovVal'),
+  setMaster: el('setMaster'), setEffects: el('setEffects'), setAmbience: el('setAmbience'),
+  setMasterVal: el('setMasterVal'), setEffectsVal: el('setEffectsVal'), setAmbienceVal: el('setAmbienceVal'),
+  setShake: el('setShake'), setShakeVal: el('setShakeVal'),
+  setFlash: el('setFlash'), setColorblind: el('setColorblind'), setAimAssist: el('setAimAssist'),
+  binds: el('bindList'), resetBinds: el('resetBinds'),
+  altName: el('altName'), altState: el('altState'), attachStrip: el('attachStrip'),
+  weeklyLadder: el('weeklyLadder'),
   banner: el('banner'), bannerK: el('bannerK'), bannerT: el('bannerT'), bannerS: el('bannerS'),
   hint: el('hint'), flashBtn: el('flashBtn'), muteBtn: el('muteBtn'),
   menu: el('menuScreen'), pause: el('pauseScreen'), over: el('overScreen'),
@@ -518,34 +666,59 @@ document.addEventListener('pointerlockchange', () => {
 window.addEventListener('keydown', (e) => {
   const k = e.code;
   keys[k] = true;
+
+  // A rebind owns the next key, whatever it is; Escape backs out.
+  if (rebinding) {
+    e.preventDefault();
+    if (k !== 'Escape') {
+      settings.keybinds[rebinding] = k;
+      saveSettings();
+    }
+    rebinding = null;
+    renderBinds();
+    return;
+  }
+
   if (k === 'F3') {
     e.preventDefault();
     hud.perf.classList.toggle('show');
     return;
   }
+
+  const action = actionFor(k);
+
+  if (action === 'photo') { e.preventDefault(); togglePhoto(); return; }
+  if (photo.active && k === 'KeyO') {
+    photo.dof = !photo.dof;
+    showHint(photo.dof ? 'DEPTH OF FIELD ON \u00b7 WHEEL TO FOCUS' : 'DEPTH OF FIELD OFF', 1800);
+    return;
+  }
+
   if (k === 'Escape') {
+    if (photo.active) { togglePhoto(); return; }
     if (game.shopOpen) { closeShop(); return; }
     if (game.running && !game.paused && !game.over) pauseGame();
     return;
   }
   // The depot toggles even though it holds the game paused.
-  if (k === 'KeyB') {
+  if (action === 'depot') {
     if (game.shopOpen) closeShop();
-    else if (game.running && !game.over) openShop();
+    else if (game.running && !game.over && !photo.active) openShop();
     return;
   }
   if (!game.running || game.paused || game.over) return;
-  if (k === 'KeyG') { throwGrenade(); return; }
-  if (k === 'KeyR') startReload();
-  if (k === 'KeyF') toggleFlashlight();
-  if (k === 'KeyM') toggleMute();
+  if (action === 'grenade') { throwGrenade(); return; }
+  if (action === 'altFire') { altFire(); return; }
+  if (action === 'reload') startReload();
+  if (action === 'flashlight') toggleFlashlight();
+  if (action === 'mute') toggleMute();
   if (k === 'Digit1' || k === 'Numpad1') selectWeapon(0, true);
   if (k === 'Digit2' || k === 'Numpad2') selectWeapon(1, true);
   if (k === 'Digit3' || k === 'Numpad3') selectWeapon(2, true);
   if (k === 'Digit4' || k === 'Numpad4') selectWeapon(3, true);
   if (k === 'Digit5' || k === 'Numpad5') selectWeapon(4, true);
   if (k === 'KeyQ') selectWeapon(ammo.weapon + 1);
-  if (k === 'KeyV') swingMelee();
+  if (action === 'melee') swingMelee();
   if (k === 'Space' && player.grounded) {
     player.vel.y = 4.7;
     player.grounded = false;
@@ -568,8 +741,20 @@ window.addEventListener('mouseup', (e) => {
   if (e.button === 2) player.ads = false;
 });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => {
+  if (!photo.active) return;
+  e.preventDefault();
+  photo.focus = Math.max(1.5, Math.min(140, photo.focus + e.deltaY * 0.02));
+}, { passive: false });
 
 document.addEventListener('mousemove', (e) => {
+  if (photo.active) {
+    const mx = e.movementX || 0;
+    const my = e.movementY || 0;
+    photo.yaw -= mx * 0.0022 * settings.sensitivity;
+    photo.pitch = Math.max(-1.45, Math.min(1.45, photo.pitch + (settings.invertY ? my : -my) * 0.0022 * settings.sensitivity));
+    return;
+  }
   if (!game.running || game.paused || game.over) return;
   // Locked: always look. Unlocked: look while the pointer is over the canvas,
   // a touch slower, so the game stays playable when lock is refused.
@@ -668,7 +853,19 @@ function weaponDef() { return WEAPONS[ammo.weapon]; }
 // Every one of these reads from the depot upgrade table, so the shop and the
 // weapon maths can never disagree.
 function magSizeFor(def) {
-  return def.magSize + upgrades.mag * (def.id === 'shotgun' ? 1 : 4);
+  const index = WEAPONS.indexOf(def);
+  let size = def.magSize + upgrades.mag * (def.id === 'shotgun' ? 1 : 4);
+  if (ammo.attachment[index] === 'exttube') size += 12;
+  return size;
+}
+
+/** The found attachment on a gun, or null. */
+function attachmentFor(index = ammo.weapon) {
+  return ammo.attachment[index] || null;
+}
+
+function missingAttachmentGuns() {
+  return ATTACHMENTS.filter((a) => !ammo.attachment[a.gun]);
 }
 
 function reloadTimeFor(def) {
@@ -680,12 +877,25 @@ function weaponDamageMul() {
   return (1 + upgrades.damage * 0.12) * (mods.damageMul || 1);
 }
 
-function weaponSpreadMul() {
-  return Math.max(0.6, 1 - upgrades.stability * 0.12);
+function weaponSpreadMul(index = ammo.weapon) {
+  let mul = Math.max(0.6, 1 - upgrades.stability * 0.12);
+  const att = attachmentFor(index);
+  if (att === 'choke' && index === 2) mul *= 0.6;
+  if (att === 'reddot' && index === 0) mul *= 0.7;
+  // The rifle's steady breath and the LMG's bipod both narrow the cone; the
+  // bipod only while the operator is actually planted.
+  if (ammo.steadyTimer > 0) mul *= 0.35;
+  if (ammo.bipodTimer > 0 && player.grounded) {
+    const speed = Math.hypot(player.vel.x, player.vel.z);
+    if (speed < 0.6) mul *= 0.45;
+  }
+  return mul;
 }
 
-function weaponRecoilMul() {
-  return Math.max(0.6, 1 - upgrades.stability * 0.12);
+function weaponRecoilMul(index = ammo.weapon) {
+  let mul = Math.max(0.6, 1 - upgrades.stability * 0.12);
+  if (attachmentFor(index) === 'compensator') mul *= 0.65;
+  return mul;
 }
 
 function weaponAvailable(index) {
@@ -752,7 +962,7 @@ function finishReload() {
 let spreadBloom = 0;
 
 function tryFire() {
-  if (!game.running || game.paused || game.over) return;
+  if (!game.running || game.paused || game.over || photo.active) return;
   const def = weaponDef();
   const now = performance.now() / 1000;
   if (ammo.reloading) return;
@@ -763,14 +973,29 @@ function tryFire() {
     return;
   }
   ammo.lastShot = now;
+  fireRound();
+}
+
+/**
+ * One round: ammo, recoil, tracers and hit resolution. Alt-fire borrows it so
+ * a slug and a burst fire the same, honest rays as the normal trigger.
+ */
+function fireRound(opts = {}) {
+  const def = weaponDef();
+  if (ammo.mag[ammo.weapon] <= 0) return false;
+  const slug = !!opts.slug;
+  const damageMul = opts.damageMul || 1;
+  const spreadMul = opts.spreadMul || 1;
+  const pellets = opts.pellets || def.pellets;
+
   ammo.mag[ammo.weapon] -= 1;
   game.shots += 1;
   updateAmmoHud();
 
-  audio.shot(def.sound);
-  viewModel.flash();
-  viewModel.recoil(def.recoil * weaponRecoilMul());
-  muzzleLightTimer = 0.06;
+  audio.shot(slug ? 'shotgun' : def.sound);
+  viewModel.flash(settings.reduceFlash ? 0.35 : 1);
+  viewModel.recoil(def.recoil * weaponRecoilMul() * (slug ? 1.4 : 1));
+  muzzleLightTimer = settings.reduceFlash ? 0.03 : 0.06;
   player.shake = Math.min(0.5, player.shake + def.recoil * weaponRecoilMul() * 0.016);
 
   // Recoil pushes the view up; aim down sights halves it.
@@ -794,11 +1019,11 @@ function tryFire() {
   viewModel.muzzleWorld(muzzle);
   muzzleLight.position.copy(muzzle);
 
-  const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul();
-  const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul();
+  const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul() * spreadMul;
+  const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul() * spreadMul;
   const aimDistance = Math.max(4, muzzle.distanceTo(aimPoint));
 
-  for (let p = 0; p < def.pellets; p++) {
+  for (let p = 0; p < pellets; p++) {
     const point = jitterPoint(aimPoint, aimDir, Math.tan(spread) * aimDistance, p);
     const shotDir = point.sub(muzzle).normalize();
 
@@ -810,7 +1035,7 @@ function tryFire() {
       const head = mesh.userData.part === 'head';
       const falloff = damageFalloff(def, distance);
       const mods = game.mods || {};
-      const dmg = def.damage * falloff * (head ? 2.6 : 1) * weaponDamageMul()
+      const dmg = def.damage * damageMul * falloff * (head ? 2.6 : 1) * weaponDamageMul()
         * (head ? 1 : (mods.headshotOnly ? 0.34 : 1));
       game.hits += 1;
       const killed = zombie.takeDamage(dmg, head ? 'head' : 'body', makeContext());
@@ -828,6 +1053,51 @@ function tryFire() {
   }
 
   if (ammo.mag[ammo.weapon] <= 0) setTimeout(startReload, 160);
+}
+
+/**
+ * Alt-fire: one cooldown, five different questions. A burst is queued and
+ * fired by the simulation step so it cannot outrun the frame clock.
+ */
+function altFire() {
+  if (!game.running || game.paused || game.over || game.shopOpen || photo.active) return;
+  if (ammo.reloading) return;
+  const def = weaponDef();
+  const alt = ALT_FIRE[def.id];
+  if (!alt) return;
+  if (ammo.altCooldown > 0) {
+    showHint(`${alt.name} \u00b7 ${ammo.altCooldown.toFixed(1)}S`, 900);
+    return;
+  }
+  if (ammo.mag[ammo.weapon] <= 0) { audio.dryFire(); startReload(); return; }
+
+  if (def.id === 'pistol' || def.id === 'smg') {
+    const need = def.id === 'pistol' ? 2 : 4;
+    if (ammo.mag[ammo.weapon] < need) { audio.dryFire(); startReload(); return; }
+    ammo.burstLeft = def.id === 'pistol' ? 2 : ammo.mag[ammo.weapon];
+    ammo.burstInterval = def.id === 'pistol' ? 0.075 : 0.052;
+    ammo.burstTimer = 0;
+    ammo.burstOpts = { spreadMul: def.id === 'pistol' ? 0.4 : 0.8 };
+    ammo.altCooldown = alt.cooldown;
+    showHint(alt.name, 1000);
+    return;
+  }
+  if (def.id === 'shotgun') {
+    ammo.lastShot = performance.now() / 1000;
+    if (!fireRound({ slug: true, pellets: 1, damageMul: 5, spreadMul: 0.34 })) return;
+    ammo.altCooldown = alt.cooldown;
+    showHint('SLUG \u00b7 ONE ROUND', 1000);
+    return;
+  }
+  if (def.id === 'rifle') {
+    ammo.steadyTimer = 3.2;
+    ammo.altCooldown = alt.cooldown;
+    showHint('STEADY BREATH \u00b7 3.2S', 1200);
+    return;
+  }
+  ammo.bipodTimer = 6;
+  ammo.altCooldown = alt.cooldown;
+  showHint('BIPOD DEPLOYED \u00b7 HOLD STILL', 1400);
 }
 
 function damageFalloff(def, distance) {
@@ -1174,6 +1444,16 @@ function startWave(n) {
     plan.walkerChance = Math.max(0.05, 1 - plan.bruteChance - plan.runnerChance - plan.spitterChance);
   }
 
+  // Endless-plus: past wave 20 a permanent stack lands every fifth wave. It
+  // raises speed and tightens the delivery gap rather than adding bodies, so
+  // the 40-body cap and one-shot headshots stay intact.
+  const endless = endlessEffects(plan.wave);
+  game.endlessStacks = endless.stacks;
+  if (endless.count > 0) {
+    plan.speedScale *= endless.speedMul;
+    plan.spacing *= endless.spacingMul;
+  }
+
   game.plan = plan;
   game.wave = plan.wave;
   game.speedScale = plan.speedScale * (mods.enemySpeedMul || 1);
@@ -1206,7 +1486,8 @@ function startWave(n) {
 
   world.setBlackout(!!mods.alwaysBlackout || plan.modifier === 'blackout');
   audio.waveAlarm(plan.surge || plan.boss);
-  if (plan.modifier !== 'none') showHint(`WAVE MODIFIER: ${plan.modifier.toUpperCase()}`, 3200);
+  if (endless.stacks.length) showHint(`ENDLESS-PLUS \u00b7 ${endless.stacks.join(' / ')}`, 3600);
+  else if (plan.modifier !== 'none') showHint(`WAVE MODIFIER: ${plan.modifier.toUpperCase()}`, 3200);
   const ramp = `Speed +${Math.round((game.speedScale - 1) * 100)}% \u00b7 bite +${Math.round((plan.damageScale - 1) * 100)}%.`;
   const head = plan.wave === 1
     ? 'Five of them. One magazine is enough.'
@@ -1447,6 +1728,8 @@ function onZombieKilled(zombie, head) {
     if (game.meleeTier < MELEE_TIERS.length - 1) addPickup('blade', at.clone().add(new THREE.Vector3(0, 0, 1.2)));
     // The next boss's answer: a guaranteed frag, never left to a roll.
     addPickup('grenade', at.clone().add(new THREE.Vector3(0, 0, -1.2)));
+    // A boss is also the reliable place to find a missing attachment.
+    if (missingAttachmentGuns().length) addPickup('attachment', at.clone().add(new THREE.Vector3(0, 0, 1.9)));
   } else if (zombie.type === 'spitter' && roll < 0.4) {
     addPickup('ammo', at);
   } else if (roll < 0.2) addPickup('ammo', at);
@@ -1454,6 +1737,7 @@ function onZombieKilled(zombie, head) {
   else if (roll < 0.38 && !mods.noArmor) addPickup('armor', at);
   else if (roll < 0.4 && game.meleeTier < MELEE_TIERS.length - 1) addPickup('blade', at);
   else if (roll < 0.42 && !ammo.unlocked[WEAPONS.length - 1]) addPickup('weapon', at);
+  else if (roll < 0.47 && missingAttachmentGuns().length) addPickup('attachment', at);
 
   updateWaveHud();
 }
@@ -1467,16 +1751,30 @@ const PICKUP_STYLE = {
   blade: { color: 0xd6e0e8, emissive: 0x9fb4c8, light: 0xbcd0e4 },
   weapon: { color: 0xd08cff, emissive: 0x8a3cff, light: 0xb46bff },
   grenade: { color: 0x7b8c4a, emissive: 0xb6d24a, light: 0xa8c44a },
+  attachment: { color: 0xffd166, emissive: 0xffa51f, light: 0xffc247 },
+};
+// Colourblind-safe palette: no red/green pair carries meaning on its own, and
+// every colour also differs in brightness.
+const PICKUP_STYLE_CB = {
+  ammo: { color: 0xe8eef2, emissive: 0xbfd4e6, light: 0xd6e3ee },
+  health: { color: 0x63d6ff, emissive: 0x2aa8ff, light: 0x74cfff },
+  armor: { color: 0xc9a6ff, emissive: 0x8f5cff, light: 0xb388ff },
+  blade: { color: 0xffffff, emissive: 0xd8e6f2, light: 0xe6f0fa },
+  weapon: { color: 0xffc857, emissive: 0xff9a1f, light: 0xffb44d },
+  grenade: { color: 0x9be7ff, emissive: 0x39b6ff, light: 0x8bd8ff },
+  attachment: { color: 0xffe08a, emissive: 0xffb020, light: 0xffcf6a },
 };
 const pickupMats = {};
 function addPickup(kind, position) {
-  const style = PICKUP_STYLE[kind] || PICKUP_STYLE.ammo;
-  if (!pickupMats[kind]) {
-    pickupMats[kind] = new THREE.MeshStandardMaterial({
+  const palette = settings.colorblind ? PICKUP_STYLE_CB : PICKUP_STYLE;
+  const style = palette[kind] || palette.ammo || PICKUP_STYLE.ammo;
+  const cacheKey = settings.colorblind ? `${kind}:cb` : kind;
+  if (!pickupMats[cacheKey]) {
+    pickupMats[cacheKey] = new THREE.MeshStandardMaterial({
       color: style.color, emissive: style.emissive, emissiveIntensity: 2.2, roughness: 0.4,
     });
   }
-  const mesh = new THREE.Mesh(pickupGeo, pickupMats[kind]);
+  const mesh = new THREE.Mesh(pickupGeo, pickupMats[cacheKey]);
   mesh.position.copy(position);
   mesh.position.y = 0.45;
   scene.add(mesh);
@@ -1543,6 +1841,19 @@ function updatePickups(dt) {
           ammo.reserve[2] = Math.min(WEAPONS[2].reserveMax, ammo.reserve[2] + 16);
           ammo.reserve[3] = Math.min(WEAPONS[3].reserveMax, ammo.reserve[3] + 30);
           showHint('CACHE SALVAGED \u2014 AMMO', 1400);
+        }
+      } else if (p.kind === 'attachment') {
+        const missing = missingAttachmentGuns();
+        if (missing.length) {
+          const pick = missing[Math.floor(Math.random() * missing.length)];
+          ammo.attachment[pick.gun] = pick.id;
+          showBanner('ATTACHMENT FOUND', pick.name,
+            `${WEAPONS[pick.gun].name} \u00b7 ${pick.desc}`, 3200);
+          updateAmmoHud();
+        } else {
+          game.credits += 75;
+          game.creditsEarned = (game.creditsEarned || 0) + 75;
+          showHint('SPARE PARTS SALVAGED +75 CR', 1400);
         }
       }
       audio.pickup();
@@ -1741,7 +2052,7 @@ function updateCamera(dt, planarSpeed) {
   const bobX = Math.cos(player.bob) * bobAmp * 0.7;
 
   player.shake = Math.max(0, player.shake - dt * 2.6);
-  const shake = player.shake * player.shake;
+  const shake = player.shake * player.shake * Math.max(0, settings.shake);
 
   camera.position.set(
     player.pos.x + bobX * 0.5 + (Math.random() - 0.5) * shake * 0.09,
@@ -1788,6 +2099,14 @@ function updateAmmoHud() {
   hud.ammoReserve.textContent = def.reserveMax === Infinity ? '\u221e' : String(ammo.reserve[ammo.weapon]);
   hud.ammoPanel.classList.toggle('reloading', ammo.reloading);
   if (hud.grenadeCount) hud.grenadeCount.textContent = String(player.grenades);
+  const alt = ALT_FIRE[def.id];
+  if (hud.altName) hud.altName.textContent = alt ? alt.name : '';
+  if (hud.altState) {
+    hud.altState.textContent = ammo.altCooldown > 0
+      ? `${ammo.altCooldown.toFixed(1)}S`
+      : alt ? `[${keyLabel(bindFor('altFire'))}]` : '';
+    hud.altState.classList.toggle('cooling', ammo.altCooldown > 0);
+  }
   updateEconomyHud();
 }
 
@@ -1875,6 +2194,9 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   recoil.pitch = 0;
   recoil.yaw = 0;
 
+  // Attachments are found during the run, never inherited from the last one,
+  // and they must be cleared before the magazines are sized.
+  ammo.attachment = WEAPONS.map(() => null);
   ammo.mag = WEAPONS.map((w) => magSizeFor(w));
   ammo.reserve = WEAPONS.map((w) => (w.reserveMax === Infinity ? Infinity : Math.round(w.reserveMax * 0.7)));
   ammo.unlocked = WEAPONS.map((w) => !w.locked);
@@ -1892,6 +2214,12 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   ammo.reloadTimer = 0;
   ammo.lastShot = 0;
   ammo.triggerHeld = false;
+  ammo.altCooldown = 0;
+  ammo.burstLeft = 0;
+  ammo.burstTimer = 0;
+  ammo.burstOpts = null;
+  ammo.steadyTimer = 0;
+  ammo.bipodTimer = 0;
   viewModel.select(ammo.weapon, true);
 
   game.running = true;
@@ -1916,6 +2244,13 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   game.plan = null;
   game.mods = mods || null;
   game.challenge = challenge || null;
+  // A weekly contract runs on its own seed, so every ladder entry met the
+  // same wave mix. Survival runs get a fresh seed each deploy.
+  game.seed = challenge && challenge.kind === 'weekly'
+    ? seedForKey(challenge.id)
+    : ((Math.random() * 0xffffffff) >>> 0);
+  rng = makeRng(game.seed);
+  game.endlessStacks = [];
   game.boss = null;
   game.hordeTimer = 0;
   document.body.classList.remove('surge');
@@ -2024,9 +2359,22 @@ function endRun() {
   });
   if (cleared) noteContractClear(mode);
   renderCareer();
+
+  // The weekly ladder is local: best five runs on this contract, with the run
+  // seed kept so an entry can be compared like for like.
+  let ladderLine = '';
+  if (game.challenge && game.challenge.kind === 'weekly') {
+    const ladder = recordLadder(game.challenge.id, {
+      score, wave: game.wave, kills: game.kills, seed: game.seed,
+    });
+    ladderLine = ladder.rank
+      ? ` Weekly ladder #${ladder.rank} \u00b7 seed ${game.seed.toString(16).toUpperCase()}.`
+      : '';
+    renderChallenges();
+  }
   el('overSub').textContent = (isBest
     ? `New personal best. You held until wave ${game.wave}.`
-    : `You held until wave ${game.wave}. The relay kept transmitting without you.`) + challengeLine;
+    : `You held until wave ${game.wave}. The relay kept transmitting without you.`) + challengeLine + ladderLine;
   hud.over.classList.remove('hidden');
 }
 
@@ -2089,6 +2437,36 @@ function renderChallenges() {
   renderChallenge('daily', 'daily');
   renderChallenge('weekly', 'weekly');
   renderContractCounts();
+  renderWeeklyLadder();
+}
+
+// The weekly card carries its local top five, so a replay has something to
+// beat even though there is no server behind it.
+function renderWeeklyLadder() {
+  const host = el('weeklyLadder');
+  if (!host) return;
+  const weekly = challengeFor('weekly');
+  const rows = ladderFor(weekly.id);
+  host.textContent = '';
+  if (!rows.length) {
+    const empty = document.createElement('span');
+    empty.className = 'ladder-empty';
+    empty.textContent = 'NO RUNS ON THIS CONTRACT';
+    host.appendChild(empty);
+    return;
+  }
+  rows.forEach((run, i) => {
+    const row = document.createElement('div');
+    row.className = 'ladder-row';
+    const rank = document.createElement('span');
+    rank.textContent = `${i + 1}.`;
+    const score = document.createElement('b');
+    score.textContent = String(run.score);
+    const meta = document.createElement('span');
+    meta.textContent = `W${run.wave} \u00b7 ${run.kills}K \u00b7 ${run.seed.toString(16).toUpperCase().slice(0, 6)}`;
+    row.append(rank, score, meta);
+    host.appendChild(row);
+  });
 }
 
 // ---------------------------------------------------------------- career
@@ -2237,6 +2615,22 @@ function renderShop() {
   if (hud.shopCredits) hud.shopCredits.textContent = String(game.credits);
   host.innerHTML = '';
 
+  // Attachment readout: every weapon card the depot would show, in one strip.
+  if (hud.attachStrip) {
+    hud.attachStrip.textContent = '';
+    for (let i = 0; i < WEAPONS.length; i++) {
+      const att = ATTACHMENTS.find((a) => a.id === ammo.attachment[i]);
+      const row = document.createElement('div');
+      row.className = 'attach-row' + (att ? ' found' : '');
+      const name = document.createElement('span');
+      name.textContent = WEAPONS[i].name;
+      const val = document.createElement('b');
+      val.textContent = att ? att.name : 'NO ATTACHMENT';
+      row.append(name, val);
+      hud.attachStrip.appendChild(row);
+    }
+  }
+
   for (const section of SHOP_SECTIONS) {
     const title = document.createElement('div');
     title.className = 'shop-section-title';
@@ -2364,8 +2758,21 @@ function stepSimulation(dt) {
     ammo.reloadTimer -= dt;
     if (ammo.reloadTimer <= 0) finishReload();
   }
-  if (ammo.triggerHeld && weaponDef().auto) tryFire();
+  if (ammo.triggerHeld && weaponDef().auto && !photo.active) tryFire();
   ammo.meleeCooldown = Math.max(0, ammo.meleeCooldown - dt);
+  ammo.altCooldown = Math.max(0, ammo.altCooldown - dt);
+  ammo.steadyTimer = Math.max(0, ammo.steadyTimer - dt);
+  ammo.bipodTimer = Math.max(0, ammo.bipodTimer - dt);
+  // A queued burst fires on the frame clock, one round per interval.
+  if (ammo.burstLeft > 0) {
+    ammo.burstTimer -= dt;
+    while (ammo.burstLeft > 0 && ammo.burstTimer <= 0) {
+      if (ammo.reloading || !fireRound(ammo.burstOpts || {})) { ammo.burstLeft = 0; break; }
+      ammo.burstLeft -= 1;
+      ammo.burstTimer += ammo.burstInterval;
+      if (ammo.burstLeft > 0 && Math.random() < 0.4) player.shake = Math.min(0.5, player.shake + 0.02);
+    }
+  }
 
   spreadBloom = Math.max(0, spreadBloom - dt * 0.05);
 
@@ -2488,6 +2895,11 @@ function stepSimulation(dt) {
 }
 
 function simulate(dt) {
+  if (photo.active) {
+    world.update(dt);
+    updatePhotoCamera(dt);
+    return;
+  }
   if (game.running) stepSimulation(dt);
   else {
     world.update(dt);
@@ -2496,6 +2908,32 @@ function simulate(dt) {
 }
 
 function render() {
+  // Photo mode renders the world on its own: no viewmodel, no HUD, and an
+  // optional depth-of-field pass focused with the wheel.
+  if (photo.active) {
+    camera.position.copy(photo.pos);
+    camera.rotation.set(photo.pitch, photo.yaw, 0);
+    if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
+    camera.updateMatrixWorld(true);
+    if (photo.dof) {
+      dofMat.uniforms.tDiffuse.value = photoTarget.texture;
+      dofMat.uniforms.tDepth.value = photoTarget.depthTexture;
+      dofMat.uniforms.uNear.value = camera.near;
+      dofMat.uniforms.uFar.value = camera.far;
+      dofMat.uniforms.uFocus.value = photo.focus;
+      renderer.setRenderTarget(photoTarget);
+      renderer.clear();
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      renderer.clear();
+      renderer.render(dofScene, gradeCamera);
+      return;
+    }
+    renderer.clear();
+    renderer.render(scene, camera);
+    return;
+  }
+
   // Health feeds the grade: the frame tightens and bleeds as you go down.
   const hurt = Math.max(0, 1 - player.health / player.maxHealth);
   gradeMat.uniforms.uTime.value = performance.now() * 0.001;
@@ -2541,6 +2979,7 @@ function frame(now) {
   const dt = Math.min(0.05, rawDt);
   lastFrame = now;
   trackPerf(dt);
+  pollGamepad(dt);
   simulate(dt);
   render();
   // After render: renderer.info.render is reset at the start of every draw, so
@@ -2615,6 +3054,30 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseOnLeave();
 });
 
+function applyAudioVolumes() {
+  audio.setVolumes({
+    master: settings.master, effects: settings.effects, ambience: settings.ambience,
+  });
+}
+
+function renderBinds() {
+  const host = hud.binds;
+  if (!host) return;
+  host.textContent = '';
+  for (const [action, label] of BIND_ACTIONS) {
+    const row = document.createElement('div');
+    row.className = 'bind-row';
+    const name = document.createElement('span');
+    name.textContent = label;
+    const btn = document.createElement('button');
+    btn.className = 'bind-key' + (rebinding === action ? ' waiting' : '');
+    btn.textContent = rebinding === action ? 'PRESS A KEY' : keyLabel(bindFor(action));
+    btn.addEventListener('click', () => { rebinding = action; renderBinds(); });
+    row.append(name, btn);
+    host.appendChild(row);
+  }
+}
+
 function bindSettings() {
   if (!hud.setSens) return;
   hud.setSens.value = String(settings.sensitivity);
@@ -2642,6 +3105,127 @@ function bindSettings() {
     settings.invertY = hud.setInvert.checked;
     saveSettings();
   });
+
+  // Volume sliders. Each one is a real bus in the audio engine, not a scale
+  // applied after the mix.
+  const sliders = [
+    [hud.setMaster, hud.setMasterVal, 'master', (v) => `${Math.round(v * 100)}%`],
+    [hud.setEffects, hud.setEffectsVal, 'effects', (v) => `${Math.round(v * 100)}%`],
+    [hud.setAmbience, hud.setAmbienceVal, 'ambience', (v) => `${Math.round(v * 100)}%`],
+    [hud.setShake, hud.setShakeVal, 'shake', (v) => `${Math.round(v * 100)}%`],
+  ];
+  for (const [node, valNode, key, fmt] of sliders) {
+    if (!node) continue;
+    node.value = String(settings[key]);
+    if (valNode) valNode.textContent = fmt(settings[key]);
+    node.addEventListener('input', () => {
+      settings[key] = Number(node.value);
+      if (valNode) valNode.textContent = fmt(settings[key]);
+      if (key === 'master' || key === 'effects' || key === 'ambience') applyAudioVolumes();
+      saveSettings();
+    });
+  }
+
+  const checks = [
+    [hud.setFlash, 'reduceFlash'],
+    [hud.setColorblind, 'colorblind'],
+    [hud.setAimAssist, 'aimAssist'],
+  ];
+  for (const [node, key] of checks) {
+    if (!node) continue;
+    node.checked = !!settings[key];
+    node.addEventListener('change', () => {
+      settings[key] = node.checked;
+      saveSettings();
+    });
+  }
+
+  if (hud.resetBinds) {
+    hud.resetBinds.addEventListener('click', () => {
+      settings.keybinds = {};
+      saveSettings();
+      renderBinds();
+    });
+  }
+  renderBinds();
+  applyAudioVolumes();
+}
+
+// ---------------------------------------------------------------- gamepad
+// Standard layout only: sticks move and look, triggers fire and aim, face
+// buttons cover melee/reload/grenade/alt-fire. Aim assist nudges rather than
+// snaps, and only while the trigger is pulled.
+const padState = { lastButtons: [], ads: false };
+
+function angleDelta(a, b) {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+function applyAimAssist() {
+  const eye = camera.position;
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  let best = null;
+  let bestDot = Math.cos(0.2);
+  for (const z of zombies) {
+    if (!z.alive) continue;
+    const dx = z.group.position.x - eye.x;
+    const dy = (z.group.position.y + 1.1 * (z.def.scale || 1)) - eye.y;
+    const dz = z.group.position.z - eye.z;
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist > 16 || dist < 1.5) continue;
+    const dot = (dx * dir.x + dy * dir.y + dz * dir.z) / dist;
+    if (dot > bestDot) { bestDot = dot; best = { x: dx / dist, y: dy / dist, z: dz / dist }; }
+  }
+  if (!best) return;
+  const targetYaw = Math.atan2(-best.x, -best.z);
+  const targetPitch = Math.asin(Math.max(-1, Math.min(1, best.y)));
+  player.yaw += angleDelta(targetYaw, player.yaw) * 0.3;
+  player.pitch += (targetPitch - player.pitch) * 0.3;
+}
+
+function pollGamepad(dt) {
+  if (!navigator.getGamepads || !game.running || game.over || photo.active) return;
+  const pad = Array.from(navigator.getGamepads() || []).find((p) => p && p.connected);
+  if (!pad) return;
+  const dz = 0.2;
+  if (game.paused || game.shopOpen) { padState.lastButtons = pad.buttons.map((b) => b.pressed); return; }
+  const lx = Math.abs(pad.axes[0] || 0) > dz ? pad.axes[0] : 0;
+  const ly = Math.abs(pad.axes[1] || 0) > dz ? pad.axes[1] : 0;
+  keys['KeyW'] = ly < -dz; keys['KeyS'] = ly > dz;
+  keys['KeyA'] = lx < -dz; keys['KeyD'] = lx > dz;
+  const rx = Math.abs(pad.axes[2] || 0) > dz ? pad.axes[2] : 0;
+  const ry = Math.abs(pad.axes[3] || 0) > dz ? pad.axes[3] : 0;
+  if (rx || ry) {
+    const sens = (player.ads ? 1.1 : 1.9) * settings.sensitivity * dt;
+    player.yaw -= rx * sens;
+    player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - ry * sens));
+  }
+  const pressed = (i) => !!(pad.buttons[i] && pad.buttons[i].pressed);
+  const edge = (i) => pressed(i) && !padState.lastButtons[i];
+  if (edge(0) && player.grounded) { player.vel.y = 4.7; player.grounded = false; }
+  if (edge(1)) swingMelee();
+  if (edge(2)) startReload();
+  if (edge(3)) throwGrenade();
+  if (edge(4)) altFire();
+  if (edge(5)) selectWeapon(ammo.weapon + 1);
+  if (edge(12)) selectWeapon(ammo.weapon - 1);
+  if (edge(13)) selectWeapon(ammo.weapon + 1);
+  const aim = pressed(6);
+  if (aim) player.ads = true;
+  else if (padState.ads) player.ads = false;
+  padState.ads = aim;
+  if (pressed(7)) {
+    if (settings.aimAssist) applyAimAssist();
+    ammo.triggerHeld = true;
+    tryFire();
+  } else {
+    ammo.triggerHeld = false;
+  }
+  padState.lastButtons = pad.buttons.map((b) => b.pressed);
 }
 
 // ---------------------------------------------------------------- boot
@@ -2655,6 +3239,9 @@ hud.menu.classList.remove('hidden');
 document.body.classList.add('in-menu');
 bindSettings();
 renderChallenges();
+applyAudioVolumes();
+// Sized after the photo/depth targets exist; nothing renders before this.
+applyQuality();
 if (params.get('stats') === '1') hud.perf.classList.add('show');
 if (launchWave > 0) startRun(launchWave);
 requestAnimationFrame(frame);

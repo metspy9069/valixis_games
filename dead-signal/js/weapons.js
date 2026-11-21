@@ -90,16 +90,17 @@ export class ViewModel {
     this.reloadBlend = 0;
   }
 
-  flash() {
+  flash(scale = 1) {
     this.flashTimer = 0.055;
+    this.flashScale = scale;
     const muzzle = this.models[this.index].userData.muzzle;
     this.flashMesh.position.copy(muzzle);
     this.flashMesh.position.z -= 0.05;
-    this.flashMesh.material.opacity = 0.95;
+    this.flashMesh.material.opacity = 0.95 * scale;
     this.flashMesh.rotation.z = Math.random() * Math.PI;
-    this.flashMesh.scale.setScalar(0.8 + Math.random() * 0.6);
+    this.flashMesh.scale.setScalar((0.8 + Math.random() * 0.6) * (0.55 + scale * 0.45));
     this.flashLight.position.copy(muzzle);
-    this.flashLight.intensity = 14;
+    this.flashLight.intensity = 14 * scale;
   }
 
   recoil(amount) {
@@ -164,8 +165,10 @@ export class ViewModel {
         this.flashMesh.material.opacity = 0;
         this.flashLight.intensity = 0;
       } else {
-        this.flashLight.intensity = 14 * (this.flashTimer / 0.055);
-        this.flashMesh.material.opacity = 0.9 * (this.flashTimer / 0.055);
+        const k = this.flashTimer / 0.055;
+        const scale = this.flashScale === undefined ? 1 : this.flashScale;
+        this.flashLight.intensity = 14 * scale * k;
+        this.flashMesh.material.opacity = 0.9 * scale * k;
       }
     }
   }

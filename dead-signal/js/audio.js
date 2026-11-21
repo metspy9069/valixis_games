@@ -11,6 +11,9 @@ export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
+    this.effects = null;
+    this.ambienceBus = null;
+    this.volumes = { master: 0.7, effects: 0.85, ambience: 0.75 };
     this.muted = false;
     this.noiseBuffer = null;
     this.ambient = null;
@@ -33,8 +36,18 @@ export class AudioEngine {
     this.compressor.connect(this.ctx.destination);
 
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.7;
+    this.master.gain.value = this.volumes.master;
     this.master.connect(this.compressor);
+
+    // Two buses under the master so effects and ambience can be balanced
+    // separately: the wind should never have to be as loud as a shotgun.
+    this.effects = this.ctx.createGain();
+    this.effects.gain.value = this.volumes.effects;
+    this.effects.connect(this.master);
+
+    this.ambienceBus = this.ctx.createGain();
+    this.ambienceBus.gain.value = this.volumes.ambience;
+    this.ambienceBus.connect(this.master);
 
     this.noiseBuffer = this._makeNoise(3);
     this._buildReverb();
@@ -47,7 +60,17 @@ export class AudioEngine {
 
   setMuted(muted) {
     this.muted = muted;
-    if (this.master) this.master.gain.value = muted ? 0 : 0.7;
+    if (this.master) this.master.gain.value = muted ? 0 : this.volumes.master;
+  }
+
+  /** Master / effects / ambience, each 0..1. Safe before init(). */
+  setVolumes({ master, effects, ambience } = {}) {
+    if (typeof master === 'number') this.volumes.master = Math.max(0, Math.min(1, master));
+    if (typeof effects === 'number') this.volumes.effects = Math.max(0, Math.min(1, effects));
+    if (typeof ambience === 'number') this.volumes.ambience = Math.max(0, Math.min(1, ambience));
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.volumes.master;
+    if (this.effects) this.effects.gain.value = this.volumes.effects;
+    if (this.ambienceBus) this.ambienceBus.gain.value = this.volumes.ambience;
   }
 
   _makeNoise(seconds = 2) {
@@ -74,16 +97,17 @@ export class AudioEngine {
     convolver.buffer = buffer;
     const wet = this.ctx.createGain();
     wet.gain.value = 0.42;
-    convolver.connect(wet).connect(this.master);
+    convolver.connect(wet).connect(this.effects);
     this.reverb = convolver;
   }
 
   _panner(pan) {
-    if (typeof pan !== 'number') return this.master;
-    if (!this.ctx.createStereoPanner) return this.master;
+    const bus = this.effects || this.master;
+    if (typeof pan !== 'number') return bus;
+    if (!this.ctx.createStereoPanner) return bus;
     const p = this.ctx.createStereoPanner();
     p.pan.value = Math.max(-1, Math.min(1, pan));
-    p.connect(this.master);
+    p.connect(bus);
     return p;
   }
 
@@ -159,7 +183,7 @@ export class AudioEngine {
     const lfoGain = this.ctx.createGain();
     lfoGain.gain.value = 120;
     lfo.connect(lfoGain).connect(filter.frequency);
-    src.connect(filter).connect(gain).connect(this.master);
+    src.connect(filter).connect(gain).connect(this.ambienceBus || this.master);
     src.start();
     lfo.start();
 
@@ -170,7 +194,7 @@ export class AudioEngine {
     const humFilter = this.ctx.createBiquadFilter();
     humFilter.type = 'lowpass';
     humFilter.frequency.value = 180;
-    humFilter.connect(hum).connect(this.master);
+    humFilter.connect(hum).connect(this.ambienceBus || this.master);
     for (const f of [41, 55.3]) {
       const o = this.ctx.createOscillator();
       o.type = 'sawtooth';

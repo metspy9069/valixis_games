@@ -55,6 +55,32 @@ export const WEAPONS = [
   },
 ];
 
+/**
+ * Alt-fire. Every gun keeps its normal trigger; this is the one-shot decision
+ * underneath it, so two guns with the same DPS still ask different questions.
+ * The numbers live here because the HUD, the depot and the weapon code all
+ * read the same table.
+ */
+export const ALT_FIRE = {
+  pistol: { name: 'QUICK DRAW', desc: 'Two-shot double tap, both on the sights.', cooldown: 1.6 },
+  smg: { name: 'MAG DUMP', desc: 'Empty the magazine in one burst.', cooldown: 3.4 },
+  shotgun: { name: 'SLUG', desc: 'One heavy slug: five times the damage, a third of the spread.', cooldown: 1.8 },
+  rifle: { name: 'STEADY BREATH', desc: '3.2 s of dead-still aim.', cooldown: 6.5 },
+  lmg: { name: 'BIPOD', desc: 'Brace in place for 6 s of tight fire.', cooldown: 9 },
+};
+
+/**
+ * Attachments are found, not bought: one per gun, and a new find swaps the
+ * old one out. They are the reason a weapon cache is worth crossing the street
+ * for even after every gun is unlocked.
+ */
+export const ATTACHMENTS = [
+  { id: 'reddot', gun: 0, name: 'RED DOT', desc: 'Tighter sight picture while aiming.' },
+  { id: 'exttube', gun: 1, name: 'EXTENDED TUBE', desc: '+12 rounds per magazine.' },
+  { id: 'choke', gun: 2, name: 'CHOKE', desc: '40% tighter pellet spread.' },
+  { id: 'compensator', gun: 3, name: 'COMPENSATOR', desc: '35% less recoil per shot.' },
+];
+
 export const TYPES = {
   walker: {
     hp: 100, speed: 2.05, damage: 11, reach: 1.9, scale: 1, score: 100,

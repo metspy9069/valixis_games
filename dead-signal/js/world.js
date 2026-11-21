@@ -285,6 +285,13 @@ export function buildWorld(scene) {
     color: 0xbfc4bd,
   }));
 
+  // Shared roof/detail materials: a block of the city should not allocate a
+  // material per air-conditioning unit.
+  const roofMetal = new THREE.MeshStandardMaterial({ color: 0x2a3033, roughness: 0.82, metalness: 0.28 });
+  const acMat = new THREE.MeshStandardMaterial({ color: 0x343a3c, roughness: 0.9, metalness: 0.2 });
+  const neonMats = [0x3dff9a, 0xff5470, 0x54c4ff, 0xffc247].map(
+    (c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false }));
+
   // ---------- buildings ----------
   function addBuilding(x, z, w, d, h) {
     // Lambert rather than Standard: it carries an emissive map (so the lit
@@ -310,12 +317,54 @@ export function buildWorld(scene) {
       scene.add(cap);
     }
 
+    // Roof plant: tanks, air units and a stair head, so the skyline is not a
+    // row of clean boxes when you look up from the street.
     if (rng() > 0.5) {
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 10),
-        new THREE.MeshStandardMaterial({ color: 0x1d2426, roughness: 0.9 }));
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 10), roofMetal);
       tank.position.set(x + (rng() - 0.5) * (w * 0.4), h + 1.7, z + (rng() - 0.5) * (d * 0.4));
       tank.castShadow = true;
       scene.add(tank);
+    }
+    const acCount = h > 15 ? 2 : 1;
+    for (let i = 0; i < acCount; i++) {
+      const ac = box(1.3 + rng() * 1.1, 0.8 + rng() * 0.4, 1.1 + rng() * 0.7, acMat);
+      ac.position.set(
+        x + (rng() - 0.5) * Math.max(2, w * 0.55),
+        h + 0.95,
+        z + (rng() - 0.5) * Math.max(2, d * 0.55),
+      );
+      scene.add(ac);
+    }
+    const stair = box(2.1, 2.3, 2.5, roofMetal);
+    stair.position.set(x - w * 0.28, h + 1.6, z + d * 0.22);
+    scene.add(stair);
+
+    // Parapet railing along the street-facing edge.
+    if (h < 28) {
+      const railZ = z + (z >= 0 ? -1 : 1) * (d / 2 - 0.2);
+      const rail = box(w * 0.94, 0.07, 0.07, roofMetal);
+      rail.position.set(x, h + 0.78, railZ);
+      scene.add(rail);
+      for (let i = -1; i <= 1; i++) {
+        const post = box(0.07, 0.72, 0.07, roofMetal);
+        post.position.set(x + i * w * 0.35, h + 0.42, railZ);
+        scene.add(post);
+      }
+    }
+
+    // Ground-floor canopy over the pavement, plus the occasional neon blade
+    // sign on a side wall. Both are what make a facade read at eye level.
+    const faceZ = z >= 0 ? -1 : 1;
+    if (h > 6) {
+      const canopy = box(Math.min(6, w * 0.55), 0.22, 1.5, roofMetal);
+      canopy.position.set(x, 3.45, z + faceZ * (d / 2 + 0.75));
+      scene.add(canopy);
+    }
+    if (rng() > 0.55) {
+      const faceX = rng() > 0.5 ? 1 : -1;
+      const sign = box(0.12, 1.5 + rng() * 1.8, Math.min(4, d * 0.45), neonMats[Math.floor(rng() * neonMats.length)]);
+      sign.position.set(x + faceX * (w / 2 + 0.08), 5.5 + rng() * Math.min(9, h * 0.45), z + (rng() - 0.5) * d * 0.4);
+      scene.add(sign);
     }
   }
 

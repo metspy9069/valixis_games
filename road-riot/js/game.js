@@ -189,6 +189,8 @@ class RoadRiotGame {
       garageStatsList: document.querySelector('#garage-stats-list'),
       tabCarsBtn: document.querySelector('#tab-cars-btn'),
       tabAchievementsBtn: document.querySelector('#tab-achievements-btn'),
+      tabViewCarBtn: document.querySelector('#tab-view-car-btn'),
+      garageTuningPanel: document.querySelector('#garage-tuning-panel'),
       garageViewCars: document.querySelector('#garage-view-cars'),
       garageViewAchievements: document.querySelector('#garage-view-achievements'),
       achievementsContainer: document.querySelector('#achievements-container'),
@@ -429,6 +431,11 @@ class RoadRiotGame {
 
     // Garage Tabs
     this.ui.tabCarsBtn?.addEventListener('click', () => {
+      this.ui.garageTuningPanel?.classList.remove('minimized');
+      if (this.ui.tabViewCarBtn) {
+        this.ui.tabViewCarBtn.textContent = '👁 3D VIEW';
+        this.ui.tabViewCarBtn.classList.remove('active');
+      }
       this.ui.tabCarsBtn.classList.add('active');
       this.ui.tabAchievementsBtn.classList.remove('active');
       this.ui.garageViewCars.classList.remove('hidden');
@@ -436,11 +443,23 @@ class RoadRiotGame {
     });
 
     this.ui.tabAchievementsBtn?.addEventListener('click', () => {
+      this.ui.garageTuningPanel?.classList.remove('minimized');
+      if (this.ui.tabViewCarBtn) {
+        this.ui.tabViewCarBtn.textContent = '👁 3D VIEW';
+        this.ui.tabViewCarBtn.classList.remove('active');
+      }
       this.ui.tabAchievementsBtn.classList.add('active');
       this.ui.tabCarsBtn.classList.remove('active');
       this.ui.garageViewAchievements.classList.remove('hidden');
       this.ui.garageViewCars.classList.add('hidden');
       this.renderAchievementsList();
+    });
+
+    this.ui.tabViewCarBtn?.addEventListener('click', () => {
+      if (!this.ui.garageTuningPanel) return;
+      const isMin = this.ui.garageTuningPanel.classList.toggle('minimized');
+      this.ui.tabViewCarBtn.textContent = isMin ? '🗂 PANEL' : '👁 3D VIEW';
+      this.ui.tabViewCarBtn.classList.toggle('active', isMin);
     });
 
     // Garage Carousel & Swatches
@@ -700,9 +719,16 @@ class RoadRiotGame {
     this.state = 'COUNTDOWN';
     this.countdownStep = 3;
     this.countdownTimer = 0;
+    this.distance = 0;
+    this.score = 0;
+    this.multiplier = 1;
+    this.multiplierTimer = 0;
+    this.isFever = false;
+    this.camShake = 0;
 
     progression.resetRunStats();
     this.traffic.clear();
+    this.world.reset();
     this.turntableAngle = 0;
 
     const sel = progression.data.selectedVehicle || 'apex';
@@ -729,6 +755,7 @@ class RoadRiotGame {
     this.ui.pauseModal.classList.add('hidden');
     this.ui.hud.classList.remove('hidden');
     if (this.ui.overlayRedAlert) this.ui.overlayRedAlert.classList.add('hidden');
+    this.updateHUD();
 
     this.ui.countdownOverlay.classList.add('show');
     this.ui.countdownText.textContent = '3';
@@ -904,6 +931,12 @@ class RoadRiotGame {
 
     this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle);
     if (this.garageIndex < 0) this.garageIndex = 0;
+
+    this.ui.garageTuningPanel?.classList.remove('minimized');
+    if (this.ui.tabViewCarBtn) {
+      this.ui.tabViewCarBtn.textContent = '👁 3D VIEW';
+      this.ui.tabViewCarBtn.classList.remove('active');
+    }
 
     this.ui.garageModal.classList.remove('hidden');
     this.renderGarageCarousel();
@@ -1991,6 +2024,15 @@ class RoadRiotGame {
 }
 
 // Boot application
-window.addEventListener('DOMContentLoaded', () => {
-  window.game = new RoadRiotGame();
-});
+function bootGame() {
+  if (!window.game) {
+    window.game = new RoadRiotGame();
+  }
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootGame);
+  } else {
+    bootGame();
+  }
+}

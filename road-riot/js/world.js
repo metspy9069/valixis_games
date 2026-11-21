@@ -898,6 +898,18 @@ export class WorldManager {
     });
   }
 
+  reset() {
+    for (let i = 0; i < this.segments.length; i++) {
+      this.segments[i].position.z = -i * this.segmentLength;
+    }
+    this.jumpRamps.forEach(r => { r.triggered = false; });
+    this.speedPanels.forEach(p => { p.triggered = false; });
+    if (this.challengeMarker && this.challengeDistance) {
+      this.challengeMarker.position.set(0, 0, -this.challengeDistance);
+      this.challengePassed = false;
+    }
+  }
+
   setChallengeTarget(distance, challengerName = 'Rival') {
     this.challengeDistance = distance;
     this.challengePassed = false;

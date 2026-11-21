@@ -858,8 +858,8 @@ html, body {
   padding: 12px 24px;
   border-radius: 12px;
   pointer-events: auto;
-  z-index: 60;
-  background: rgba(8, 16, 28, 0.75);
+  z-index: 100;
+  background: rgba(8, 16, 28, 0.85);
   border: 1px solid rgba(0, 217, 255, 0.35);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
@@ -1143,15 +1143,92 @@ html, body {
   box-shadow: 0 0 14px rgba(255, 184, 0, 0.25);
 }
 
+.view-car-toggle {
+  display: none;
+}
+
 @media (max-width: 900px) {
-  .garage-car-dock {
-    right: 20px;
-    bottom: 440px;
+  .view-car-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 217, 255, 0.15);
+    border-color: rgba(0, 217, 255, 0.5);
+    color: #7ddcff;
   }
+  .view-car-toggle.active {
+    background: linear-gradient(135deg, rgba(0, 217, 255, 0.4), rgba(0, 255, 136, 0.3));
+    color: #fff;
+    border-color: #00d9ff;
+    box-shadow: 0 0 12px rgba(0, 217, 255, 0.4);
+  }
+
+  .garage-top-bar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  .garage-brand-group .brand-eyebrow {
+    display: none;
+  }
+  .garage-main-title {
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .garage-drag-hint {
+    display: none;
+  }
+  .garage-credits-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+  #garage-close-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .garage-car-dock {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: 88px;
+    z-index: 90;
+    padding: 6px 12px;
+  }
+  .garage-chips-row {
+    gap: 8px;
+  }
+  .garage-chip {
+    padding: 6px 12px;
+    min-width: 110px;
+  }
+
   .garage-tuning-sidebar {
-    left: 20px;
+    top: 66px;
+    bottom: 104px;
+    left: 8px;
+    right: 8px;
     width: auto;
-    max-height: 400px;
+    max-width: none;
+    max-height: calc(100% - 178px);
+    z-index: 80;
+    padding: 14px;
+    transition: max-height 0.25s ease, height 0.25s ease, padding 0.2s ease, opacity 0.2s ease;
+  }
+
+  .garage-tuning-sidebar.minimized {
+    height: 48px;
+    max-height: 48px;
+    overflow: hidden;
+    padding: 6px 14px;
+    background: rgba(8, 16, 30, 0.7);
+    backdrop-filter: blur(8px);
+  }
+
+  .garage-tuning-sidebar.minimized > :not(.tab-group) {
+    display: none !important;
   }
 }
 

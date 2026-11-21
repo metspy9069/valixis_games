@@ -301,7 +301,7 @@ export class PlayerCar {
     const proto = this.assetPrototypes[this.currentVehicleId] || this.assetPrototypes.player;
     if (proto) {
       const model = proto.clone(true);
-      const isFerrari = (this.currentVehicleId === 'apex' || this.currentVehicleId === 'player');
+      const isApexModel = (this.currentVehicleId === 'apex' || this.currentVehicleId === 'player');
 
       model.traverse(node => {
         if (!node.isMesh) return;
@@ -366,8 +366,8 @@ export class PlayerCar {
             }
 
             // 6. Primary High-Gloss Metallic Car Body Paint
-            if (/CHASSIS|BODY|HOOD|DOOR|BOOT|BUMPER|PHONG4|COLORMAP/i.test(combined) || isFerrari) {
-              // If material has an existing texture map (e.g., Kenney colormap, Ferrari livery), preserve map!
+            if (/CHASSIS|BODY|HOOD|DOOR|BOOT|BUMPER|PHONG4|COLORMAP/i.test(combined) || isApexModel) {
+              // If material has an existing texture map (e.g., Kenney colormap), preserve map!
               if (m.map) {
                 const cloned = m.clone();
                 cloned.map.colorSpace = THREE.SRGBColorSpace;

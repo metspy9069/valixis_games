@@ -19,6 +19,7 @@ export class TrafficManager {
     this.collectibleTimer = 1.2;
 
     this.lanes = [-6, 0, 6];
+    this.sharedShadowTex = null;
 
     try {
       this.colormapTexture = new THREE.TextureLoader().load('./assets/Textures/colormap.png');
@@ -209,12 +210,74 @@ export class TrafficManager {
       // Attach Highway Taillights facing camera at +Z, headlights pointing down road at -Z
       this.attachTrafficLamps(wrapper, type, isPolice, isRival);
 
+      // Soft Ambient Occlusion Contact Shadow (firmly plants NPC tires onto the asphalt)
+      const shadowW = (type === 'delivery' || type === 'ambulance') ? 2.8 : 2.5;
+      const shadowL = (type === 'delivery' || type === 'ambulance') ? 5.8 : 4.8;
+      this.attachContactShadow(wrapper, shadowW, shadowL);
+
       return wrapper;
     }
 
     const palette = [0xff3355, 0xffaa00, 0x00d9ff, 0x9944ff, 0x00ff88, 0xffffff];
     const color = palette[Math.floor(Math.random() * palette.length)];
     return this.buildProceduralTraffic(type, color, isRival, isPolice);
+  }
+
+  createContactShadowTexture() {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // Ambient Occlusion drop shadow under NPC vehicle chassis
+    const grad = ctx.createRadialGradient(128, 128, 20, 128, 128, 118);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.92)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.78)');
+    grad.addColorStop(0.72, 'rgba(0, 0, 0, 0.38)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(128, 128, 92, 116, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4 Tire Contact Footprints (FL, FR, RL, RR)
+    const tirePositions = [
+      { x: 68, y: 68, rx: 18, ry: 26 },
+      { x: 188, y: 68, rx: 18, ry: 26 },
+      { x: 68, y: 188, rx: 20, ry: 30 },
+      { x: 188, y: 188, rx: 20, ry: 30 }
+    ];
+    tirePositions.forEach(tp => {
+      const tireGrad = ctx.createRadialGradient(tp.x, tp.y, 4, tp.x, tp.y, tp.rx * 1.4);
+      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
+      tireGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
+      tireGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+      ctx.fillStyle = tireGrad;
+      ctx.beginPath();
+      ctx.ellipse(tp.x, tp.y, tp.rx * 1.2, tp.ry * 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  attachContactShadow(group, width = 2.6, length = 5.0) {
+    if (!this.sharedShadowTex && typeof document !== 'undefined') {
+      this.sharedShadowTex = this.createContactShadowTexture();
+    }
+    const shadowGeo = new THREE.PlaneGeometry(width, length);
+    shadowGeo.rotateX(-Math.PI / 2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: this.sharedShadowTex || undefined,
+      transparent: true,
+      opacity: 0.88,
+      depthWrite: false
+    });
+    const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowMesh.position.y = 0.014;
+    group.add(shadowMesh);
   }
 
   attachTrafficLamps(parentGroup, type, isPolice, isRival) {
@@ -392,6 +455,8 @@ export class TrafficManager {
       });
     });
 
+    this.attachContactShadow(group, 3.2, 11.5);
+
     return group;
   }
 
@@ -488,6 +553,8 @@ export class TrafficManager {
       });
     });
 
+    this.attachContactShadow(group, 3.2, 10.5);
+
     return group;
   }
 
@@ -535,6 +602,7 @@ export class TrafficManager {
     });
 
     this.attachTrafficLamps(group, type, isPolice, isRival);
+    this.attachContactShadow(group, 2.6, 5.0);
 
     return group;
   }

@@ -729,6 +729,7 @@ class RoadRiotGame {
     progression.resetRunStats();
     this.traffic.clear();
     this.world.reset();
+    if (this.npcCars) this.npcCars.forEach((npc, i) => npc.reset(i * 35));
     this.turntableAngle = 0;
 
     const sel = progression.data.selectedVehicle || 'apex';
@@ -1412,6 +1413,7 @@ class RoadRiotGame {
           // DRIVING ON THE RAMP DECK: Solid physical incline elevation
           const progress = (2.4 - relZ) / 4.8; // 0 at entrance, 1 at takeoff lip
           const deckY = 0.03 + progress * 1.32;
+          this.player.rampElevation = deckY;
           this.player.mesh.position.y = Math.max(this.player.mesh.position.y, deckY);
           if (!this.player.isAirborne) {
             this.player.chassis.rotation.x = -0.26; // Match ~15 deg incline
@@ -1432,6 +1434,7 @@ class RoadRiotGame {
           // SOLID GUARDRAIL: Bounces car off the side of the ramp
           const side = Math.sign(relX) || 1;
           this.player.x = ramp.lane + side * 2.05;
+          this.player.mesh.position.x = this.player.x;
           this.player.speed = Math.max(0, this.player.speed * 0.85);
           this.camShake = 0.3;
           audio.play('collision');
@@ -1591,6 +1594,7 @@ class RoadRiotGame {
             // Lateral / Side-Swipe Collision:
             // 1. Push player completely outside the vehicle's bounding box
             this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.18), -8.2, 8.2);
+            this.player.mesh.position.x = this.player.x;
             // 2. Lateral speed deflection
             this.player.vx = bounceDir * 3.5;
             this.player.steerAngle += bounceDir * 0.22;
@@ -1642,6 +1646,7 @@ class RoadRiotGame {
             this.player.suspensionPitch = 0.22;
           } else {
             this.player.x = THREE.MathUtils.clamp(npc.car.position.x + bounceDir * (npcHalfW + 0.18), -8.2, 8.2);
+            this.player.mesh.position.x = this.player.x;
             npc.car.position.x = THREE.MathUtils.clamp(npc.car.position.x - bounceDir * 0.35, -7.5, 7.5);
             this.player.vx = bounceDir * 3.5;
             this.player.speed = Math.max(0, this.player.speed * 0.8);
@@ -1794,6 +1799,7 @@ class RoadRiotGame {
         } else {
           // Hard physical barrier / barrel: SOLID LATERAL SEPARATION & SPEED CLAMP
           this.player.x = THREE.MathUtils.clamp(o.mesh.position.x + bounceDir * (obsHalfW + 0.1), -8.2, 8.2);
+          this.player.mesh.position.x = this.player.x;
           this.player.speed = Math.max(0, this.player.speed * 0.35);
 
           if (!o.isColliding) {
@@ -1896,7 +1902,7 @@ class RoadRiotGame {
 
     // Cinematic GT Chase Cam: Elevated rear angle that reveals 150+ meters of open highway ahead
     const targetCamX = this.player.x * 0.52 + shakeNoiseX;
-    const targetCamY = 3.8 + this.player.verticalY * 0.55 + shakeNoiseY;
+    const targetCamY = 3.8 + this.player.mesh.position.y * 0.55 + shakeNoiseY;
     const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
@@ -1906,7 +1912,7 @@ class RoadRiotGame {
     // Look far down the highway (Z = -85m) towards the horizon so all 3 lanes, oncoming cars, ramps, and horizon are fully visible
     this.camera.lookAt(
       this.player.x * 0.25,
-      1.85 + this.player.verticalY * 0.38,
+      1.85 + this.player.mesh.position.y * 0.38,
       -85
     );
 

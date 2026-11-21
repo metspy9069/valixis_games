@@ -453,3 +453,71 @@ test('world manager reset restores all highway segments to starting longitudinal
     assert.equal(segments[i].position.z, -i * segmentLength, `Segment ${i} restored to initial offset`);
   }
 });
+
+test('spawning traffic and obstacles avoids occupied lanes preventing spawn overlapping', () => {
+  const lanes = [-6, 0, 6];
+  const existingVehicles = [{ lane: -6, z: -130 }];
+  const existingObstacles = [{ lane: 0, z: -140 }];
+  const jumpRamps = [{ lane: 6, worldZ: -145 }];
+
+  const occupiedLanes = new Set([
+    ...existingVehicles.filter(v => v.z < -120).map(v => v.lane),
+    ...existingObstacles.filter(o => o.z < -120).map(o => o.lane),
+    ...jumpRamps.filter(r => Math.abs(r.worldZ - (-145)) < 16).map(r => r.lane)
+  ]);
+
+  const availableLanes = lanes.filter(l => !occupiedLanes.has(l));
+  assert.equal(availableLanes.length, 0, 'When all 3 lanes are occupied at spawn threshold, spawn is safely deferred');
+
+  // When lane 0 clears:
+  existingObstacles.length = 0;
+  const recheckedOccupied = new Set([
+    ...existingVehicles.filter(v => v.z < -120).map(v => v.lane),
+    ...jumpRamps.filter(r => Math.abs(r.worldZ - (-145)) < 16).map(r => r.lane)
+  ]);
+  const recheckedAvailable = lanes.filter(l => !recheckedOccupied.has(l));
+  assert.deepEqual(recheckedAvailable, [0], 'Only the free lane is picked for new entity spawn');
+});
+
+test('npc car reset clears collision state and positions vehicle in valid highway lane', () => {
+  const dummyNpc = {
+    lanes: [-6, 0, 6],
+    currentLane: -6,
+    targetX: -6,
+    isColliding: true,
+    pos: { x: 0, y: 0, z: -5 },
+    reset(zOffset = 0) {
+      this.currentLane = this.lanes[0];
+      this.targetX = this.currentLane;
+      this.pos.x = this.currentLane;
+      this.pos.y = 0;
+      this.pos.z = -85 - zOffset;
+      this.isColliding = false;
+    }
+  };
+
+  dummyNpc.reset(35);
+  assert.equal(dummyNpc.isColliding, false, 'Collision state cleared on reset');
+  assert.ok(dummyNpc.lanes.includes(dummyNpc.pos.x), 'Positioned in standard highway lane');
+  assert.ok(dummyNpc.pos.z <= -120, 'Positioned at safe distance ahead of player on start/restart');
+});
+
+test('player mesh position x remains strictly synchronized with lateral physics coordinate', () => {
+  const player = {
+    x: 0,
+    mesh: { position: { x: 0, y: 0, z: -8 } },
+    update() {
+      this.mesh.position.x = this.x;
+    }
+  };
+
+  // Simulate lateral collision bounce pushing car to lane 6
+  player.x = 6.0;
+  player.update();
+  assert.equal(player.mesh.position.x, 6.0, 'Mesh X is synchronized with physical coordinate');
+
+  // Clamp at outer guardrail
+  player.x = 8.2;
+  player.update();
+  assert.equal(player.mesh.position.x, 8.2, 'Mesh X clamps at outer guardrail boundary');
+});

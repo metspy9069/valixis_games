@@ -48,9 +48,18 @@ export class TrafficManager {
 
   spawnTraffic(currentDistance) {
     const lanes = [-6, 0, 6];
-    const occupiedLanes = new Set(
-      this.vehicles.filter(v => v.mesh.position.z < -120).map(v => v.lane)
-    );
+    const occupiedLanes = new Set([
+      ...this.vehicles.filter(v => v.mesh.position.z < -120).map(v => v.lane),
+      ...this.obstacles.filter(o => o.mesh.position.z < -120).map(o => o.lane)
+    ]);
+    if (this.jumpRamps) {
+      for (const ramp of this.jumpRamps) {
+        const rz = ramp.parent.position.z + ramp.mesh.position.z;
+        if (Math.abs(rz - (-145)) < 16) {
+          occupiedLanes.add(ramp.lane);
+        }
+      }
+    }
     const availableLanes = lanes.filter(l => !occupiedLanes.has(l));
     if (!availableLanes.length) return;
 
@@ -531,7 +540,21 @@ export class TrafficManager {
   }
 
   spawnObstacle() {
-    const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+    const occupiedLanes = new Set([
+      ...this.vehicles.filter(v => v.mesh.position.z < -120).map(v => v.lane),
+      ...this.obstacles.filter(o => o.mesh.position.z < -120).map(o => o.lane)
+    ]);
+    if (this.jumpRamps) {
+      for (const ramp of this.jumpRamps) {
+        const rz = ramp.parent.position.z + ramp.mesh.position.z;
+        if (Math.abs(rz - (-145)) < 16) {
+          occupiedLanes.add(ramp.lane);
+        }
+      }
+    }
+    const availableLanes = this.lanes.filter(l => !occupiedLanes.has(l));
+    if (!availableLanes.length) return;
+    const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
     const roll = Math.random();
     const mesh = new THREE.Group();
     let isSpike = false;
@@ -636,7 +659,14 @@ export class TrafficManager {
   }
 
   spawnCollectible() {
-    const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+    const occupiedLanes = new Set([
+      ...this.collectibles.filter(c => c.mesh.position.z < -120).map(c => c.mesh.position.x),
+      ...this.obstacles.filter(o => o.mesh.position.z < -120).map(o => o.lane)
+    ]);
+    const availableLanes = this.lanes.filter(l => !occupiedLanes.has(l));
+    const lane = availableLanes.length > 0
+      ? availableLanes[Math.floor(Math.random() * availableLanes.length)]
+      : this.lanes[Math.floor(Math.random() * this.lanes.length)];
     const roll = Math.random();
     // Prioritize high-octane Nitro Pickups on the highway!
     let type = 'nitro';
@@ -825,6 +855,10 @@ export class TrafficManager {
   }
 
   update(dt, playerSpeed, playerX, playerZ, currentDistance, callbacks = {}) {
+    if (callbacks.jumpRamps) {
+      this.jumpRamps = callbacks.jumpRamps;
+    }
+
     // 1. Spawning Timers
     this.trafficTimer -= dt;
     if (this.trafficTimer <= 0) {
@@ -945,6 +979,10 @@ export class TrafficManager {
               v.mesh.position.x = ramp.lane + side * 2.2;
               v.speed *= 0.85;
             }
+          } else if (relZ < -2.4 && relZ >= -3.2 && absX < 1.35 && (v.mesh.position.y || 0) < 1.2) {
+            // Solid ramp back wall stop: traffic cannot pass through back of ramp
+            v.speed = Math.max(0, v.speed * 0.35);
+            v.mesh.position.z = rampWorldZ - 3.25;
           }
         }
       }

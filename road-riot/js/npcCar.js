@@ -12,8 +12,8 @@ export class NPCCar {
     this.speed = speed; // units per second (~80 km/h)
     this.color = color;
 
-    // Highway Lane Relative Coordinates (Standard 3-Lane Highway Track)
-    this.lanes = [-4.6, 0, 4.6];
+    // Highway Lane Relative Coordinates (Standard 3-Lane Highway Track: -6, 0, 6)
+    this.lanes = [-6, 0, 6];
     this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
     this.targetX = this.currentLane;
     this.laneChangeTimer = 4.0 + Math.random() * 6.0;
@@ -35,7 +35,13 @@ export class NPCCar {
       if (!hasGeometry) {
         this.buildProceduralCarMesh();
       } else {
+        const wrapper = new THREE.Group();
         this.car.scale.set(0.7, 0.7, 0.7);
+        this.car.rotation.y = Math.PI; // Point gltf nose forward to -Z
+        wrapper.add(this.car);
+        this.car = wrapper;
+        const spawnZ = -80 - Math.random() * 80;
+        this.car.position.set(this.currentLane, 0, spawnZ);
         this.scene.add(this.car);
       }
     } catch (e) {
@@ -132,10 +138,10 @@ export class NPCCar {
         this.targetX = this.currentLane;
       }
 
-      // Smooth Lane Steer & Yaw Tilt
+      // Smooth Lane Steer & Yaw Tilt (Nose facing forward down highway towards -Z)
       const dx = this.targetX - this.car.position.x;
       this.car.position.x += dx * Math.min(1, delta * 3.5);
-      this.car.rotation.y = Math.PI - dx * 0.08;
+      this.car.rotation.y = -dx * 0.08;
 
       // 3. Clean Highway Recycling:
       // When vehicle is scrolled past camera (+Z), recycle ahead of player (-Z)
@@ -196,6 +202,17 @@ export class NPCCar {
     }
 
     return this.pathPoints[0].clone();
+  }
+
+  reset(zOffset = 0) {
+    if (!this.car) return;
+    this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+    this.targetX = this.currentLane;
+    this.car.position.set(this.currentLane, 0, -85 - zOffset - Math.random() * 50);
+    this.car.rotation.set(0, 0, 0);
+    this.isColliding = false;
+    this.laneChangeTimer = 4.0 + Math.random() * 5.0;
+    this.speed = 19 + Math.random() * 6;
   }
 
   destroy() {

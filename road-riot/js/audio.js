@@ -541,6 +541,7 @@ class RoadAudioEngine {
     const now = this.ctx.currentTime;
     switch (type) {
       case 'nearmiss':
+      case 'near_miss':
         this.synthNearMiss(now);
         break;
       case 'boost':
@@ -569,12 +570,15 @@ class RoadAudioEngine {
         // Handled dynamically in updateEngine()
         break;
       case 'jump':
+      case 'ramp_launch':
         this.synthJumpLaunch(now);
         break;
       case 'land':
+      case 'ramp_land':
         this.synthJumpLand(now);
         break;
       case 'booster':
+      case 'boost_pad':
         this.synthBoosterSurge(now);
         break;
       case 'nitro_pickup':

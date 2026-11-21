@@ -130,6 +130,7 @@ export class PlayerCar {
     this.driftScore = 0;
     this.steerInput = 0;
     this.steerAngle = 0;
+    this.rampElevation = 0;
 
     // Suspension Kinetics
     this.suspensionPitch = 0;
@@ -259,6 +260,7 @@ export class PlayerCar {
     this.isAirborne = false;
     this.verticalY = 0;
     this.verticalVel = 0;
+    this.rampElevation = 0;
     this.shieldActive = false;
     this.shieldTime = 0;
     this.magnetActive = false;
@@ -864,9 +866,13 @@ export class PlayerCar {
       this.chassis.rotation.x = this.suspensionPitch;
     }
 
-    this.mesh.position.y = this.verticalY + Math.sin(performance.now() * 0.008) * 0.02;
+    // Ensure mesh X is 100% synchronized with physics state
+    this.mesh.position.x = this.x;
+    const baseElevation = this.isAirborne ? this.verticalY : Math.max(this.verticalY, this.rampElevation || 0);
+    this.mesh.position.y = baseElevation + Math.sin(performance.now() * 0.008) * 0.02;
     this.chassis.rotation.y = 0; // Chassis yaw is strictly locked forward; steering yaw is applied to this.mesh
     this.chassis.rotation.z = this.suspensionRoll;
+    this.rampElevation = 0; // Reset for next frame
 
     // 4. Drift Tire Skids & Smoke
     if (this.isDrifting && this.speed > 14 && !this.isAirborne) {

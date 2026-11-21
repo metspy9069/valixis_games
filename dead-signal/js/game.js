@@ -216,7 +216,7 @@ let rng = makeRng(1337);
 const SETTINGS_KEY = 'deadSignalSettings';
 const settings = Object.assign({
   sensitivity: 1, fov: 78, invertY: false,
-  master: 0.7, effects: 0.85, ambience: 0.75,
+  master: 0.7, effects: 0.85, ambience: 0.75, music: 0.6,
   shake: 1, reduceFlash: false, colorblind: false,
   keybinds: {}, aimAssist: true,
 }, loadSettings());
@@ -581,8 +581,8 @@ const hud = {
   dmgDir: el('dmgDir'), perf: el('perf'),
   setSens: el('setSens'), setFov: el('setFov'), setInvert: el('setInvert'),
   setSensVal: el('setSensVal'), setFovVal: el('setFovVal'),
-  setMaster: el('setMaster'), setEffects: el('setEffects'), setAmbience: el('setAmbience'),
-  setMasterVal: el('setMasterVal'), setEffectsVal: el('setEffectsVal'), setAmbienceVal: el('setAmbienceVal'),
+  setMaster: el('setMaster'), setEffects: el('setEffects'), setAmbience: el('setAmbience'), setMusic: el('setMusic'),
+  setMasterVal: el('setMasterVal'), setEffectsVal: el('setEffectsVal'), setAmbienceVal: el('setAmbienceVal'), setMusicVal: el('setMusicVal'),
   setShake: el('setShake'), setShakeVal: el('setShakeVal'),
   setFlash: el('setFlash'), setColorblind: el('setColorblind'), setAimAssist: el('setAimAssist'),
   binds: el('bindList'), resetBinds: el('resetBinds'),
@@ -2137,6 +2137,7 @@ function updateWaveHud() {
 }
 
 function updateHudTick(dt) {
+  audio.setMusicIntensity(musicTarget());
   hudTimer -= dt;
   if (hudTimer <= 0) {
     hudTimer = 0.12;
@@ -2158,6 +2159,8 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   audio.resume();
   audio.setMuted(audio.muted);
   audio.setAmbientLevel(1);
+  audio.startMusic();
+  audio.setMusicIntensity(0.34);
 
   for (const z of zombies) scene.remove(z.group);
   zombies.length = 0;
@@ -2289,6 +2292,7 @@ function pauseGame() {
   }
   ammo.triggerHeld = false;
   player.ads = false;
+  audio.setMusicIntensity(0.18);
 }
 
 function resumeGame() {
@@ -2297,6 +2301,7 @@ function resumeGame() {
   document.body.classList.remove('paused');
   hud.pause.classList.add('hidden');
   audio.resume();
+  audio.setMusicIntensity(musicTarget());
   requestLock();
 }
 
@@ -2306,6 +2311,7 @@ function endRun() {
   game.running = false;
   player.ads = false;
   audio.setAmbientLevel(0.25);
+  audio.setMusicIntensity(0.14);
   if (document.pointerLockElement === canvas) {
     suppressLockEvent = true;
     document.exitPointerLock();
@@ -3056,8 +3062,19 @@ document.addEventListener('visibilitychange', () => {
 
 function applyAudioVolumes() {
   audio.setVolumes({
-    master: settings.master, effects: settings.effects, ambience: settings.ambience,
+    master: settings.master, effects: settings.effects, ambience: settings.ambience, music: settings.music,
   });
+}
+
+// The score follows the run, not the clock: hush in the menu, tense between
+// waves, urgent while they are in the street, full weight for a boss.
+function musicTarget() {
+  if (!game.running) return 0.14;
+  if (game.paused || game.shopOpen) return 0.18;
+  if (game.plan && game.plan.boss) return 1;
+  if (game.plan && game.plan.surge) return 0.86;
+  if (game.intermission > 0) return 0.34;
+  return Math.min(0.78, 0.58 + aliveCount() * 0.012);
 }
 
 function renderBinds() {
@@ -3112,6 +3129,7 @@ function bindSettings() {
     [hud.setMaster, hud.setMasterVal, 'master', (v) => `${Math.round(v * 100)}%`],
     [hud.setEffects, hud.setEffectsVal, 'effects', (v) => `${Math.round(v * 100)}%`],
     [hud.setAmbience, hud.setAmbienceVal, 'ambience', (v) => `${Math.round(v * 100)}%`],
+    [hud.setMusic, hud.setMusicVal, 'music', (v) => `${Math.round(v * 100)}%`],
     [hud.setShake, hud.setShakeVal, 'shake', (v) => `${Math.round(v * 100)}%`],
   ];
   for (const [node, valNode, key, fmt] of sliders) {
@@ -3121,7 +3139,7 @@ function bindSettings() {
     node.addEventListener('input', () => {
       settings[key] = Number(node.value);
       if (valNode) valNode.textContent = fmt(settings[key]);
-      if (key === 'master' || key === 'effects' || key === 'ambience') applyAudioVolumes();
+      if (key === 'master' || key === 'effects' || key === 'ambience' || key === 'music') applyAudioVolumes();
       saveSettings();
     });
   }

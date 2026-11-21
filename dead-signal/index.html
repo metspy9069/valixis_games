@@ -10,6 +10,24 @@
 <link rel="icon" href="../favicon-32x32.png">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <style>
+  /* Vendored from Google Fonts (SIL Open Font License): no third-party
+     request at runtime, and the type is thick enough for a dark shooter UI. */
+  @font-face {
+    font-family: "Bebas Neue"; src: url("./vendor/fonts/bebas-neue-400.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "Barlow"; src: url("./vendor/fonts/barlow-400.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "Barlow"; src: url("./vendor/fonts/barlow-600.woff2") format("woff2");
+    font-weight: 600; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "JetBrains Mono"; src: url("./vendor/fonts/jetbrains-mono-var.woff2") format("woff2");
+    font-weight: 100 800; font-style: normal; font-display: swap;
+  }
   :root {
     --toxic: #9dff4d;
     --toxic-2: #d6ff8f;
@@ -20,13 +38,14 @@
     --line: rgba(157, 255, 77, 0.24);
     --text: #e7ece4;
     --muted: #8d9a8c;
-    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
-    --display: "Orbitron", "Eurostile", "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --display: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; height: 100%; overflow: hidden; background: var(--ink); color: var(--text);
-    font-family: var(--display); user-select: none;
+    font-family: var(--body); user-select: none;
   }
   #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
   body.paused #scene, body.in-menu #scene, body.shopping #scene { cursor: default; }
@@ -122,7 +141,7 @@
   #banner { position: fixed; left: 50%; top: 21%; transform: translate(-50%, -10px); z-index: 24; text-align: center; pointer-events: none; opacity: 0; transition: opacity .35s ease, transform .35s ease; }
   #banner.show { opacity: 1; transform: translate(-50%, 0); }
   #banner .k { display: block; font: 700 10px/1 var(--mono); letter-spacing: 6px; color: var(--toxic); }
-  #banner .t { display: block; margin-top: 8px; font: 900 clamp(20px, 4vw, 34px)/1 var(--display); letter-spacing: 4px; color: #fff; text-shadow: 0 0 30px rgba(157, 255, 77, 0.55), 0 3px 8px #000; }
+  #banner .t { display: block; margin-top: 8px; font: 400 clamp(26px, 4.6vw, 44px)/1 var(--display); letter-spacing: 5px; color: #fff; text-shadow: 0 0 30px rgba(157, 255, 77, 0.55), 0 3px 8px #000; }
   #banner .s { display: block; margin-top: 8px; font: 600 11px/1.5 var(--mono); letter-spacing: 1px; color: #b9c4b6; text-shadow: 0 2px 6px #000; }
 
   #hint { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 19; font: 700 10px/1 var(--mono); letter-spacing: 2px; color: rgba(255,255,255,0.55); text-shadow: 0 2px 6px #000; pointer-events: none; opacity: 0; transition: opacity .3s; }
@@ -162,10 +181,10 @@
 
   .brand { text-align: center; max-width: 780px; }
   .brand .eyebrow { font: 700 10px/1 var(--mono); letter-spacing: 5px; color: var(--toxic); }
-  .brand h1 { margin: 12px 0 10px; font: 900 clamp(38px, 8vw, 76px)/0.92 var(--display); letter-spacing: 2px;
+  .brand h1 { margin: 12px 0 10px; font: 400 clamp(46px, 9.4vw, 92px)/0.92 var(--display); letter-spacing: 3px;
     background: linear-gradient(180deg, #fff, #c9ff9a 52%, #6fd12d); -webkit-background-clip: text; background-clip: text; color: transparent;
     filter: drop-shadow(0 0 30px rgba(120, 220, 70, 0.45)); }
-  .brand p { margin: 0 auto; font: 500 13px/1.75 var(--mono); color: #b3bfb0; }
+  .brand p { margin: 0 auto; max-width: 620px; font: 400 15px/1.7 var(--body); color: #b3bfb0; }
   .tags { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 14px; }
   .tag { font: 700 9px/1 var(--mono); letter-spacing: 1.4px; padding: 6px 9px; border-radius: 99px;
     border: 1px solid rgba(157, 255, 77, 0.3); color: #c8f79b; background: rgba(157, 255, 77, 0.07); }
@@ -175,27 +194,27 @@
     border-radius: 13px; padding: 13px; text-align: left; position: relative; }
   .gun-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, transparent, var(--toxic), transparent); opacity: .55; }
   .gun-key { position: absolute; top: 10px; right: 11px; font: 800 9px/1 var(--mono); color: #8d9a8c; border: 1px solid rgba(255,255,255,0.16); border-radius: 5px; padding: 3px 5px; }
-  .gun-name { font: 900 13px/1.2 var(--display); letter-spacing: 1.2px; color: #fff; margin-bottom: 6px; }
+  .gun-name { font: 400 19px/1.2 var(--display); letter-spacing: 1.4px; color: #fff; margin-bottom: 6px; }
   .gun-stats { display: flex; gap: 10px; font: 700 9px/1.4 var(--mono); color: #8d9a8c; flex-wrap: wrap; }
   .gun-stats b { color: #d8e4d4; }
-  .gun-note { font: 500 10px/1.5 var(--mono); color: #93a291; margin-top: 8px; }
+  .gun-note { font: 400 12px/1.5 var(--body); color: #93a291; margin-top: 8px; }
 
   .record { font: 700 10px/1.6 var(--mono); letter-spacing: 1.4px; color: #8d9a8c; text-align: center; }
   .record b { color: #fff; }
 
   .btn { cursor: pointer; font: 800 12px/1 var(--mono); letter-spacing: 2px; color: #08110a; padding: 16px 34px; border-radius: 11px; border: 0;
-    background: linear-gradient(135deg, #ecffcf, #9dff4d); box-shadow: 0 10px 30px -8px rgba(130, 240, 80, 0.85); font-family: var(--display); }
+    background: linear-gradient(135deg, #ecffcf, #9dff4d); box-shadow: 0 10px 30px -8px rgba(130, 240, 80, 0.85); font-family: var(--display); font-weight: 400; }
   .btn:hover { filter: brightness(1.06); }
   .btn.ghost { background: rgba(255,255,255,0.04); color: #dbe6d7; border: 1px solid rgba(255,255,255,0.16); box-shadow: none; }
-  .controls-hint { font: 600 10px/1.9 var(--mono); letter-spacing: 1px; color: #7f8c80; text-align: center; max-width: 800px; }
+  .controls-hint { font: 400 12px/1.85 var(--body); letter-spacing: 0.2px; color: #8b9789; text-align: center; max-width: 780px; }
   .controls-hint b { color: var(--toxic-2); }
 
   .modal { width: min(620px, 100%); margin: auto; text-align: center; background: linear-gradient(165deg, rgba(18, 26, 20, 0.98), rgba(6, 9, 7, 0.98));
     border: 1px solid var(--line); border-radius: 18px; padding: 26px 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.75); }
-  .modal h2 { margin: 0 0 6px; font: 900 clamp(22px, 4vw, 34px)/1 var(--display); letter-spacing: 3px; color: #fff; }
+  .modal h2 { margin: 0 0 6px; font: 400 clamp(28px, 5vw, 42px)/1 var(--display); letter-spacing: 4px; color: #fff; }
   .modal .sub { font: 600 11px/1.6 var(--mono); color: #97a595; margin: 0 0 20px; }
   .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .over-title { margin: 0 0 8px; font: 900 clamp(26px, 5vw, 46px)/1 var(--display); letter-spacing: 3px; }
+  .over-title { margin: 0 0 8px; font: 400 clamp(34px, 6.4vw, 60px)/1 var(--display); letter-spacing: 4px; }
   .over-title.lose { color: #ff5570; text-shadow: 0 0 34px rgba(255, 60, 90, 0.5); }
   .over-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 20px; }
   .over-stats .stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 10px 8px; }
@@ -262,8 +281,8 @@
     font: 700 9px/1 var(--mono); letter-spacing: 2px; color: var(--toxic); margin-bottom: 8px; }
   .challenge-head em { font-style: normal; color: #8d9a8c; }
   .challenge-card.done .challenge-head em { color: var(--toxic); }
-  .challenge-name { font: 900 14px/1.2 var(--display); letter-spacing: 1.4px; color: #fff; margin-bottom: 5px; }
-  .challenge-desc { font: 500 11px/1.5 var(--mono); color: #9dab9a; min-height: 33px; }
+  .challenge-name { font: 400 20px/1.2 var(--display); letter-spacing: 1.5px; color: #fff; margin-bottom: 5px; }
+  .challenge-desc { font: 400 13px/1.5 var(--body); color: #9dab9a; min-height: 33px; }
   .challenge-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
   .challenge-foot span { font: 700 9px/1 var(--mono); letter-spacing: 1.6px; color: #7f8c80; }
   .challenge-foot button { cursor: pointer; font: 800 10px/1 var(--mono); letter-spacing: 1.6px; color: #08110a;
@@ -329,7 +348,7 @@
     border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
   .shop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
   .shop-head .eyebrow { font: 700 9px/1 var(--mono); letter-spacing: 4px; color: var(--toxic); }
-  .shop-head h2 { margin: 8px 0 0; font: 900 clamp(22px, 3.4vw, 32px)/1 var(--display); letter-spacing: 3px; color: #fff; }
+  .shop-head h2 { margin: 8px 0 0; font: 400 clamp(28px, 4vw, 40px)/1 var(--display); letter-spacing: 3px; color: #fff; }
   .wallet { text-align: right; border: 1px solid rgba(255,179,71,0.35); border-radius: 10px; padding: 8px 12px; background: rgba(255,179,71,0.06); }
   .wallet span { display: block; font: 700 8px/1 var(--mono); letter-spacing: 2px; color: #b79a6a; margin-bottom: 5px; }
   .wallet b { font: 900 20px/1 var(--mono); color: var(--amber); }
@@ -340,8 +359,8 @@
     background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.09); border-radius: 11px; padding: 11px 12px; }
   .shop-item.poor { opacity: 0.55; }
   .shop-item.maxed { border-color: rgba(157,255,77,0.45); background: rgba(157,255,77,0.05); }
-  .shop-name { font: 900 12px/1.2 var(--display); letter-spacing: 1px; color: #fff; }
-  .shop-desc { font: 500 10px/1.45 var(--mono); color: #96a494; min-height: 29px; }
+  .shop-name { font: 400 18px/1.2 var(--display); letter-spacing: 1.2px; color: #fff; }
+  .shop-desc { font: 400 12px/1.45 var(--body); color: #96a494; min-height: 29px; }
   .shop-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
   .shop-level { font: 700 8px/1 var(--mono); letter-spacing: 1.4px; color: #7f8c80; }
   .shop-buy { cursor: pointer; font: 800 9px/1 var(--mono); letter-spacing: 1.3px; color: #0b1207;
@@ -571,6 +590,7 @@
       <label>MASTER<input id="setMaster" type="range" min="0" max="1" step="0.02"><span class="val" id="setMasterVal">70%</span></label>
       <label>EFFECTS<input id="setEffects" type="range" min="0" max="1" step="0.02"><span class="val" id="setEffectsVal">85%</span></label>
       <label>AMBIENCE<input id="setAmbience" type="range" min="0" max="1" step="0.02"><span class="val" id="setAmbienceVal">75%</span></label>
+      <label>MUSIC<input id="setMusic" type="range" min="0" max="1" step="0.02"><span class="val" id="setMusicVal">60%</span></label>
 
       <div class="set-head">DISPLAY &amp; COMFORT</div>
       <label>CAMERA SHAKE<input id="setShake" type="range" min="0" max="1.5" step="0.05"><span class="val" id="setShakeVal">100%</span></label>

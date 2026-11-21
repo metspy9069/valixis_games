@@ -302,6 +302,7 @@ function matsFor(typeKey, def) {
 }
 
 export function buildZombieModel(typeKey, def) {
+  if (typeKey === 'lurker') return buildLurkerModel(def);
   const g = sharedBody(typeKey, def);
   const heavy = typeKey === 'brute';
   const thin = typeKey === 'runner';
@@ -511,10 +512,12 @@ export function buildZombieModel(typeKey, def) {
   const legR = leg(1);
 
   // Headshot plus two body volumes, exactly as the original rig exposed them.
-  head.userData.part = 'head';
-  chest.userData.part = 'body';
-  belly.userData.part = 'body';
-  shirt.userData.part = 'body';
+  if (typeKey !== 'lurker') {
+    head.userData.part = 'head';
+    chest.userData.part = 'body';
+    belly.userData.part = 'body';
+    shirt.userData.part = 'body';
+  }
   // Limbs and the loose shirt were not hit volumes, so a round that hit an arm
   // or a leg passed through the zombie and struck the wall behind it.
   const limbHits = [
@@ -1062,6 +1065,149 @@ function buildRifle() {
 
   g.userData.muzzle = new THREE.Vector3(0, 0.012, -0.755);
   return g;
+}
+
+function buildLurker() {
+  const M = gunMats;
+  const g = new THREE.Group();
+
+  // Lurkers are built low and forward: a short, bent torso with long arms and a
+  // sunken head, so they read as something crawling through the dark rather than
+  // a re-skinned walker. The silhouette is the whole point.
+  const torso = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.13, 0.42, 5, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3a3532, roughness: 0.92, metalness: 0.02 }),
+  );
+  torso.position.y = 0.5;
+  torso.rotation.x = 0.18;
+  g.add(torso);
+
+  // Head: sunk into the shoulders.
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 12, 10),
+    new THREE.MeshStandardMaterial({ color: 0x4a4039, roughness: 0.88 }),
+  );
+  head.position.set(0, 0.74, -0.04);
+  head.scale.set(1, 0.82, 0.9);
+  g.add(head);
+
+  // Burning eye, low and forward.
+  const eye = new THREE.Mesh(
+    new THREE.SphereGeometry(0.028, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0xffb04d, emissive: 0xffb04d, emissiveIntensity: 4.2, toneMapped: false }),
+  );
+  eye.position.set(0, 0.7, 0.06);
+  g.add(eye);
+
+  // Long arms: the read that separates a lurker from a runner.
+  const armMat = new THREE.MeshStandardMaterial({ color: 0x4a4039, roughness: 0.9 });
+  const arm = (side) => {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.16, 0.56, 0);
+    g.add(shoulder);
+    const upper = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.04, 0.26, 4, 8),
+      armMat,
+    );
+    upper.position.set(0, -0.16, 0);
+    shoulder.add(upper);
+    const elbow = new THREE.Group();
+    elbow.position.set(0, -0.34, 0);
+    shoulder.add(elbow);
+    const fore = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.032, 0.26, 4, 8),
+      armMat,
+    );
+    fore.position.set(0, -0.13, 0);
+    elbow.add(fore);
+    const hand = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.028, 0.06, 4, 6),
+      armMat,
+    );
+    hand.position.set(0, -0.3, 0.04);
+    elbow.add(hand);
+    return shoulder;
+  };
+  g.add(arm(-1), arm(1));
+
+  // Legs: short and bent, so the whole body sits lower.
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x221f1c, roughness: 0.95 });
+  const leg = (side) => {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.11, 0.18, 0);
+    g.add(hip);
+    const thigh = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.05, 0.18, 4, 8),
+      legMat,
+    );
+    thigh.position.set(0, -0.1, 0);
+    hip.add(thigh);
+    const knee = new THREE.Group();
+    knee.position.set(0, -0.26, 0);
+    hip.add(knee);
+    const shin = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.04, 0.18, 4, 8),
+      legMat,
+    );
+    shin.position.set(0, -0.1, 0);
+    knee.add(shin);
+    const foot = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.05, 0.16),
+      legMat,
+    );
+    foot.position.set(0, -0.26, 0.03);
+    knee.add(foot);
+    return hip;
+  };
+  g.add(leg(-1), leg(1));
+
+  // A ragged little cloak-like shell so the lurker reads as hunched even at a
+  // glance, and so it blends into the dark streets it comes out of.
+  const cloak = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.32, 0.5, 12, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x1a1816, roughness: 1, side: THREE.DoubleSide }),
+  );
+  cloak.position.y = 0.4;
+  cloak.rotation.x = 0.35;
+  g.add(cloak);
+
+  g.userData.muzzle = new THREE.Vector3(0, 0.7, -0.18);
+  return g;
+}
+
+function buildLurkerModel(def) {
+  const g = buildLurker();
+  const scale = def.scale || 0.86;
+  g.scale.setScalar(scale);
+
+  // Lurkers keep a small head target and a single body target so they stay cheap
+  // to hit and easy to read, even with the hunched shape.
+  const head = g.children.find((c) => c.position.y > 0.7 && c.geometry && c.geometry.type === 'SphereGeometry');
+  const body = g.children.find((c) => c.geometry && c.geometry.type === 'CapsuleGeometry' && c.position.y < 0.6);
+  const hitMeshes = [];
+  if (head) {
+    head.userData.part = 'head';
+    hitMeshes.push(head);
+  }
+  if (body) {
+    body.userData.part = 'body';
+    hitMeshes.push(body);
+  }
+
+  // Minimal rig so the animator can still read a neck and hips from the lurker.
+  const hips = new THREE.Group();
+  hips.position.y = 0.18;
+  g.add(hips);
+  const neck = new THREE.Group();
+  neck.position.set(0, 0.56, 0);
+  hips.add(neck);
+
+  return {
+    group: g,
+    rig: { hips, torso: body || g, neck, head: head || g, jaw: null, armL: null, armR: null, legL: null, legR: null },
+    hitMeshes,
+    detail: [],
+  };
 }
 
 function buildLmg() {

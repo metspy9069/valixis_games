@@ -16,7 +16,7 @@
 //  - A boss closes every third wave.
 
 /** Absolute ceiling on a single wave, surge included. */
-export const MAX_WAVE_ENEMIES = 40;
+export const MAX_WAVE_ENEMIES = 52;
 
 /** Fraction of a surge wave that arrives in the opening burst. */
 export const SURGE_LEAD = 0.45;
@@ -47,12 +47,14 @@ export function wavePlan(n) {
   const wave = Math.max(1, Math.round(n));
   const boss = wave % BOSS_EVERY === 0;
 
-  // Bodies. Hand-set openings, then a curve that reaches the cap around
-  // wave 12 and holds it.
+  // Bodies. Hand-set openings, then a curve that reaches the new cap around
+  // wave 14 and holds it. Late waves now feel heavier instead of asymptoting at
+  // a hard wall at wave 12.
   let count;
-  if (wave === 1) count = 5;
-  else if (wave === 2) count = 8;
-  else count = Math.min(MAX_WAVE_ENEMIES, Math.round(10 + 2.5 * (wave - 2) + 0.075 * wave * wave));
+  if (wave === 1) count = 6;
+  else if (wave === 2) count = 10;
+  else if (wave === 3) count = 14;
+  else count = Math.min(MAX_WAVE_ENEMIES, Math.round(12 + 2.7 * (wave - 3) + 0.085 * (wave - 3) * (wave - 3)));
 
   // Boss waves trade escort bodies for one very large one.
   if (boss) count = Math.max(5, Math.round(count * 0.62));
@@ -79,28 +81,34 @@ export function wavePlan(n) {
   if (wave >= 4 && wave < 6) bruteChance = 0.08;
   else if (wave >= 6) bruteChance = Math.min(0.3, 0.16 + (wave - 6) * 0.009);
 
-  let spitterChance = wave >= 5 ? Math.min(0.18, 0.06 + (wave - 5) * 0.008) : 0;
+  let spitterChance = wave >= 5 ? Math.min(0.16, 0.06 + (wave - 5) * 0.007) : 0;
   // Bloaters appear once the player has met brutes and spitters. They are few:
   // one in the wrong place does more than a dozen walkers could.
-  let bloaterChance = wave >= 7 ? Math.min(0.12, 0.04 + (wave - 7) * 0.006) : 0;
+  let bloaterChance = wave >= 7 ? Math.min(0.1, 0.04 + (wave - 7) * 0.005) : 0;
+  // Lurkers enter early and climb hard: they are the new close-range pressure,
+  // and their speed is what makes a denser wave feel tense rather than just busy.
+  let lurkerChance = wave >= 2 ? Math.min(0.22, 0.06 + (wave - 2) * 0.012) : 0;
 
   const modifier = modifierFor(wave);
   if (modifier === 'sprinters') {
     bruteChance = 0.06;
-    runnerChance = 0.86;
+    runnerChance = 0.82;
     spitterChance = 0.04;
     bloaterChance = 0.02;
+    lurkerChance = 0.06;
   } else if (modifier === 'elites') {
-    // 30%, not 45%: at the 40-body cap, 45% brutes doubled the wave's health.
-    bruteChance = 0.3;
-    runnerChance = 0.32;
+    // 30%, not 45%: at the 40-body cap, 45% brules doubled the wave's health.
+    bruteChance = 0.26;
+    runnerChance = 0.3;
     spitterChance = 0.08;
     bloaterChance = 0.1;
+    lurkerChance = 0.06;
   } else if (modifier === 'stalkers') {
     bruteChance = 0.08;
-    runnerChance = 0.38;
-    spitterChance = 0.24;
+    runnerChance = 0.34;
+    spitterChance = 0.22;
     bloaterChance = 0.04;
+    lurkerChance = 0.12;
   }
 
   // Boss waves keep the escort lean but nasty.
@@ -157,6 +165,8 @@ export function rollType(plan, rng = Math.random) {
   if (r < edge) return 'spitter';
   edge += plan.bloaterChance || 0;
   if (r < edge) return 'bloater';
+  edge += plan.lurkerChance || 0;
+  if (r < edge) return 'lurker';
   return 'walker';
 }
 
@@ -166,9 +176,10 @@ export function expectedMix(plan) {
   const runners = Math.round(plan.count * plan.runnerChance);
   const spitters = Math.round(plan.count * (plan.spitterChance || 0));
   const bloaters = Math.round(plan.count * (plan.bloaterChance || 0));
+  const lurkers = Math.round(plan.count * (plan.lurkerChance || 0));
   return {
-    walkers: Math.max(0, plan.count - brutes - runners - spitters - bloaters),
-    runners, brutes, spitters, bloaters,
+    walkers: Math.max(0, plan.count - brutes - runners - spitters - bloaters - lurkers),
+    runners, brutes, spitters, bloaters, lurkers,
   };
 }
 

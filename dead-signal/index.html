@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6059224677913709" crossorigin="anonymous"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dead Signal | VALIXIS Games</title>
@@ -295,6 +294,12 @@
   .ammo .alt span { color: #cfe0c6; }
   .ammo .alt b { color: var(--toxic-2); font-weight: 800; }
   .ammo .alt b.cooling { color: #7f8c80; }
+  .ammo .meleeDur { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; margin-top: 6px;
+    font: 800 9px/1 var(--mono); letter-spacing: 1.6px; color: #8d9a8c; }
+  .ammo .meleeDur b { color: var(--toxic-2); font-weight: 800; }
+  .ammo .meleeDur.worn b { color: var(--amber); }
+  .touch-side button { font: 800 11px/1 var(--mono); letter-spacing: 1.4px; color: #0b1207; }
+  .touch-side .melee-touch { margin-left: 6px; color: var(--toxic-2); }
 
   .weekly-ladder { display: grid; gap: 2px; margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); }
   .ladder-row { display: grid; grid-template-columns: 18px 62px 1fr; gap: 6px; align-items: baseline;
@@ -452,6 +457,7 @@
     <div class="panel ammo" id="ammoPanel">
       <div class="wname" id="weaponName">M9 SIDEARM</div>
       <div class="count"><span id="ammoMag">15</span><small> / <span id="ammoReserve">∞</span></small></div>
+      <div class="meleeDur" id="meleeDur" hidden>BLADE <b id="meleeUses">0</b>/<span id="meleeMax">0</span></div>
       <div class="alt"><span id="altName">QUICK DRAW</span><b id="altState">[X]</b></div>
       <div id="reloadBar"><i id="reloadFill"></i></div>
       <div class="nade-row">FRAG &times;<b id="grenadeCount">2</b><span>[G]</span></div>
@@ -472,7 +478,7 @@
   <div id="stick"><div id="stickKnob"></div></div>
   <div class="touch-side">
     <button id="nadeBtn">NADE</button>
-    <button id="meleeBtn">MELEE</button>
+    <button id="meleeBtn">MELEE <span id="meleeDurTouch" class="melee-touch"></span></button>
     <button id="reloadBtn">RELOAD</button>
     <button id="swapBtn">SWAP</button>
   </div>
@@ -489,9 +495,11 @@
     </p>
     <div class="tags">
       <span class="tag">ENDLESS WAVES</span>
-      <span class="tag">5 WEAPONS</span>
-      <span class="tag">KNIFE &rarr; MACHETE &rarr; BAT</span>
+      <span class="tag">6 WEAPONS</span>
+      <span class="tag">KNIFE &rarr; MACHETE &rarr; BAT &middot; BLADES WEAR</span>
       <span class="tag">BOSS EVERY 3 WAVES</span>
+      <span class="tag">NEW FASTER LURKERS</span>
+      <span class="tag">DENSER WAVES</span>
       <span class="tag">DAILY + WEEKLY CONTRACTS</span>
       <span class="tag">ACID SPITTERS</span>
       <span class="tag">BLOATERS</span>

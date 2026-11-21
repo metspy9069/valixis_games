@@ -307,6 +307,7 @@ const ammo = {
   // from a weapon cache during the run.
   unlocked: WEAPONS.map((w) => !w.locked),
   meleeCooldown: 0,
+  meleeUses: 0,
   reloading: false,
   reloadTimer: 0,
   lastShot: 0,
@@ -571,6 +572,8 @@ const hud = {
   hpFill: el('hpFill'), hpValue: el('hpValue'), stamFill: el('stamFill'),
   armorFill: el('armorFill'), armorValue: el('armorValue'), armorRow: el('armorRow'),
   weaponName: el('weaponName'), ammoMag: el('ammoMag'), ammoReserve: el('ammoReserve'),
+  meleeDur: el('meleeDur'), meleeUses: el('meleeUses'), meleeMax: el('meleeMax'),
+  meleeDurTouch: el('meleeDurTouch'),
   ammoPanel: el('ammoPanel'), reloadFill: el('reloadFill'),
   wave: el('waveValue'), kills: el('killValue'), left: el('leftValue'), score: el('scoreValue'),
   surgeBadge: el('surgeBadge'),
@@ -1108,13 +1111,27 @@ function damageFalloff(def, distance) {
 }
 
 // ---------------------------------------------------------------- melee
-// The machete is free, always equipped, and the reason to let a zombie get
-// close: one swing drops a walker, knocks a crowd apart and costs no ammo.
+// Melee is always available and free to swing, but each blade has a limited
+// life. When a tool wears out it is replaced with a fresh one of the same tier
+// so the close-range answer never disappears mid-fight.
+let wornMeleeHintUntil = 0;
 function swingMelee() {
   if (!game.running || game.paused || game.over) return;
   if (ammo.meleeCooldown > 0) return;
   const melee = MELEE_TIERS[game.meleeTier] || MELEE_TIERS[0];
   ammo.meleeCooldown = melee.cooldown;
+
+  // Consume durability on every swing.
+  ammo.meleeUses++;
+  if (melee.maxUses && ammo.meleeUses >= melee.maxUses) {
+    ammo.meleeUses = 0;
+    viewModel.setMelee(game.meleeTier);
+    if (performance.now() > wornMeleeHintUntil) {
+      showHint(`${melee.name} BLADE WORN \u2014 REPLACED`, 1400);
+      wornMeleeHintUntil = performance.now() + 1500;
+    }
+  }
+
   viewModel.swing();
   audio.melee();
 
@@ -1700,6 +1717,7 @@ function creditsFor(zombie) {
   if (zombie.type === 'bloater') return 65;
   if (zombie.type === 'brute') return 58;
   if (zombie.type === 'spitter') return 36;
+  if (zombie.type === 'lurker') return 26;
   if (zombie.type === 'runner') return 22;
   return 14;
 }
@@ -1818,6 +1836,7 @@ function updatePickups(dt) {
         const nextTier = Math.min(MELEE_TIERS.length - 1, game.meleeTier + 1);
         if (nextTier !== game.meleeTier) {
           game.meleeTier = nextTier;
+          ammo.meleeUses = 0;
           viewModel.setMelee(nextTier);
           const tier = MELEE_TIERS[nextTier];
           showBanner('BLADE RECOVERED', tier.name, `${tier.damage} damage per swing. Press V.`, 2800);
@@ -2107,6 +2126,28 @@ function updateAmmoHud() {
       : alt ? `[${keyLabel(bindFor('altFire'))}]` : '';
     hud.altState.classList.toggle('cooling', ammo.altCooldown > 0);
   }
+
+  // Melee durability is shared across the whole blade tier, not per-gun.
+  const melee = game.running ? (MELEE_TIERS[game.meleeTier] || MELEE_TIERS[0]) : null;
+  if (melee && melee.maxUses) {
+    const max = melee.maxUses;
+    const used = Math.min(ammo.meleeUses, max);
+    const near = used >= max - 1;
+    if (hud.meleeDur) {
+      hud.meleeMax.textContent = String(max);
+      hud.meleeUses.textContent = String(used);
+      hud.meleeDur.hidden = false;
+      hud.meleeDur.classList.toggle('worn', near);
+    }
+    if (hud.meleeDurTouch) {
+      hud.meleeDurTouch.textContent = near ? ' ' : ` ${used}/${max} `;
+      hud.meleeDurTouch.hidden = false;
+    }
+  } else {
+    if (hud.meleeDur) hud.meleeDur.hidden = true;
+    if (hud.meleeDurTouch) hud.meleeDurTouch.hidden = true;
+  }
+
   updateEconomyHud();
 }
 
@@ -2211,6 +2252,7 @@ function startRun(atWave = 0, mods = null, challenge = null) {
     ? mods.startWeapon
     : mods && mods.weaponLock !== undefined ? mods.weaponLock : 0;
   ammo.meleeCooldown = 0;
+  ammo.meleeUses = 0;
   game.meleeTier = 0;
   viewModel.setMelee(0);
   ammo.reloading = false;

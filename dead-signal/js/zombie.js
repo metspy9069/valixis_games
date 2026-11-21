@@ -196,6 +196,11 @@ export class Zombie {
       } else {
         move.copy(toPlayer).normalize();
         targetSpeed = this.speed;
+        // Lurkers are the fast low shape: at night they do not just close, they
+        // sprint until they are in reach, which is what makes darkness feel new.
+        if (this.type === 'lurker' && world && world.blackout && dist > this.def.reach) {
+          targetSpeed = this.def.speed * (this.def.nightSpeed / this.def.speed);
+        }
         // Keep a body's width of space: they claw at you, they do not stand
         // inside the camera.
         if (dist < 1.55) targetSpeed = 0;
@@ -264,7 +269,9 @@ export class Zombie {
         if (dist < this.def.reach + 0.55) {
           ctx.damage(this.damage, this);
         }
-        this.attackCooldown = this.type === 'brute' ? 1.7 : 1.05;
+        const cd = this.type === 'brute' ? 1.7 : this.type === 'lurker' ? 0.5 : 1.05;
+        this.attackCooldown = cd;
+        if (audio && this.type === 'lurker') audio.lurkerCry(dist, ctx.panOf ? ctx.panOf(pos) : 0);
       }
       if (this.windup > 0.85) {
         this.state = 'chase';

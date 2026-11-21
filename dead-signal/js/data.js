@@ -110,6 +110,15 @@ export const TYPES = {
     skin: 0x8f9a52, shirt: 0x3a3a24, pants: 0x23251c, eye: 0xffc23d,
     explode: true, burstRadius: 4.6, burstDamage: 95,
   },
+  // Lurkers are the new read. Low, fast, tireless at night, and they close
+  // hard instead of biting on a timer that the player can see coming. Fragile
+  // enough that a shotgun sweep or a rifle burst answers them, fast enough that
+  // ignoring one is a mistake.
+  lurker: {
+    hp: 78, speed: 4.9, damage: 15, reach: 1.85, scale: 0.86, score: 200,
+    skin: 0x3a3532, shirt: 0x221f1c, pants: 0x161412, eye: 0xffb04d,
+    nightSpeed: 6.3,
+  },
 };
 
 /**
@@ -150,17 +159,18 @@ export function bossFor(wave) {
 }
 
 /** Seconds between bites from a single zombie (windup + recovery). */
-export const ATTACK_CYCLE = { walker: 1.47, runner: 1.47, brute: 2.12, spitter: 2.7 };
+export const ATTACK_CYCLE = { walker: 1.47, runner: 1.47, brute: 2.12, spitter: 2.7, lurker: 1.28 };
 
 /**
  * Left-hand melee, in tiers. Free, always available, and the reason to close
  * distance. A knife starts the run; blade caches dropped by the dead upgrade
- * it to a machete and then a bat.
+ * it to a machete and then a bat. Each blade has a swing life, so a tool can
+ * wear out mid-fight and be replaced with a fresh one of the same tier.
  */
 export const MELEE_TIERS = [
-  { id: 'knife', name: 'COMBAT KNIFE', damage: 115, range: 2.4, halfAngle: 0.58, cooldown: 0.36 },
-  { id: 'machete', name: 'MACHETE', damage: 170, range: 2.9, halfAngle: 0.72, cooldown: 0.5 },
-  { id: 'bat', name: 'BALL BAT', damage: 245, range: 3.15, halfAngle: 0.86, cooldown: 0.62 },
+  { id: 'knife', name: 'COMBAT KNIFE', damage: 150, range: 2.4, halfAngle: 0.58, cooldown: 0.36, maxUses: 90 },
+  { id: 'machete', name: 'MACHETE', damage: 215, range: 2.9, halfAngle: 0.72, cooldown: 0.5, maxUses: 130 },
+  { id: 'bat', name: 'BALL BAT', damage: 290, range: 3.15, halfAngle: 0.86, cooldown: 0.62, maxUses: 170 },
 ];
 export const MELEE_KNOCKBACK = 0.6;
 

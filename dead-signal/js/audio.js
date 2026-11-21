@@ -132,46 +132,17 @@ export class AudioEngine {
   }
 
   /** Soft-clip curve. Grit, not a fuzz pedal: only the peaks fold. */
-  /**
-   * The saturation curve is expensive to rebuild (a 1024-sample Float32Array
-   * of tanh values), and the same drive value is used by every layer of every
-   * gunshot. Cache one curve per amount and hand out fresh WaveShaper nodes
-   * that point at it, so the per-shot cost is a node allocation, not a curve
-   * rebuild.
-   */
   _saturator(amount = 6) {
-    if (!this._satCurves) this._satCurves = new Map();
-    let curve = this._satCurves.get(amount);
-    if (!curve) {
-      const n = 1024;
-      curve = new Float32Array(n);
-      const denom = Math.tanh(amount);
-      for (let i = 0; i < n; i++) {
-        const x = (i / (n - 1)) * 2 - 1;
-        curve[i] = Math.tanh(x * amount) / denom;
-      }
-      this._satCurves.set(amount, curve);
+    const n = 1024;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(x * amount) / Math.tanh(amount);
     }
     const node = this.ctx.createWaveShaper();
     node.curve = curve;
     node.oversample = '2x';
     return node;
-  }
-
-  /**
-   * Duck the score for a moment when the player fires, so a shotgun under the
-   * motif still lands on top of the mix. Only the music bus moves; the world
-   * (effects / ambience) is untouched, and a fast re-attack keeps the dip from
-   * turning into a wobble when the player bursts.
-   */
-  _duckMusic() {
-    if (!this.ctx || !this.musicBus) return;
-    const t = this.ctx.currentTime;
-    this.musicBus.gain.cancelScheduledValues(t);
-    this.musicBus.gain.setValueAtTime(this.musicBus.gain.value, t);
-    this.musicBus.gain.linearRampToValueAtTime(0.32, t + 0.012);
-    this.musicBus.gain.linearRampToValueAtTime(0.55, t + 0.11);
-    this.musicBus.gain.linearRampToValueAtTime(this.volumes.music, t + 0.22);
   }
 
   /**
@@ -811,9 +782,6 @@ export class AudioEngine {
     this._noise({ dur: 0.012, gain: 0.13, type: 'bandpass', freq: cfg.action, q: 1.6, attack: 0.0008 });
     this._tone({ freq: cfg.action * 0.5, to: cfg.action * 0.3, dur: 0.02, gain: 0.05, type: 'square' });
 
-    // Duck the score under the report so the gun stays on top of the music.
-    this._duckMusic();
-
     // 2. Muzzle blast: noise through a fast-closing low-pass, saturated.
     const [bd, bf, bg] = cfg.blast;
     this._noise({ dur: bd, gain: bg, type: 'lowpass', freq: bf, sweepTo: bf * 0.28, q: 0.9, attack: 0.0015, send: 0.7, drive: cfg.drive });
@@ -968,6 +936,21 @@ export class AudioEngine {
         send: 0.4, rasp: 0.7, breath: 0.2, syllables: 2, distance, glide: 0.7, bite: 0.09,
       });
     }
+  }
+
+  /**
+   * A lurker closing in: a low, fast, breathy rush that reads as a shape moving
+   // through the dark rather than a mouth opening.
+   */
+  lurkerCry(distance = 8, pan = 0) {
+    if (!this.ctx) return;
+    const falloff = clamp(12 / Math.max(2, distance), 0.05, 1);
+    this._voice({
+      f0: 96 + Math.random() * 36, dur: 0.26, vowel: 'u', gain: 0.16 * falloff, pan,
+      send: 0.5, rasp: 0.85, breath: 0.7, syllables: 1, distance, glide: 0.5,
+      bite: 0.11, tremolo: 0.25,
+    });
+    this._noise({ dur: 0.14, gain: 0.08 * falloff, type: 'bandpass', freq: 900, q: 2, sweepTo: 400, pan, when: 0.03 });
   }
 
   /** Short, aggressive snarl when a zombie commits to a bite. */

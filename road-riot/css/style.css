@@ -1244,28 +1244,33 @@ html, body {
 }
 
 .menu-car-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.garage-tuning-btn,
-.car-shop-btn {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 8px 6px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border-radius: 8px;
+  width: 100%;
 }
 
 .garage-tuning-btn {
-  border-color: rgba(255, 184, 0, 0.5);
+  width: 100%;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 184, 0, 0.5);
   color: #ffea00;
   background: rgba(255, 184, 0, 0.12);
-  box-shadow: 0 0 12px rgba(255, 184, 0, 0.15);
+  box-shadow: 0 0 14px rgba(255, 184, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.garage-tuning-btn:hover {
+  background: rgba(255, 184, 0, 0.25);
+  border-color: #ffea00;
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.4);
+  transform: translateY(-2px);
 }
 
 .car-shop-btn {

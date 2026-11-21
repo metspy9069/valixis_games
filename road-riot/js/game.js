@@ -755,7 +755,7 @@ class RoadRiotGame {
     this.ui.pauseModal.classList.add('hidden');
     this.ui.hud.classList.remove('hidden');
     if (this.ui.overlayRedAlert) this.ui.overlayRedAlert.classList.add('hidden');
-    this.updateHUD();
+    this.updateHud(0);
 
     this.ui.countdownOverlay.classList.add('show');
     this.ui.countdownText.textContent = '3';
@@ -1940,7 +1940,7 @@ class RoadRiotGame {
     if (this.ui.overlayRedAlert) {
       this.ui.overlayRedAlert.classList.toggle('hidden', !isCriticalHealth);
     }
-    if (isCriticalHealth && this.state === 'PLAYING') {
+    if (isCriticalHealth && (this.state === 'RUNNING' || this.state === 'PLAYING')) {
       this.redAlertAudioTimer = (this.redAlertAudioTimer || 0) + 0.016;
       if (this.redAlertAudioTimer >= 0.85) {
         this.redAlertAudioTimer = 0;

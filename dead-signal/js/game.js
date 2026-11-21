@@ -2242,7 +2242,9 @@ function updateHudTick(dt) {
     updateBossHud();
     if (ammo.reloading) {
       const def = weaponDef();
-      hud.reloadFill.style.width = `${(1 - ammo.reloadTimer / reloadTimeFor(def)) * 100}%`;
+      const total = reloadTimeFor(def);
+      const pct = total > 0 ? Math.max(0, Math.min(1, 1 - ammo.reloadTimer / total)) : 0;
+      hud.reloadFill.style.width = `${pct * 100}%`;
     }
   }
 }

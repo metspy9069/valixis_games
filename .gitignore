@@ -4,6 +4,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 inspect_loop.js
+__pycache__/
+*.pyc
+scratch/
+screenshots/
 
 /site/
 .env

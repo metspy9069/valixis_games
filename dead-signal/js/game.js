@@ -5,7 +5,7 @@ import { buildWorld, resolveCircle, makeRng } from './world.js';
 import { Zombie } from './zombie.js';
 import { WEAPONS, ViewModel } from './weapons.js';
 import { NavGrid } from './nav.js';
-import { wavePlan, rollType, MAX_WAVE_ENEMIES } from './waves.js';
+import { wavePlan, rollType, MAX_WAVE_ENEMIES, expectedMix } from './waves.js';
 import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE, ALT_FIRE, ATTACHMENTS } from './data.js';
 import { SHOP_ITEMS, SHOP_SECTIONS, itemCost, itemMaxed } from './shop.js';
 import { challengeFor, markChallengeDone, clearedCount } from './challenges.js';
@@ -581,6 +581,7 @@ const hud = {
   credits: el('creditValue'), grenadeCount: el('grenadeCount'),
   shop: el('shopScreen'), shopItems: el('shopItems'), shopCredits: el('shopCredits'),
   cross: el('cross'), blood: el('blood'), hurt: el('hurtFlash'),
+  crossMiss: el('crossMiss'),
   dmgDir: el('dmgDir'), perf: el('perf'),
   setSens: el('setSens'), setFov: el('setFov'), setInvert: el('setInvert'),
   setSensVal: el('setSensVal'), setFovVal: el('setFovVal'),
@@ -660,10 +661,18 @@ function requestLock() {
 // both work without it, so this is a hint rather than a dead end.
 document.addEventListener('pointerlockerror', showLockHint);
 
+let pauseArmed = false;
+
 document.addEventListener('pointerlockchange', () => {
   mouseLocked = document.pointerLockElement === canvas;
-  if (!mouseLocked && game.running && !game.over && !suppressLockEvent) pauseGame();
+  // An unlock while actually playing means the player lost control of the look,
+  // so the game pauses. Do not re-pause on the unlock that belongs to an
+  // Escape-to-pause or a button click: those already own the pause state.
+  if (!mouseLocked && game.running && !game.over && !suppressLockEvent && !game.paused) {
+    pauseGame();
+  }
   suppressLockEvent = false;
+  pauseArmed = false;
 });
 
 window.addEventListener('keydown', (e) => {
@@ -700,7 +709,12 @@ window.addEventListener('keydown', (e) => {
   if (k === 'Escape') {
     if (photo.active) { togglePhoto(); return; }
     if (game.shopOpen) { closeShop(); return; }
-    if (game.running && !game.paused && !game.over) pauseGame();
+    if (game.running && !game.paused && !game.over) {
+      pauseGame();
+      // The pointer lock is about to be released by the browser; the unlock
+      // event must not re-pause a game that is already being paused here.
+      pauseArmed = true;
+    }
     return;
   }
   // The depot toggles even though it holds the game paused.
@@ -929,6 +943,12 @@ function selectWeapon(index, strict = false) {
   ammo.weapon = next;
   ammo.reloading = false;
   ammo.reloadTimer = 0;
+  ammo.altCooldown = 0;
+  ammo.burstLeft = 0;
+  ammo.burstTimer = 0;
+  ammo.burstOpts = null;
+  ammo.steadyTimer = 0;
+  ammo.bipodTimer = 0;
   viewModel.select(next);
   audio.weaponSwap();
   updateAmmoHud();
@@ -942,6 +962,12 @@ function startReload() {
   const time = reloadTimeFor(def);
   ammo.reloading = true;
   ammo.reloadTimer = time;
+  ammo.altCooldown = 0;
+  ammo.burstLeft = 0;
+  ammo.burstTimer = 0;
+  ammo.burstOpts = null;
+  ammo.steadyTimer = 0;
+  ammo.bipodTimer = 0;
   audio.reloadStart();
   setTimeout(() => { if (ammo.reloading) audio.reloadStep(); }, time * 400);
   setTimeout(() => { if (ammo.reloading) audio.reloadEnd(); }, time * 850);
@@ -972,7 +998,7 @@ function tryFire() {
   if (now - ammo.lastShot < 60 / def.rpm) return;
   if (ammo.mag[ammo.weapon] <= 0) {
     audio.dryFire();
-    startReload();
+    if (!ammo.reloading) startReload();
     return;
   }
   ammo.lastShot = now;
@@ -1026,6 +1052,7 @@ function fireRound(opts = {}) {
   const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul() * spreadMul;
   const aimDistance = Math.max(4, muzzle.distanceTo(aimPoint));
 
+  let anyMiss = false;
   for (let p = 0; p < pellets; p++) {
     const point = jitterPoint(aimPoint, aimDir, Math.tan(spread) * aimDistance, p);
     const shotDir = point.sub(muzzle).normalize();
@@ -1052,10 +1079,19 @@ function fireRound(opts = {}) {
       spawnTracer(muzzle, wallHit.point);
     } else {
       spawnTracer(muzzle, muzzle.clone().addScaledVector(shotDir, 60));
+      anyMiss = true;
     }
   }
+  if (anyMiss && hud.crossMiss) {
+    hud.crossMiss.classList.add('show');
+    setTimeout(() => hud.crossMiss.classList.remove('show'), 70);
+  }
 
-  if (ammo.mag[ammo.weapon] <= 0) setTimeout(startReload, 160);
+  if (ammo.mag[ammo.weapon] <= 0) {
+    // The last round just left the gun. Queue a reload so the player is never
+    // left in an empty-mag gap that still allows input timing tricks.
+    if (!ammo.reloading) setTimeout(startReload, 120);
+  }
 }
 
 /**
@@ -1123,9 +1159,11 @@ function swingMelee() {
 
   // Consume durability on every swing.
   ammo.meleeUses++;
+  let justReplaced = false;
   if (melee.maxUses && ammo.meleeUses >= melee.maxUses) {
     ammo.meleeUses = 0;
     viewModel.setMelee(game.meleeTier);
+    justReplaced = true;
     if (performance.now() > wornMeleeHintUntil) {
       showHint(`${melee.name} BLADE WORN \u2014 REPLACED`, 1400);
       wornMeleeHintUntil = performance.now() + 1500;
@@ -1134,6 +1172,7 @@ function swingMelee() {
 
   viewModel.swing();
   audio.melee();
+  updateAmmoHud();
 
   const eye = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -1480,6 +1519,7 @@ function startWave(n) {
   game.spawnTimer = 0;
   game.boss = null;
   game.hordeTimer = plan.horde ? 1.4 : 9 + Math.random() * 9;
+  game._lurkersSeenThisWave = 0;
 
   // The boss lands first, so it is the thing you see instead of one body in a
   // crowd. Its escort follows at the wave's normal spacing.
@@ -1506,8 +1546,12 @@ function startWave(n) {
   if (endless.stacks.length) showHint(`ENDLESS-PLUS \u00b7 ${endless.stacks.join(' / ')}`, 3600);
   else if (plan.modifier !== 'none') showHint(`WAVE MODIFIER: ${plan.modifier.toUpperCase()}`, 3200);
   const ramp = `Speed +${Math.round((game.speedScale - 1) * 100)}% \u00b7 bite +${Math.round((plan.damageScale - 1) * 100)}%.`;
+  const mix = plan.wave >= 1 ? expectedMix(plan) : null;
+  const mixLine = mix && mix.walkers + mix.runners + mix.brutes + mix.spitters + mix.bloaters + mix.lurkers > 0
+    ? `~${mix.walkers} walkers ${mix.runners ? mix.runners + ' runners ' : ''} ${mix.brutes ? mix.brutes + ' brutes ' : ''} ${mix.spitters ? mix.spitters + ' spitters ' : ''} ${mix.bloaters ? mix.bloaters + ' bloaters ' : ''} ${mix.lurkers ? mix.lurkers + ' lurkers' : ''}`
+    : '';
   const head = plan.wave === 1
-    ? 'Five of them. One magazine is enough.'
+    ? 'Keep them off you. One magazine is enough.'
     : plan.wave === 2
       ? 'More footsteps. Watch the cross streets.'
       : plan.boss
@@ -1516,7 +1560,7 @@ function startWave(n) {
           ? `${plan.count} inbound, then a flanking pack. ${ramp}`
           : plan.surge
             ? `${plan.count} inbound \u00b7 ${plan.burstLead} at once. ${ramp}`
-            : `${plan.count} inbound. ${ramp}`;
+            : `${plan.count} inbound. ${mixLine ? mixLine + '. ' : ''}${ramp}`;
   const kicker = plan.surge ? 'SURGE WAVE' : plan.boss ? 'BOSS WAVE' : 'WAVE';
   showBanner(kicker, String(plan.wave), head, plan.surge || plan.boss ? 3400 : 3000);
   updateWaveHud();
@@ -1527,6 +1571,16 @@ function spawnAt(type, position) {
   scene.add(z.group);
   zombies.push(z);
   hitMeshesDirty = true;
+
+  // Teach the player what they are facing without a tutorial wall: the first
+  // lurker of a wave announces itself out loud and on screen.
+  if (type === 'lurker' && !game.mods && game.wave >= 2) {
+    game._lurkersSeenThisWave = (game._lurkersSeenThisWave || 0) + 1;
+    if (game._lurkersSeenThisWave === 1) {
+      showHint(`NEW THREAT: LURKERS \u2014 FAST, LOW, HARD TO SPOT`, 2400);
+    }
+  }
+
   return z;
 }
 
@@ -2320,6 +2374,11 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   updateAmmoHud();
   updateWaveHud();
   showBanner('OUTBREAK', 'DEAD SIGNAL', 'Hold the relay. They are already coming.', 2600);
+  if (!mouseLocked && isTouch) {
+    showHint('TOUCH CONTROLS ON', 1600);
+  } else if (!mouseLocked) {
+    showHint('CLICK TO LOOK \u00b7 MOUSE LOCK UNAVAILABLE', 1600);
+  }
   requestLock();
 }
 

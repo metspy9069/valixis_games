@@ -52,6 +52,21 @@ export class DungeonView{
    }
    for(const [material,geometries]of buckets){const merged=mergeGeometries(geometries);geometries.forEach(g=>g.dispose());const mesh=new T.Mesh(merged,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);}
   });box.dispose();
+  // Center Cathedral: Grand Guardian Dais and Boss Arena Braziers
+  this.bossArena=new T.Group();this.root.add(this.bossArena);
+  const dais=new T.Mesh(new T.CylinderGeometry(5.2,5.6,.26,16),this.stone[1]);dais.position.set(0,.05,0);dais.receiveShadow=true;this.bossArena.add(dais);
+  this.altarRuneMat=new T.MeshStandardMaterial({color:0xff6622,emissive:0xff4411,emissiveIntensity:0.35,roughness:.3,metalness:.7});
+  const ring=new T.Mesh(new T.TorusGeometry(3.6,.07,8,32),this.altarRuneMat);ring.rotation.x=Math.PI/2;ring.position.y=.19;this.bossArena.add(ring);this.altarRing=ring;
+  const sigil=new T.Mesh(new T.CircleGeometry(2.1,8),this.altarRuneMat);sigil.rotation.x=-Math.PI/2;sigil.position.y=.195;this.bossArena.add(sigil);this.altarSigil=sigil;
+  this.braziers=[];
+  for(const [bx,bz] of [[-5.2,-5.2],[5.2,-5.2],[-5.2,5.2],[5.2,5.2]]){
+   const bGroup=new T.Group();bGroup.position.set(bx,0,bz);this.bossArena.add(bGroup);
+   const ped=new T.Mesh(new T.BoxGeometry(.9,.9,.9),this.stone[0]);ped.position.y=.45;ped.castShadow=true;bGroup.add(ped);
+   const bowl=new T.Mesh(new T.CylinderGeometry(.55,.32,.45,8),this.iron);bowl.position.y=1.05;bowl.castShadow=true;bGroup.add(bowl);
+   const flameMat=new T.MeshBasicMaterial({color:0xff7722});
+   const flame=new T.Mesh(new T.ConeGeometry(.28,1.1,6),flameMat);flame.position.y=1.65;bGroup.add(flame);
+   this.braziers.push({group:bGroup,flame,mat:flameMat});
+  }
   for(const f of FLOORS){const mesh=new T.Mesh(new T.BoxGeometry(f.w,.5,f.d),this.floorMaterial);mesh.position.set(f.x,-.26,f.z);mesh.receiveShadow=true;this.root.add(mesh);}
   this.regionProps=[];
   for(let region=0;region<3;region++){
@@ -65,11 +80,28 @@ export class DungeonView{
   this.lights=Array.from({length:4},()=>{const light=new T.PointLight(0xffa657,35,13,2);scene.add(light);return light;});
   const points=new Float32Array(180*3);for(let i=0;i<180;i++){points[i*3]=Math.sin(i*2.39)*20;points[i*3+1]=(i%20)*.15;points[i*3+2]=Math.cos(i*2.39)*20;}const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(points,3));this.dust=new T.Points(geometry,new T.PointsMaterial({color:0xe3b878,size:.035,transparent:true,opacity:.45,depthWrite:false}));scene.add(this.dust);
  }
- update(player,time,biome,reduced){
-  this.regionProps.forEach((g,i)=>g.visible=i===biome);this.cloth.color.setHex([0x62302d,0x345957,0x515737][biome]);const tones=[0xffaf62,0x99c9c3,0xb4c38a];this.arches.forEach(({arch,x,z})=>arch.visible=!(Math.abs(player.x-x)<6&&player.z<z+1&&player.z>z-8));
+ update(player,time,biome,reduced,bossActive=false,bossPhase=1){
+  this.regionProps.forEach((g,i)=>g.visible=i===biome);this.cloth.color.setHex([0x62302d,0x345957,0x515737][biome]);
+  const tones=[0xffaf62,0x99c9c3,0xb4c38a],bossTones=[0xff4411,0x22eedd,0x55ff44];
+  const activeColor=bossActive?bossTones[biome]:tones[biome];
+  this.arches.forEach(({arch,x,z})=>arch.visible=!(Math.abs(player.x-x)<6&&player.z<z+1&&player.z>z-8));
   this.rooms.forEach(({group,room})=>group.visible=Math.hypot(player.x-room.x,player.z-room.z)<45);
-  this.flames.material.color.setHex(tones[biome]);TORCHES.forEach((t,i)=>{this.dummy.position.set(t.x,t.y,t.z);this.dummy.scale.set(1,reduced?1:1+Math.sin(time*13+i)*.2,1);this.dummy.rotation.z=reduced?0:Math.sin(time*8+i)*.08;this.dummy.updateMatrix();this.flames.setMatrixAt(i,this.dummy.matrix);});this.flames.instanceMatrix.needsUpdate=true;
-  const nearest=[...TORCHES].sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));this.lights.forEach((light,i)=>{const t=nearest[i];light.position.set(t.x,t.y,t.z+1);light.color.setHex(tones[biome]);light.intensity=reduced?35:35+Math.sin(time*9+i)*4;});
-  this.dust.position.set(player.x,reduced?0:(time*.12)%1,player.z);
+  this.flames.material.color.setHex(activeColor);
+  TORCHES.forEach((t,i)=>{this.dummy.position.set(t.x,t.y,t.z);this.dummy.scale.set(1,reduced?1:1+Math.sin(time*(bossActive?18:13)+i)*(bossActive?.35:.2),1);this.dummy.rotation.z=reduced?0:Math.sin(time*8+i)*.08;this.dummy.updateMatrix();this.flames.setMatrixAt(i,this.dummy.matrix);});
+  this.flames.instanceMatrix.needsUpdate=true;
+  const nearest=[...TORCHES].sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
+  this.lights.forEach((light,i)=>{const t=nearest[i];light.position.set(t.x,t.y,t.z+1);light.color.setHex(activeColor);light.intensity=reduced?35:(bossActive?50:35)+Math.sin(time*9+i)*4;});
+  // Guardian Altar & Braziers reaction during Boss encounter
+  if(this.altarRuneMat){
+   this.altarRuneMat.color.setHex(activeColor);
+   this.altarRuneMat.emissive.setHex(activeColor);
+   this.altarRuneMat.emissiveIntensity=bossActive?(1.8+Math.sin(time*6)*0.9+bossPhase*0.4):0.35;
+  }
+  if(this.braziers)this.braziers.forEach((b,i)=>{
+   b.mat.color.setHex(activeColor);
+   b.flame.scale.set(bossActive?1.4:1,bossActive?(1.6+Math.sin(time*12+i)*.4):1,bossActive?1.4:1);
+  });
+  this.dust.material.color.setHex(bossActive?activeColor:0xe3b878);
+  this.dust.position.set(player.x,reduced?0:(time*(bossActive?.35:.12))%1,player.z);
  }
 }

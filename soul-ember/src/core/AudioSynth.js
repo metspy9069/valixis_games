@@ -19,6 +19,9 @@ class SoulAudio{
   else if(event==='pickup')this.tone(params.kind==='gold'?1046:720,.18,{gain:.16,slide:1.3,pan});
   else if(event==='level')for(const [i,f] of [330,440,554,660].entries())this.tone(f,.3,{gain:.15,delay:i*.07});
   else if(event==='chest')for(const [i,f] of [392,523,659,784].entries())this.tone(f,.4,{gain:.17,delay:i*.06});
+  else if(event==='perfectDodge'){this.tone(1320,.35,{type:'sine',gain:.22,slide:.5,pan});this.noise(.25,{gain:.15,frequency:2400,pan});}
+  else if(event==='guardBreak'){this.tone(880,.2,{type:'sawtooth',gain:.25,slide:1.5,pan});this.tone(1760,.15,{type:'triangle',gain:.2,slide:.6,pan});this.noise(.12,{gain:.18,frequency:800,pan});}
+  else if(event==='motePickup'){const f=params.kind==='crest'?1320:params.kind==='spark'?1180:params.kind==='aegis'?940:840;this.tone(f,.25,{type:'triangle',gain:.2,slide:1.4,pan});}
   else if(event==='enemyCue'){const boss=params.boss,base=boss?62:params.attack?.includes('ring')?280:params.attack?.includes('charge')?95:170;this.tone(base,(boss ? .65 : .24),{type:boss?'sawtooth':'triangle',gain:(boss ? .3 : .12),slide:(boss ? .55 : 1.4),pan});}
   else if(event==='bossPhase'){[82,123,164].forEach((f,i)=>this.tone(f,.9,{type:'sawtooth',gain:.25,delay:i*.1,slide:.55}));}
   else if(event==='victory')for(const [i,f] of [220,330,440,554,660].entries())this.tone(f,1,{gain:.2,delay:i*.12,bus:this.musicGain});

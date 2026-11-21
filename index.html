@@ -527,6 +527,43 @@
       .nav-links { flex: 0 0 auto; }
       .nav-btn { padding: 6px 8px; font-size: .68rem; white-space: nowrap; }
     }
+    /* Arcade art direction */
+    .container { max-width: 1320px; padding-top: 34px; }
+    .hero-banner { margin-bottom: 26px; }
+    .hero-title { font-size: clamp(2.5rem, 5.6vw, 5rem); line-height: 1.04; letter-spacing: -.045em; background: linear-gradient(100deg,#f5f7fa 16%,#00e5ff 44%,#2563ff 66%,#d946ef 91%); -webkit-background-clip: text; background-clip: text; }
+    .hero-desc { max-width: 590px; color: #b8c9dd; }
+    .quick-launch { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 22px auto 0; }
+    .quick-launch a { display: inline-flex; align-items: center; gap: 15px; min-height: 42px; padding: 0 14px; border: 1px solid rgba(0,229,255,.23); border-radius: 999px; background: rgba(9,17,30,.76); color: #dcebf8; text-decoration: none; font: 700 .68rem 'JetBrains Mono',monospace; letter-spacing: .07em; transition: color .25s, border-color .25s, transform .25s, background .25s; }
+    .quick-launch a:hover { border-color: #00e5ff; color: #fff; background: rgba(0,229,255,.13); transform: translateY(-3px); }
+    .quick-launch span { color: #00e5ff; font-size: 1rem; }
+    .featured-card { margin-bottom: 36px; grid-template-columns: .88fr 1.12fr; min-height: 470px; border-color: rgba(0,229,255,.32); background: linear-gradient(115deg,#101b2b 4%,#0a101c 55%,#171029); }
+    .featured-card > div:first-child { position: relative; z-index: 2; }
+    .featured-art { position: relative; z-index: 1; height: 100%; min-height: 370px; overflow: hidden; border: 1px solid rgba(0,229,255,.23); border-radius: 14px; background: #17170f; }
+    .featured-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 1s cubic-bezier(.16,1,.3,1); }
+    .featured-card:hover .featured-art img { transform: scale(1.045); }
+    .featured-art::after, .game-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg,transparent 45%,rgba(4,7,13,.78)); pointer-events: none; }
+    .art-caption { position: absolute; z-index: 1; bottom: 15px; left: 17px; color: #f5f7fa; font: 700 .7rem 'JetBrains Mono',monospace; letter-spacing: .17em; }
+    .game-title { font-size: clamp(1.7rem,3vw,2.7rem); }
+    .game-summary { max-width: 48ch; }
+    .features-list { grid-template-columns: 1fr 1fr; }
+    .features-list li { display: block; font-size: .78rem; line-height: 1.45; }
+    .features-list li span { color: #00e5ff; display: block; }
+    .play-btn-main { background: linear-gradient(110deg,#00e5ff,#2563ff 52%,#7c3aed); box-shadow: 0 12px 36px rgba(37,99,255,.25); }
+    .play-btn-main:hover { box-shadow: 0 16px 42px rgba(0,229,255,.32); }
+    .game-art { position: relative; height: 180px; margin-bottom: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: #090f18; }
+    .game-art img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.16,1,.3,1), filter .7s; }
+    .game-mini-card:hover .game-art img { transform: scale(1.075); filter: saturate(1.2); }
+    .game-art span { position: absolute; z-index: 1; left: 14px; bottom: 13px; color: #fff; font: 800 .65rem 'Orbitron',sans-serif; letter-spacing: .08em; }
+    .game-art-dead { box-shadow: inset 0 0 30px rgba(162,255,93,.14); }
+    .game-art-road { box-shadow: inset 0 0 30px rgba(0,229,255,.19); }
+    .game-art-dev { background: repeating-linear-gradient(0deg,transparent 0 8px,rgba(217,70,239,.06) 9px),radial-gradient(circle at 50% 45%,#322150,#090b18 70%); }
+    .game-art-dev img { width: 118px; height: 118px; margin: 18px auto; object-fit: contain; filter: drop-shadow(0 0 22px rgba(217,70,239,.45)); }
+    .portal-return { margin: 0 0 25px; }
+    .return-card, .portal-stats { background: linear-gradient(120deg,rgba(14,26,43,.88),rgba(22,14,39,.88)); }
+    .game-mini-card:focus-visible, .quick-launch a:focus-visible, .return-action:focus-visible, .play-btn-main:focus-visible { outline: 2px solid #00e5ff; outline-offset: 4px; }
+    @media (max-width:900px) { .featured-card { grid-template-columns: 1fr; } .featured-art { min-height: 280px; aspect-ratio: 16/9; order: -1; } }
+    @media (max-width:560px) { .container { padding: 26px 16px; } .hero-title { font-size: clamp(2.1rem,9vw,3rem); } .quick-launch { display: grid; grid-template-columns: 1fr 1fr; } .quick-launch a { font-size: .55rem; justify-content: space-between; gap: 4px; padding-inline: 10px; } .featured-card { padding: 20px; } .featured-art { min-height: 200px; } .features-list { grid-template-columns: 1fr 1fr; } .games-grid { grid-template-columns: 1fr; } .game-art { height: 165px; } }
+    @media (prefers-reduced-motion: reduce) { .featured-art img, .game-art img, .quick-launch a { transition: none; } .featured-card:hover .featured-art img, .game-mini-card:hover .game-art img, .quick-launch a:hover { transform: none; } }
   </style>
 </head>
 <body>
@@ -555,27 +592,18 @@
       </div>
       <h1 class="hero-title">NEXT-GEN BROWSER GAMING</h1>
       <p class="hero-desc">
-        Zero dependencies, zero installations, 100% hardware-accelerated action. Engineered with WebGL2, HTML5 Canvas, and procedural Web Audio synthesis.
+        Four worlds. One arcade. Jump straight into a run, a siege, a race, or your next empire.
       </p>
+      <nav class="quick-launch" aria-label="Quick launch games">
+        <a href="soul-ember/index.html?v=16" data-game-id="soul-ember">SOUL EMBER <span>↗</span></a>
+        <a href="dead-signal/index.html" data-game-id="dead-signal">DEAD SIGNAL <span>↗</span></a>
+        <a href="road-riot/index.html" data-game-id="road-riot">ROAD RIOT <span>↗</span></a>
+        <a href="dev-tycoon/index.html" data-game-id="dev-tycoon">DEV TYCOON <span>↗</span></a>
+      </nav>
     </div>
 
-    <section class="portal-return portal-reveal" aria-label="Your arcade status">
-      <div class="return-card">
-        <div>
-          <span class="return-label">Daily portal drop</span>
-          <h2 id="dailyDropTitle">Choose your next run.</h2>
-          <p id="dailyDropCopy">A fresh reason to play is waiting in the arcade.</p>
-        </div>
-        <a id="dailyDropAction" class="return-action" href="soul-ember/index.html?v=16" data-game-id="soul-ember">PLAY NOW &rarr;</a>
-      </div>
-      <div class="portal-stats" aria-label="Arcade activity">
-        <div class="portal-stat"><strong id="portalStreak">0</strong><span>day streak</span></div>
-        <div class="portal-stat"><strong id="recentCount">0</strong><span>recent runs</span></div>
-      </div>
-    </section>
-
     <!-- Featured Flagship Game: Soul Ember -->
-    <article class="featured-card portal-reveal">
+    <article class="featured-card">
       <div>
         <div class="tag-row">
           <span class="game-tag tag-featured">FLAGSHIP RELEASE</span>
@@ -584,9 +612,7 @@
         </div>
 
         <h2 class="game-title">Soul Ember: Survivors</h2>
-        <p class="game-summary">
-          A high-intensity top-down roguelite survival dungeon crawler. Choose from 8 distinct heroes, kite swarms of demonic abyss horrors around dark stone pillars, collect gold, purchase bloodline upgrades in The Soul Forge, and defeat Malakor, the Void Lich.
-        </p>
+        <p class="game-summary">Choose a hero. Survive the abyss. Carry your build through fallen guardians and into endless ascensions.</p>
 
         <ul class="features-list">
           <li><span>8 Heroes &amp; 8 Ultimates</span> (Supernova, Absolute Zero, Omni-Slash, Judgment Ray & more)</li>
@@ -601,36 +627,27 @@
         </a>
       </div>
 
-      <div class="preview-panel">
-        <div style="font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#ff8533; letter-spacing:1px; text-transform:uppercase; font-weight:800;">
-          Hero Roster:
-        </div>
-        <div class="hero-roster-preview">
-          <div class="roster-chip"><span class="name" style="color:#ff5500;">PYRO</span></div>
-          <div class="roster-chip"><span class="name" style="color:#00f2fe;">CRYO</span></div>
-          <div class="roster-chip"><span class="name" style="color:#c040ff;">ROGUE</span></div>
-          <div class="roster-chip"><span class="name" style="color:#00ff88;">NECRO</span></div>
-          <div class="roster-chip"><span class="name" style="color:#ffd700;">PALADIN</span></div>
-          <div class="roster-chip"><span class="name" style="color:#ffb700;">ARCHER</span></div>
-          <div class="roster-chip"><span class="name" style="color:#ff3366;">WARLOCK</span></div>
-          <div class="roster-chip"><span class="name" style="color:#ff99ff;">BARD</span></div>
-        </div>
-
-        <div class="telemetry-preview">
-          <div>ENGINE: Canvas2D Hardware Pipeline</div>
-          <div>AUDIO: Procedural Web Audio Synth [0 MP3s]</div>
-          <div>STATUS: <span class="highlight">100% ONLINE (games.valixis.tech)</span></div>
-          <div>CONTROLS: WASD / Space Dash / [R] Ult / Gamepad / Touch</div>
-        </div>
-      </div>
+      <div class="featured-art"><img src="portal-soul-ember.png" alt="Soul Ember game title screen and Cinder Witch character" width="1200" height="630" fetchpriority="high"><span class="art-caption">01 / THE LAST LIGHT</span></div>
     </article>
+
+    <section class="portal-return" aria-label="Your arcade status">
+      <div class="return-card">
+        <div>
+          <span class="return-label">Daily portal drop</span>
+          <h2 id="dailyDropTitle">Choose your next run.</h2>
+          <p id="dailyDropCopy">A fresh reason to play is waiting in the arcade.</p>
+        </div>
+        <a id="dailyDropAction" class="return-action" href="soul-ember/index.html?v=16" data-game-id="soul-ember">PLAY NOW &rarr;</a>
+      </div>
+      <div class="portal-stats" aria-label="Arcade activity">
+        <div class="portal-stat"><strong id="portalStreak">0</strong><span>day streak</span></div>
+        <div class="portal-stat"><strong id="recentCount">0</strong><span>recent runs</span></div>
+      </div>
+    </section>
 
     <section class="games-grid portal-reveal" aria-label="New releases" style="margin-bottom: 40px;">
       <a class="game-mini-card" href="dead-signal/index.html" data-game-id="dead-signal" style="text-decoration: none; color: inherit; border-color: rgba(157, 255, 77, 0.35); background: linear-gradient(145deg, rgba(16, 30, 18, 0.92), rgba(8, 14, 10, 0.95));">
-        <div style="background: linear-gradient(135deg, rgba(8, 22, 10, 0.95), rgba(60, 140, 30, 0.38)); border: 1px solid rgba(157, 255, 77, 0.3); border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 16px; position: relative; overflow: hidden;">
-          <span style="font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px rgba(157, 255, 77, 0.65);">DEAD SIGNAL</span>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; letter-spacing:3px; color:#c9ff9a; margin-top:6px;">FIRST-PERSON &middot; ZOMBIE SURVIVAL</div>
-        </div>
+        <div class="game-art game-art-dead"><img src="portal-dead-signal.png" alt="Dead Signal survival game's launch screen" width="1280" height="720" loading="lazy"><span>THE NIGHT IS YOURS TO SURVIVE</span></div>
         <div>
           <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
             <span class="game-tag" style="background: rgba(157, 255, 77, 0.12); border: 1px solid rgba(157, 255, 77, 0.35); color: #c8f79b;">PLAYABLE FPS RELEASE</span>
@@ -648,9 +665,7 @@
       </a>
 
       <a class="game-mini-card" href="road-riot/index.html" data-game-id="road-riot" style="text-decoration: none; color: inherit; border-color: rgba(0, 217, 255, 0.35); background: linear-gradient(145deg, rgba(14, 24, 38, 0.9), rgba(8, 14, 24, 0.95));">
-        <div style="background: linear-gradient(135deg, rgba(7, 24, 39, 0.95), rgba(11, 122, 158, 0.4)); border: 1px solid rgba(0, 217, 255, 0.3); border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 16px;">
-          <span style="font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 2px; color: #fff; text-shadow: 0 0 20px rgba(0, 217, 255, 0.6);">ROAD RIOT 3D</span>
-        </div>
+        <div class="game-art game-art-road"><img src="portal-road-riot.png" alt="Road Riot 3D racing game selection screen" width="1280" height="720" loading="lazy"><span>THE HIGHWAY NEVER ENDS</span></div>
         <div>
           <div style="display:flex; gap:8px; margin-bottom:10px;">
             <span class="game-tag" style="background: rgba(0, 217, 255, 0.12); border: 1px solid rgba(0, 217, 255, 0.35); color: var(--accent-cyan);">FLAGSHIP 3D RACER</span>
@@ -690,6 +705,7 @@
       </div>
 
       <a class="game-mini-card" href="dev-tycoon/index.html" data-game-id="dev-tycoon" style="text-decoration: none; color: inherit; border-color: rgba(255, 106, 0, 0.35); background: linear-gradient(145deg, rgba(38, 24, 14, 0.9), rgba(16, 12, 10, 0.95));">
+        <div class="game-art game-art-dev"><img src="portal-dev-tycoon.png" alt="Dev Tycoon app icon" width="512" height="512" loading="lazy"><span>BUILD YOUR EMPIRE</span></div>
         <div>
           <div class="mini-status" style="color: var(--accent-ember);">Playable Release &bull; Flutter Web</div>
           <h4 class="mini-title">Dev Tycoon</h4>

@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 
 export class WorldManager {
-  constructor(scene) {
+  constructor(scene, renderer = null) {
     this.scene = scene;
+    this.renderer = renderer;
     this.segments = [];
     this.segmentLength = 15;
     this.segmentCount = 30;
@@ -38,6 +39,9 @@ export class WorldManager {
 
     this.initLighting();
     this.initSky();
+    if (this.renderer) {
+      this.initEnvironmentMap(this.renderer);
+    }
     this.initBillboardCanvases();
     this.initHighwayMaterials();
     this.initWeatherParticles();
@@ -100,12 +104,12 @@ export class WorldManager {
 
     this.roadMaterial = new THREE.MeshStandardMaterial({
       map: this.roadTexture,
-      roughness: 0.65,
-      metalness: 0.2
+      roughness: 0.28,
+      metalness: 0.38
     });
 
-    this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.8 });
-    this.walkMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.95 });
+    this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.6, metalness: 0.2 });
+    this.walkMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.8, metalness: 0.15 });
 
     // 2. High-Resolution Skyscraper Façade Textures
     // Consolidates ~2,700 individual window boxes into unified high-res textures (<80 total scene draw calls)
@@ -237,24 +241,86 @@ export class WorldManager {
   }
 
   initLighting() {
-    this.hemiLight = new THREE.HemisphereLight(0x75c8ff, 0x0c1222, 1.8);
+    this.hemiLight = new THREE.HemisphereLight(0x8cd6ff, 0x0c1424, 2.2);
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xffa550, 2.8);
-    this.dirLight.position.set(-45, 55, -85);
+    this.dirLight = new THREE.DirectionalLight(0xffb566, 3.2);
+    this.dirLight.position.set(-45, 60, -90);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.set(1024, 1024);
-    this.dirLight.shadow.camera.near = 10;
-    this.dirLight.shadow.camera.far = 240;
-    this.dirLight.shadow.camera.left = -30;
-    this.dirLight.shadow.camera.right = 30;
-    this.dirLight.shadow.camera.top = 30;
-    this.dirLight.shadow.camera.bottom = -30;
+    this.dirLight.shadow.mapSize.set(2048, 2048);
+    this.dirLight.shadow.camera.near = 5;
+    this.dirLight.shadow.camera.far = 280;
+    this.dirLight.shadow.camera.left = -35;
+    this.dirLight.shadow.camera.right = 35;
+    this.dirLight.shadow.camera.top = 35;
+    this.dirLight.shadow.camera.bottom = -35;
+    this.dirLight.shadow.bias = -0.0004;
+    this.dirLight.shadow.normalBias = 0.02;
+    this.dirLight.shadow.radius = 2.0;
     this.scene.add(this.dirLight);
 
-    this.ambientMoon = new THREE.DirectionalLight(0x4088ff, 0.65);
-    this.ambientMoon.position.set(40, 25, 40);
+    this.ambientMoon = new THREE.DirectionalLight(0x4095ff, 0.85);
+    this.ambientMoon.position.set(45, 30, 45);
     this.scene.add(this.ambientMoon);
+  }
+
+  initEnvironmentMap(renderer, horizonHex = 0xd94b76, topHex = 0x061126) {
+    if (!renderer) return;
+    try {
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      pmrem.compileEquirectangularShader();
+
+      const envScene = new THREE.Scene();
+      const skyGeo = new THREE.SphereGeometry(120, 32, 16);
+      const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: {
+          topColor: { value: new THREE.Color(topHex) },
+          horizonColor: { value: new THREE.Color(horizonHex) },
+          groundColor: { value: new THREE.Color(0x040812) }
+        },
+        vertexShader: `
+          varying vec3 vWorldPos;
+          void main() {
+            vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            gl_Position = projectionMatrix * viewMatrix * vec4(vWorldPos, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 topColor;
+          uniform vec3 horizonColor;
+          uniform vec3 groundColor;
+          varying vec3 vWorldPos;
+          void main() {
+            float h = normalize(vWorldPos).y;
+            vec3 col = h > 0.0 ? mix(horizonColor, topColor, pow(h, 0.55)) : mix(horizonColor, groundColor, pow(-h, 0.55));
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `
+      });
+      envScene.add(new THREE.Mesh(skyGeo, skyMat));
+
+      // Specular High-Luminance Neon Billboard Accents
+      const neonBillboards = [
+        { c: 0x00f0ff, p: [-40, 22, -60] },
+        { c: 0xff2a85, p: [40, 22, -60] },
+        { c: 0xffea00, p: [0, 38, 45] }
+      ];
+      neonBillboards.forEach(nb => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(26, 10, 2),
+          new THREE.MeshBasicMaterial({ color: nb.c })
+        );
+        mesh.position.set(...nb.p);
+        envScene.add(mesh);
+      });
+
+      const envMap = pmrem.fromScene(envScene).texture;
+      this.scene.environment = envMap;
+      pmrem.dispose();
+    } catch (e) {
+      console.warn('Environment map generation failed:', e);
+    }
   }
 
   initSky() {
@@ -480,6 +546,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('none');
+      if (this.renderer) this.initEnvironmentMap(this.renderer, 0xffaa33, 0x1a0826);
     } else if (biomeId === 'neotokyo') {
       // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
       this.skyMat.uniforms.topColor.value.setHex(0x020712);
@@ -491,6 +558,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x061120);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('rain');
+      if (this.renderer) this.initEnvironmentMap(this.renderer, 0x00d9ff, 0x020712);
     } else if (biomeId === 'arctic') {
       // Arctic Frostway: Polar ice horizon, pale frost sun, swirling blizzard
       this.skyMat.uniforms.topColor.value.setHex(0x040e1c);
@@ -502,6 +570,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c223c);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('snow');
+      if (this.renderer) this.initEnvironmentMap(this.renderer, 0x8ce2ff, 0x040e1c);
     } else {
       // Midnight Metropolis (Default night sky with circular stars)
       this.skyMat.uniforms.topColor.value.setHex(0x050c1e);
@@ -513,6 +582,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c1322);
       if (this.stars) this.stars.visible = true;
       this.setWeatherType('none');
+      if (this.renderer) this.initEnvironmentMap(this.renderer, 0xd94b76, 0x050c1e);
     }
   }
 
@@ -536,6 +606,7 @@ export class WorldManager {
     const roadGeo = new THREE.BoxGeometry(this.roadWidth, 0.3, this.segmentLength);
     const roadMesh = new THREE.Mesh(roadGeo, this.roadMaterial);
     roadMesh.position.y = -0.15;
+    roadMesh.receiveShadow = true;
     group.add(roadMesh);
 
     // Guard Rails & Sidewalks (Curbs & Walks)
@@ -543,11 +614,13 @@ export class WorldManager {
       const curbGeo = new THREE.BoxGeometry(0.8, 0.35, this.segmentLength);
       const curb = new THREE.Mesh(curbGeo, this.curbMat);
       curb.position.set(x + (side === 0 ? -0.4 : 0.4), 0.05, 0);
+      curb.receiveShadow = true;
       group.add(curb);
 
       const walkGeo = new THREE.BoxGeometry(7, 0.2, this.segmentLength);
       const walk = new THREE.Mesh(walkGeo, this.walkMat);
       walk.position.set(x + (side === 0 ? -4.3 : 4.3), -0.05, 0);
+      walk.receiveShadow = true;
       group.add(walk);
     });
 
@@ -906,15 +979,15 @@ export class WorldManager {
       this.weatherParticles.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Dynamic Pedestrian Animation (Crowd Cheering, Arm Pumps, Head Movements)
-    const now = performance.now() * 0.005;
+    // Dynamic Pedestrian Animation (Smooth Crowd Cheering, Arm Waves & Head Motion)
+    const now = performance.now() * 0.0018;
     for (let i = 0; i < this.pedestrians.length; i++) {
       const p = this.pedestrians[i];
       if (p.userData && p.userData.isCheering) {
         const t = now + p.userData.phase;
-        if (p.userData.leftArmGroup) p.userData.leftArmGroup.rotation.x = -0.3 + Math.sin(t * 5) * 0.45;
-        if (p.userData.rightArmGroup) p.userData.rightArmGroup.rotation.x = -0.3 + Math.cos(t * 5) * 0.45;
-        p.position.y = p.userData.baseY + Math.abs(Math.sin(t * 4)) * 0.08;
+        if (p.userData.leftArmGroup) p.userData.leftArmGroup.rotation.x = -0.4 + Math.sin(t * 2.2) * 0.35;
+        if (p.userData.rightArmGroup) p.userData.rightArmGroup.rotation.x = -0.4 + Math.cos(t * 2.2) * 0.35;
+        p.position.y = p.userData.baseY + Math.abs(Math.sin(t * 2.0)) * 0.04;
       }
     }
   }

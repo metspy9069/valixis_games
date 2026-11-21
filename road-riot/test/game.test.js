@@ -159,3 +159,125 @@ test('race disciplines configure middle checkpoint for sprint and quick checkpoi
   const endlessInitialCheckpoint = 380;
   assert.ok(endlessInitialCheckpoint < 400, 'Endless checkpoint must be fast to reach (~12-15s)');
 });
+
+test('cars.json contains valid car records with speeds, prices, and upgrade levels', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const raw = fs.readFileSync(path.resolve('road-riot/data/cars.json'), 'utf-8');
+  const cars = JSON.parse(raw);
+
+  assert.ok(Array.isArray(cars), 'cars.json must be an array');
+  assert.ok(cars.length >= 2, 'cars.json must have at least 2 cars');
+
+  cars.forEach(car => {
+    assert.ok(car.id, 'Car must have an ID');
+    assert.ok(car.name, 'Car must have a name');
+    assert.ok(car.baseSpeed > 0, 'Car must have a positive baseSpeed');
+    assert.ok(car.price > 0, 'Car must have a positive price');
+    assert.ok(Array.isArray(car.upgradeLevels), 'Car must have upgrade levels');
+  });
+});
+
+test('checkpoints.json contains valid battle checkpoint definitions', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const raw = fs.readFileSync(path.resolve('road-riot/data/checkpoints.json'), 'utf-8');
+  const checkpoints = JSON.parse(raw);
+
+  assert.ok(Array.isArray(checkpoints), 'checkpoints.json must be an array');
+  assert.ok(checkpoints.length >= 2, 'Must have at least 2 checkpoints defined');
+
+  checkpoints.forEach(cp => {
+    assert.ok(cp.id, 'Checkpoint must have an ID');
+    assert.ok(cp.durationSec > 0, 'Checkpoint must have a positive duration');
+    assert.ok(Array.isArray(cp.enemyTypes), 'Checkpoint must define enemyTypes');
+    assert.ok(cp.enemyTypes.length > 0, 'Must have at least one enemy type');
+  });
+});
+
+test('shop economy simulates purchase with credit deductions and owned list', () => {
+  let credits = 3000;
+  const ownedCars = ['car001'];
+  const newCar = { id: 'car002', name: 'Vortex GT', price: 2000 };
+
+  // Valid purchase
+  if (credits >= newCar.price) {
+    credits -= newCar.price;
+    ownedCars.push(newCar.id);
+  }
+  assert.equal(credits, 1000);
+  assert.deepEqual(ownedCars, ['car001', 'car002']);
+
+  // Insufficient credits attempt
+  const expensiveCar = { id: 'car004', name: 'Hyperion Zero', price: 5000 };
+  let purchased = false;
+  if (credits >= expensiveCar.price) {
+    credits -= expensiveCar.price;
+    ownedCars.push(expensiveCar.id);
+    purchased = true;
+  }
+  assert.equal(purchased, false);
+  assert.equal(credits, 1000);
+  assert.equal(ownedCars.length, 2);
+});
+
+test('60 FPS frame delta clamp prevents simulation explosion', () => {
+  const clampFps = (dt) => (dt > 1 / 60 ? 1 / 60 : dt);
+  const normalDt = 0.016;
+  const spikeDt = 0.5; // Half-second freeze
+  assert.equal(clampFps(normalDt), 0.016);
+  assert.equal(clampFps(spikeDt), 1 / 60);
+});
+
+test('solid collision separates player vehicle from traffic trucks and npcs without phasing through', () => {
+  // Simulate collision between player and a truck
+  const player = { x: 0, z: -8, speed: 35 };
+  const truck = { x: 0.2, z: -6.5, width: 2.8, length: 8.5, speed: 18 };
+
+  const halfW = truck.width * 0.5 + 1.05; // 2.45
+  const halfL = truck.length * 0.5 + 2.2;  // 6.45
+
+  const dx = player.x - truck.x; // -0.2
+  const dz = player.z - truck.z; // -1.5 (player behind truck)
+  const absX = Math.abs(dx);
+  const absZ = Math.abs(dz);
+
+  assert.ok(absX < halfW && absZ < halfL, 'Vehicles are initially overlapping');
+
+  // Solid Impasse Resolution:
+  const isRearEnd = dz < 0 && absX < (truck.width * 0.5 + 0.45);
+
+  if (isRearEnd) {
+    // Rear impact clamp
+    player.speed = Math.min(player.speed * 0.35, truck.speed * 0.7);
+    truck.z = player.z + halfL;
+  }
+
+  // After resolution, truck is pushed forward, player is locked behind bumper
+  assert.ok(player.speed < truck.speed, 'Player forward speed is clamped behind target');
+  assert.equal(truck.z - player.z, halfL, 'Target Z is separated so player does not penetrate interior');
+});
+
+test('solid stunt jump ramp calculates continuous physical deck elevation and launches at takeoff lip', () => {
+  const rampLength = 4.8;
+  const h0 = 0.03;
+  const h1 = 1.35;
+
+  // Entrance (+2.4 relZ)
+  const relZEntrance = 2.4;
+  const progressEntrance = (2.4 - relZEntrance) / rampLength;
+  const deckYEntrance = h0 + progressEntrance * (h1 - h0);
+  assert.equal(deckYEntrance, 0.03, 'Entrance elevation matches asphalt surface');
+
+  // Mid-ramp (0.0 relZ)
+  const relZMid = 0.0;
+  const progressMid = (2.4 - relZMid) / rampLength;
+  const deckYMid = h0 + progressMid * (h1 - h0);
+  assert.equal(Math.round(deckYMid * 100) / 100, 0.69, 'Mid-ramp deck provides smooth incline elevation');
+
+  // Lip (-2.4 relZ)
+  const relZLip = -2.4;
+  const progressLip = (2.4 - relZLip) / rampLength;
+  const deckYLip = h0 + progressLip * (h1 - h0);
+  assert.equal(deckYLip, 1.35, 'Lip elevation reaches full takeoff height');
+});

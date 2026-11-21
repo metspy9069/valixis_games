@@ -26,6 +26,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;0,800;1,700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&family=Russo+One&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/shop.css">
 </head>
 <body>
   <!-- Tactile Film Grain Overlay (Studio Depth) -->
@@ -38,6 +39,7 @@
   <div id="overlay-damage"></div>
   <div id="overlay-warp"></div>
   <div id="overlay-shield"></div>
+  <div class="cinematic-vignette"></div>
 
   <!-- Cinematic 3-2-1-GO Countdown -->
   <div id="countdown-overlay">
@@ -114,20 +116,10 @@
     <!-- Center Floating Announcer & Combo Popups -->
     <div id="announcer-zone"></div>
 
-    <!-- Checkpoint Turret Defense Warning Banner -->
+    <!-- Highway Speed Milestone Checkpoint Banner -->
     <div id="hud-checkpoint-banner" class="checkpoint-banner hidden">
-      <div class="checkpoint-glitch-badge">COMBAT SECTOR ENGAGED</div>
-      <div class="checkpoint-sub">MOUNTING ROOF TURRET &bull; SHOOT DRONES, COMBAT PLANES &amp; ASSAULT ROBOTS</div>
-    </div>
-
-    <!-- 180° Turret Gunner Crosshair & Drone Wave HUD -->
-    <div id="hud-turret-crosshair" class="turret-crosshair hidden">
-      <div class="crosshair-ring"></div>
-      <div class="crosshair-dot"></div>
-      <div class="crosshair-status">
-        <span id="turret-drone-count">TARGETS REMAINING: 4</span> &bull; <span id="turret-wave-badge">WAVE 1/3</span>
-      </div>
-      <div class="crosshair-hint">MOUSE / ARROWS: AIM 180&deg; &bull; SPACE / CLICK: FIRE PLASMA</div>
+      <div class="checkpoint-glitch-badge">SPEED CHECKPOINT CLEARED</div>
+      <div class="checkpoint-sub">+1,500 PTS &bull; HYPERSONIC NITRO SURGE ENGAGED</div>
     </div>
 
     <!-- Bottombar: Speedometer, Gear, Tachometer, and Nitro -->
@@ -190,7 +182,7 @@
         <div>
           <div class="brand-eyebrow" style="letter-spacing:3px; color:var(--neon-cyan);">VALIXIS ARCADE RACING</div>
           <h1 class="brand-title" style="letter-spacing:3px;">ROAD RIOT 3D</h1>
-          <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; AIR DEFENSE CHECKPOINTS &bull; CAR TUNING</div>
+          <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; NITRO DRIFTING &bull; SUPERCAR TUNING</div>
         </div>
         <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:12px; background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.3); border-radius:8px; padding:8px 14px; display:flex; flex-direction:column; gap:4px; text-align:right;">
           <div style="color:#00d9ff; font-size:11px; font-weight:900;"><span class="badge-tag">VEHICLE</span> <span id="menu-equipped-car">VALIXIS APEX GT</span></div>
@@ -209,7 +201,7 @@
                 <span class="mode-badge-tag">ENDLESS</span>
               </div>
               <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
-                Survive infinite dense traffic, leap high-angle stunt ramps, collect credits, and halt at milestone checkpoints to gun down enemy drone squadrons.
+                Survive infinite dense traffic, leap high-angle stunt ramps, collect credits, and blast through supersonic speed milestone checkpoints.
               </p>
               <button id="mode-endless-btn" class="setting-toggle active" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECTED &bull; ENDLESS</button>
             </div>
@@ -220,7 +212,7 @@
                 <span class="mode-badge-tag">1,500M SPRINT</span>
               </div>
               <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
-                High-stakes 3,000m dash against rival street drivers. Draft through traffic slipstreams, ram opponents, defend milestones, and claim 1st place!
+                High-stakes 1,500m dash against rival street drivers. Draft through traffic slipstreams, hit stunt ramps, outpace opponents, and claim 1st place!
               </p>
               <button id="mode-sprint-btn" class="setting-toggle" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECT SPRINT</button>
             </div>
@@ -254,114 +246,129 @@
       <div class="modal-footer" style="padding:14px 28px;">
         <a href="../" class="btn-secondary" style="text-decoration:none; display:flex; align-items:center; gap:6px;">&larr; ARCADE HUB</a>
         <div style="display:flex; gap:10px; align-items:center;">
-          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2);">SHOWROOM &amp; TUNING</button>
+          <button id="shop-btn" class="btn-secondary" style="border-color:rgba(0,217,255,0.6); color:#00d9ff; font-weight:800; background:rgba(0,217,255,0.12); box-shadow:0 0 12px rgba(0,217,255,0.2); display:flex; align-items:center; gap:6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8c-.5.3-.8.8-.9 1.4L1 16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+            CAR SHOP
+          </button>
+          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2); display:flex; align-items:center; gap:6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            SHOWROOM
+          </button>
           <button id="menu-settings-btn" class="btn-secondary">CONTROLS</button>
-          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4);">START RACE</button>
+          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4); display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+            START RACE
+          </button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ========================================================= -->
-  <!-- GARAGE & VEHICLE CUSTOMIZATION MODAL                      -->
+  <!-- 3D GARAGE SHOWROOM & PERFORMANCE TUNING HUD               -->
   <!-- ========================================================= -->
-  <div id="garage-modal" class="modal-screen hidden">
-    <div class="glass-panel modal-dialog" style="width:min(960px, 95vw);">
-      <div class="modal-header">
-        <div>
-          <div class="brand-eyebrow">HIGHWAY RACING HEADQUARTERS</div>
-          <h2 style="font-size:26px; font-weight:900; letter-spacing:1px; color:#fff;">SUPERCAR SHOWROOM &amp; SHOP</h2>
-        </div>
-        <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:16px;">
+  <div id="garage-modal" class="garage-showroom-hud hidden">
+    <!-- Top HUD Navigation Bar -->
+    <header class="garage-top-bar glass-panel">
+      <div class="garage-brand-group">
+        <div class="brand-eyebrow">VALIXIS RACING HEADQUARTERS</div>
+        <h1 class="garage-main-title">3D SUPERCAR SHOWROOM &amp; GARAGE</h1>
+      </div>
+      <div class="garage-drag-hint">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        <span>CLICK &amp; DRAG TO ROTATE CAR 360&deg;</span>
+      </div>
+      <div class="garage-top-actions">
+        <div class="garage-credits-badge">
           <span class="cr-symbol">CR</span> <span id="garage-coins">0</span> CREDITS
         </div>
+        <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
       </div>
+    </header>
 
-      <!-- Supercar Quick-Select Chips (Showroom Roster) -->
+    <!-- Bottom Supercar Selector Dock -->
+    <div id="garage-car-dock" class="garage-car-dock glass-panel">
+      <div class="dock-header">
+        <span class="dock-title">SUPERCAR ROSTER</span>
+        <div class="dock-nav">
+          <button id="garage-prev-btn" class="car-nav-btn" title="Previous Car">&lsaquo;</button>
+          <button id="garage-next-btn" class="car-nav-btn" title="Next Car">&rsaquo;</button>
+        </div>
+      </div>
       <div id="garage-car-chips" class="garage-chips-row">
         <!-- Dynamically rendered by renderGarageCarousel() -->
       </div>
+    </div>
 
-      <!-- Garage Navigation Tabs -->
-      <div class="tab-group" style="padding: 0 28px; margin-top: 6px;">
-        <button id="tab-cars-btn" class="tab-btn active">SUPERCAR TUNING &amp; DYNO</button>
+    <!-- Right Floating Performance Tuning & Specs Station -->
+    <aside id="garage-tuning-panel" class="garage-tuning-sidebar glass-panel">
+      <!-- Tabs for Tuning vs Achievements -->
+      <div class="tab-group" style="margin-bottom:12px;">
+        <button id="tab-cars-btn" class="tab-btn active">TUNING &amp; SPECS</button>
         <button id="tab-achievements-btn" class="tab-btn">ACHIEVEMENTS</button>
       </div>
 
-      <div class="modal-body">
-        <!-- View 1: Cars & Tuning -->
-        <div id="garage-view-cars" class="garage-container">
-          <!-- 3D Car Showcase Details -->
-          <div class="car-showcase">
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-              <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
-              <div id="garage-car-price" style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:#ffb800; background:rgba(255,184,0,0.15); border:1px solid rgba(255,184,0,0.4); padding:3px 8px; border-radius:4px;">
-                UNLOCKED
-              </div>
-            </div>
-            <div id="garage-car-title" class="car-preview-title">Valixis Apex</div>
-            <p id="garage-car-desc" style="font-size:12px; color:#8fa0b5; margin-top:6px; max-width:320px; line-height:1.5;">
-              Precision aerodynamics &amp; razor-sharp lane transition.
-            </p>
+      <div id="garage-view-cars">
+        <!-- Selected Car Header -->
+        <div class="car-header-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div id="garage-car-tier" class="car-preview-tier">GT SPORT</div>
+            <div id="garage-car-price" class="car-price-badge">UNLOCKED</div>
+          </div>
+          <h2 id="garage-car-title" class="car-preview-title">Valixis Apex</h2>
+          <p id="garage-car-desc" class="car-desc-text">
+            Precision aerodynamics &amp; razor-sharp lane transition.
+          </p>
+          <div class="car-action-buttons" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+            <button id="garage-buy-btn" class="btn-primary" style="width:100%; font-size:12px; font-weight:900; letter-spacing:1px; padding:12px;">EQUIPPED</button>
+            <button id="garage-race-now-btn" class="btn-primary btn-race-launch" style="width:100%; font-size:13px; font-weight:900; letter-spacing:1.5px; padding:12px; background:linear-gradient(135deg, #00d9ff, #00ff88); color:#000; box-shadow:0 0 20px rgba(0,217,255,0.4);">
+              &#9658; RACE THIS CAR
+            </button>
+          </div>
+        </div>
 
-            <div class="car-nav-controls">
-              <button id="garage-prev-btn" class="car-nav-btn">&lsaquo;</button>
-              <button id="garage-buy-btn" class="btn-primary" style="padding:10px 24px; font-size:12px;">EQUIPPED</button>
-              <button id="garage-next-btn" class="car-nav-btn">&rsaquo;</button>
-            </div>
-
-            <!-- Custom Paint & Neon Underglow -->
-            <div style="margin-top:16px; width:100%; text-align:left;">
-              <div style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700;">BODY PAINT</div>
-              <div class="color-picker-group">
-                <div class="color-swatch paint-swatch active" data-color="d71920" style="background:#d71920;" title="Rosso Corsa"></div>
-                <div class="color-swatch paint-swatch" data-color="00d9ff" style="background:#00d9ff;" title="Cyber Cyan"></div>
-                <div class="color-swatch paint-swatch" data-color="9d4edd" style="background:#9d4edd;" title="Neon Purple"></div>
-                <div class="color-swatch paint-swatch" data-color="00ff88" style="background:#00ff88;" title="Toxic Green"></div>
-                <div class="color-swatch paint-swatch" data-color="ffb800" style="background:#ffb800;" title="Electric Gold"></div>
-                <div class="color-swatch paint-swatch" data-color="101622" style="background:#101622;" title="Stealth Shadow"></div>
-              </div>
-
-              <div style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700; margin-top:10px;">NEON UNDERGLOW</div>
-              <div class="color-picker-group">
-                <div class="color-swatch glow-swatch active" data-color="00d9ff" style="background:#00d9ff;" title="Cyan Neon"></div>
-                <div class="color-swatch glow-swatch" data-color="ff2a85" style="background:#ff2a85;" title="Magenta Glow"></div>
-                <div class="color-swatch glow-swatch" data-color="00ff88" style="background:#00ff88;" title="Green Laser"></div>
-                <div class="color-swatch glow-swatch" data-color="ffaa00" style="background:#ffaa00;" title="Amber Flare"></div>
-              </div>
-
-              <div style="font-family:var(--font-mono); font-size:10px; color:#ffea00; margin-top:12px; font-weight:700; text-align:center; letter-spacing:1px; background:rgba(255,234,0,0.1); border:1px solid rgba(255,234,0,0.25); border-radius:6px; padding:6px 10px;">
-                3D TURNTABLE ACTIVE &bull; DRAG TO ROTATE 360&deg;
-              </div>
-
-              <!-- Interactive Dyno Test Button -->
-              <button id="garage-dyno-btn" class="btn-primary" style="margin-top:12px; width:100%; font-size:11px; padding:10px; background:linear-gradient(135deg, #ff8800, #ff2a44); border-color:#ffaa00; font-weight:800;">
-                RUN DYNO SPEED TEST BENCHMARK
-              </button>
-            </div>
+        <!-- Custom Paint & Underglow Station -->
+        <div class="customizer-section" style="margin-top:16px; padding:14px; background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+          <div class="customizer-title" style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700;">BODY PAINT REFLECTION</div>
+          <div class="color-picker-group" style="margin-top:8px;">
+            <div class="color-swatch paint-swatch active" data-color="d71920" style="background:#d71920;" title="Rosso Corsa"></div>
+            <div class="color-swatch paint-swatch" data-color="00d9ff" style="background:#00d9ff;" title="Cyber Cyan"></div>
+            <div class="color-swatch paint-swatch" data-color="9d4edd" style="background:#9d4edd;" title="Neon Purple"></div>
+            <div class="color-swatch paint-swatch" data-color="00ff88" style="background:#00ff88;" title="Toxic Green"></div>
+            <div class="color-swatch paint-swatch" data-color="ffb800" style="background:#ffb800;" title="Electric Gold"></div>
+            <div class="color-swatch paint-swatch" data-color="101622" style="background:#101622;" title="Stealth Shadow"></div>
           </div>
 
-          <!-- Car Stats & Tuning -->
+          <div class="customizer-title" style="font-family:var(--font-mono); font-size:10px; color:#7ddcff; font-weight:700; margin-top:14px;">NEON CHASSIS UNDERGLOW</div>
+          <div class="color-picker-group" style="margin-top:8px;">
+            <div class="color-swatch glow-swatch active" data-color="00d9ff" style="background:#00d9ff;" title="Cyan Neon"></div>
+            <div class="color-swatch glow-swatch" data-color="ff2a85" style="background:#ff2a85;" title="Magenta Glow"></div>
+            <div class="color-swatch glow-swatch" data-color="00ff88" style="background:#00ff88;" title="Green Laser"></div>
+            <div class="color-swatch glow-swatch" data-color="ffaa00" style="background:#ffaa00;" title="Amber Flare"></div>
+          </div>
+        </div>
+
+        <!-- Performance Upgrades List -->
+        <div class="upgrades-section" style="margin-top:16px;">
+          <div class="customizer-title" style="font-family:var(--font-hud); font-size:11px; color:#ffb800; font-weight:800; letter-spacing:1px; margin-bottom:10px;">PERFORMANCE UPGRADE STAGES (LEVEL 0 - 5)</div>
           <div class="car-specs" id="garage-stats-list">
-            <!-- Dynamically populated -->
+            <!-- Dynamically populated with 5 visual level blocks and upgrade buttons -->
           </div>
         </div>
 
-        <!-- View 2: Achievements -->
-        <div id="garage-view-achievements" class="hidden">
-          <div class="achievements-grid" id="achievements-container">
-            <!-- Dynamically populated -->
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px;">
-        <button id="garage-close-btn" class="btn-secondary">&larr; BACK TO MENU</button>
-        <button id="garage-race-now-btn" class="btn-primary" style="padding:12px 32px; font-size:13px; font-weight:900; background:linear-gradient(135deg, #00d9ff, #00ff88); color:#000; letter-spacing:1.5px; box-shadow:0 0 20px rgba(0,217,255,0.4);">
-          RACE THIS CAR
+        <!-- Dyno Speed Benchmark Test -->
+        <button id="garage-dyno-btn" class="btn-primary dyno-btn" style="margin-top:16px; width:100%; font-size:11px; padding:10px; background:linear-gradient(135deg, #ff8800, #ff2a44); border-color:#ffaa00; font-weight:800;">
+          &#9881; REV ENGINE &amp; RUN DYNO BENCHMARK
         </button>
       </div>
-    </div>
+
+      <!-- View 2: Achievements -->
+      <div id="garage-view-achievements" class="hidden">
+        <div class="achievements-grid" id="achievements-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </aside>
   </div>
 
   <!-- ========================================================= -->
@@ -595,6 +602,7 @@
       }
     }
   </script>
+  <script type="module" src="./js/shop.js"></script>
   <script type="module" src="./js/game.js"></script>
 </body>
 </html>

@@ -8,9 +8,12 @@
   --neon-green: #00ff88;
   --neon-green-glow: rgba(0, 255, 136, 0.45);
   --neon-purple: #9d4edd;
+  --brand-navy: #0a1f44;
+  --brand-blue: #1e88e5;
+  --brand-gradient: linear-gradient(135deg, #0a1f44 0%, #0d3268 50%, #1e88e5 100%);
   --bg-dark: #060911;
-  --bg-panel: rgba(8, 14, 26, 0.82);
-  --border-panel: rgba(0, 217, 255, 0.25);
+  --bg-panel: linear-gradient(145deg, rgba(10, 31, 68, 0.88), rgba(8, 18, 38, 0.94));
+  --border-panel: rgba(0, 217, 255, 0.3);
   --text-main: #f0f6fc;
   --text-muted: #8fa0b5;
   --font-display: 'Orbitron', 'Russo One', sans-serif;
@@ -48,6 +51,17 @@ html, body {
   opacity: 0.035;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Cinematic Viewport Vignette & Atmospheric Contrast */
+.cinematic-vignette {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(4, 7, 16, 0.4) 85%, rgba(2, 4, 10, 0.75) 100%);
 }
 
 /* Global Visibility Utility */
@@ -593,25 +607,329 @@ html, body {
   pointer-events: none;
 }
 
-/* 3D Turntable Showcase Modal */
-#garage-modal {
-  background: radial-gradient(circle at 50% 30%, rgba(10, 24, 48, 0.25), rgba(4, 8, 16, 0.72) 85%);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+/* 3D Supercar Showroom & Performance Tuning HUD */
+.garage-showroom-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: radial-gradient(circle at 40% 50%, rgba(10, 24, 48, 0.04) 25%, rgba(2, 6, 14, 0.78) 100%);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-#garage-modal .modal-dialog {
-  background: rgba(8, 16, 28, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+.garage-showroom-hud.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Garage Top Navigation Bar */
+.garage-top-bar {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+  pointer-events: auto;
+  z-index: 60;
+  background: rgba(8, 16, 28, 0.75);
   border: 1px solid rgba(0, 217, 255, 0.35);
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 217, 255, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
-#garage-modal .car-showcase {
-  background: rgba(5, 12, 24, 0.45);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(0, 217, 255, 0.3);
+.garage-brand-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.garage-main-title {
+  font-family: var(--font-hud);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fff;
+  margin: 0;
+}
+
+.garage-drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffea00;
+  letter-spacing: 1px;
+  background: rgba(255, 234, 0, 0.12);
+  border: 1px solid rgba(255, 234, 0, 0.3);
+  padding: 6px 14px;
+  border-radius: 99px;
+  animation: pulse-border 2.5s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(255, 234, 0, 0.3); box-shadow: 0 0 8px rgba(255, 234, 0, 0.1); }
+  50% { border-color: rgba(255, 234, 0, 0.7); box-shadow: 0 0 16px rgba(255, 234, 0, 0.35); }
+}
+
+.garage-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.garage-credits-badge {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: #ffb800;
+  font-size: 15px;
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+  padding: 6px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Right Floating Performance Tuning Sidebar */
+.garage-tuning-sidebar {
+  position: absolute;
+  top: 86px;
+  right: 20px;
+  bottom: 20px;
+  width: 440px;
+  max-width: calc(100vw - 40px);
+  overflow-y: auto;
+  pointer-events: auto;
+  padding: 22px;
+  border-radius: 14px;
+  z-index: 60;
+  background: rgba(8, 16, 30, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 217, 255, 0.35);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 217, 255, 0.4) transparent;
+}
+
+.garage-tuning-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.garage-tuning-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 217, 255, 0.35);
+  border-radius: 3px;
+}
+
+.car-header-card {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.car-price-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffb800;
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.car-desc-text {
+  font-size: 12px;
+  color: #8fa0b5;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* Bottom Supercar Selector Dock */
+.garage-car-dock {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 480px;
+  height: 104px;
+  pointer-events: auto;
+  z-index: 60;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(8, 16, 28, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 217, 255, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.dock-title {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--neon-cyan);
+}
+
+.dock-nav {
+  display: flex;
+  gap: 8px;
+}
+
+/* Visual Segmented Level Upgrade Cards */
+.upgrade-stat-card {
+  background: rgba(10, 20, 36, 0.75);
+  border: 1px solid rgba(0, 217, 255, 0.22);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.upgrade-stat-card:hover {
+  border-color: rgba(0, 217, 255, 0.5);
+  box-shadow: 0 0 16px rgba(0, 217, 255, 0.15);
+}
+
+.stat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-name-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.8px;
+}
+
+.stat-level-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--neon-cyan);
+}
+
+.stat-pips-row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.stat-pip {
+  flex: 1;
+  height: 9px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stat-pip.filled {
+  background: linear-gradient(90deg, #00d9ff, #00ffaa);
+  border-color: #00d9ff;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.65);
+}
+
+.stat-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.stat-curr-val {
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.stat-next-boost {
+  color: #00ff88;
+  font-weight: 800;
+}
+
+.upgrade-stat-btn {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.upgrade-stat-btn.affordable {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.3), rgba(0, 255, 136, 0.25));
+  border: 1px solid #00d9ff;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.25);
+}
+
+.upgrade-stat-btn.affordable:hover {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.5), rgba(0, 255, 136, 0.45));
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0, 217, 255, 0.4);
+}
+
+.upgrade-stat-btn.unaffordable {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.stat-max-badge {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffb800;
+  letter-spacing: 1.5px;
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.4);
+  padding: 8px 10px;
+  border-radius: 6px;
+  box-shadow: 0 0 14px rgba(255, 184, 0, 0.25);
+}
+
+@media (max-width: 900px) {
+  .garage-car-dock {
+    right: 20px;
+    bottom: 440px;
+  }
+  .garage-tuning-sidebar {
+    left: 20px;
+    width: auto;
+    max-height: 400px;
+  }
 }
 
 .race-pos-badge {

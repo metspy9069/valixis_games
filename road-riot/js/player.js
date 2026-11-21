@@ -1,4 +1,4 @@
-// Road Riot 3D - Player Car Physics, Suspension Dynamics, Skid Marks, Airtime & Drones
+// Road Riot 3D - Player Car Physics, Suspension Dynamics, Skid Marks & Airtime
 import * as THREE from 'three';
 
 // Shared Pooled Static Geometries & Base Materials to eliminate GC memory leaks
@@ -149,17 +149,12 @@ export class PlayerCar {
     this.magnetTime = 0;
     this.slowMoActive = false;
     this.slowMoTime = 0;
-    this.droneActive = false;
-    this.droneTime = 0;
-    this.droneShootTimer = 0;
-    this.activeWeapon = null;
 
     // Visual Sub-components
     this.carModel = null;
     this.underglowLight = null;
     this.exhaustFlames = [];
     this.shieldMesh = null;
-    this.droneMesh = null;
     this.wheels = { fl: null, fr: null, rl: null, rr: null };
 
     // Skid marks & smoke
@@ -203,6 +198,16 @@ export class PlayerCar {
       this.exhaustFlames.push(flame);
     });
 
+    // 4. High-Detail Xenon Forward Projector Headlights
+    this.headlightTarget = new THREE.Object3D();
+    this.headlightTarget.position.set(0, 0.1, -40);
+    this.mesh.add(this.headlightTarget);
+
+    this.headlight = new THREE.SpotLight(0xdcf2ff, 5.0, 55, Math.PI / 4.2, 0.45, 1.2);
+    this.headlight.position.set(0, 0.85, -2.4);
+    this.headlight.target = this.headlightTarget;
+    this.mesh.add(this.headlight);
+
     // Shield Forcefield Bubble (Pulsing Hexagonal Energy)
     const shieldGeo = new THREE.IcosahedronGeometry(2.5, 2);
     const shieldMat = new THREE.MeshStandardMaterial({
@@ -216,11 +221,6 @@ export class PlayerCar {
     this.shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
     this.shieldMesh.position.set(0, 0.8, 0);
     this.chassis.add(this.shieldMesh);
-
-    // Drone Companion Mesh
-    this.droneMesh = this.buildDroneMesh();
-    this.droneMesh.visible = false;
-    this.mesh.add(this.droneMesh);
 
     this.rebuildCarModel();
   }
@@ -251,9 +251,6 @@ export class PlayerCar {
     this.magnetTime = 0;
     this.slowMoActive = false;
     this.slowMoTime = 0;
-    this.droneActive = false;
-    this.droneTime = 0;
-
     this.mesh.position.set(0, 0, -8);
     this.mesh.rotation.set(0, 0, 0);
     if (this.chassis) {
@@ -262,40 +259,8 @@ export class PlayerCar {
     if (this.shieldMesh && this.shieldMesh.material) {
       this.shieldMesh.material.opacity = 0;
     }
-    if (this.droneMesh) {
-      this.droneMesh.visible = false;
-    }
     if (this.wheels.fl) this.wheels.fl.rotation.y = 0;
     if (this.wheels.fr) this.wheels.fr.rotation.y = 0;
-  }
-
-  buildDroneMesh() {
-    const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: 0x111e2e, metalness: 0.9, roughness: 0.2 });
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-
-    // Center Core
-    const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), coreMat);
-    group.add(core);
-
-    // Wing Ring
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 8, 20), mat);
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
-
-    // Twin Plasma Thrusters
-    [-0.6, 0.6].forEach(x => {
-      const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.4, 8), mat);
-      jet.position.set(x, 0, 0);
-      group.add(jet);
-
-      const light = new THREE.PointLight(0x00ffff, 2.0, 4);
-      light.position.set(x, -0.25, 0);
-      group.add(light);
-    });
-
-    group.position.set(0, 2.8, -0.5);
-    return group;
   }
 
   setVehicle(vehicleId, upgrades = {}, customPaint = null, customGlow = null) {
@@ -602,6 +567,13 @@ export class PlayerCar {
     this.wheels.rr.add(createWheel());
     group.add(this.wheels.rr);
 
+    group.traverse(node => {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+
     return group;
   }
 
@@ -613,7 +585,7 @@ export class PlayerCar {
     const targetVx = inputDir * (this.handling * 0.52 * sensitivity);
     const damping = inputDir !== 0 ? 15 : 12;
     this.vx += (targetVx - this.vx) * Math.min(1, dt * damping);
-    this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -7.2, 7.2);
+    this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -8.2, 8.2);
     this.mesh.position.x = this.x;
 
     // Target Front Wheel Turn Angle
@@ -677,14 +649,6 @@ export class PlayerCar {
   activateSlowMo(duration = 4.5) {
     this.slowMoActive = true;
     this.slowMoTime = duration;
-  }
-
-  activateDrone(duration = 10) {
-    this.droneActive = true;
-    this.droneTime = duration;
-    if (this.droneMesh) {
-      this.droneMesh.visible = true;
-    }
   }
 
   takeDamage(amount) {
@@ -855,19 +819,7 @@ export class PlayerCar {
       }
     });
 
-    // 6. Drone Companion Wobble & Timer
-    if (this.droneActive && this.droneMesh) {
-      this.droneTime -= dt;
-      this.droneMesh.position.y = 2.6 + Math.sin(performance.now() * 0.005) * 0.25;
-      this.droneMesh.rotation.y += dt * 3.0;
-
-      if (this.droneTime <= 0) {
-        this.droneActive = false;
-        this.droneMesh.visible = false;
-      }
-    }
-
-    // 7. Shield & Magnet Timers
+    // 6. Shield & Magnet Timers
     if (this.shieldActive) {
       this.shieldTime -= dt;
       if (this.shieldMesh) {

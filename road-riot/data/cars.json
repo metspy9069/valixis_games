@@ -1,0 +1,110 @@
+[
+  {
+    "id": "apex",
+    "name": "Valixis Apex GT",
+    "tier": "GT SPORT",
+    "baseSpeed": 260,
+    "acceleration": 8.6,
+    "handling": 8.8,
+    "price": 500,
+    "color": "#d71920",
+    "desc": "Precision Italian aerodynamics, razor-sharp lane handling, and balanced track performance.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 200, "speedBoost": 10 },
+      { "level": 2, "cost": 400, "speedBoost": 20 },
+      { "level": 3, "cost": 600, "speedBoost": 30 },
+      { "level": 4, "cost": 800, "speedBoost": 40 },
+      { "level": 5, "cost": 1000, "speedBoost": 50 }
+    ]
+  },
+  {
+    "id": "venom",
+    "name": "Venom Drift-R",
+    "tier": "DRIFT SPEC",
+    "baseSpeed": 285,
+    "acceleration": 9.0,
+    "handling": 9.4,
+    "price": 800,
+    "color": "#9d4edd",
+    "desc": "Lightweight carbon chassis engineered for high-angle corner slides and slipstream slingshots.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 250, "speedBoost": 12 },
+      { "level": 2, "cost": 500, "speedBoost": 24 },
+      { "level": 3, "cost": 750, "speedBoost": 36 },
+      { "level": 4, "cost": 1000, "speedBoost": 48 },
+      { "level": 5, "cost": 1250, "speedBoost": 60 }
+    ]
+  },
+  {
+    "id": "phantom",
+    "name": "Phantom GT V8",
+    "tier": "SUPER SEDAN",
+    "baseSpeed": 300,
+    "acceleration": 9.4,
+    "handling": 8.5,
+    "price": 1500,
+    "color": "#ffb800",
+    "desc": "Twin-turbo executive sport sedan with brutal straight-line acceleration and rapid nitrous recharge.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 300, "speedBoost": 15 },
+      { "level": 2, "cost": 600, "speedBoost": 30 },
+      { "level": 3, "cost": 900, "speedBoost": 45 },
+      { "level": 4, "cost": 1200, "speedBoost": 60 },
+      { "level": 5, "cost": 1500, "speedBoost": 75 }
+    ]
+  },
+  {
+    "id": "interceptor",
+    "name": "Highway Interceptor",
+    "tier": "PURSUIT SPEC",
+    "baseSpeed": 310,
+    "acceleration": 9.2,
+    "handling": 8.7,
+    "price": 2400,
+    "color": "#0c121e",
+    "desc": "Reinforced high-output police cruiser with front tactical push-bar and active siren strobes.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 350, "speedBoost": 15 },
+      { "level": 2, "cost": 700, "speedBoost": 30 },
+      { "level": 3, "cost": 1050, "speedBoost": 45 },
+      { "level": 4, "cost": 1400, "speedBoost": 60 },
+      { "level": 5, "cost": 1750, "speedBoost": 75 }
+    ]
+  },
+  {
+    "id": "titan",
+    "name": "Titan Juggernaut",
+    "tier": "HEAVY ARMOR",
+    "baseSpeed": 250,
+    "acceleration": 8.0,
+    "handling": 7.5,
+    "price": 3500,
+    "color": "#1e2d3d",
+    "desc": "Heavy-duty armored tactical SUV. Crushes oncoming traffic and shrugs off massive collisions.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 400, "speedBoost": 14 },
+      { "level": 2, "cost": 800, "speedBoost": 28 },
+      { "level": 3, "cost": 1200, "speedBoost": 42 },
+      { "level": 4, "cost": 1600, "speedBoost": 56 },
+      { "level": 5, "cost": 2000, "speedBoost": 70 }
+    ]
+  },
+  {
+    "id": "hyperion",
+    "name": "Lamborghini Hyperion",
+    "tier": "CYBER HYPERCAR",
+    "baseSpeed": 340,
+    "acceleration": 10.0,
+    "handling": 9.8,
+    "price": 5000,
+    "color": "#00f0ff",
+    "desc": "The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 340+ KM/H.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 500, "speedBoost": 18 },
+      { "level": 2, "cost": 1000, "speedBoost": 36 },
+      { "level": 3, "cost": 1500, "speedBoost": 54 },
+      { "level": 4, "cost": 2000, "speedBoost": 72 },
+      { "level": 5, "cost": 2500, "speedBoost": 90 }
+    ]
+  }
+]

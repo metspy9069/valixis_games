@@ -577,15 +577,9 @@ class RoadAudioEngine {
       case 'booster':
         this.synthBoosterSurge(now);
         break;
-      case 'laser':
-      case 'turret_fire':
-        this.synthDroneLaser(now);
-        break;
-      case 'turret_deploy':
-        this.synthTurretDeploy(now);
-        break;
-      case 'turret_warning':
-        this.synthTurretWarning(now);
+      case 'nitro_pickup':
+      case 'nitro':
+        this.synthNitroPickup(now);
         break;
       case 'countdown_tick':
         this.synthCountdownTick(now);
@@ -726,52 +720,32 @@ class RoadAudioEngine {
     osc.stop(t + 0.52);
   }
 
-  synthDroneLaser(t) {
-    // Cyber laser pulse
+  synthNitroPickup(t) {
+    // Supersonic high-octane pneumatic rush
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(1800, t);
-    osc.frequency.exponentialRampToValueAtTime(220, t + 0.12);
-
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(1400, t + 0.28);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
     osc.connect(gain);
     gain.connect(this.sfxGain);
     osc.start(t);
-    osc.stop(t + 0.16);
-  }
+    osc.stop(t + 0.38);
 
-  synthTurretDeploy(t) {
-    // Pneumatic hiss & motorized servo rise
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(140, t);
-    osc.frequency.linearRampToValueAtTime(420, t + 0.45);
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-    osc.connect(gain);
-    gain.connect(this.sfxGain);
-    osc.start(t);
-    osc.stop(t + 0.52);
-  }
-
-  synthTurretWarning(t) {
-    // Two-tone air defense klaxon
-    [0, 0.22].forEach((offset, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(idx === 0 ? 520 : 660, t + offset);
-      gain.gain.setValueAtTime(0.35, t + offset);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.2);
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t + offset);
-      osc.stop(t + offset + 0.22);
-    });
+    // Chime harmonic
+    const chime = this.ctx.createOscillator();
+    const chimeGain = this.ctx.createGain();
+    chime.type = 'sine';
+    chime.frequency.setValueAtTime(880, t + 0.05);
+    chime.frequency.setValueAtTime(1760, t + 0.15);
+    chimeGain.gain.setValueAtTime(0.35, t + 0.05);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    chime.connect(chimeGain);
+    chimeGain.connect(this.sfxGain);
+    chime.start(t + 0.05);
+    chime.stop(t + 0.48);
   }
 
   synthMissile(t) {

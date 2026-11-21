@@ -1,4 +1,4 @@
-// Road Riot 3D - Intelligent Traffic, Chemical Tankers, Police Spike Strips & Drone AI
+// Road Riot 3D - Intelligent Traffic, Chemical Tankers, Police Spike Strips & High-Speed Highway AI
 import * as THREE from 'three';
 
 const SHARED_DEBRIS_GEO = new THREE.BoxGeometry(0.24, 0.24, 0.24);
@@ -634,18 +634,12 @@ export class TrafficManager {
   spawnCollectible() {
     const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
     const roll = Math.random();
-    let type = 'coin';
-
-    if (roll < 0.50) {
-      type = 'coin';
-    } else if (roll < 0.72) {
-      type = 'nitro';
-    } else if (roll < 0.84) {
-      type = 'shield';
-    } else if (roll < 0.92) {
-      type = 'magnet';
+    // Prioritize high-octane Nitro Pickups on the highway!
+    let type = 'nitro';
+    if (roll < 0.65) {
+      type = 'nitro'; // 65% chance: Nitro Boost Canister
     } else {
-      type = 'repair';
+      type = 'coin'; // 35% chance: Gold Currency Coin
     }
 
     const mesh = this.buildCollectibleMesh(type);
@@ -690,24 +684,49 @@ export class TrafficManager {
         group.add(coin);
       }
     } else if (type === 'nitro') {
-      const canister = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.36, 0.36, 1.3, 14),
-        new THREE.MeshStandardMaterial({
-          color: 0x00d9ff,
-          emissive: 0x00f0ff,
-          emissiveIntensity: 0.85,
-          metalness: 0.8,
-          roughness: 0.2
-        })
-      );
+      // High-pressure Dual-chamber Nitrous Oxide Bottle
+      const canisterGeo = new THREE.CylinderGeometry(0.42, 0.42, 1.4, 20);
+      const canisterMat = new THREE.MeshStandardMaterial({
+        color: 0x00d9ff,
+        emissive: 0x0099ff,
+        emissiveIntensity: 0.85,
+        metalness: 0.9,
+        roughness: 0.15
+      });
+      const canister = new THREE.Mesh(canisterGeo, canisterMat);
+      canister.castShadow = true;
       group.add(canister);
 
-      const cap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.18, 0.18, 0.3, 10),
-        new THREE.MeshStandardMaterial({ color: 0x111620, metalness: 0.9 })
-      );
-      cap.position.y = 0.75;
-      group.add(cap);
+      // Top Dome
+      const domeGeo = new THREE.SphereGeometry(0.42, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      const dome = new THREE.Mesh(domeGeo, canisterMat);
+      dome.position.y = 0.7;
+      group.add(dome);
+
+      // Chrome Valve & Pressure Gauge
+      const valveMat = new THREE.MeshStandardMaterial({ color: 0x1a2636, metalness: 0.95, roughness: 0.2 });
+      const valve = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.35, 12), valveMat);
+      valve.position.y = 1.05;
+      group.add(valve);
+
+      // Twin Chrome Release Nozzles
+      const nozzle = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.1, 0.14), valveMat);
+      nozzle.position.set(0, 1.15, 0);
+      group.add(nozzle);
+
+      // Pulsing Cyan Neon Energy Ring around bottle
+      const ringGeo = new THREE.TorusGeometry(0.58, 0.05, 12, 24);
+      ringGeo.rotateX(Math.PI / 2);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.y = 0;
+      group.add(ring);
+
+      // Ground Glow Light illuminating the asphalt
+      const light = new THREE.PointLight(0x00f0ff, 2.5, 6.0);
+      light.position.set(0, 0, 0);
+      group.add(light);
+    }
     } else if (type === 'shield') {
       const orb = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.72, 1),

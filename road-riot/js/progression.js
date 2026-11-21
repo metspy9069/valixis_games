@@ -6,7 +6,7 @@ export const ACHIEVEMENTS = [
   { id: 'drift_master', title: 'Drift Master', desc: 'Score 1,000 drift points in a single run.', reward: 400, icon: 'DRIFT' },
   { id: 'needle_threader', title: 'Threading the Needle', desc: 'Execute 15 Near Misses in a single run.', reward: 500, icon: 'APEX' },
   { id: 'stunt_driver', title: 'Stunt Driver', desc: 'Launch off 5 Stunt Jump Ramps.', reward: 400, icon: 'AERO' },
-  { id: 'highway_enforcer', title: 'Highway Enforcer', desc: 'Demolish 10 vehicles with weapons or ramming.', reward: 600, icon: 'COMBAT' },
+  { id: 'highway_enforcer', title: 'Highway Enforcer', desc: 'Slam 10 rival vehicles with solid ramming.', reward: 600, icon: 'IMPACT' },
   { id: 'untouchable', title: 'Untouchable', desc: 'Survive 3,000m without taking hull damage.', reward: 750, icon: 'SHIELD' },
   { id: 'rival_vanquisher', title: 'Rival Vanquisher', desc: 'Conquer a friend\'s challenger beacon.', reward: 1000, icon: 'PODIUM' }
 ];
@@ -33,7 +33,7 @@ export class ProgressionManager {
 
   getDefaultData() {
     return {
-      coins: 300, // Starter bonus
+      coins: 300, // Default base starter
       highScore: 0,
       bestDistance: 0,
       bestTopSpeed: 0,
@@ -74,16 +74,25 @@ export class ProgressionManager {
     try {
       if (typeof localStorage !== 'undefined') {
         const raw = localStorage.getItem(this.storageKey);
+        const def = this.getDefaultData();
+        let parsed = {};
         if (raw) {
-          const parsed = JSON.parse(raw);
-          const def = this.getDefaultData();
-          return {
-            ...def,
-            ...parsed,
-            settings: { ...def.settings, ...(parsed.settings || {}) },
-            upgrades: { ...def.upgrades, ...(parsed.upgrades || {}) }
-          };
+          try { parsed = JSON.parse(raw); } catch (e) {}
         }
+        const storedCredits = localStorage.getItem('credits');
+        if (storedCredits !== null) {
+          const num = parseInt(storedCredits, 10);
+          if (!isNaN(num) && num > (parsed.coins || 0)) {
+            parsed.coins = num;
+          }
+        }
+        return {
+          ...def,
+          ...parsed,
+          coins: parsed.coins !== undefined ? parsed.coins : def.coins,
+          settings: { ...def.settings, ...(parsed.settings || {}) },
+          upgrades: { ...def.upgrades, ...(parsed.upgrades || {}) }
+        };
       }
     } catch (e) {}
     return this.getDefaultData();
@@ -93,6 +102,8 @@ export class ProgressionManager {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+        localStorage.setItem('credits', this.data.coins.toString());
+        localStorage.setItem('ownedCars', JSON.stringify(this.data.unlockedVehicles));
       }
     } catch (e) {}
   }

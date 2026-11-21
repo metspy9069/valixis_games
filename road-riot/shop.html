@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Road Riot 3D &mdash; Supercar Shop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/shop.css" />
+  <script>
+    // Seamlessly launch the 3D Supercar Showroom & Tuning Station
+    window.location.replace('./index.html#garage');
+  </script>
+</head>
+<body>
+  <div class="shop-container">
+    <header class="shop-header">
+      <div class="shop-title-group">
+        <h1>CAR SHOP &amp; TUNING</h1>
+        <div class="shop-subtitle">Official Highway Motors Showroom</div>
+      </div>
+      <div class="shop-credits-badge">
+        <span>CREDITS:</span>
+        <span id="shop-credits-display">0</span>
+      </div>
+    </header>
+
+    <div id="car-list" class="car-list">
+      <!-- Dynamically populated from cars.json -->
+    </div>
+
+    <footer class="shop-footer">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--shop-text-muted);">
+        * Upgraded stats instantly transfer to your highway interceptor.
+      </span>
+      <button id="close-shop" class="close-btn">&larr; BACK TO GAME</button>
+    </footer>
+  </div>
+
+  <script type="module" src="./js/shop.js"></script>
+</body>
+</html>

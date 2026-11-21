@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cp_01",
+    "distance": 380,
+    "position": { "x": 0, "y": 0, "z": -380 },
+    "durationSec": 15,
+    "speedMilestone": 260,
+    "enemyTypes": ["speed_gate"]
+  },
+  {
+    "id": "cp_02",
+    "distance": 1200,
+    "position": { "x": 0, "y": 0, "z": -1200 },
+    "durationSec": 12,
+    "speedMilestone": 290,
+    "enemyTypes": ["speed_gate"]
+  },
+  {
+    "id": "cp_03",
+    "distance": 2050,
+    "position": { "x": 0, "y": 0, "z": -2050 },
+    "durationSec": 15,
+    "speedMilestone": 320,
+    "enemyTypes": ["speed_gate"]
+  }
+]

@@ -7,9 +7,12 @@ import { audio } from './audio.js';
 import { WorldManager } from './world.js';
 import { PlayerCar, VEHICLE_ROSTER } from './player.js';
 import { TrafficManager } from './traffic.js';
-import { WeaponSystem } from './weapons.js';
-import { TurretDefenseSystem } from './turret.js';
 import { progression, ACHIEVEMENTS } from './progression.js';
+
+import { shop } from './shop.js';
+import { NPCCar } from './npcCar.js';
+import { PedestrianManager } from './pedestrians.js';
+import { loadJSON } from './utils/loadJSON.js';
 
 class RoadRiotGame {
   constructor() {
@@ -26,10 +29,11 @@ class RoadRiotGame {
     const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = false; // Fast contact shadow planes used instead of 1,000+ shadow draw calls
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.35;
 
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x0c1322, 130, 480);
@@ -71,16 +75,30 @@ class RoadRiotGame {
     this.gltfLoader.setDRACOLoader(dracoLoader);
 
     // Subsystems
-    this.world = new WorldManager(this.scene);
+    this.world = new WorldManager(this.scene, this.renderer);
     this.traffic = new TrafficManager(this.scene, this.assetPrototypes);
     this.player = new PlayerCar(this.scene, this.assetPrototypes);
-    this.weapons = new WeaponSystem(this.scene, this.traffic, audio);
-    this.turretSystem = new TurretDefenseSystem(this.scene, this.player, audio);
 
-    // 180° Turret & Enemy Defense Checkpoint Sequence State
+    // Wandering Pedestrian Manager on Sidewalks
+    this.pedestrianManager = new PedestrianManager(this.scene);
+
+    // NPC Traffic Loop Cars using NPCCar
+    this.npcCars = [];
+    const npcLoopPoints = [
+      new THREE.Vector3(-6, 0, -15),
+      new THREE.Vector3(-6, 0, -180),
+      new THREE.Vector3(0, 0, -250),
+      new THREE.Vector3(6, 0, -180),
+      new THREE.Vector3(6, 0, -15),
+      new THREE.Vector3(0, 0, 0)
+    ];
+    this.npcCars.push(new NPCCar(this.scene, npcLoopPoints, 0x00d9ff, 19));
+    this.npcCars.push(new NPCCar(this.scene, npcLoopPoints, 0xff2a85, 23));
+    this.npcCars.push(new NPCCar(this.scene, npcLoopPoints, 0xffb800, 16));
+
+    // Pure Racing Speed Checkpoint Milestones
     this.checkpointDistance = 380;
     this.checkpointInterval = 850;
-    this.isStoppingForCheckpoint = false;
     this.isDynoTesting = false;
 
     // 3D Turntable Showcase Platform
@@ -92,11 +110,9 @@ class RoadRiotGame {
     this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
     this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle) || 0;
 
-    // Drone auto-shoot timer
-    this.droneFireTimer = 0;
-
     // Bind UI & Inputs
     this.cacheDomElements();
+    this.bindShopEvents();
     this.bindEvents();
     this.applySavedSettings();
     this.updateMenuHeader();
@@ -214,11 +230,8 @@ class RoadRiotGame {
       runRampsJumped: document.querySelector('#run-ramps-jumped'),
       runDamageTaken: document.querySelector('#run-damage-taken'),
 
-      // Checkpoint & Turret Gunner HUD
+      // Checkpoint HUD
       checkpointBanner: document.querySelector('#hud-checkpoint-banner'),
-      turretCrosshair: document.querySelector('#hud-turret-crosshair'),
-      turretDroneCount: document.querySelector('#turret-drone-count'),
-      turretWaveBadge: document.querySelector('#turret-wave-badge'),
       garageDynoBtn: document.querySelector('#garage-dyno-btn'),
 
       // Network Modal
@@ -313,6 +326,12 @@ class RoadRiotGame {
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
     }
+  }
+
+  bindShopEvents() {
+    this.ui.garageBtn?.addEventListener('click', () => this.openGarage());
+    document.querySelector('#shop-btn')?.addEventListener('click', () => this.openGarage());
+    this.ui.hudGarageBtn?.addEventListener('click', () => this.openGarage());
   }
 
   bindEvents() {
@@ -551,6 +570,9 @@ class RoadRiotGame {
     // 3D Turntable Drag Interaction
     window.addEventListener('pointerdown', e => {
       if (this.state === 'GARAGE') {
+        if (e.target.closest('#garage-tuning-panel') || e.target.closest('#garage-car-dock') || e.target.closest('.garage-top-bar')) {
+          return;
+        }
         this.isDraggingTurntable = true;
         this.lastDragX = e.clientX;
       }
@@ -568,28 +590,6 @@ class RoadRiotGame {
 
     window.addEventListener('pointerup', () => {
       this.isDraggingTurntable = false;
-      if (this.state === 'TURRET_DEFENSE') {
-        this.turretSystem.stopFire();
-      }
-    });
-
-    // 180° Turret Gunner Mode Aim & Fire
-    window.addEventListener('pointermove', e => {
-      if (this.state === 'TURRET_DEFENSE') {
-        const normX = (e.clientX / window.innerWidth) * 2 - 1;
-        const normY = (e.clientY / window.innerHeight) * 2 - 1;
-        this.turretSystem.setAimNormalized(normX, normY);
-        if (this.ui.turretCrosshair) {
-          this.ui.turretCrosshair.style.left = `${e.clientX}px`;
-          this.ui.turretCrosshair.style.top = `${e.clientY}px`;
-        }
-      }
-    });
-
-    window.addEventListener('pointerdown', e => {
-      if (this.state === 'TURRET_DEFENSE') {
-        this.turretSystem.triggerFire();
-      }
     });
 
     // Garage Dyno Test Benchmark
@@ -675,6 +675,9 @@ class RoadRiotGame {
   }
 
   checkUrlChallenge() {
+    if (typeof window !== 'undefined' && (window.location.hash === '#garage' || window.location.hash === '#shop')) {
+      setTimeout(() => this.openGarage(), 150);
+    }
     const challenge = progression.getChallengeDataFromUrl();
     if (challenge) {
       this.world.setChallengeTarget(challenge.distance, challenge.name);
@@ -695,7 +698,6 @@ class RoadRiotGame {
 
     progression.resetRunStats();
     this.traffic.clear();
-    this.weapons.clear();
     this.turntableAngle = 0;
 
     const sel = progression.data.selectedVehicle || 'apex';
@@ -755,11 +757,7 @@ class RoadRiotGame {
       this.checkpointDistance = 380;
       this.checkpointInterval = 850;
     }
-    this.isStoppingForCheckpoint = false;
-    this.player.isBrakingToHalt = false;
-    this.turretSystem.cleanup();
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
-    if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
 
     audio.startMusic();
     audio.play('boost');
@@ -769,9 +767,7 @@ class RoadRiotGame {
 
   gameOver(isSprintFinish = false, isWinner = false) {
     this.state = 'GAMEOVER';
-    this.turretSystem.cleanup();
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
-    if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
     audio.stopEngine();
     audio.stopMusic();
 
@@ -840,14 +836,6 @@ class RoadRiotGame {
     this.ui.settingsModal.classList.add('hidden');
   }
 
-  // Architecture Hook: Checkpoint 180-Degree Turret Sequence
-  // Planned feature: At designated distance checkpoints, the car comes to a stop,
-  // a motorized gunner turret mounts at the roof, shifting camera into a 180-degree forward turret view
-  // to shoot down waves of airborne & highway drones/enemies before resuming the race.
-  checkTurretCheckpointMilestone(distance) {
-    // Current loop is pure car racing. Hook is prepared for turret stage integration.
-  }
-
   toast(text, theme = 'cyan') {
     const el = document.createElement('div');
     el.className = `floating-toast ${theme}`;
@@ -890,21 +878,21 @@ class RoadRiotGame {
     this.ui.hud.classList.add('hidden');
     this.ui.menuModal.classList.add('hidden');
     this.ui.gameoverModal.classList.add('hidden');
-    this.ui.garageCoins.textContent = progression.data.coins;
+    this.ui.garageCoins.textContent = progression.data.coins.toLocaleString();
 
-    // Show Turntable Platform & Frame 3D Car
+    // Show Turntable Platform & Frame 3D Car in the open left viewport
     if (this.turntableMesh) {
-      this.turntableMesh.position.set(0, 0, -8);
+      this.turntableMesh.position.set(-1.4, 0, -8);
       this.turntableMesh.visible = true;
     }
-    this.player.mesh.position.set(0, 0.16, -8);
-    this.player.x = 0;
+    this.player.mesh.position.set(-1.4, 0.16, -8);
+    this.player.x = -1.4;
     this.turntableAngle = 0;
     if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
-    // Set Showroom Beauty View Camera
-    this.camera.position.set(0, 2.0, -3.2);
-    this.camera.lookAt(0, 0.75, -8);
+    // Set Showroom Beauty View Camera framed for unobstructed car view
+    this.camera.position.set(-1.4, 1.8, -3.2);
+    this.camera.lookAt(-1.4, 0.75, -8);
 
     this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle);
     if (this.garageIndex < 0) this.garageIndex = 0;
@@ -917,7 +905,7 @@ class RoadRiotGame {
     if (this.turntableMesh) this.turntableMesh.visible = false;
     this.ui.garageModal.classList.add('hidden');
 
-    // Restore equipped player car
+    // Restore equipped player car to highway center
     this.player.setVehicle(
       progression.data.selectedVehicle,
       progression.data.upgrades[progression.data.selectedVehicle] || {},
@@ -926,6 +914,7 @@ class RoadRiotGame {
     );
     this.player.mesh.position.set(0, 0, -8);
     this.player.mesh.rotation.set(0, 0, 0);
+    this.player.x = 0;
     this.turntableAngle = 0;
     if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
@@ -939,7 +928,7 @@ class RoadRiotGame {
   }
 
   updateMenuHeader() {
-    if (this.ui.menuCoins) this.ui.menuCoins.textContent = progression.data.coins;
+    if (this.ui.menuCoins) this.ui.menuCoins.textContent = progression.data.coins.toLocaleString();
     if (this.ui.menuEquippedCar) {
       const curCar = VEHICLE_ROSTER[progression.data.selectedVehicle] || VEHICLE_ROSTER.apex;
       this.ui.menuEquippedCar.textContent = curCar.name.toUpperCase();
@@ -960,24 +949,24 @@ class RoadRiotGame {
       progression.data.selectedGlow
     );
 
-    this.ui.garageCoins.textContent = progression.data.coins;
+    this.ui.garageCoins.textContent = progression.data.coins.toLocaleString();
     this.ui.garageCarTitle.textContent = car.name;
     this.ui.garageCarTier.textContent = car.tier;
     this.ui.garageCarDesc.textContent = car.desc;
 
     if (this.ui.garageCarPrice) {
       if (isSelected) {
-        this.ui.garageCarPrice.textContent = 'EQUIPPED';
+        this.ui.garageCarPrice.textContent = 'CURRENTLY EQUIPPED';
         this.ui.garageCarPrice.style.color = '#ffb800';
-        this.ui.garageCarPrice.style.borderColor = 'rgba(255, 184, 0, 0.4)';
-        this.ui.garageCarPrice.style.background = 'rgba(255, 184, 0, 0.15)';
+        this.ui.garageCarPrice.style.borderColor = 'rgba(255, 184, 0, 0.5)';
+        this.ui.garageCarPrice.style.background = 'rgba(255, 184, 0, 0.18)';
       } else if (isUnlocked) {
-        this.ui.garageCarPrice.textContent = 'OWNED';
+        this.ui.garageCarPrice.textContent = 'OWNED IN GARAGE';
         this.ui.garageCarPrice.style.color = '#00ff88';
-        this.ui.garageCarPrice.style.borderColor = 'rgba(0, 255, 136, 0.4)';
-        this.ui.garageCarPrice.style.background = 'rgba(0, 255, 136, 0.15)';
+        this.ui.garageCarPrice.style.borderColor = 'rgba(0, 255, 136, 0.5)';
+        this.ui.garageCarPrice.style.background = 'rgba(0, 255, 136, 0.18)';
       } else {
-        this.ui.garageCarPrice.textContent = `${car.cost.toLocaleString()} CR`;
+        this.ui.garageCarPrice.textContent = `${car.cost.toLocaleString()} CREDITS`;
         this.ui.garageCarPrice.style.color = '#cbd5e1';
         this.ui.garageCarPrice.style.borderColor = 'rgba(255, 255, 255, 0.2)';
         this.ui.garageCarPrice.style.background = 'rgba(255, 255, 255, 0.08)';
@@ -1020,14 +1009,14 @@ class RoadRiotGame {
       });
     }
 
-    // Upgrades
+    // Visual Performance Upgrades (Stage 0 to 5)
     const upg = progression.data.upgrades[carId] || { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 };
     const statRows = [
-      { key: 'topSpeed', label: 'TOP SPEED', maxBase: 35 },
-      { key: 'accel', label: 'ACCELERATION', maxBase: 45 },
-      { key: 'handling', label: 'HANDLING & DRIFT', maxBase: 45 },
-      { key: 'nitro', label: 'NITRO TANK', maxBase: 50 },
-      { key: 'armor', label: 'HULL ARMOR', maxBase: 160 }
+      { key: 'topSpeed', icon: '🚀', label: 'TOP SPEED', base: car.baseStats.topSpeed, mult: 9, unit: 'KM/H', stepBonus: 15 },
+      { key: 'accel', icon: '⚡', label: 'ACCELERATION', base: car.baseStats.accel, mult: 0.22, unit: '/ 10', stepBonus: 0.4 },
+      { key: 'handling', icon: '🎯', label: 'HANDLING & DRIFT', base: car.baseStats.handling, mult: 0.24, unit: '/ 10', stepBonus: 0.3 },
+      { key: 'nitro', icon: '💨', label: 'NITRO CAPACITY', base: car.baseStats.nitro, mult: 1, unit: '%', stepBonus: 12 },
+      { key: 'armor', icon: '🛡️', label: 'HULL ARMOR', base: car.baseStats.armor, mult: 1, unit: 'HP', stepBonus: 25 }
     ];
 
     let statsHtml = '';
@@ -1035,17 +1024,37 @@ class RoadRiotGame {
       const lvl = upg[s.key] || 0;
       const upgradeCost = (lvl + 1) * 200;
       const canUpgrade = isUnlocked && lvl < 5 && progression.data.coins >= upgradeCost;
+
+      // 5-Segmented Level Pips
+      const pipsHtml = [1, 2, 3, 4, 5].map(i => `<div class="stat-pip ${lvl >= i ? 'filled' : ''}"></div>`).join('');
+
+      // Calculated stats
+      const currentVal = Math.round(s.base * s.mult + lvl * s.stepBonus);
+      const nextVal = Math.round(s.base * s.mult + (lvl + 1) * s.stepBonus);
+
       const upgradeBtnHtml = lvl >= 5
-        ? '<span style="color:#00ff88; font-size:9px; font-weight:800;">MAX</span>'
-        : `<button class="upgrade-stat-btn" data-car="${carId}" data-stat="${s.key}" data-cost="${upgradeCost}" style="cursor:pointer; background:rgba(0,217,255,0.18); border:1px solid #00d9ff; border-radius:4px; color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; padding:2px 7px;" ${canUpgrade ? '' : 'disabled style="opacity:0.4;"'}>+ LVL ${lvl + 1} (${upgradeCost} CR)</button>`;
+        ? `<div class="stat-max-badge">&#9733; MAXED OUT (STAGE 5)</div>`
+        : `<button class="upgrade-stat-btn ${canUpgrade ? 'affordable' : 'unaffordable'}" data-car="${carId}" data-stat="${s.key}" data-cost="${upgradeCost}" ${canUpgrade ? '' : 'disabled'}>
+            + UPGRADE STAGE ${lvl + 1} &bull; ${upgradeCost.toLocaleString()} CREDITS
+          </button>`;
 
       statsHtml += `
-        <div class="spec-row">
-          <div class="spec-label-row">
-            <span>${s.label} (LVL ${lvl}/5)</span>
-            ${upgradeBtnHtml}
+        <div class="upgrade-stat-card">
+          <div class="stat-header-row">
+            <div class="stat-name-group">
+              <span>${s.icon}</span>
+              <span>${s.label}</span>
+            </div>
+            <div class="stat-level-text">STAGE ${lvl} / 5</div>
           </div>
-          <div class="spec-meter"><div class="spec-meter-fill" style="width: ${(car.baseStats[s.key] / s.maxBase) * 75 + lvl * 5}%"></div></div>
+          <div class="stat-pips-row">
+            ${pipsHtml}
+          </div>
+          <div class="stat-value-row">
+            <span class="stat-curr-val">Current: ${currentVal} ${s.unit}</span>
+            ${lvl < 5 ? `<span class="stat-next-boost">+${s.stepBonus} ${s.unit} NEXT</span>` : `<span class="stat-next-boost" style="color:#ffb800;">TOP SPEC</span>`}
+          </div>
+          ${upgradeBtnHtml}
         </div>
       `;
     });
@@ -1053,7 +1062,7 @@ class RoadRiotGame {
     // Daily Quests
     let questsHtml = `
       <div style="margin-top:16px; padding:12px; background:rgba(0,0,0,0.35); border-radius:10px; border:1px solid rgba(0,217,255,0.2);">
-        <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffb800; letter-spacing:1.5px; margin-bottom:8px;">DAILY BOUNTIES</div>
+        <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffb800; letter-spacing:1.5px; margin-bottom:8px;">DAILY RACING BOUNTIES</div>
     `;
     progression.data.dailyQuests.forEach(q => {
       const readyToClaim = !q.claimed && q.current >= q.target;
@@ -1070,7 +1079,7 @@ class RoadRiotGame {
 
     // Equip / Unlock Button
     if (!isUnlocked) {
-      this.ui.garageBuyBtn.textContent = `UNLOCK (${car.cost.toLocaleString()} CREDITS)`;
+      this.ui.garageBuyBtn.textContent = `UNLOCK CAR (${car.cost.toLocaleString()} CREDITS)`;
       this.ui.garageBuyBtn.disabled = progression.data.coins < car.cost;
       this.ui.garageBuyBtn.onclick = () => {
         if (progression.unlockVehicle(carId, car.cost)) {
@@ -1206,106 +1215,8 @@ class RoadRiotGame {
         if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
         if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
       }
-      this.camera.position.set(0, 2.0, -3.2);
-      this.camera.lookAt(0, 0.75, -8);
-      return;
-    }
-
-    // --- 180° TURRET DEFENSE CHECKPOINT STATE ---
-    if (this.state === 'TURRET_DEFENSE') {
-      // 1. Camera smoothly locks into a dramatic third-person view showing the car, the mounted human gunner, the road, and sky targets
-      const targetCamPos = new THREE.Vector3(this.player.x * 0.42, 3.4, this.player.mesh.position.z + 8.2);
-      this.camera.position.lerp(targetCamPos, Math.min(1, dt * 7));
-      const lookAimX = this.player.x * 0.28 - Math.sin(this.turretSystem.aimYaw) * 18;
-      const lookAimY = 2.4 + Math.sin(this.turretSystem.aimPitch) * 12;
-      this.camera.lookAt(lookAimX, lookAimY, -60);
-
-      // 2. Keyboard aiming & firing in turret mode
-      if (this.keys.has(' ') || this.keys.has('Enter')) {
-        this.turretSystem.triggerFire();
-      }
-      let keyAimX = 0;
-      let keyAimY = 0;
-      if (this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A')) keyAimX += 1;
-      if (this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D')) keyAimX -= 1;
-      if (this.keys.has('ArrowUp') || this.keys.has('w') || this.keys.has('W')) keyAimY += 1;
-      if (this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S')) keyAimY -= 1;
-      if (keyAimX !== 0 || keyAimY !== 0) {
-        this.turretSystem.adjustAim(keyAimX * dt * 2.2, keyAimY * dt * 1.8);
-      }
-
-      // 3. Update Turret System
-      this.turretSystem.update(dt, {
-        onDroneKilled: (enemy) => {
-          let pts = 400;
-          let coins = 25;
-          let label = '+400 DRONE DESTROYED';
-          if (enemy.category === 'plane') {
-            pts = 650;
-            coins = 45;
-            label = '+650 COMBAT JET DOWNED';
-          } else if (enemy.category === 'robot') {
-            if (enemy.isBoss) {
-              pts = 2500;
-              coins = 250;
-              label = '+2,500 TITAN WAR MECH CRUSHED';
-            } else {
-              pts = 850;
-              coins = 70;
-              label = '+850 ASSAULT MECH DESTROYED';
-            }
-          } else if (enemy.type === 'commander') {
-            pts = 1500;
-            coins = 120;
-            label = '+1,500 COMMANDER DRONE DOWNED';
-          }
-
-          this.score += pts * this.multiplier;
-          progression.activeRunStats.coinsEarned += coins;
-          this.spawnScorePopup(label, enemy.category === 'robot' ? '#ffaa00' : '#ff0055');
-          this.vibrate(enemy.isBoss ? [80, 50, 150] : 60);
-          this.camShake = enemy.isBoss ? 0.65 : 0.35;
-          if (this.ui.turretDroneCount) {
-            const alive = this.turretSystem.drones.filter(d => !d.isDestroyed).length;
-            this.ui.turretDroneCount.textContent = `TARGETS REMAINING: ${alive}`;
-          }
-        },
-        onWaveAdvancing: (wave) => {
-          const waveNames = [
-            '',
-            'WAVE 1/3: AIRBORNE DRONES & JETS',
-            'WAVE 2/3: COMBINED AIR & GROUND ASSAULT',
-            'WAVE 3/3: TITAN WAR MECH & BOSS DRONE'
-          ];
-          this.toast(`${waveNames[wave] || `WAVE ${wave}/3 INCOMING`}`, 'magenta');
-          audio.play('fever');
-          if (this.ui.turretWaveBadge) {
-            this.ui.turretWaveBadge.textContent = `WAVE ${wave}/3`;
-          }
-        },
-        onDefenseSecured: () => {
-          this.toast('SECTOR AIRSPACE SECURED! +2,000 CREDITS', 'gold');
-          progression.data.coins += 2000;
-          progression.save();
-          audio.play('fever');
-          this.vibrate([100, 100, 300]);
-          this.spawnScorePopup('+2,000 SECTOR CLEARED', '#ffb800');
-        },
-        onComplete: () => {
-          // Re-accelerate into racing!
-          if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.add('hidden');
-          this.state = 'RUNNING';
-          audio.startEngine();
-          audio.play('boost');
-          this.player.isBrakingToHalt = false;
-          this.player.speed = 28; // Launch instantly at 100 km/h!
-          this.player.triggerSpeedBoost(1.55, 3.0);
-          this.checkpointDistance += this.checkpointInterval;
-          this.isStoppingForCheckpoint = false;
-          this.toast('HYPERSONIC RELAUNCH', 'cyan');
-        }
-      });
-
+      this.camera.position.set(-1.4, 1.8, -3.2);
+      this.camera.lookAt(-1.4, 0.75, -8);
       return;
     }
 
@@ -1331,6 +1242,25 @@ class RoadRiotGame {
     this.player.setBoost(isBoosting);
     this.player.setDrift(isDrifting);
     this.player.steer(steerDir, dt, sens);
+
+    // Outer Highway Solid Concrete Guardrails (X = -8.2 to +8.2)
+    if (this.player.x <= -8.2) {
+      this.player.x = -8.2;
+      this.player.speed *= 0.96;
+      this.player.steerAngle = Math.max(0, this.player.steerAngle);
+      this.camShake = Math.max(this.camShake, 0.12);
+      if (Math.random() < 0.25) {
+        this.traffic.spawnExplosion(new THREE.Vector3(-8.2, 0.3, this.player.mesh.position.z), 0xffaa00, 3);
+      }
+    } else if (this.player.x >= 8.2) {
+      this.player.x = 8.2;
+      this.player.speed *= 0.96;
+      this.player.steerAngle = Math.min(0, this.player.steerAngle);
+      this.camShake = Math.max(this.camShake, 0.12);
+      if (Math.random() < 0.25) {
+        this.traffic.spawnExplosion(new THREE.Vector3(8.2, 0.3, this.player.mesh.position.z), 0xffaa00, 3);
+      }
+    }
     this.player.update(dt, () => {
       // Landing callback from stunt jump
       audio.play('ramp_land');
@@ -1360,35 +1290,46 @@ class RoadRiotGame {
     this.distance += currentSpeed * dt;
     this.score += Math.floor(currentSpeed * dt * 1.5 * this.multiplier);
 
-    // Milestone Checkpoint Approach & 180° Turret Defense Braking
-    if (this.distance >= this.checkpointDistance - 80 && !this.isStoppingForCheckpoint) {
-      this.isStoppingForCheckpoint = true;
-      this.player.isBrakingToHalt = true;
-      audio.play('turret_warning');
-      this.toast('COMBAT CHECKPOINT AHEAD — DECELERATING VEHICLE TO HALT', 'magenta');
+    // Update Wandering Pedestrians on Sidewalks (Natural Walking Cadence & Reactive AI)
+    if (this.pedestrianManager) {
+      this.pedestrianManager.update(dt, currentSpeed, this.player.x, this.player.mesh.position.z);
     }
 
-    if (this.isStoppingForCheckpoint) {
-      this.player.isBrakingToHalt = true;
-      if (Math.random() < 0.4) {
-        this.player.spawnSmokeParticle(new THREE.Vector3(this.player.x, 0, this.player.mesh.position.z + 1.2));
+    // Update NPC Traffic Loop Cars
+    if (this.npcCars) {
+      for (const npc of this.npcCars) {
+        npc.update(dt);
       }
-      if (this.player.speed <= 0.4) {
-        this.player.speed = 0;
-        this.player.isBrakingToHalt = false;
-        this.isStoppingForCheckpoint = false;
-        this.state = 'TURRET_DEFENSE';
-        audio.stopEngine();
-        audio.play('turret_deploy');
-        if (this.ui.checkpointBanner) {
-          this.ui.checkpointBanner.classList.remove('hidden');
-          setTimeout(() => {
-            if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
-          }, 2400);
-        }
-        if (this.ui.turretCrosshair) this.ui.turretCrosshair.classList.remove('hidden');
-        this.turretSystem.startDefense(1);
-        return;
+    }
+
+    // Pure Racing Speed Checkpoint Milestone & Nitro Surge
+    if (this.distance >= this.checkpointDistance) {
+      this.checkpointDistance += this.checkpointInterval;
+
+      // Award massive speed checkpoint bonus
+      const checkpointBonus = 1500 * this.multiplier;
+      this.score += checkpointBonus;
+      progression.activeRunStats.coinsEarned += 50;
+
+      // Fully restore nitro tank & trigger hypersonic boost surge
+      this.player.nitro = this.player.maxNitro;
+      this.player.triggerSpeedBoost(1.65, 3.2);
+
+      // Audio & Screen FX
+      audio.play('boost');
+      audio.play('fever');
+      if (this.ui.overlayWarp) this.ui.overlayWarp.style.opacity = '0.85';
+      this.camShake = 0.45;
+      this.vibrate([100, 50, 150]);
+
+      this.spawnScorePopup(`+${checkpointBonus.toLocaleString()} SPEED CHECKPOINT`, '#00ff88');
+      this.toast('SPEED CHECKPOINT CLEARED — HYPERSONIC NITRO SURGE!', 'green');
+
+      if (this.ui.checkpointBanner) {
+        this.ui.checkpointBanner.classList.remove('hidden');
+        setTimeout(() => {
+          if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+        }, 2200);
       }
     }
 
@@ -1417,20 +1358,57 @@ class RoadRiotGame {
       }
     });
 
-    // Check Stunt Jump Ramps Collision (Forward-Launching Wedges)
+    // 100% Solid Stunt Jump Ramps Physics (Incline deck ride, solid rails, solid back wall)
     for (const ramp of this.world.jumpRamps) {
       const rampWorldZ = ramp.parent.position.z + ramp.mesh.position.z;
-      const dz = Math.abs(rampWorldZ - this.player.mesh.position.z);
-      const dx = Math.abs(ramp.lane - this.player.x);
-      if (dz < 2.4 && dx < 1.4 && !ramp.triggered && !this.player.isAirborne) {
-        ramp.triggered = true;
-        this.player.triggerJump(17);
-        audio.play('ramp_launch');
-        this.toast('STUNT AIRTIME LAUNCH', 'gold');
-        this.score += 400 * this.multiplier;
-        this.spawnScorePopup('+400 STUNT JUMP', '#ffea00');
-        this.vibrate([60, 40, 80]);
-        this.camShake = 0.35;
+      const relZ = this.player.mesh.position.z - rampWorldZ;
+      const relX = this.player.x - ramp.lane;
+      const absX = Math.abs(relX);
+
+      // Footprint: length is 4.8 (-2.4 to +2.4 relative to rampWorldZ), width is 2.8 (-1.4 to +1.4)
+      if (relZ >= -2.4 && relZ <= 2.4) {
+        if (absX < 1.35) {
+          // DRIVING ON THE RAMP DECK: Solid physical incline elevation
+          const progress = (2.4 - relZ) / 4.8; // 0 at entrance, 1 at takeoff lip
+          const deckY = 0.03 + progress * 1.32;
+          this.player.mesh.position.y = Math.max(this.player.mesh.position.y, deckY);
+          if (!this.player.isAirborne) {
+            this.player.chassis.rotation.x = -0.26; // Match ~15 deg incline
+          }
+
+          // Launch takeoff when reaching lip (-1.9 to -2.4)
+          if (relZ <= -1.9 && !ramp.triggered) {
+            ramp.triggered = true;
+            this.player.triggerJump(18);
+            audio.play('ramp_launch');
+            this.toast('STUNT AIRTIME LAUNCH', 'gold');
+            this.score += 500 * this.multiplier;
+            this.spawnScorePopup('+500 STUNT JUMP', '#ffea00');
+            this.vibrate([60, 40, 80]);
+            this.camShake = 0.4;
+          }
+        } else if (absX >= 1.35 && absX <= 1.95) {
+          // SOLID GUARDRAIL: Bounces car off the side of the ramp
+          const side = Math.sign(relX) || 1;
+          this.player.x = ramp.lane + side * 2.05;
+          this.player.speed = Math.max(0, this.player.speed * 0.85);
+          this.camShake = 0.3;
+          audio.play('collision');
+          this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.4, this.player.mesh.position.z), 0xffaa00, 12);
+          this.toast('RAMP GUARDRAIL SCRAPE', 'magenta');
+        }
+      } else if (relZ < -2.4 && relZ >= -3.2 && absX < 1.35 && this.player.mesh.position.y < 1.2) {
+        // SOLID BACK DROP WALL: Head-on stop against the back of the ramp
+        this.player.speed = 0;
+        this.camShake = 0.65;
+        audio.play('collision');
+        this.player.takeDamage(22);
+        this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.6, this.player.mesh.position.z), 0xff2a44, 25);
+        this.toast('SOLID RAMP WALL COLLISION!', 'magenta');
+        if (this.player.hull <= 0) {
+          this.gameOver(false, false);
+          return;
+        }
       }
     }
 
@@ -1507,69 +1485,173 @@ class RoadRiotGame {
       }
     });
 
-    // 8. Collisions: Traffic Cars & Obstacles
-    if (!this.player.isAirborne) {
-      // Traffic cars collision (Hard Solid Physical Impact)
-      for (const v of this.traffic.vehicles) {
-        if (v.hit) continue;
-        const dz = Math.abs(v.mesh.position.z - this.player.mesh.position.z);
-        const dx = Math.abs(v.mesh.position.x - this.player.mesh.position.x);
+    // 8. Continuous Solid Collisions: Traffic, Trucks, NPCs, Pedestrians, Obstacles
+    // (Solid Physical Bounding Impasses — Objects are 100% Solid and Impenetrable)
 
-        if (dz < (v.length * 0.45 + 1.2) && dx < (v.width * 0.38 + 0.65)) {
-          v.hit = true;
-          const bounceDir = this.player.x < v.mesh.position.x ? -1 : 1;
+    // A. Traffic Cars, SUVs, and Heavy Commercial Trucks
+    for (const v of this.traffic.vehicles) {
+      const vLength = v.length || (v.isTruck ? 8.5 : (v.isTanker ? 11.0 : 4.5));
+      const vWidth = v.width || (v.isTruck || v.isTanker ? 2.8 : 2.2);
+      const vHeight = v.height || (v.isTruck || v.isTanker ? 3.8 : 1.5);
+      const playerHalfW = 1.05;
+      const playerHalfL = 2.2;
+      const playerHalfH = 0.7;
 
-          if (this.player.isBoosting && this.multiplier >= 4) {
-            // Overdrive Ramming
+      const halfW = vWidth * 0.5 + playerHalfW;
+      const halfL = vLength * 0.5 + playerHalfL;
+      const halfH = vHeight * 0.5 + playerHalfH;
+
+      const dx = this.player.x - v.mesh.position.x;
+      const dz = this.player.mesh.position.z - v.mesh.position.z;
+      const dy = this.player.mesh.position.y - (v.mesh.position.y || 0);
+
+      const absX = Math.abs(dx);
+      const absZ = Math.abs(dz);
+      const absY = Math.abs(dy);
+
+      if (absX < halfW && absZ < halfL && absY < halfH) {
+        // OVERLAPPING! SOLID COLLISION ENFORCEMENT
+        const overlapX = halfW - absX;
+        const overlapZ = halfL - absZ;
+        const isOverdrive = this.player.isBoosting && this.multiplier >= 4;
+
+        if (isOverdrive) {
+          // Overdrive Ramming blasts vehicle away
+          if (!v.hit) {
+            v.hit = true;
             this.traffic.spawnExplosion(v.mesh.position, 0xffaa00, 24);
             audio.play('collision');
             this.vibrate(80);
-            v.mesh.position.y += 5;
-            v.mesh.rotation.x += 2;
+            v.mesh.position.y += 6;
+            v.mesh.rotation.x += 3;
+            v.speed = -15; // launches away
             this.score += 1000;
-            this.camShake = 0.4;
-            this.toast('RAMMING OVERDRIVE', 'gold');
+            this.camShake = 0.45;
+            this.toast('RAMMING OVERDRIVE!', 'gold');
             this.spawnScorePopup('+1,000 RAM', '#ffb800');
-          } else {
-            // Hard Physical Impasse Collision:
-            // 1. Heavy speed cut (48% speed loss)
-            this.player.speed *= 0.52;
-            // 2. Lateral recoil bounce impulse
-            this.player.x = THREE.MathUtils.clamp(this.player.x + bounceDir * 1.35, -7.2, 7.2);
-            this.player.steerAngle += bounceDir * 0.3;
-            // 3. Traffic car deflection & spin
-            v.speed = Math.max(v.speed, this.player.speed * 0.85);
-            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 1.6, -7.5, 7.5);
-            v.mesh.rotation.y += bounceDir * 0.5;
+          }
+        } else {
+          // PURE SOLID IMPASSE: YOU CANNOT PASS THROUGH!
+          const bounceDir = dx >= 0 ? 1 : -1;
 
-            // 4. Proportional Hull Damage
-            const dmg = this.player.takeDamage(24);
+          const isRearEnd = dz < 0 && absX < (vWidth * 0.5 + 0.45);
+          if (isRearEnd) {
+            // Rear-end Collision into vehicle ahead:
+            // 1. Physically clamp relative motion: player cannot travel through target Z
+            this.player.speed = Math.min(this.player.speed * 0.35, v.speed * 0.7);
+            // 2. Separate in Z so player stays strictly behind the target bumper
+            v.mesh.position.z = this.player.mesh.position.z + halfL;
+            // 3. Shunt the vehicle forward
+            v.speed += 8;
+            this.player.suspensionPitch = 0.22;
+          } else {
+            // Lateral / Side-Swipe Collision:
+            // 1. Push player completely outside the vehicle's bounding box
+            this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.08), -8.2, 8.2);
+            // 2. Lateral speed deflection
+            this.player.steerAngle += bounceDir * 0.25;
+            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.4, -7.5, 7.5);
+            this.player.speed = Math.max(0, this.player.speed * 0.75);
+          }
+
+          // Damage and effects triggered on initial contact or cooldown
+          if (!v.isColliding) {
+            v.isColliding = true;
+            const dmg = this.player.takeDamage(v.isTruck || v.isTanker ? 26 : 18);
             progression.activeRunStats.damageTaken += dmg;
-            this.camShake = 0.65;
+            this.camShake = v.isTruck ? 0.75 : 0.55;
             audio.play('collision');
-            this.vibrate([80, 50, 140]);
-            this.traffic.spawnExplosion(v.mesh.position, 0xff2a44, 22);
+            this.vibrate([90, 50, 150]);
+            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff2a44, 25);
             this.showDamageOverlay();
-            this.toast('HARD IMPACT! -24% HULL', 'magenta');
+            this.toast(v.isTruck ? 'CRASHED INTO HEAVY TRUCK! -26% HULL' : 'CAR COLLISION! -18% HULL', 'magenta');
             if (this.player.hull <= 0) {
               this.gameOver(false, false);
               return;
             }
           }
         }
+      } else if (absX >= halfW + 0.4 || absZ >= halfL + 0.4) {
+        v.isColliding = false;
       }
+    }
 
-      // Obstacles collision (Spike strip, Barrel, Barrier - Hard Solid Impasses)
-      for (const o of this.traffic.obstacles) {
-        if (o.hit) continue;
-        const dz = Math.abs(o.mesh.position.z - this.player.mesh.position.z);
-        const dx = Math.abs(o.mesh.position.x - this.player.mesh.position.x);
+    // B. NPC Traffic Loop Supercars
+    if (this.npcCars) {
+      for (const npc of this.npcCars) {
+        if (!npc.car) continue;
+        const npcHalfW = 2.15;
+        const npcHalfL = 4.2;
+        const dx = this.player.x - npc.car.position.x;
+        const dz = this.player.mesh.position.z - npc.car.position.z;
+        const absX = Math.abs(dx);
+        const absZ = Math.abs(dz);
 
-        if (dz < 1.8 && dx < 1.6) {
-          o.hit = true;
-          const bounceDir = this.player.x < o.mesh.position.x ? -1 : 1;
-          if (o.isSpike) {
-            // Spike strip puncture: temporary speed drop
+        if (absX < npcHalfW && absZ < npcHalfL) {
+          const bounceDir = dx >= 0 ? 1 : -1;
+          this.player.x = THREE.MathUtils.clamp(npc.car.position.x + bounceDir * (npcHalfW + 0.1), -8.2, 8.2);
+          this.player.speed = Math.min(this.player.speed * 0.35, npc.speed * 0.7);
+
+          if (!npc.isColliding) {
+            npc.isColliding = true;
+            const dmg = this.player.takeDamage(18);
+            progression.activeRunStats.damageTaken += dmg;
+            this.camShake = 0.55;
+            audio.play('collision');
+            this.vibrate([80, 40, 120]);
+            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0x00f0ff, 20);
+            this.showDamageOverlay();
+            this.toast('NPC TRAFFIC COLLISION!', 'magenta');
+            if (this.player.hull <= 0) {
+              this.gameOver(false, false);
+              return;
+            }
+          }
+        } else if (absX >= npcHalfW + 0.4 || absZ >= npcHalfL + 0.4) {
+          npc.isColliding = false;
+        }
+      }
+    }
+
+    // C. Sidewalk Wandering Pedestrians
+    if (this.pedestrianManager && this.pedestrianManager.pedestrians) {
+      for (const p of this.pedestrianManager.pedestrians) {
+        if (!p.mesh) continue;
+        const dx = this.player.x - p.mesh.position.x;
+        const dz = this.player.mesh.position.z - p.mesh.position.z;
+        const dist = Math.hypot(dx, dz);
+
+        if (dist < 1.9) {
+          // Physical strike & ragdoll knockback
+          p.mesh.position.x += Math.sign(dx || 1) * 3.2;
+          p.mesh.position.y += 2.0;
+          p.mesh.rotation.z += 1.6;
+          p.mesh.rotation.x += 1.4;
+
+          this.player.speed *= 0.75;
+          this.camShake = 0.4;
+          audio.play('collision');
+          this.vibrate(60);
+          this.traffic.spawnExplosion(p.mesh.position, 0xff2a85, 16);
+          this.toast('PEDESTRIAN IMPACT!', 'magenta');
+        }
+      }
+    }
+
+    // D. Obstacles & Concrete Barriers
+    for (const o of this.traffic.obstacles) {
+      const obsHalfW = 1.35;
+      const obsHalfL = 1.5;
+      const dx = this.player.x - o.mesh.position.x;
+      const dz = this.player.mesh.position.z - o.mesh.position.z;
+      const absX = Math.abs(dx);
+      const absZ = Math.abs(dz);
+
+      if (absX < obsHalfW && absZ < obsHalfL) {
+        const bounceDir = dx >= 0 ? 1 : -1;
+        if (o.isSpike) {
+          if (!o.isColliding) {
+            o.isColliding = true;
             const dmg = this.player.takeDamage(12);
             progression.activeRunStats.damageTaken += dmg;
             this.player.speed *= 0.45;
@@ -1577,24 +1659,30 @@ class RoadRiotGame {
             audio.play('collision');
             this.vibrate(90);
             this.toast('TIRES PUNCTURED BY SPIKES', 'magenta');
-          } else {
-            // Hard physical barrier / barrel stop & damage
+          }
+        } else {
+          // Hard physical barrier / barrel: SOLID LATERAL SEPARATION & SPEED CLAMP
+          this.player.x = THREE.MathUtils.clamp(o.mesh.position.x + bounceDir * (obsHalfW + 0.1), -8.2, 8.2);
+          this.player.speed = Math.max(0, this.player.speed * 0.35);
+
+          if (!o.isColliding) {
+            o.isColliding = true;
             const dmg = this.player.takeDamage(18);
             progression.activeRunStats.damageTaken += dmg;
-            this.player.speed *= 0.48;
-            this.player.x = THREE.MathUtils.clamp(this.player.x + bounceDir * 1.1, -7.2, 7.2);
             this.camShake = 0.55;
             audio.play('collision');
             this.vibrate([60, 40, 100]);
-            this.traffic.spawnExplosion(o.mesh.position, 0xff6600, 18);
-            this.toast('BARRIER COLLISION', 'magenta');
-          }
-          this.showDamageOverlay();
-          if (this.player.hull <= 0) {
-            this.gameOver(false, false);
-            return;
+            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff6600, 18);
+            this.toast('SOLID BARRIER COLLISION', 'magenta');
+            if (this.player.hull <= 0) {
+              this.gameOver(false, false);
+              return;
+            }
           }
         }
+        this.showDamageOverlay();
+      } else if (absX >= obsHalfW + 0.4 || absZ >= obsHalfL + 0.4) {
+        o.isColliding = false;
       }
     }
 
@@ -1602,29 +1690,21 @@ class RoadRiotGame {
     for (let i = this.traffic.collectibles.length - 1; i >= 0; i--) {
       const c = this.traffic.collectibles[i];
       if (c.mesh.position.distanceTo(this.player.mesh.position) < 2.4) {
-        audio.play('pickup');
-        this.traffic.spawnExplosion(c.mesh.position, 0xffea00, 12);
-        this.vibrate(30);
-
         if (c.type === 'coin') {
+          audio.play('pickup');
+          this.traffic.spawnExplosion(c.mesh.position, 0xffea00, 12);
           progression.activeRunStats.coinsEarned += 10;
           this.score += 150;
           this.spawnScorePopup('+10 CREDITS', '#ffb800');
         } else if (c.type === 'nitro') {
-          this.player.addNitro(60);
-          this.toast('NITRO TANK REFILLED', 'cyan');
-        } else if (c.type === 'shield') {
-          this.player.activateShield(8);
-          audio.play('shield');
-          this.toast('HEX FORCEFIELD ONLINE', 'magenta');
-        } else if (c.type === 'magnet') {
-          this.player.activateMagnet(10);
-          this.toast('CREDIT MAGNET ACTIVE', 'green');
-        } else if (c.type === 'repair') {
-          this.player.repair(35);
-          audio.play('shield');
-          this.toast('+35% HULL RESTORED', 'green');
-          this.showDamageOverlay();
+          audio.play('nitro_pickup');
+          this.traffic.spawnExplosion(c.mesh.position, 0x00d9ff, 18);
+          this.player.addNitro(75);
+          this.player.triggerSpeedBoost(1.5, 2.5); // Instant supersonic nitro boost surge!
+          progression.activeRunStats.coinsEarned += 25;
+          this.score += 350;
+          this.spawnScorePopup('⚡ NITRO SURGE! +350 PTS', '#00d9ff');
+          this.toast('SUPERCHARGED NITRO BOOST ACTIVATED!', 'cyan');
         }
 
         this.scene.remove(c.mesh);
@@ -1747,7 +1827,8 @@ class RoadRiotGame {
   }
 
   loop(now) {
-    const dt = Math.min(0.08, (now - this.lastTime) / 1000);
+    let dt = (now - this.lastTime) / 1000;
+    if (dt > 1 / 60) dt = 1 / 60; // Performance FPS-cap clamp
     this.lastTime = now;
 
     this.update(dt);

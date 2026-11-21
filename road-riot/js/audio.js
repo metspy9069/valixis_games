@@ -590,6 +590,9 @@ class RoadAudioEngine {
       case 'achievement':
         this.synthAchievement(now);
         break;
+      case 'red_alert':
+        this.synthRedAlert(now);
+        break;
       default:
         break;
     }
@@ -811,6 +814,32 @@ class RoadAudioEngine {
       gain.connect(this.sfxGain);
       osc.start(t + idx * 0.08);
       osc.stop(t + idx * 0.08 + 0.35);
+    });
+  }
+
+  synthRedAlert(t) {
+    // Dual-tone high-urgency cockpit emergency warning pulse (880Hz -> 660Hz)
+    [880, 660].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      const startTime = t + idx * 0.08;
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(2400, startTime);
+
+      gain.gain.setValueAtTime(0.32, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.18);
     });
   }
 

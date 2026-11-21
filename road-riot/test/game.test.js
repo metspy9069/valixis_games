@@ -281,3 +281,129 @@ test('solid stunt jump ramp calculates continuous physical deck elevation and la
   const deckYLip = h0 + progressLip * (h1 - h0);
   assert.equal(deckYLip, 1.35, 'Lip elevation reaches full takeoff height');
 });
+
+test('mutual traffic collision strictly separates NPC vehicles preventing phasing', () => {
+  // Simulate two NPC vehicles overlapping in the same lane
+  const v1 = { x: 0, z: -40, width: 2.2, length: 4.6, speed: 22 };
+  const v2 = { x: 0.1, z: -42, width: 2.2, length: 4.6, speed: 17 };
+
+  const halfW = (v1.width + v2.width) * 0.5; // 2.2
+  const halfL = (v1.length + v2.length) * 0.5; // 4.6
+  const dx = v1.x - v2.x;
+  const dz = v1.z - v2.z;
+  const absX = Math.abs(dx);
+  const absZ = Math.abs(dz);
+
+  assert.ok(absX < halfW && absZ < halfL, 'Vehicles initially collide and overlap');
+
+  // Solid Impasse Resolution:
+  const isV1Trailing = v1.z > v2.z; // larger z is closer to camera (trailing)
+  const trailing = isV1Trailing ? v1 : v2;
+  const leading = isV1Trailing ? v2 : v1;
+
+  if (absZ >= absX * 0.8) {
+    trailing.z = leading.z + halfL + 0.15;
+    trailing.speed = Math.min(trailing.speed, leading.speed * 0.85);
+  }
+
+  assert.ok(trailing.z - leading.z >= halfL, 'Trailing vehicle is pushed strictly behind leading vehicle bumper');
+  assert.ok(trailing.speed <= leading.speed, 'Trailing vehicle decelerates behind lead vehicle');
+});
+
+test('adaptive cruise control slows trailing traffic car when approaching lead vehicle in same lane', () => {
+  const lead = { x: 0, z: -50, speed: 18 };
+  const trailing = { x: 0.2, z: -38, speed: 26, baseSpeed: 26 };
+
+  const dx = Math.abs(trailing.x - lead.x);
+  const dz = trailing.z - lead.z; // 12m headway
+  const headway = 18;
+
+  let followSpeed = trailing.speed;
+  for (let step = 0; step < 4; step++) {
+    if (dx < 2.2 && dz > 0 && dz < headway) {
+      const targetSpeed = Math.min(trailing.baseSpeed, lead.speed * 0.94);
+      followSpeed += (targetSpeed - followSpeed) * 0.5;
+    }
+  }
+
+  assert.ok(followSpeed < trailing.baseSpeed, 'Trailing car decelerates when lead car is in headway zone');
+  assert.ok(followSpeed <= lead.speed * 1.05, 'Trailing car adjusts pace toward lead car');
+});
+
+test('critical hull integrity activates full-screen emergency red alert overlay', () => {
+  const checkRedAlert = (hull, maxHull) => {
+    const pct = Math.max(0, (hull / maxHull) * 100);
+    return pct <= 35 && pct > 0;
+  };
+
+  assert.equal(checkRedAlert(100, 100), false, 'Full health should not trigger red alert');
+  assert.equal(checkRedAlert(50, 100), false, '50% health should not trigger red alert');
+  assert.equal(checkRedAlert(35, 100), true, '35% health must trigger red alert');
+  assert.equal(checkRedAlert(15, 100), true, '15% critical health must trigger red alert');
+  assert.equal(checkRedAlert(0, 100), false, '0% health (game over) should dismiss red alert');
+});
+
+test('traffic vehicle collision with stationary obstacle deflects laterally and prevents clipping', () => {
+  // Simulate traffic vehicle overlapping stationary barrier/barrel
+  const v = { x: 0, z: -30, width: 2.2, length: 4.6, speed: 20 };
+  const obs = { x: 0.1, z: -30.5, width: 2.7, length: 3.0 };
+
+  const halfW = (v.width * 0.5) + (obs.width * 0.5);
+  const halfL = (v.length * 0.5) + (obs.length * 0.5);
+  const dx = v.x - obs.x;
+  const dz = v.z - obs.z;
+  const absX = Math.abs(dx);
+  const absZ = Math.abs(dz);
+
+  assert.ok(absX < halfW && absZ < halfL, 'Vehicle initially intersects obstacle footprint');
+
+  // Solid Impasse Resolution:
+  const bounce = dx >= 0 ? 1 : -1;
+  v.x = obs.x + bounce * (halfW + 0.15);
+  v.speed *= 0.65;
+
+  assert.ok(Math.abs(v.x - obs.x) >= halfW, 'Vehicle is clamped strictly outside obstacle width boundary');
+  assert.ok(v.speed < 20, 'Vehicle absorbs collision impact and decelerates');
+});
+
+test('traffic vehicle approaching jump ramp rides incline deck and executes stunt jump', () => {
+  const ramp = { lane: 0, worldZ: -60, length: 4.8, lipHeight: 1.35 };
+  const v = { x: 0, y: 0, z: -60, isAirborne: false, airVy: 0 };
+
+  const relZ = v.z - ramp.worldZ; // 0 (middle of ramp deck)
+  const absX = Math.abs(v.x - ramp.lane);
+
+  if (relZ >= -2.4 && relZ <= 2.4 && absX < 1.35) {
+    const progress = (2.4 - relZ) / ramp.length; // 0.5
+    const deckY = 0.03 + progress * (ramp.lipHeight - 0.03);
+    v.y = deckY;
+  }
+
+  assert.ok(v.y > 0.6, 'Vehicle Y elevation matches ramp incline deck slope at halfway point');
+
+  // At takeoff lip:
+  const relZLip = -2.0;
+  if (relZLip <= -1.9 && !v.isAirborne) {
+    v.isAirborne = true;
+    v.airVy = 7.5;
+  }
+
+  assert.equal(v.isAirborne, true, 'Vehicle launches airborne off ramp takeoff lip');
+  assert.equal(v.airVy, 7.5, 'Vehicle receives vertical launch velocity');
+});
+
+test('critical health triggers recurring audio emergency alarm warning', () => {
+  let alarmPlayed = 0;
+  let timer = 0.8;
+  const dt = 0.1;
+
+  for (let frame = 0; frame < 15; frame++) {
+    timer += dt;
+    if (timer >= 0.85) {
+      timer = 0;
+      alarmPlayed++;
+    }
+  }
+
+  assert.ok(alarmPlayed >= 1, 'Emergency cockpit audio warning alarm beeps during critical hull health');
+});

@@ -12,8 +12,8 @@ export class NPCCar {
     this.speed = speed; // units per second (~80 km/h)
     this.color = color;
 
-    // Highway Lane Relative Coordinates
-    this.lanes = [-6, 0, 6];
+    // Highway Lane Relative Coordinates (Standard 3-Lane Highway Track)
+    this.lanes = [-4.6, 0, 4.6];
     this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
     this.targetX = this.currentLane;
     this.laneChangeTimer = 4.0 + Math.random() * 6.0;

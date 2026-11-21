@@ -159,6 +159,7 @@ class RoadRiotGame {
       overlayDamage: document.querySelector('#overlay-damage'),
       overlayWarp: document.querySelector('#overlay-warp'),
       overlayShield: document.querySelector('#overlay-shield'),
+      overlayRedAlert: document.querySelector('#overlay-red-alert'),
 
       // Modals & Navigation
       menuModal: document.querySelector('#menu-modal'),
@@ -727,6 +728,7 @@ class RoadRiotGame {
     this.ui.gameoverModal.classList.add('hidden');
     this.ui.pauseModal.classList.add('hidden');
     this.ui.hud.classList.remove('hidden');
+    if (this.ui.overlayRedAlert) this.ui.overlayRedAlert.classList.add('hidden');
 
     this.ui.countdownOverlay.classList.add('show');
     this.ui.countdownText.textContent = '3';
@@ -773,6 +775,7 @@ class RoadRiotGame {
   gameOver(isSprintFinish = false, isWinner = false) {
     this.state = 'GAMEOVER';
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
+    if (this.ui.overlayRedAlert) this.ui.overlayRedAlert.classList.add('hidden');
     audio.stopEngine();
     audio.stopMusic();
 
@@ -1464,6 +1467,7 @@ class RoadRiotGame {
     // 6. Traffic & Obstacles System
     this.traffic.update(dt, currentSpeed, this.player.x, this.player.mesh.position.z, this.distance, {
       isMagnetActive: this.player.magnetActive,
+      jumpRamps: this.world.jumpRamps,
       onNearMiss: (v) => {
         progression.activeRunStats.nearMisses++;
         this.score += 250 * this.multiplier;
@@ -1539,24 +1543,26 @@ class RoadRiotGame {
           // PURE SOLID IMPASSE: YOU CANNOT PASS THROUGH!
           const bounceDir = dx >= 0 ? 1 : -1;
 
-          const isRearEnd = dz < 0 && absX < (vWidth * 0.5 + 0.45);
+          const isRearEnd = dz > 0 && absX < (vWidth * 0.5 + 0.65);
           if (isRearEnd) {
             // Rear-end Collision into vehicle ahead:
             // 1. Physically clamp relative motion: player cannot travel through target Z
-            this.player.speed = Math.min(this.player.speed * 0.35, v.speed * 0.7);
-            // 2. Separate in Z so player stays strictly behind the target bumper
-            v.mesh.position.z = this.player.mesh.position.z + halfL;
+            this.player.speed = Math.min(this.player.speed * 0.45, v.speed * 0.85);
+            this.player.targetSpeed = Math.min(this.player.targetSpeed, v.speed);
+            // 2. Separate in Z so vehicle stays strictly ahead of player bumper
+            v.mesh.position.z = Math.min(v.mesh.position.z, this.player.mesh.position.z - (halfL + 0.15));
             // 3. Shunt the vehicle forward
-            v.speed += 8;
+            v.speed = Math.max(v.speed + 6, this.player.speed + 3);
             this.player.suspensionPitch = 0.22;
           } else {
             // Lateral / Side-Swipe Collision:
             // 1. Push player completely outside the vehicle's bounding box
-            this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.08), -8.2, 8.2);
+            this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.18), -8.2, 8.2);
             // 2. Lateral speed deflection
-            this.player.steerAngle += bounceDir * 0.25;
-            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.4, -7.5, 7.5);
-            this.player.speed = Math.max(0, this.player.speed * 0.75);
+            this.player.vx = bounceDir * 3.5;
+            this.player.steerAngle += bounceDir * 0.22;
+            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.35, -7.5, 7.5);
+            this.player.speed = Math.max(0, this.player.speed * 0.8);
           }
 
           // Damage and effects triggered on initial contact or cooldown
@@ -1594,8 +1600,19 @@ class RoadRiotGame {
 
         if (absX < npcHalfW && absZ < npcHalfL) {
           const bounceDir = dx >= 0 ? 1 : -1;
-          this.player.x = THREE.MathUtils.clamp(npc.car.position.x + bounceDir * (npcHalfW + 0.1), -8.2, 8.2);
-          this.player.speed = Math.min(this.player.speed * 0.35, npc.speed * 0.7);
+          const isRearEnd = dz > 0 && absX < (npcHalfW * 0.5 + 0.65);
+          if (isRearEnd) {
+            npc.car.position.z = Math.min(npc.car.position.z, this.player.mesh.position.z - (npcHalfL + 0.15));
+            this.player.speed = Math.min(this.player.speed * 0.45, npc.speed * 0.85);
+            this.player.targetSpeed = Math.min(this.player.targetSpeed, npc.speed);
+            npc.speed += 5;
+            this.player.suspensionPitch = 0.22;
+          } else {
+            this.player.x = THREE.MathUtils.clamp(npc.car.position.x + bounceDir * (npcHalfW + 0.18), -8.2, 8.2);
+            npc.car.position.x = THREE.MathUtils.clamp(npc.car.position.x - bounceDir * 0.35, -7.5, 7.5);
+            this.player.vx = bounceDir * 3.5;
+            this.player.speed = Math.max(0, this.player.speed * 0.8);
+          }
 
           if (!npc.isColliding) {
             npc.isColliding = true;
@@ -1614,6 +1631,82 @@ class RoadRiotGame {
           }
         } else if (absX >= npcHalfW + 0.4 || absZ >= npcHalfL + 0.4) {
           npc.isColliding = false;
+        }
+      }
+
+      // B2. Mutual Collisions: NPC Street Racers vs Traffic Vehicles & Each Other (No NPC Phasing!)
+      if (this.traffic && this.traffic.vehicles) {
+        for (const npc of this.npcCars) {
+          if (!npc.car) continue;
+          for (const v of this.traffic.vehicles) {
+            if (v.hit) continue;
+            const halfW = 2.15;
+            const halfL = (v.length + 4.2) * 0.5;
+            const dx = npc.car.position.x - v.mesh.position.x;
+            const dz = npc.car.position.z - v.mesh.position.z;
+            const absX = Math.abs(dx);
+            const absZ = Math.abs(dz);
+
+            // Headway check: if NPC is behind traffic in same lane, match speed or swerve!
+            if (absX < 2.0 && dz > 0 && dz < 18.0) {
+              npc.speed = Math.min(npc.speed, v.speed * 0.94);
+              if (dz < 12.0 && npc.laneChangeTimer > 1.0) {
+                npc.laneChangeTimer = 0.1;
+              }
+            }
+
+            // Solid Physical Impasse
+            if (absX < halfW && absZ < halfL) {
+              const isNpcTrailing = dz > 0;
+              if (isNpcTrailing) {
+                npc.car.position.z = v.mesh.position.z + halfL + 0.15;
+                npc.speed = Math.min(npc.speed, v.speed * 0.85);
+                v.speed = Math.max(v.speed, npc.speed + 2.0);
+              } else {
+                const bounce = dx >= 0 ? 1 : -1;
+                npc.car.position.x = THREE.MathUtils.clamp(npc.car.position.x + bounce * 0.6, -7.5, 7.5);
+                v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounce * 0.6, -7.5, 7.5);
+                npc.speed *= 0.9;
+                v.speed *= 0.9;
+              }
+            }
+          }
+        }
+
+        // Mutual Collisions: NPC Street Racers vs Each Other
+        for (let i = 0; i < this.npcCars.length; i++) {
+          for (let j = i + 1; j < this.npcCars.length; j++) {
+            const npc1 = this.npcCars[i];
+            const npc2 = this.npcCars[j];
+            if (!npc1.car || !npc2.car) continue;
+
+            const halfW = 2.2;
+            const halfL = 4.2;
+            const dx = npc1.car.position.x - npc2.car.position.x;
+            const dz = npc1.car.position.z - npc2.car.position.z;
+            const absX = Math.abs(dx);
+            const absZ = Math.abs(dz);
+
+            if (absX < 2.0 && dz > 0 && dz < 16.0) {
+              npc1.speed = Math.min(npc1.speed, npc2.speed * 0.95);
+            } else if (absX < 2.0 && dz < 0 && -dz < 16.0) {
+              npc2.speed = Math.min(npc2.speed, npc1.speed * 0.95);
+            }
+
+            if (absX < halfW && absZ < halfL) {
+              const isNpc1Trailing = dz > 0;
+              if (isNpc1Trailing) {
+                npc1.car.position.z = npc2.car.position.z + halfL + 0.15;
+                npc1.speed = Math.min(npc1.speed, npc2.speed * 0.85);
+              } else {
+                npc2.car.position.z = npc1.car.position.z + halfL + 0.15;
+                npc2.speed = Math.min(npc2.speed, npc1.speed * 0.85);
+              }
+              const bounce = dx >= 0 ? 1 : -1;
+              npc1.car.position.x = THREE.MathUtils.clamp(npc1.car.position.x + bounce * 0.5, -7.5, 7.5);
+              npc2.car.position.x = THREE.MathUtils.clamp(npc2.car.position.x - bounce * 0.5, -7.5, 7.5);
+            }
+          }
         }
       }
     }
@@ -1808,6 +1901,21 @@ class RoadRiotGame {
     const hullPct = Math.max(0, (this.player.hull / this.player.maxHull) * 100);
     this.ui.hullBar.style.width = `${hullPct}%`;
     this.ui.hullBox.classList.toggle('hull-low', hullPct < 30);
+
+    // Full-Screen Emergency Red Alert Blinking Border on Low Health (Critical damage state)
+    const isCriticalHealth = hullPct <= 35 && hullPct > 0;
+    if (this.ui.overlayRedAlert) {
+      this.ui.overlayRedAlert.classList.toggle('hidden', !isCriticalHealth);
+    }
+    if (isCriticalHealth && this.state === 'PLAYING') {
+      this.redAlertAudioTimer = (this.redAlertAudioTimer || 0) + 0.016;
+      if (this.redAlertAudioTimer >= 0.85) {
+        this.redAlertAudioTimer = 0;
+        audio.play('red_alert');
+      }
+    } else {
+      this.redAlertAudioTimer = 0.8; // Armed to beep immediately on critical threshold
+    }
 
     this.ui.speedNum.textContent = Math.round(kmh);
     if (this.ui.speedMph) {

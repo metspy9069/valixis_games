@@ -844,17 +844,136 @@ export class TrafficManager {
     // 2. Update Traffic Vehicles
     for (let i = this.vehicles.length - 1; i >= 0; i--) {
       const v = this.vehicles[i];
+
+      // Adaptive Cruise Control & Highway Spacing (Prevents NPC rear-ending)
+      const headway = (v.isTruck || v.isTanker) ? 24 : 18;
+      let minAheadDist = headway;
+      let leadVehicle = null;
+
+      for (let j = 0; j < this.vehicles.length; j++) {
+        if (i === j) continue;
+        const other = this.vehicles[j];
+        const dx = Math.abs(v.mesh.position.x - other.mesh.position.x);
+        const dz = v.mesh.position.z - other.mesh.position.z; // other is ahead when dz > 0
+        if (dx < 2.2 && dz > 0 && dz < minAheadDist) {
+          minAheadDist = dz;
+          leadVehicle = other;
+        }
+      }
+
+      if (leadVehicle) {
+        // Slow down to match lead vehicle speed
+        const followSpeed = Math.min(v.baseSpeed, leadVehicle.speed * 0.94);
+        v.speed += (followSpeed - v.speed) * Math.min(1, dt * 5.0);
+
+        // Attempt autonomous lane change if blocked
+        if (minAheadDist < 12.0 && v.laneChangeTimer <= 0) {
+          v.laneChangeTimer = 3.0 + Math.random() * 3.0;
+          const occupied = new Set();
+          this.vehicles.forEach(ov => {
+            if (Math.abs(ov.mesh.position.z - v.mesh.position.z) < 18) {
+              occupied.add(ov.targetLane || ov.lane);
+            }
+          });
+          const freeLanes = this.lanes.filter(l => !occupied.has(l));
+          if (freeLanes.length > 0) {
+            v.targetLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+          }
+        }
+      } else {
+        // Highway ahead is clear, recover to cruising speed
+        v.speed += (v.baseSpeed - v.speed) * Math.min(1, dt * 2.5);
+      }
+
+      // Stationary Obstacle Detection & Autonomous Hazard Avoidance
+      for (const o of this.obstacles) {
+        const dx = Math.abs(v.mesh.position.x - o.mesh.position.x);
+        const dz = v.mesh.position.z - o.mesh.position.z; // obstacle is ahead when dz > 0
+        if (dx < 2.0 && dz > 0 && dz < 20.0) {
+          v.speed = Math.max(10, v.speed * 0.95);
+          if (dz < 14.0 && v.laneChangeTimer <= 0) {
+            v.laneChangeTimer = 2.5 + Math.random() * 2.5;
+            const occupied = new Set();
+            this.vehicles.forEach(ov => {
+              if (Math.abs(ov.mesh.position.z - v.mesh.position.z) < 18) {
+                occupied.add(ov.targetLane || ov.lane);
+              }
+            });
+            const freeLanes = this.lanes.filter(l => !occupied.has(l) && Math.abs(l - o.lane) > 1.5);
+            if (freeLanes.length > 0) {
+              v.targetLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+            }
+          }
+        }
+      }
+
+      // Stunt Jump Ramp Interaction for Traffic Vehicles
+      if (callbacks.jumpRamps) {
+        for (const ramp of callbacks.jumpRamps) {
+          const rampWorldZ = ramp.parent.position.z + ramp.mesh.position.z;
+          const dz = v.mesh.position.z - rampWorldZ;
+          const dx = Math.abs(v.mesh.position.x - ramp.lane);
+          if (dx < 1.8 && dz > 0 && dz < 22.0) {
+            if (v.laneChangeTimer <= 0 && !v.isRival) {
+              v.laneChangeTimer = 3.0;
+              const freeLanes = this.lanes.filter(l => l !== ramp.lane);
+              if (freeLanes.length > 0) {
+                v.targetLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+              }
+            }
+          }
+
+          const relZ = v.mesh.position.z - rampWorldZ;
+          const relX = v.mesh.position.x - ramp.lane;
+          const absX = Math.abs(relX);
+          if (relZ >= -2.4 && relZ <= 2.4) {
+            if (absX < 1.35) {
+              // Ride incline deck without interior clipping
+              const progress = (2.4 - relZ) / 4.8;
+              const deckY = 0.03 + progress * 1.32;
+              v.mesh.position.y = Math.max(v.mesh.position.y || 0, deckY);
+              if (relZ <= -1.9 && !v.isAirborne) {
+                v.isAirborne = true;
+                v.airVy = 7.5;
+              }
+            } else if (absX >= 1.35 && absX <= 2.0) {
+              // Solid ramp rail bounce
+              const side = Math.sign(relX) || 1;
+              v.mesh.position.x = ramp.lane + side * 2.2;
+              v.speed *= 0.85;
+            }
+          }
+        }
+      }
+
+      // Handle airborne traffic vehicle physics
+      if (v.isAirborne) {
+        v.airVy = (v.airVy || 0) - dt * 24.0;
+        v.mesh.position.y += v.airVy * dt;
+        if (v.mesh.position.y <= 0) {
+          v.mesh.position.y = 0;
+          v.isAirborne = false;
+          v.airVy = 0;
+          if (Math.abs(v.mesh.position.z - playerZ) < 45) {
+            this.spawnExplosion(new THREE.Vector3(v.mesh.position.x, 0.2, v.mesh.position.z), 0xffaa00, 6);
+          }
+        }
+      }
+
       const relativeSpeed = playerSpeed - v.speed;
       v.mesh.position.z += relativeSpeed * dt;
 
-      if (v.isRival) {
+      if (v.isRival || v.targetLane !== v.lane) {
         v.laneChangeTimer -= dt;
-        if (v.laneChangeTimer <= 0) {
+        if (v.isRival && v.laneChangeTimer <= 0) {
           v.laneChangeTimer = 3.5 + Math.random() * 3;
           const otherLanes = this.lanes.filter(l => l !== v.lane);
           v.targetLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
         }
         v.mesh.position.x += (v.targetLane - v.mesh.position.x) * Math.min(1, dt * 3.5);
+        if (Math.abs(v.targetLane - v.mesh.position.x) < 0.2) {
+          v.lane = v.targetLane;
+        }
       }
 
       if (v.isPolice) {
@@ -884,6 +1003,84 @@ export class TrafficManager {
       if (v.mesh.position.z > 24) {
         this.scene.remove(v.mesh);
         this.vehicles.splice(i, 1);
+      }
+    }
+
+    // Mutual Solid Collision & Hard Physical Separation for ALL Traffic Vehicles
+    for (let i = 0; i < this.vehicles.length; i++) {
+      for (let j = i + 1; j < this.vehicles.length; j++) {
+        const v1 = this.vehicles[i];
+        const v2 = this.vehicles[j];
+        if (v1.hit && v2.hit) continue;
+
+        const halfW = (v1.width + v2.width) * 0.5;
+        const halfL = (v1.length + v2.length) * 0.5;
+        const dx = v1.mesh.position.x - v2.mesh.position.x;
+        const dz = v1.mesh.position.z - v2.mesh.position.z;
+        const absX = Math.abs(dx);
+        const absZ = Math.abs(dz);
+
+        if (absX < halfW && absZ < halfL) {
+          // SOLID IMPASSE: NEVER PASS THROUGH EACH OTHER
+          const isV1Trailing = v1.mesh.position.z > v2.mesh.position.z;
+          const trailing = isV1Trailing ? v1 : v2;
+          const leading = isV1Trailing ? v2 : v1;
+
+          if (absZ >= absX * 0.8) {
+            // Longitudinal Rear-End Impasse
+            trailing.mesh.position.z = leading.mesh.position.z + halfL + 0.15;
+            trailing.speed = Math.min(trailing.speed, leading.speed * 0.85);
+            leading.speed = Math.max(leading.speed, trailing.speed + 2.0);
+          } else {
+            // Lateral Side-Swipe Impasse
+            const bounce = dx >= 0 ? 1 : -1;
+            const overlap = (halfW - absX) * 0.5 + 0.1;
+            v1.mesh.position.x = THREE.MathUtils.clamp(v1.mesh.position.x + bounce * overlap, -8.2, 8.2);
+            v2.mesh.position.x = THREE.MathUtils.clamp(v2.mesh.position.x - bounce * overlap, -8.2, 8.2);
+            v1.targetLane = v1.lane;
+            v2.targetLane = v2.lane;
+            v1.speed *= 0.92;
+            v2.speed *= 0.92;
+          }
+
+          if (Math.abs(v1.mesh.position.z - playerZ) < 45) {
+            this.spawnExplosion(
+              new THREE.Vector3((v1.mesh.position.x + v2.mesh.position.x) * 0.5, 0.4, (v1.mesh.position.z + v2.mesh.position.z) * 0.5),
+              0xffcc00,
+              8
+            );
+          }
+        }
+      }
+    }
+
+    // Solid Mutual Collisions between Traffic Vehicles and Stationary Highway Obstacles
+    for (const v of this.vehicles) {
+      if (v.hit) continue;
+      for (const o of this.obstacles) {
+        const obsHalfW = 1.35;
+        const obsHalfL = 1.5;
+        const halfW = (v.width * 0.5 || 1.1) + obsHalfW;
+        const halfL = (v.length * 0.5 || 2.2) + obsHalfL;
+        const dx = v.mesh.position.x - o.mesh.position.x;
+        const dz = v.mesh.position.z - o.mesh.position.z;
+        const absX = Math.abs(dx);
+        const absZ = Math.abs(dz);
+
+        if (absX < halfW && absZ < halfL) {
+          // SOLID IMPASSE: Deflect traffic vehicle away from obstacle (No Phasing!)
+          const bounce = dx >= 0 ? 1 : -1;
+          v.mesh.position.x = THREE.MathUtils.clamp(o.mesh.position.x + bounce * (halfW + 0.15), -8.2, 8.2);
+          v.targetLane = v.lane;
+          v.speed = Math.max(0, v.speed * 0.65);
+          if (Math.abs(v.mesh.position.z - playerZ) < 45) {
+            this.spawnExplosion(
+              new THREE.Vector3((v.mesh.position.x + o.mesh.position.x) * 0.5, 0.4, (v.mesh.position.z + o.mesh.position.z) * 0.5),
+              o.isBarrel ? 0xff6600 : (o.isSpike ? 0xff2a44 : 0xffaa00),
+              10
+            );
+          }
+        }
       }
     }
 

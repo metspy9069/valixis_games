@@ -736,12 +736,14 @@ export class TrafficManager {
       ? availableLanes[Math.floor(Math.random() * availableLanes.length)]
       : this.lanes[Math.floor(Math.random() * this.lanes.length)];
     const roll = Math.random();
-    // Prioritize high-octane Nitro Pickups on the highway!
+    // Dynamic pickups: Nitro N2O (40%), Life Pack / Nano-Repair (35%), Gold Coins (25%)
     let type = 'nitro';
-    if (roll < 0.65) {
-      type = 'nitro'; // 65% chance: Nitro Boost Canister
+    if (roll < 0.40) {
+      type = 'nitro'; // 40% chance: Nitro Boost Canister
+    } else if (roll < 0.75) {
+      type = 'repair'; // 35% chance: Life Pack / Nanotech Repair Kit (+35 HP)
     } else {
-      type = 'coin'; // 35% chance: Gold Currency Coin
+      type = 'coin'; // 25% chance: Gold Currency Coin (+100 CR)
     }
 
     const mesh = this.buildCollectibleMesh(type);
@@ -828,6 +830,47 @@ export class TrafficManager {
       const light = new THREE.PointLight(0x00f0ff, 2.5, 6.0);
       light.position.set(0, 0, 0);
       group.add(light);
+    } else if (type === 'repair') {
+      // High-Tech Cybernetic Nano-Repair Kit (Life Pack)
+      const caseGeo = new THREE.BoxGeometry(0.85, 0.72, 0.52);
+      const caseMat = new THREE.MeshStandardMaterial({
+        color: 0x0a241a,
+        metalness: 0.85,
+        roughness: 0.25
+      });
+      const repairCase = new THREE.Mesh(caseGeo, caseMat);
+      repairCase.castShadow = true;
+      group.add(repairCase);
+
+      // Glowing Emerald Green Nanotech Cross
+      const crossMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff88,
+        emissive: 0x00ff88,
+        emissiveIntensity: 2.8,
+        roughness: 0.1
+      });
+      const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.15, 0.55), crossMat);
+      const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.52, 0.55), crossMat);
+      group.add(crossH);
+      group.add(crossV);
+
+      // Rotating Emerald Halo Ring
+      const haloGeo = new THREE.RingGeometry(0.82, 0.98, 24);
+      haloGeo.rotateX(Math.PI / 2);
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: 0x00ff88,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75
+      });
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      halo.position.y = -0.52;
+      group.add(halo);
+
+      // Emerald Ground Beacon Light
+      const repairLight = new THREE.PointLight(0x00ff88, 2.8, 6.5);
+      repairLight.position.set(0, 0, 0);
+      group.add(repairLight);
     } else if (type === 'shield') {
       const orb = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.72, 1),

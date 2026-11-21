@@ -708,6 +708,9 @@ class RoadRiotGame {
         clearInterval(interval);
         this.isDynoTesting = false;
         audio.stopEngine();
+        audio.resetTransmission();
+        this.lastGear = 1;
+        if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
         const zeroToHundred = (2.65 + Math.random() * 0.45).toFixed(2);
         const horsepower = Math.floor(680 + Math.random() * 140);
         this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP`, 'cyan');
@@ -781,6 +784,7 @@ class RoadRiotGame {
   // --- 3-2-1-GO COUNTDOWN & RUN LIFECYCLE ---
   startCountdown() {
     audio.resume();
+    audio.resetTransmission();
     audio.startEngine();
 
     this.state = 'COUNTDOWN';
@@ -807,6 +811,7 @@ class RoadRiotGame {
     this.player.mesh.position.set(0, 0, -8);
     this.player.x = 0;
     this.lastGear = 1;
+    if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
 
     if (this.gameMode === 'SPRINT') {
       if (this.ui.racePosBox) this.ui.racePosBox.classList.remove('hidden');
@@ -1454,9 +1459,12 @@ class RoadRiotGame {
     }
 
     const isBoosting = this.keys.has(' ') || this.keys.has('Shift') || gp.boost;
-    const isDrifting = (this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || gp.drift) && Math.abs(steerDir) > 0;
+    const isBrakingKey = this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || gp.brake || gp.drift;
+    const isDrifting = isBrakingKey && Math.abs(steerDir) > 0;
+    const isBraking = isBrakingKey && !isDrifting;
 
     const sens = progression.data.settings.steeringSensitivity || 1.0;
+    this.player.setBraking(isBrakingKey);
     this.player.setBoost(isBoosting);
     this.player.setDrift(isDrifting);
     this.player.steer(steerDir, dt, sens);
@@ -1562,7 +1570,7 @@ class RoadRiotGame {
     }
 
     // 4. Audio Engine Update (6-Speed Dual-Clutch Model)
-    audio.updateEngine(kmh, this.player.isBoosting, isDrifting);
+    audio.updateEngine(kmh, this.player.isBoosting, isDrifting, isBrakingKey);
 
     // 5. World Scrolling & Jump Ramps / Speed Panels Detection
     this.world.update(dt, currentSpeed, this.distance, {
@@ -2018,6 +2026,17 @@ class RoadRiotGame {
           this.score += 350;
           this.spawnScorePopup('⚡ NITRO SURGE! +350 PTS', '#00d9ff');
           this.toast('SUPERCHARGED NITRO BOOST ACTIVATED!', 'cyan');
+        } else if (c.type === 'repair') {
+          audio.play('repair');
+          this.traffic.spawnExplosion(c.mesh.position, 0x00ff88, 16);
+          const healed = this.player.repairHull(35);
+          progression.activeRunStats.coinsEarned += 20;
+          this.score += 400;
+          this.spawnScorePopup(`💚 LIFE PACK! +${healed} HP`, '#00ff88');
+          this.toast(`LIFE PACK ACQUIRED! +${healed} HP REPAIRED`, 'green');
+          if (this.player.hull > 25 && this.ui.overlayRedAlert) {
+            this.ui.overlayRedAlert.classList.add('hidden');
+          }
         }
 
         this.scene.remove(c.mesh);
@@ -2062,7 +2081,7 @@ class RoadRiotGame {
     }
 
     // 10. Dynamic Camera Motion & Wide-Angle Long Highway Sightline
-    const dynamicFov = 64 + Math.min(18, (kmh / 360) * 16) + (this.player.isBoosting ? 8 : 0) + (this.player.isAirborne ? 4 : 0);
+    const dynamicFov = 64 + Math.min(18, (kmh / 360) * 16) + (this.player.isBoosting ? 8 : 0) + (this.player.isAirborne ? 4 : 0) - (this.player.isBraking ? 5 : 0);
     this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 6.5);
     this.camera.updateProjectionMatrix();
 
@@ -2078,8 +2097,8 @@ class RoadRiotGame {
 
     // Cinematic GT Chase Cam: Elevated rear angle that reveals 150+ meters of open highway ahead
     const targetCamX = this.player.x * 0.52 + shakeNoiseX;
-    const targetCamY = 3.8 + this.player.mesh.position.y * 0.55 + shakeNoiseY;
-    const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0);
+    const targetCamY = 3.8 + this.player.mesh.position.y * 0.55 + shakeNoiseY - (this.player.isBraking ? 0.16 : 0);
+    const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0) - (this.player.isBraking ? 0.45 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
     this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);

@@ -521,3 +521,111 @@ test('player mesh position x remains strictly synchronized with lateral physics 
   player.update();
   assert.equal(player.mesh.position.x, 8.2, 'Mesh X clamps at outer guardrail boundary');
 });
+
+test('transmission reset guarantees Gear 1 starting state and smooth upshifting', () => {
+  const transmission = {
+    gear: 6, // previous run or dyno leftover
+    rpm: 7200,
+    resetTransmission() {
+      this.gear = 1;
+      this.rpm = 1200;
+    },
+    update(speedKmh) {
+      if (speedKmh <= 6) {
+        this.gear = 1;
+      } else if (speedKmh > 285) {
+        this.gear = 6;
+      } else if (speedKmh > 230) {
+        this.gear = 5;
+      } else if (speedKmh > 175) {
+        this.gear = 4;
+      } else if (speedKmh > 120) {
+        this.gear = 3;
+      } else if (speedKmh > 65) {
+        this.gear = 2;
+      } else {
+        this.gear = 1;
+      }
+    }
+  };
+
+  // On countdown start:
+  transmission.resetTransmission();
+  assert.equal(transmission.gear, 1, 'Gear is immediately reset to 1 on race countdown');
+  assert.equal(transmission.rpm, 1200, 'RPM is initialized to idle 1200 RPM');
+
+  // Launching from standstill:
+  transmission.update(0);
+  assert.equal(transmission.gear, 1, 'Standstill remains strictly in Gear 1');
+
+  // Accelerating through highway gears:
+  transmission.update(85);
+  assert.equal(transmission.gear, 2, 'Upshifts to Gear 2 at 85 km/h');
+
+  transmission.update(140);
+  assert.equal(transmission.gear, 3, 'Upshifts to Gear 3 at 140 km/h');
+
+  transmission.update(200);
+  assert.equal(transmission.gear, 4, 'Upshifts to Gear 4 at 200 km/h');
+
+  transmission.update(260);
+  assert.equal(transmission.gear, 5, 'Upshifts to Gear 5 at 260 km/h');
+
+  transmission.update(320);
+  assert.equal(transmission.gear, 6, 'Upshifts to Gear 6 at 320 km/h');
+});
+
+test('player active ceramic braking decelerates vehicle and induces forward pitch', () => {
+  const player = {
+    speed: 32.0, // ~115 km/h
+    topSpeed: 34.0,
+    isBraking: false,
+    suspensionPitch: 0,
+    setBraking(braking) {
+      this.isBraking = Boolean(braking);
+    },
+    update(dt) {
+      if (this.isBraking) {
+        this.speed = Math.max(6.0, this.speed - dt * 36);
+        this.suspensionPitch = 0.10; // Forward dive
+      } else {
+        this.speed += (this.topSpeed - this.speed) * Math.min(1, dt * 3.2);
+        this.suspensionPitch *= 0.9;
+      }
+    }
+  };
+
+  // Apply ceramic brakes
+  player.setBraking(true);
+  player.update(0.2); // 200ms braking
+  assert.ok(player.speed < 25.0, 'Braking rapidly drops forward speed');
+  assert.equal(player.suspensionPitch, 0.10, 'Braking produces forward suspension dive');
+
+  // Release brakes
+  player.setBraking(false);
+  player.update(0.5);
+  assert.ok(player.speed > 24.8, 'Releasing brakes recovers acceleration towards top speed');
+});
+
+test('life pack repair restores player hull up to max hull and clears critical alert', () => {
+  const player = {
+    hull: 20, // Critical hull (< 25)
+    maxHull: 100,
+    repairHull(amount) {
+      const prev = this.hull;
+      this.hull = Math.min(this.maxHull, this.hull + amount);
+      return Math.round(this.hull - prev);
+    }
+  };
+
+  const healed = player.repairHull(35);
+  assert.equal(healed, 35, 'Life pack restores exact repair amount');
+  assert.equal(player.hull, 55, 'Hull is restored out of critical danger');
+  assert.ok(player.hull > 25, 'Hull above 25% safely disables emergency red alert');
+
+  // Cap at max hull
+  player.hull = 90;
+  const overheal = player.repairHull(35);
+  assert.equal(overheal, 10, 'Healing is cleanly capped at max hull');
+  assert.equal(player.hull, 100);
+});

@@ -125,6 +125,7 @@ export class PlayerCar {
     this.maxNitro = 100;
     this.isBoosting = false;
     this.boostPadTimer = 0;
+    this.isBraking = false;
     this.isBrakingToHalt = false;
     this.isDrifting = false;
     this.driftScore = 0;
@@ -304,6 +305,7 @@ export class PlayerCar {
     this.nitro = this.maxNitro * 0.5;
     this.isBoosting = false;
     this.boostPadTimer = 0;
+    this.isBraking = false;
     this.isBrakingToHalt = false;
     this.isDrifting = false;
     this.driftScore = 0;
@@ -761,6 +763,16 @@ export class PlayerCar {
     this.isDrifting = drifting;
   }
 
+  setBraking(braking) {
+    this.isBraking = Boolean(braking);
+  }
+
+  repairHull(amount) {
+    const prev = this.hull;
+    this.hull = Math.min(this.maxHull, this.hull + amount);
+    return Math.round(this.hull - prev);
+  }
+
   setBoost(boosting) {
     if (boosting && this.nitro > 0) {
       this.isBoosting = true;
@@ -861,6 +873,12 @@ export class PlayerCar {
       this.isBoosting = false;
       this.speed = Math.max(0, this.speed - dt * 42);
       this.suspensionPitch = 0.12; // Forward brake dive
+    } else if (this.isBraking) {
+      // ACTIVE CERAMIC BRAKING: High-performance braking with forward nose dive
+      this.targetSpeed = Math.min(this.speed, this.topSpeed * 0.28);
+      this.isBoosting = false;
+      this.speed = Math.max(6.0, this.speed - dt * 36);
+      this.suspensionPitch = 0.10; // Forward brake dive
     } else if (this.boostPadTimer > 0) {
       this.boostPadTimer -= dt;
       this.isBoosting = true;
@@ -883,8 +901,8 @@ export class PlayerCar {
       this.suspensionPitch *= 0.9;
     }
 
-    // Smooth ground speed acceleration (only when not braking to halt)
-    if (!this.isBrakingToHalt) {
+    // Smooth ground speed acceleration (only when not braking or halting)
+    if (!this.isBrakingToHalt && !this.isBraking) {
       this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2));
     }
 

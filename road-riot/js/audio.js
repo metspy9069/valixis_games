@@ -86,10 +86,10 @@ class RoadAudioEngine {
 
       // Engine Bus with low-pass & warmth
       this.engineGain = this.ctx.createGain();
-      this.engineGain.gain.value = this.engineVolume * 0.45;
+      this.engineGain.gain.value = this.engineVolume * 0.95;
       this.engineFilter = this.ctx.createBiquadFilter();
       this.engineFilter.type = 'lowpass';
-      this.engineFilter.frequency.value = 1800;
+      this.engineFilter.frequency.value = 2400;
       this.engineFilter.connect(this.engineGain);
       this.engineGain.connect(this.masterGain);
 
@@ -136,7 +136,7 @@ class RoadAudioEngine {
       src.playbackRate.value = 0.75;
 
       this.engineSampleGain = this.ctx.createGain();
-      this.engineSampleGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+      this.engineSampleGain.gain.setValueAtTime(1.15, this.ctx.currentTime);
 
       src.connect(this.engineSampleGain);
       this.engineSampleGain.connect(this.engineFilter);
@@ -205,11 +205,22 @@ class RoadAudioEngine {
     return this.isMuted;
   }
 
+  resetTransmission() {
+    this.gear = 1;
+    this.rpm = 1200;
+    this.targetRpm = 1200;
+    this.isShifting = false;
+    this.shiftTimer = 0;
+    this.lastSpeed = 0;
+    this.lastBoosting = false;
+  }
+
   // --- AUTHENTIC SUPERCAR ENGINE & 6-SPEED DUAL-CLUTCH TRANSMISSION ---
   startEngine() {
     if (!this.ctx) this.init();
     this.resume();
     this.isEngineRunning = true;
+    this.resetTransmission();
 
     // 1. Natural Recorded Supercar Sample Playback (Looping Engine Core)
     this.startEngineSample();
@@ -224,13 +235,13 @@ class RoadAudioEngine {
       this.initWindShear();
     }
 
-    // 4. Tire Screech for Drifts
+    // 4. Tire Screech for Drifts and Hard Braking
     if (!this.tireScreech && this.ctx) {
       this.initTireScreech();
     }
 
     if (this.engineGain && this.ctx) {
-      this.engineGain.gain.setTargetAtTime(this.engineVolume * 0.55, this.ctx.currentTime, 0.1);
+      this.engineGain.gain.setTargetAtTime(this.engineVolume * 0.95, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -247,19 +258,36 @@ class RoadAudioEngine {
     midOsc.type = 'triangle';
     midOsc.frequency.setValueAtTime(76, t);
 
+    // High-RPM Mechanical Growl & Intake Rasp
+    const highOsc = this.ctx.createOscillator();
+    highOsc.type = 'sawtooth';
+    highOsc.frequency.setValueAtTime(114, t);
+
+    const highFilter = this.ctx.createBiquadFilter();
+    highFilter.type = 'bandpass';
+    highFilter.frequency.setValueAtTime(450, t);
+    highFilter.Q.setValueAtTime(2.2, t);
+
+    const highGain = this.ctx.createGain();
+    highGain.gain.setValueAtTime(0.06, t);
+
+    highOsc.connect(highFilter);
+    highFilter.connect(highGain);
+    highGain.connect(this.engineFilter);
+
     // Subtle Analog Warmth Saturation
     const shaper = this.ctx.createWaveShaper();
     shaper.curve = this.makeDistortionCurve(1.5);
     shaper.oversample = '2x';
 
     const subGain = this.ctx.createGain();
-    subGain.gain.setValueAtTime(0.18, t);
+    subGain.gain.setValueAtTime(0.24, t);
 
     // Resonant Lowpass Filter (velvety automotive rumble)
     const subFilter = this.ctx.createBiquadFilter();
     subFilter.type = 'lowpass';
-    subFilter.frequency.setValueAtTime(160, t);
-    subFilter.Q.setValueAtTime(1.2, t);
+    subFilter.frequency.setValueAtTime(180, t);
+    subFilter.Q.setValueAtTime(1.4, t);
 
     subOsc.connect(subFilter);
     midOsc.connect(subFilter);
@@ -269,10 +297,13 @@ class RoadAudioEngine {
 
     subOsc.start(t);
     midOsc.start(t);
+    highOsc.start(t);
 
     this.proceduralEngine = {
       subOsc,
       midOsc,
+      highOsc,
+      highGain,
       subGain,
       subFilter
     };
@@ -339,6 +370,7 @@ class RoadAudioEngine {
 
   stopEngine() {
     this.isEngineRunning = false;
+    this.resetTransmission();
     if (this.engineSampleNode) {
       try {
         this.engineSampleNode.stop();
@@ -350,6 +382,7 @@ class RoadAudioEngine {
       try {
         this.proceduralEngine.subOsc.stop();
         this.proceduralEngine.midOsc.stop();
+        if (this.proceduralEngine.highOsc) this.proceduralEngine.highOsc.stop();
         this.proceduralEngine.subGain.disconnect();
       } catch (e) {}
       this.proceduralEngine = null;
@@ -373,7 +406,7 @@ class RoadAudioEngine {
     }
   }
 
-  updateEngine(speedKmh, isBoosting, isDrifting = false) {
+  updateEngine(speedKmh, isBoosting, isDrifting = false, isBraking = false) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
@@ -383,18 +416,16 @@ class RoadAudioEngine {
     }
 
     // 6-Speed Dual-Clutch Supercar Transmission Ratios
-    // Gear thresholds:
-    // 1st: 0-65 km/h
-    // 2nd: 65-120 km/h
-    // 3rd: 120-175 km/h
-    // 4th: 175-230 km/h
-    // 5th: 230-285 km/h
-    // 6th: 285+ km/h
     let targetGear = 1;
     let gearMinSpeed = 0;
     let gearMaxSpeed = 65;
 
-    if (speedKmh > 285) {
+    if (speedKmh <= 6) {
+      targetGear = 1;
+      gearMinSpeed = 0;
+      gearMaxSpeed = 65;
+      if (speedKmh === 0) this.gear = 1;
+    } else if (speedKmh > 285) {
       targetGear = 6;
       gearMinSpeed = 285;
       gearMaxSpeed = 380;
@@ -441,33 +472,41 @@ class RoadAudioEngine {
     // Calculate RPM inside current gear (1200 idle to 7800 redline)
     const gearSpan = Math.max(20, gearMaxSpeed - gearMinSpeed);
     const gearProgress = Math.max(0, Math.min(1, (speedKmh - gearMinSpeed) / gearSpan));
-    let baseRpm = 1600 + gearProgress * 5600; // 1600 to 7200 RPM
+    let baseRpm = 1400 + gearProgress * 5800; // 1400 to 7200 RPM
     if (this.isShifting) {
-      baseRpm *= 0.68; // RPM drop during shift
+      baseRpm *= 0.65; // RPM drop during shift
     }
     if (isBoosting) {
-      baseRpm = Math.min(8200, baseRpm + 950);
+      baseRpm = Math.min(8400, baseRpm + 1050);
+    }
+    if (isBraking) {
+      baseRpm = Math.max(1200, baseRpm * 0.72); // deceleration drop
     }
 
-    this.rpm += (baseRpm - this.rpm) * 0.18;
+    this.rpm += (baseRpm - this.rpm) * (isBraking ? 0.35 : 0.22);
 
-    // Modulate Natural Sample Pitch (playbackRate: 0.68 idle -> 2.05 redline)
+    // Modulate Natural Sample Pitch (playbackRate: 0.70 idle -> 2.10 redline)
     if (this.engineSampleNode && this.engineSampleNode.playbackRate) {
-      const targetRate = 0.68 + (this.rpm / 7800) * 1.35;
+      const targetRate = 0.70 + (this.rpm / 7800) * 1.40;
       this.engineSampleNode.playbackRate.setTargetAtTime(targetRate, now, 0.04);
     }
 
-    // Sub-Bass Acoustic Exhaust Pulse
+    // Sub-Bass Acoustic Exhaust Pulse & Mechanical Rasp
     if (this.proceduralEngine) {
-      const pulseFreq = 34 + (this.rpm / 7800) * 65;
+      const pulseFreq = 38 + (this.rpm / 7800) * 85;
       this.proceduralEngine.subOsc.frequency.setTargetAtTime(pulseFreq, now, 0.04);
       this.proceduralEngine.midOsc.frequency.setTargetAtTime(pulseFreq * 2.0, now, 0.04);
-      this.proceduralEngine.subFilter.frequency.setTargetAtTime(140 + (this.rpm / 7800) * 220, now, 0.04);
+      if (this.proceduralEngine.highOsc) {
+        this.proceduralEngine.highOsc.frequency.setTargetAtTime(pulseFreq * 3.5, now, 0.04);
+        const raspGain = 0.04 + (this.rpm / 7800) * 0.14 + (isBoosting ? 0.08 : 0);
+        this.proceduralEngine.highGain.gain.setTargetAtTime(raspGain, now, 0.04);
+      }
+      this.proceduralEngine.subFilter.frequency.setTargetAtTime(180 + (this.rpm / 7800) * 320, now, 0.04);
     }
 
     // Dynamic Engine Low-Pass Master Filter (opens up as RPM climbs for high-rev scream)
     if (this.engineFilter) {
-      const filterFreq = 1200 + (this.rpm / 7800) * 3600 + (isBoosting ? 2000 : 0);
+      const filterFreq = 1600 + (this.rpm / 7800) * 5200 + (isBoosting ? 2200 : 0);
       this.engineFilter.frequency.setTargetAtTime(filterFreq, now, 0.05);
     }
 
@@ -479,11 +518,12 @@ class RoadAudioEngine {
       this.windFilter.frequency.setTargetAtTime(450 + windFactor * 850, now, 0.08);
     }
 
-    // Tire Screech Volume during Drifts
+    // Tire Screech Volume during Drifts and Hard Braking
     if (this.tireScreech) {
-      const targetScreechGain = isDrifting ? 0.35 : 0;
+      const isHardBraking = isBraking && speedKmh > 35;
+      const targetScreechGain = isDrifting ? 0.40 : (isHardBraking ? 0.28 : 0);
       this.tireScreech.gain.gain.setTargetAtTime(targetScreechGain, now, 0.05);
-      this.tireScreech.filter.frequency.setTargetAtTime(800 + Math.random() * 250, now, 0.04);
+      this.tireScreech.filter.frequency.setTargetAtTime(850 + Math.random() * 250, now, 0.04);
     }
   }
 
@@ -565,6 +605,10 @@ class RoadAudioEngine {
         break;
       case 'fever':
         this.synthFever(now);
+        break;
+      case 'repair':
+      case 'life_pack':
+        this.synthRepair(now);
         break;
       case 'drift':
         // Handled dynamically in updateEngine()
@@ -818,6 +862,25 @@ class RoadAudioEngine {
       gain.connect(this.sfxGain);
       osc.start(t + idx * 0.08);
       osc.stop(t + idx * 0.08 + 0.35);
+    });
+  }
+
+  synthRepair(t) {
+    // 4-step cybernetic crystalline repair arpeggio (C5 -> E5 -> G5 -> C6)
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.06);
+
+      gain.gain.setValueAtTime(0, t + idx * 0.06);
+      gain.gain.linearRampToValueAtTime(0.32, t + idx * 0.06 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t + idx * 0.06);
+      osc.stop(t + idx * 0.06 + 0.32);
     });
   }
 

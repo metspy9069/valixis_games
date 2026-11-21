@@ -165,19 +165,75 @@ export class PlayerCar {
     this.initVisuals();
   }
 
+  buildContactShadowTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Soft Ambient Occlusion Drop Shadow (Gaussian falloff under chassis)
+    const grad = ctx.createRadialGradient(256, 256, 40, 256, 256, 220);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.94)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.86)');
+    grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.48)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Heavy Engine Bay & Transmission Deep Under-Chassis Occlusion
+    const engGrad = ctx.createRadialGradient(256, 240, 10, 256, 240, 140);
+    engGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
+    engGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.7)');
+    engGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = engGrad;
+    ctx.beginPath();
+    ctx.ellipse(256, 240, 130, 170, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. 4 Intense Tire Contact Footprints (FL, FR, RL, RR)
+    // Anchors the 4 rubber tires solidly onto the ground
+    const tirePositions = [
+      { x: 138, y: 140, rx: 32, ry: 48 }, // Front Left
+      { x: 374, y: 140, rx: 32, ry: 48 }, // Front Right
+      { x: 138, y: 370, rx: 36, ry: 56 }, // Rear Left
+      { x: 374, y: 370, rx: 36, ry: 56 }  // Rear Right
+    ];
+
+    tirePositions.forEach(tp => {
+      const tireGrad = ctx.createRadialGradient(tp.x, tp.y, 8, tp.x, tp.y, tp.rx * 1.5);
+      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+      tireGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.92)');
+      tireGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+      ctx.fillStyle = tireGrad;
+      ctx.beginPath();
+      ctx.ellipse(tp.x, tp.y, tp.rx * 1.3, tp.ry * 1.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 4. Aerodynamic Front Splitter & Rear Diffuser Shadows
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    ctx.fillRect(150, 75, 212, 12);
+    ctx.fillRect(150, 425, 212, 14);
+
+    return new THREE.CanvasTexture(canvas);
+  }
+
   initVisuals() {
-    // 1. Soft Ambient Occlusion Contact Shadow Plane (Grounds player car on asphalt)
-    const shadowGeo = new THREE.PlaneGeometry(2.6, 5.0);
+    // 1. Soft Ambient Occlusion Contact Shadow Plane (Grounds player car on asphalt/turntable)
+    const shadowTex = this.buildContactShadowTexture();
+    const shadowGeo = new THREE.PlaneGeometry(3.1, 5.7);
     shadowGeo.rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x03060a,
+      map: shadowTex,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.94,
       depthWrite: false
     });
-    const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-    shadowMesh.position.y = 0.02;
-    this.mesh.add(shadowMesh);
+    this.shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+    this.shadowMesh.position.y = 0.008;
+    this.mesh.add(this.shadowMesh);
 
     // 2. Underglow Neon Point Light
     this.underglowLight = new THREE.PointLight(this.underglowColor, 3.0, 7.0);
@@ -869,10 +925,23 @@ export class PlayerCar {
     // Ensure mesh X is 100% synchronized with physics state
     this.mesh.position.x = this.x;
     const baseElevation = this.isAirborne ? this.verticalY : Math.max(this.verticalY, this.rampElevation || 0);
-    this.mesh.position.y = baseElevation + Math.sin(performance.now() * 0.008) * 0.02;
+    this.mesh.position.y = baseElevation;
     this.chassis.rotation.y = 0; // Chassis yaw is strictly locked forward; steering yaw is applied to this.mesh
     this.chassis.rotation.z = this.suspensionRoll;
     this.rampElevation = 0; // Reset for next frame
+
+    // Dynamic ground contact shadow anchoring (stays on ground during jumps)
+    if (this.shadowMesh) {
+      if (baseElevation > 0) {
+        this.shadowMesh.position.y = -baseElevation + 0.008;
+        this.shadowMesh.material.opacity = Math.max(0.15, 0.94 - baseElevation * 0.12);
+        this.shadowMesh.scale.setScalar(1.0 + baseElevation * 0.08);
+      } else {
+        this.shadowMesh.position.y = 0.008;
+        this.shadowMesh.material.opacity = 0.94;
+        this.shadowMesh.scale.set(1, 1, 1);
+      }
+    }
 
     // 4. Drift Tire Skids & Smoke
     if (this.isDrifting && this.speed > 14 && !this.isAirborne) {

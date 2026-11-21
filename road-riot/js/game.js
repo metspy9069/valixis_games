@@ -13,6 +13,7 @@ import { shop } from './shop.js';
 import { NPCCar } from './npcCar.js';
 import { PedestrianManager } from './pedestrians.js';
 import { loadJSON } from './utils/loadJSON.js';
+import { getCarPreviewSvg } from './car-previews.js';
 
 class RoadRiotGame {
   constructor() {
@@ -40,7 +41,8 @@ class RoadRiotGame {
 
     this.camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.1, 700);
     this.defaultCamPos = new THREE.Vector3(0, 3.8, 1.2);
-    this.camera.position.copy(this.defaultCamPos);
+    this.camera.position.set(-0.5, 1.85, -3.2);
+    this.camera.lookAt(-0.5, 0.75, -8);
 
     // State Machine: 'MENU', 'COUNTDOWN', 'RUNNING', 'PAUSED', 'GAMEOVER', 'GARAGE'
     this.state = 'MENU';
@@ -104,11 +106,19 @@ class RoadRiotGame {
     // 3D Turntable Showcase Platform
     this.turntableMesh = this.buildTurntableMesh();
     this.scene.add(this.turntableMesh);
-    this.turntableMesh.visible = false;
+    this.turntableMesh.visible = true;
+    this.turntableMesh.position.set(-0.5, 0, -8);
+    this.player.mesh.position.set(-0.5, 0.19, -8);
+    this.player.x = -0.5;
 
-    // Garage carousel index
+    // Supercar roster & menu 3D interactive controls
     this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
-    this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle) || 0;
+    const selCar = progression.data.selectedVehicle || 'apex';
+    this.garageIndex = Math.max(0, this.garageVehicleList.indexOf(selCar));
+    this.menuVehicleIndex = this.garageIndex;
+    this.mouseMenuX = 0;
+    this.mouseMenuY = 0;
+    this.isDraggingMenuTurntable = false;
     this.lastGear = 1;
 
     // Bind UI & Inputs
@@ -116,7 +126,7 @@ class RoadRiotGame {
     this.bindShopEvents();
     this.bindEvents();
     this.applySavedSettings();
-    this.updateMenuHeader();
+    this.updateMenuVehicleDisplay();
     this.loadAssets();
     this.checkUrlChallenge();
 
@@ -167,7 +177,22 @@ class RoadRiotGame {
       menuCoins: document.querySelector('#menu-coins'),
       startBtn: document.querySelector('#start-btn'),
       garageBtn: document.querySelector('#garage-btn'),
+      shopBtn: document.querySelector('#shop-btn'),
       menuSettingsBtn: document.querySelector('#menu-settings-btn'),
+      menuView3dBtn: document.querySelector('#menu-view-3d-btn'),
+      menuPrevCarBtn: document.querySelector('#menu-prev-car-btn'),
+      menuNextCarBtn: document.querySelector('#menu-next-car-btn'),
+      menuCarTierBadge: document.querySelector('#menu-car-tier-badge'),
+      menuStatSpeed: document.querySelector('#menu-stat-speed'),
+      menuStatAccel: document.querySelector('#menu-stat-accel'),
+      menuStatHandling: document.querySelector('#menu-stat-handling'),
+      menuStatNitro: document.querySelector('#menu-stat-nitro'),
+      menuStatArmor: document.querySelector('#menu-stat-armor'),
+      menuValSpeed: document.querySelector('#menu-val-speed'),
+      menuValAccel: document.querySelector('#menu-val-accel'),
+      menuValHandling: document.querySelector('#menu-val-handling'),
+      menuValNitro: document.querySelector('#menu-val-nitro'),
+      menuValArmor: document.querySelector('#menu-val-armor'),
       pauseBtn: document.querySelector('#pause-btn'),
       settingsBtn: document.querySelector('#settings-btn'),
       audioBtn: document.querySelector('#audio-btn'),
@@ -275,9 +300,13 @@ class RoadRiotGame {
     group.add(plate);
 
     // Studio Spotlights illuminating car
-    const spotKey = new THREE.SpotLight(0xffffff, 4.5, 20, Math.PI / 4, 0.3);
-    spotKey.position.set(-4, 6, -4);
+    const spotKey = new THREE.SpotLight(0xffffff, 5.5, 22, Math.PI / 4, 0.3);
+    spotKey.position.set(-3, 7, -4);
     spotKey.target = base;
+    spotKey.castShadow = true;
+    spotKey.shadow.bias = -0.001;
+    spotKey.shadow.mapSize.width = 1024;
+    spotKey.shadow.mapSize.height = 1024;
     group.add(spotKey);
 
     const spotFill = new THREE.SpotLight(0x00d9ff, 3.5, 20, Math.PI / 3, 0.4);
@@ -418,6 +447,26 @@ class RoadRiotGame {
     this.ui.menuSettingsBtn?.addEventListener('click', () => this.openSettings());
     this.ui.pauseSettingsBtn?.addEventListener('click', () => this.openSettings());
     this.ui.settingsCloseBtn?.addEventListener('click', () => this.closeSettings());
+
+    // Menu Spatial 3D Showcase & Quick Switchers
+    this.ui.menuView3dBtn?.addEventListener('click', () => {
+      const is3dActive = this.ui.menuModal.classList.toggle('view-3d-active');
+      this.ui.menuView3dBtn.classList.toggle('active', is3dActive);
+      this.ui.menuView3dBtn.textContent = is3dActive ? '🗂 SHOW INTERFACE' : '👁 3D VIEW';
+      this.toast(is3dActive ? 'IMMERSIVE 3D SHOWCASE MODE' : 'RACE HUD RESTORED', 'cyan');
+    });
+
+    this.ui.menuPrevCarBtn?.addEventListener('click', () => {
+      this.menuVehicleIndex = (this.menuVehicleIndex - 1 + this.garageVehicleList.length) % this.garageVehicleList.length;
+      this.updateMenuVehicleDisplay();
+      audio.play('gear_shift');
+    });
+
+    this.ui.menuNextCarBtn?.addEventListener('click', () => {
+      this.menuVehicleIndex = (this.menuVehicleIndex + 1) % this.garageVehicleList.length;
+      this.updateMenuVehicleDisplay();
+      audio.play('gear_shift');
+    });
 
     this.ui.networkBtn?.addEventListener('click', () => this.ui.networkModal.classList.remove('hidden'));
     this.ui.networkCloseBtn?.addEventListener('click', () => this.ui.networkModal.classList.add('hidden'));
@@ -591,9 +640,15 @@ class RoadRiotGame {
       });
     });
 
-    // 3D Turntable Drag Interaction
+    // 3D Turntable Drag Interaction & Spatial Parallax
     window.addEventListener('pointerdown', e => {
-      if (this.state === 'GARAGE') {
+      if (this.state === 'MENU') {
+        if (e.target.closest('#menu-left-card') || e.target.closest('#menu-right-card') || e.target.closest('#menu-bottom-dock') || e.target.closest('.menu-top-header')) {
+          return;
+        }
+        this.isDraggingMenuTurntable = true;
+        this.lastDragX = e.clientX;
+      } else if (this.state === 'GARAGE') {
         if (e.target.closest('#garage-tuning-panel') || e.target.closest('#garage-car-dock') || e.target.closest('.garage-top-bar')) {
           return;
         }
@@ -603,7 +658,18 @@ class RoadRiotGame {
     });
 
     window.addEventListener('pointermove', e => {
-      if (this.state === 'GARAGE' && this.isDraggingTurntable && this.player.chassis) {
+      if (this.state === 'MENU') {
+        this.mouseMenuX = (e.clientX / window.innerWidth) * 2 - 1;
+        this.mouseMenuY = (e.clientY / window.innerHeight) * 2 - 1;
+
+        if (this.isDraggingMenuTurntable && this.player.chassis) {
+          const dx = e.clientX - this.lastDragX;
+          this.lastDragX = e.clientX;
+          this.turntableAngle += dx * 0.012;
+          this.player.chassis.rotation.y = this.turntableAngle;
+          if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
+        }
+      } else if (this.state === 'GARAGE' && this.isDraggingTurntable && this.player.chassis) {
         const dx = e.clientX - this.lastDragX;
         this.lastDragX = e.clientX;
         this.turntableAngle += dx * 0.012;
@@ -613,6 +679,7 @@ class RoadRiotGame {
     });
 
     window.addEventListener('pointerup', () => {
+      this.isDraggingMenuTurntable = false;
       this.isDraggingTurntable = false;
     });
 
@@ -731,11 +798,14 @@ class RoadRiotGame {
     this.world.reset();
     if (this.npcCars) this.npcCars.forEach((npc, i) => npc.reset(i * 35));
     this.turntableAngle = 0;
+    if (this.turntableMesh) this.turntableMesh.visible = false;
 
     const sel = progression.data.selectedVehicle || 'apex';
     const upg = progression.data.upgrades[sel] || {};
     this.player.setVehicle(sel, upg, progression.data.selectedPaint, progression.data.selectedGlow);
     this.player.reset();
+    this.player.mesh.position.set(0, 0, -8);
+    this.player.x = 0;
     this.lastGear = 1;
 
     if (this.gameMode === 'SPRINT') {
@@ -921,10 +991,13 @@ class RoadRiotGame {
       this.turntableMesh.position.set(-1.4, 0, -8);
       this.turntableMesh.visible = true;
     }
-    this.player.mesh.position.set(-1.4, 0.16, -8);
+    this.player.mesh.position.set(-1.4, 0.19, -8);
     this.player.x = -1.4;
     this.turntableAngle = 0;
-    if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
+    if (this.player.chassis) {
+      this.player.chassis.position.set(0, 0, 0);
+      this.player.chassis.rotation.set(0, 0, 0);
+    }
 
     // Set Showroom Beauty View Camera framed for unobstructed car view
     this.camera.position.set(-1.4, 1.8, -3.2);
@@ -944,28 +1017,33 @@ class RoadRiotGame {
   }
 
   closeGarage() {
-    if (this.turntableMesh) this.turntableMesh.visible = false;
     this.ui.garageModal.classList.add('hidden');
-
-    // Restore equipped player car to highway center
-    this.player.setVehicle(
-      progression.data.selectedVehicle,
-      progression.data.upgrades[progression.data.selectedVehicle] || {},
-      progression.data.selectedPaint,
-      progression.data.selectedGlow
-    );
-    this.player.mesh.position.set(0, 0, -8);
-    this.player.mesh.rotation.set(0, 0, 0);
-    this.player.x = 0;
-    this.turntableAngle = 0;
-    if (this.player.chassis) this.player.chassis.rotation.set(0, 0, 0);
 
     if (this.state === 'GARAGE') {
       this.state = 'MENU';
-      this.camera.position.copy(this.defaultCamPos);
-      this.camera.lookAt(0, 1.0, -8);
+      if (this.turntableMesh) {
+        this.turntableMesh.position.set(-0.5, 0, -8);
+        this.turntableMesh.visible = true;
+      }
+      this.player.mesh.position.set(-0.5, 0.19, -8);
+      this.player.x = -0.5;
+      this.turntableAngle = 0;
+      if (this.player.chassis) {
+        this.player.chassis.position.set(0, 0, 0);
+        this.player.chassis.rotation.set(0, 0, 0);
+      }
+
+      this.camera.position.set(-0.5, 1.85, -3.2);
+      this.camera.lookAt(-0.5, 0.75, -8);
       this.ui.menuModal.classList.remove('hidden');
-      this.updateMenuHeader();
+      this.menuVehicleIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle);
+      if (this.menuVehicleIndex < 0) this.menuVehicleIndex = 0;
+      this.updateMenuVehicleDisplay();
+    } else {
+      if (this.turntableMesh) this.turntableMesh.visible = false;
+      this.player.mesh.position.set(0, 0, -8);
+      this.player.mesh.rotation.set(0, 0, 0);
+      this.player.x = 0;
     }
   }
 
@@ -974,6 +1052,65 @@ class RoadRiotGame {
     if (this.ui.menuEquippedCar) {
       const curCar = VEHICLE_ROSTER[progression.data.selectedVehicle] || VEHICLE_ROSTER.apex;
       this.ui.menuEquippedCar.textContent = curCar.name.toUpperCase();
+    }
+  }
+
+  updateMenuVehicleDisplay() {
+    this.updateMenuHeader();
+    const carId = this.garageVehicleList[this.menuVehicleIndex] || progression.data.selectedVehicle || 'apex';
+    const car = VEHICLE_ROSTER[carId] || VEHICLE_ROSTER.apex;
+    const isUnlocked = progression.data.unlockedVehicles.includes(carId);
+
+    if (isUnlocked && progression.data.selectedVehicle !== carId) {
+      progression.data.selectedVehicle = carId;
+      progression.save();
+    }
+
+    this.player.setVehicle(
+      carId,
+      progression.data.upgrades[carId] || {},
+      progression.data.selectedPaint,
+      progression.data.selectedGlow
+    );
+
+    if (this.ui.menuEquippedCar) {
+      this.ui.menuEquippedCar.textContent = car.name.toUpperCase();
+    }
+    if (this.ui.menuCarTierBadge) {
+      this.ui.menuCarTierBadge.textContent = car.tier.toUpperCase();
+    }
+
+    const upg = progression.data.upgrades[carId] || { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 };
+    const curSpeed = Math.round(car.baseStats.topSpeed * 9 + (upg.topSpeed || 0) * 15);
+    const curAccel = Math.min(10, (car.baseStats.accel * 0.22 + (upg.accel || 0) * 0.4)).toFixed(1);
+    const curHandling = (car.baseStats.handling * 0.24 + (upg.handling || 0) * 0.3);
+    const curNitro = Math.round(car.baseStats.nitro + (upg.nitro || 0) * 12);
+    const curArmor = Math.round(car.baseStats.armor + (upg.armor || 0) * 25);
+
+    const speedPct = Math.min(100, Math.round((curSpeed / 390) * 100));
+    const accelPct = Math.min(100, Math.round((curAccel / 10) * 100));
+    const handlingPct = Math.min(100, Math.round((curHandling / 10) * 100));
+    const nitroPct = Math.min(100, Math.round((curNitro / 120) * 100));
+    const armorPct = Math.min(100, Math.round((curArmor / 280) * 100));
+
+    if (this.ui.menuStatSpeed) this.ui.menuStatSpeed.style.width = `${speedPct}%`;
+    if (this.ui.menuValSpeed) this.ui.menuValSpeed.textContent = `${curSpeed} KM/H`;
+
+    if (this.ui.menuStatAccel) this.ui.menuStatAccel.style.width = `${accelPct}%`;
+    if (this.ui.menuValAccel) this.ui.menuValAccel.textContent = `${(4.8 - (curAccel * 0.25)).toFixed(1)}s`;
+
+    if (this.ui.menuStatHandling) this.ui.menuStatHandling.style.width = `${handlingPct}%`;
+    if (this.ui.menuValHandling) this.ui.menuValHandling.textContent = curHandling > 8.0 ? 'PRECISION' : curHandling > 6.5 ? 'SPORT' : 'STANDARD';
+
+    if (this.ui.menuStatNitro) this.ui.menuStatNitro.style.width = `${nitroPct}%`;
+    if (this.ui.menuValNitro) this.ui.menuValNitro.textContent = `${curNitro} N2O`;
+
+    if (this.ui.menuStatArmor) this.ui.menuStatArmor.style.width = `${armorPct}%`;
+    if (this.ui.menuValArmor) this.ui.menuValArmor.textContent = `${curArmor} HP`;
+
+    const slot = document.querySelector('#menu-car-preview-slot');
+    if (slot) {
+      slot.innerHTML = getCarPreviewSvg(carId);
     }
   }
 
@@ -1015,7 +1152,7 @@ class RoadRiotGame {
       }
     }
 
-    // Render Supercar Showroom Quick-Select Chips
+    // Render Supercar Showroom Forza-Style Visual Cards
     if (this.ui.garageCarChips) {
       this.ui.garageCarChips.innerHTML = this.garageVehicleList.map((cId, idx) => {
         const cData = VEHICLE_ROSTER[cId] || VEHICLE_ROSTER.apex;
@@ -1033,20 +1170,32 @@ class RoadRiotGame {
           statusText = 'OWNED';
         }
 
+        const carUpg = progression.data.upgrades[cId] || {};
+        const cardSpeed = Math.round(cData.baseStats.topSpeed * 9 + (carUpg.topSpeed || 0) * 15);
+
         return `
-          <div class="garage-chip ${isAct ? 'active' : ''}" data-index="${idx}">
-            <span class="garage-chip-tier">${cData.tier}</span>
-            <span class="garage-chip-name">${cData.name}</span>
-            <span class="garage-chip-status ${statusClass}">${statusText}</span>
+          <div class="garage-card ${isAct ? 'active' : ''}" data-index="${idx}">
+            <div class="garage-card-top">
+              <span class="garage-card-tier">${cData.tier}</span>
+              <span class="garage-card-status ${statusClass}">${statusText}</span>
+            </div>
+            <div class="garage-card-img-zone">
+              ${getCarPreviewSvg(cId)}
+            </div>
+            <div class="garage-card-bottom">
+              <span class="garage-card-name" title="${cData.name}">${cData.name}</span>
+              <span class="garage-card-spec">${cardSpeed} KM/H</span>
+            </div>
           </div>
         `;
       }).join('');
 
-      this.ui.garageCarChips.querySelectorAll('.garage-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          this.garageIndex = parseInt(chip.dataset.index, 10);
+      this.ui.garageCarChips.querySelectorAll('.garage-card').forEach(card => {
+        card.addEventListener('click', () => {
+          this.garageIndex = parseInt(card.dataset.index, 10);
           audio.play('gear_shift');
           this.renderGarageCarousel();
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         });
       });
     }
@@ -1250,12 +1399,39 @@ class RoadRiotGame {
       return;
     }
 
+    // 3D Spatial Menu Turntable Showcase, Mouse Parallax & Dynamic Atmosphere
+    if (this.state === 'MENU') {
+      if (!this.isDraggingMenuTurntable) {
+        this.turntableAngle += dt * 0.35;
+        if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
+        if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
+      }
+      // Solid tire contact with ground
+      if (this.player.chassis) {
+        this.player.chassis.position.set(0, 0, 0);
+      }
+      // Smooth 3D mouse parallax camera lerp
+      const targetCamX = -0.5 + (this.mouseMenuX || 0) * 0.75;
+      const targetCamY = 1.85 - (this.mouseMenuY || 0) * 0.45;
+      this.camera.position.x += (targetCamX - this.camera.position.x) * 0.08;
+      this.camera.position.y += (targetCamY - this.camera.position.y) * 0.08;
+      this.camera.position.z += (-3.2 - this.camera.position.z) * 0.08;
+      this.camera.lookAt(-0.5, 0.75, -8);
+
+      // Animate live background 3D world (stars rotation, weather particles, ambient lights)
+      this.world.update(dt, 0);
+      return;
+    }
+
     // Garage Turntable Spin
     if (this.state === 'GARAGE') {
       if (!this.isDraggingTurntable) {
         this.turntableAngle += dt * 0.45;
         if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
         if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
+      }
+      if (this.player.chassis) {
+        this.player.chassis.position.set(0, 0, 0);
       }
       this.camera.position.set(-1.4, 1.8, -3.2);
       this.camera.lookAt(-1.4, 0.75, -8);

@@ -199,94 +199,180 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- MAIN MENU MODAL                                           -->
+  <!-- 3D SPATIAL MAIN MENU & VEHICLE SHOWCASE HUD               -->
   <!-- ========================================================= -->
-  <div id="menu-modal" class="modal-screen">
-    <div class="glass-panel modal-dialog" style="width:min(860px, 94vw); max-width:860px;">
-      <div class="modal-header" style="padding-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <div class="brand-eyebrow" style="letter-spacing:3px; color:var(--neon-cyan);">VALIXIS ARCADE RACING</div>
-          <h1 class="brand-title" style="letter-spacing:3px;">ROAD RIOT 3D</h1>
-          <div style="font-family:var(--font-mono); font-size:11px; color:#8fa0b5; margin-top:4px; letter-spacing:1px;">HIGHWAY INTERCEPTOR &bull; NITRO DRIFTING &bull; SUPERCAR TUNING</div>
-        </div>
-        <div style="font-family:var(--font-mono); font-weight:800; color:#ffb800; font-size:12px; background:rgba(255,184,0,0.12); border:1px solid rgba(255,184,0,0.3); border-radius:8px; padding:8px 14px; display:flex; flex-direction:column; gap:4px; text-align:right;">
-          <div style="color:#00d9ff; font-size:11px; font-weight:900;"><span class="badge-tag">VEHICLE</span> <span id="menu-equipped-car">VALIXIS APEX GT</span></div>
-          <div><span class="cr-symbol">CR</span> <span id="menu-coins">0</span> CREDITS</div>
+  <div id="menu-modal" class="menu-spatial-hud">
+    <!-- Top HUD Navigation Bar -->
+    <header class="menu-top-bar glass-panel">
+      <div class="menu-brand-group">
+        <div class="brand-eyebrow"><span class="pulse-dot"></span> VALIXIS ARCADE RACING</div>
+        <h1 class="brand-title">ROAD RIOT 3D</h1>
+        <div class="menu-sub-motto">HIGH-VELOCITY CYBER HIGHWAY INTERCEPTOR &bull; 3D SUPERCAR SHOWCASE</div>
+      </div>
+
+      <div class="menu-center-controls">
+        <button id="menu-view-3d-btn" class="view-3d-pill-btn" title="Toggle Clean 3D View">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span>👁 3D VIEW</span>
+        </button>
+        <div class="menu-drag-hint">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+          <span>DRAG TO ORBIT 360&deg;</span>
         </div>
       </div>
 
-      <div class="modal-body" style="padding:16px 28px; gap:16px;">
-        <!-- Race Discipline Mode Cards -->
-        <div>
-          <div style="font-family:var(--font-mono); font-size:11px; font-weight:800; color:#7ddcff; letter-spacing:1.5px; margin-bottom:8px;">SELECT RACE DISCIPLINE</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-            <div id="mode-card-endless" class="race-mode-card active" style="background:rgba(0, 217, 255, 0.06); border:2px solid var(--neon-cyan); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">ENDLESS HIGHWAY</span>
-                <span class="mode-badge-tag">ENDLESS</span>
-              </div>
-              <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
-                Survive infinite dense traffic, leap high-angle stunt ramps, collect credits, and blast through supersonic speed milestone checkpoints.
-              </p>
-              <button id="mode-endless-btn" class="setting-toggle active" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECTED &bull; ENDLESS</button>
-            </div>
+      <div class="menu-top-actions">
+        <div class="menu-credits-badge">
+          <span class="cr-symbol">CR</span> <span id="menu-coins">0</span> CREDITS
+        </div>
+        <button id="menu-settings-btn" class="btn-icon" title="Game Controls &amp; Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+        <a href="../" class="btn-secondary menu-hub-btn">&larr; ARCADE HUB</a>
+      </div>
+    </header>
 
-            <div id="mode-card-sprint" class="race-mode-card" style="background:rgba(255, 42, 133, 0.04); border:2px solid rgba(255, 42, 133, 0.25); border-radius:12px; padding:16px; cursor:pointer; transition:all 0.25s ease;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span style="font-weight:900; font-size:15px; color:#fff; letter-spacing:1px;">4-CAR SPRINT</span>
-                <span class="mode-badge-tag">1,500M SPRINT</span>
-              </div>
-              <p style="font-size:11px; color:#b6c8dc; line-height:1.5; margin:0;">
-                High-stakes 1,500m dash against rival street drivers. Draft through traffic slipstreams, hit stunt ramps, outpace opponents, and claim 1st place!
-              </p>
-              <button id="mode-sprint-btn" class="setting-toggle" style="width:100%; margin-top:10px; font-size:11px; padding:7px;">SELECT SPRINT</button>
+    <!-- Middle Floating Layout: Left Discipline Card, Open Center 3D Viewport, Right Car Specs Station -->
+    <div class="menu-middle-row">
+      <!-- Left Floating Card: Race Discipline -->
+      <aside id="menu-left-card" class="menu-left-card glass-panel">
+        <div class="panel-section-title">
+          <span class="panel-accent-tag">01</span>
+          <span>SELECT RACE DISCIPLINE</span>
+        </div>
+
+        <div class="discipline-stack">
+          <div id="mode-card-endless" class="race-mode-card active">
+            <div class="mode-card-header">
+              <span class="mode-title">ENDLESS HIGHWAY</span>
+              <span class="mode-badge-tag cyan">ENDLESS</span>
             </div>
+            <p class="mode-desc">
+              Dense highway traffic, stunt jump ramps, checkpoint speed traps, and infinite cruising.
+            </p>
+            <button id="mode-endless-btn" class="setting-toggle active">SELECTED &bull; ENDLESS</button>
+          </div>
+
+          <div id="mode-card-sprint" class="race-mode-card">
+            <div class="mode-card-header">
+              <span class="mode-title">4-CAR SPRINT</span>
+              <span class="mode-badge-tag magenta">1,500M SPRINT</span>
+            </div>
+            <p class="mode-desc">
+              High-stakes dash against 3 rival street racers. Slipstream slingshots, stunt ramps, and podium finish!
+            </p>
+            <button id="mode-sprint-btn" class="setting-toggle">SELECT SPRINT</button>
           </div>
         </div>
+      </aside>
 
-        <!-- Highway Biome Selectors -->
-        <div style="background:rgba(0, 0, 0, 0.25); border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px; padding:14px 16px;">
-          <div style="font-family:var(--font-mono); font-size:10px; font-weight:800; color:#ffea00; letter-spacing:1.5px; margin-bottom:10px;">HIGHWAY BIOME &amp; ATMOSPHERE</div>
-          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
-            <button class="setting-toggle biome-btn active" data-biome="midnight" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span class="biome-code-badge">SEC-01</span>
-              <span>MIDNIGHT</span>
+      <!-- Center Open 3D Stage (Click & drag zone is here) -->
+      <div id="menu-3d-stage-zone" class="menu-center-stage">
+        <!-- Live 3D Supercar Turntable Renders Directly in This Viewport -->
+      </div>
+
+      <!-- Right Floating Card: Live Car Telemetry & Quick Switcher -->
+      <aside id="menu-right-card" class="menu-right-card glass-panel">
+        <div class="panel-section-title">
+          <span class="panel-accent-tag">02</span>
+          <span>SUPERCAR SPECIFICATIONS</span>
+        </div>
+
+        <div class="menu-car-card">
+          <div class="car-quick-nav">
+            <button id="menu-prev-car-btn" class="menu-car-nav-arrow" title="Previous Supercar">&lsaquo;</button>
+            <div class="car-identity-block">
+              <div id="menu-car-tier-badge" class="car-tier-pill">GT SPORT</div>
+              <h2 id="menu-equipped-car" class="menu-supercar-name">VALIXIS APEX GT</h2>
+            </div>
+            <button id="menu-next-car-btn" class="menu-car-nav-arrow" title="Next Supercar">&rsaquo;</button>
+          </div>
+
+          <!-- Dynamic Supercar Silhouette & Livery Preview -->
+          <div id="menu-car-preview-slot" class="menu-car-preview-slot">
+            <!-- Dynamic SVG Car Preview -->
+          </div>
+
+          <!-- Performance Telemetry Bars -->
+          <div class="menu-telemetry-bars">
+            <div class="menu-stat-row">
+              <span class="stat-name">TOP SPEED</span>
+              <div class="stat-track"><div id="menu-stat-speed" class="stat-fill cyan" style="width:78%;"></div></div>
+              <span id="menu-val-speed" class="stat-val">280 KM/H</span>
+            </div>
+            <div class="menu-stat-row">
+              <span class="stat-name">ACCEL</span>
+              <div class="stat-track"><div id="menu-stat-accel" class="stat-fill gold" style="width:82%;"></div></div>
+              <span id="menu-val-accel" class="stat-val">3.2s</span>
+            </div>
+            <div class="menu-stat-row">
+              <span class="stat-name">HANDLING</span>
+              <div class="stat-track"><div id="menu-stat-handling" class="stat-fill green" style="width:85%;"></div></div>
+              <span id="menu-val-handling" class="stat-val">PRECISION</span>
+            </div>
+            <div class="menu-stat-row">
+              <span class="stat-name">NITRO N2O</span>
+              <div class="stat-track"><div id="menu-stat-nitro" class="stat-fill magenta" style="width:70%;"></div></div>
+              <span id="menu-val-nitro" class="stat-val">50 N2O</span>
+            </div>
+            <div class="menu-stat-row">
+              <span class="stat-name">ARMOR</span>
+              <div class="stat-track"><div id="menu-stat-armor" class="stat-fill cyan" style="width:75%;"></div></div>
+              <span id="menu-val-armor" class="stat-val">100 HP</span>
+            </div>
+          </div>
+
+          <div class="menu-car-actions">
+            <button id="garage-btn" class="btn-secondary garage-tuning-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span>TUNING &amp; SHOWROOM</span>
             </button>
-            <button class="setting-toggle biome-btn" data-biome="canyon" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span class="biome-code-badge">SEC-02</span>
-              <span>SUNSET</span>
-            </button>
-            <button class="setting-toggle biome-btn" data-biome="neotokyo" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span class="biome-code-badge">SEC-03</span>
-              <span>NEO-RAIN</span>
-            </button>
-            <button class="setting-toggle biome-btn" data-biome="arctic" style="font-size:11px; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:4px;">
-              <span class="biome-code-badge">SEC-04</span>
-              <span>ARCTIC</span>
+            <button id="shop-btn" class="btn-secondary car-shop-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8c-.5.3-.8.8-.9 1.4L1 16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+              <span>SUPERCAR SHOP</span>
             </button>
           </div>
         </div>
-      </div>
-
-      <div class="modal-footer" style="padding:14px 24px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px;">
-        <a href="../" class="btn-secondary" style="text-decoration:none; display:flex; align-items:center; gap:6px;">&larr; ARCADE HUB</a>
-        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end;">
-          <button id="shop-btn" class="btn-secondary" style="border-color:rgba(0,217,255,0.6); color:#00d9ff; font-weight:800; background:rgba(0,217,255,0.12); box-shadow:0 0 12px rgba(0,217,255,0.2); display:flex; align-items:center; gap:6px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8c-.5.3-.8.8-.9 1.4L1 16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-            CAR SHOP
-          </button>
-          <button id="garage-btn" class="btn-secondary" style="border-color:rgba(255,184,0,0.6); color:#ffea00; font-weight:800; background:rgba(255,184,0,0.12); box-shadow:0 0 12px rgba(255,184,0,0.2); display:flex; align-items:center; gap:6px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            SHOWROOM
-          </button>
-          <button id="menu-settings-btn" class="btn-secondary">CONTROLS</button>
-          <button id="start-btn" class="btn-primary" style="padding:14px 34px; font-size:15px; font-weight:900; letter-spacing:1.5px; box-shadow:0 0 25px rgba(0,217,255,0.4); display:flex; align-items:center; gap:8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
-            START RACE
-          </button>
-        </div>
-      </div>
+      </aside>
     </div>
+
+    <!-- Bottom Dock: Biomes & High-Voltage Start Race Button -->
+    <footer id="menu-bottom-dock" class="menu-bottom-dock glass-panel">
+      <!-- Highway Biome Selectors -->
+      <div class="menu-biome-cluster">
+        <div class="biome-label-header">
+          <span class="panel-accent-tag">03</span>
+          <span>HIGHWAY BIOME &bull; LIVE 3D ATMOSPHERE</span>
+        </div>
+        <div class="biome-pills-row">
+          <button class="setting-toggle biome-btn active" data-biome="midnight">
+            <span class="biome-code-badge">SEC-01</span>
+            <span>MIDNIGHT</span>
+          </button>
+          <button class="setting-toggle biome-btn" data-biome="canyon">
+            <span class="biome-code-badge">SEC-02</span>
+            <span>SUNSET</span>
+          </button>
+          <button class="setting-toggle biome-btn" data-biome="neotokyo">
+            <span class="biome-code-badge">SEC-03</span>
+            <span>NEO-RAIN</span>
+          </button>
+          <button class="setting-toggle biome-btn" data-biome="arctic">
+            <span class="biome-code-badge">SEC-04</span>
+            <span>ARCTIC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Start Race Launch Trigger -->
+      <div class="menu-launch-cluster">
+        <button id="start-btn" class="btn-primary start-race-btn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <span class="launch-text">START RACE</span>
+          <span class="launch-sub">IGNITION READY</span>
+        </button>
+      </div>
+    </footer>
   </div>
 
   <!-- ========================================================= -->
@@ -311,17 +397,20 @@
       </div>
     </header>
 
-    <!-- Bottom Supercar Selector Dock -->
+    <!-- Bottom Supercar Selector Dock (Forza-Style Visual Roster) -->
     <div id="garage-car-dock" class="garage-car-dock glass-panel">
       <div class="dock-header">
-        <span class="dock-title">SUPERCAR ROSTER</span>
+        <div class="dock-title-group">
+          <span class="dock-title">SHOWROOM ROSTER &bull; 6 HIGH-PERFORMANCE SUPERCARS</span>
+          <span class="dock-hint">CLICK TO PREVIEW &bull; ARROWS TO NAVIGATE</span>
+        </div>
         <div class="dock-nav">
           <button id="garage-prev-btn" class="car-nav-btn" title="Previous Car">&lsaquo;</button>
           <button id="garage-next-btn" class="car-nav-btn" title="Next Car">&rsaquo;</button>
         </div>
       </div>
       <div id="garage-car-chips" class="garage-chips-row">
-        <!-- Dynamically rendered by renderGarageCarousel() -->
+        <!-- Dynamically rendered with Forza-style cards by renderGarageCarousel() -->
       </div>
     </div>
 

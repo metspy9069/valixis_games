@@ -170,6 +170,48 @@ export class WorldManager {
   }
 
   initWeatherParticles() {
+    // 1. 3D Laser Rain Streaks (True Line Segments for Realistic Torrential Rain)
+    this.rainDropCount = 1400;
+    this.rainPositions = new Float32Array(this.rainDropCount * 6); // 2 vertices (x,y,z) per drop
+    this.rainVelocities = new Float32Array(this.rainDropCount * 3);
+    this.rainLengths = new Float32Array(this.rainDropCount);
+
+    for (let i = 0; i < this.rainDropCount; i++) {
+      const x = (Math.random() - 0.5) * 60;
+      const y = Math.random() * 32 + 2;
+      const z = (Math.random() - 0.5) * 90 - 15;
+      const len = 1.6 + Math.random() * 1.4;
+      this.rainLengths[i] = len;
+
+      // Head (bottom)
+      this.rainPositions[i * 6] = x;
+      this.rainPositions[i * 6 + 1] = y;
+      this.rainPositions[i * 6 + 2] = z;
+
+      // Tail (top)
+      this.rainPositions[i * 6 + 3] = x + 0.15;
+      this.rainPositions[i * 6 + 4] = y + len;
+      this.rainPositions[i * 6 + 5] = z + 0.35;
+
+      this.rainVelocities[i * 3] = -2.0 + (Math.random() - 0.5) * 1.5;
+      this.rainVelocities[i * 3 + 1] = -72 - Math.random() * 24; // Fast torrential fall
+      this.rainVelocities[i * 3 + 2] = -4 + (Math.random() - 0.5) * 2;
+    }
+
+    const rainGeo = new THREE.BufferGeometry();
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(this.rainPositions, 3));
+    this.rainMat = new THREE.LineBasicMaterial({
+      color: 0x7fe3ff,
+      transparent: true,
+      opacity: 0.75,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    this.rainMesh = new THREE.LineSegments(rainGeo, this.rainMat);
+    this.rainMesh.visible = false;
+    this.scene.add(this.rainMesh);
+
+    // 2. Soft Snow Particle Sprites for Arctic Frostway
     const geo = new THREE.BufferGeometry();
     this.weatherPositions = new Float32Array(this.weatherParticleCount * 3);
     this.weatherVelocities = new Float32Array(this.weatherParticleCount * 3);
@@ -179,12 +221,12 @@ export class WorldManager {
       this.weatherPositions[i * 3 + 1] = Math.random() * 30 + 1;
       this.weatherPositions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 15;
 
-      this.weatherVelocities[i * 3] = 0;
-      this.weatherVelocities[i * 3 + 1] = -12;
-      this.weatherVelocities[i * 3 + 2] = 0;
+      this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 3.5;
+      this.weatherVelocities[i * 3 + 1] = -7 - Math.random() * 5;
+      this.weatherVelocities[i * 3 + 2] = (Math.random() - 0.5) * 5.0;
     }
 
-    // High quality soft circular particle texture (eliminates square pixel boxes)
+    // High quality soft circular particle texture for snow
     const pCanvas = document.createElement('canvas');
     pCanvas.width = 32;
     pCanvas.height = 32;
@@ -200,8 +242,8 @@ export class WorldManager {
     geo.setAttribute('position', new THREE.BufferAttribute(this.weatherPositions, 3));
     this.weatherMat = new THREE.PointsMaterial({
       map: particleTex,
-      color: 0x8ce2ff,
-      size: 0.8,
+      color: 0xe8f4ff,
+      size: 0.95,
       transparent: true,
       opacity: 0.0,
       depthWrite: false,
@@ -209,34 +251,26 @@ export class WorldManager {
     });
 
     this.weatherParticles = new THREE.Points(geo, this.weatherMat);
+    this.weatherParticles.visible = false;
     this.scene.add(this.weatherParticles);
   }
 
   setWeatherType(type) {
     this.weatherType = type;
-    if (!this.weatherMat) return;
-
     if (type === 'rain') {
-      this.weatherMat.opacity = 0.45;
-      this.weatherMat.size = 0.85;
-      this.weatherMat.color.setHex(0x55ccff);
-      for (let i = 0; i < this.weatherParticleCount; i++) {
-        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 1.5;
-        this.weatherVelocities[i * 3 + 1] = -42 - Math.random() * 15; // Fast vertical rain
-        this.weatherVelocities[i * 3 + 2] = -8;
-      }
+      if (this.rainMesh) this.rainMesh.visible = true;
+      if (this.weatherParticles) this.weatherParticles.visible = false;
     } else if (type === 'snow') {
-      this.weatherMat.opacity = 0.6;
-      this.weatherMat.size = 0.95;
-      this.weatherMat.color.setHex(0xe8f4ff);
-      for (let i = 0; i < this.weatherParticleCount; i++) {
-        this.weatherVelocities[i * 3] = (Math.random() - 0.5) * 4.0; // Soft blizzard
-        this.weatherVelocities[i * 3 + 1] = -8 - Math.random() * 5;
-        this.weatherVelocities[i * 3 + 2] = (Math.random() - 0.5) * 6.0;
+      if (this.rainMesh) this.rainMesh.visible = false;
+      if (this.weatherParticles) {
+        this.weatherParticles.visible = true;
+        this.weatherMat.opacity = 0.65;
+        this.weatherMat.size = 0.95;
+        this.weatherMat.color.setHex(0xe8f4ff);
       }
     } else {
-      // 'none' or 'dust': Crystal-clear skies, zero floating particles
-      this.weatherMat.opacity = 0.0;
+      if (this.rainMesh) this.rainMesh.visible = false;
+      if (this.weatherParticles) this.weatherParticles.visible = false;
     }
   }
 
@@ -972,7 +1006,39 @@ export class WorldManager {
     }
 
     // Dynamic Weather Particle Physics & Recycling
-    if (this.weatherParticles && this.weatherPositions && this.weatherType !== 'none') {
+    if (this.weatherType === 'rain' && this.rainMesh && this.rainPositions) {
+      const pos = this.rainPositions;
+      const vel = this.rainVelocities;
+      const lens = this.rainLengths;
+      for (let i = 0; i < this.rainDropCount; i++) {
+        const i6 = i * 6;
+        const i3 = i * 3;
+
+        // Head position update
+        pos[i6] += vel[i3] * dt;
+        pos[i6 + 1] += vel[i3 + 1] * dt;
+        pos[i6 + 2] += (vel[i3 + 2] + speed) * dt;
+
+        // Tail position matches head + streak offset
+        pos[i6 + 3] = pos[i6] - vel[i3] * 0.022;
+        pos[i6 + 4] = pos[i6 + 1] + lens[i];
+        pos[i6 + 5] = pos[i6 + 2] - (vel[i3 + 2] + speed) * 0.022;
+
+        // Recycle raindrops hitting asphalt or passing behind camera
+        if (pos[i6 + 1] < 0 || pos[i6 + 2] > 20) {
+          const rx = (Math.random() - 0.5) * 60;
+          const ry = Math.random() * 24 + 14;
+          const rz = -Math.random() * 90 - 10;
+          pos[i6] = rx;
+          pos[i6 + 1] = ry;
+          pos[i6 + 2] = rz;
+          pos[i6 + 3] = rx - vel[i3] * 0.022;
+          pos[i6 + 4] = ry + lens[i];
+          pos[i6 + 5] = rz - (vel[i3 + 2] + speed) * 0.022;
+        }
+      }
+      this.rainMesh.geometry.attributes.position.needsUpdate = true;
+    } else if (this.weatherType === 'snow' && this.weatherParticles && this.weatherPositions) {
       const pos = this.weatherPositions;
       const vel = this.weatherVelocities;
       for (let i = 0; i < this.weatherParticleCount; i++) {
@@ -981,7 +1047,7 @@ export class WorldManager {
         pos[idx + 1] += vel[idx + 1] * dt;
         pos[idx + 2] += (vel[idx + 2] + speed) * dt;
 
-        // Recycle particles that hit ground or pass behind camera
+        // Recycle snow particles
         if (pos[idx + 1] < 0 || pos[idx + 2] > 18) {
           pos[idx] = (Math.random() - 0.5) * 55;
           pos[idx + 1] = Math.random() * 22 + 8;

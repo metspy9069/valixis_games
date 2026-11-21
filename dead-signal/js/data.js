@@ -96,16 +96,22 @@ export const BOSSES = [
     id: 'gatekeeper', name: 'GATEKEEPER', base: 'brute',
     hpMul: 2.3, dmgMul: 1.2, scaleMul: 1.3, speedMul: 1, scoreMul: 8,
     line: 'It does not flinch. Keep moving.',
+    // Signature move: both arms overhead, then the ground answers.
+    ability: 'slam',
   },
   {
     id: 'howler', name: 'THE HOWLER', base: 'runner',
     hpMul: 13, dmgMul: 1.15, scaleMul: 1.18, speedMul: 0.6, scoreMul: 9,
     line: 'Fast. Loud. It closes before you can reload.',
+    // Signature move: a committed, telegraphed straight-line charge.
+    ability: 'charge',
   },
   {
     id: 'butcher', name: 'THE BUTCHER', base: 'brute',
     hpMul: 4.4, dmgMul: 1.7, scaleMul: 1.55, speedMul: 0.9, scoreMul: 12,
     line: 'Every swing is a two-hit kill. Do not let it reach you.',
+    // Signature move: a wide, slow cleave that covers the dodging lane.
+    ability: 'cleave',
   },
 ];
 

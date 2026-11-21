@@ -50,6 +50,16 @@ export class Zombie {
     this.ranged = !!this.def.ranged;
     this.isBoss = false;
     this.bossName = '';
+    // Boss signature move. The wave director names the ability; the state
+    // machine below telegraphs it before anything lands.
+    this.bossAbility = '';
+    this.abilityState = 'idle';
+    this.abilityWindup = 0;
+    this.abilityCd = 2.6;
+    this.abilityHits = false;
+    this.chargeDir = new THREE.Vector3();
+    this.chargeMark = new THREE.Vector3();
+    this.chargeSpeed = 0;
     this.home = position.clone();
     this.build();
     this.group.position.copy(position);
@@ -209,6 +219,15 @@ export class Zombie {
           const navDir = ctx.nav.direction(pos.x, pos.z);
           if (navDir) move.copy(navDir);
         }
+
+        // A boss signature move owns the approach while it commits.
+        if (this.isBoss && this.bossAbility) {
+          const act = this.stepAbility(dt, ctx, dist, toPlayer, pos);
+          if (act) {
+            move.copy(act.dir);
+            targetSpeed = act.speed;
+          }
+        }
       }
 
       // Separation: zombies shoulder past each other instead of stacking.
@@ -229,7 +248,7 @@ export class Zombie {
       if (move.lengthSq() > 1e-4) move.normalize();
 
       // Attack when in reach.
-      if (dist < this.def.reach && this.attackCooldown <= 0) {
+      if (dist < this.def.reach && this.attackCooldown <= 0 && this.abilityState === 'idle') {
         this.state = 'attack';
         this.windup = 0;
         this.attackTimer = 0;
@@ -307,6 +326,102 @@ export class Zombie {
     this.animate(dt, targetSpeed, dist);
   }
 
+  /**
+   * Boss signature moves. Each one telegraphs, commits for a fixed window and
+   * then pays a cooldown, so a boss fight is a rhythm to learn rather than the
+   * same bite behind a bigger health bar.
+   */
+  stepAbility(dt, ctx, dist, toPlayer, pos) {
+    const zero = new THREE.Vector3();
+    this.abilityCd = Math.max(0, this.abilityCd - dt);
+
+    if (this.abilityState === 'idle') {
+      if (this.abilityCd > 0) return null;
+      const kind = this.bossAbility;
+      const inRange = kind === 'slam' ? dist < 9
+        : kind === 'cleave' ? dist < this.def.reach * 2
+          : dist > 5 && dist < 15;
+      if (!inRange) return null;
+      this.abilityState = 'windup';
+      this.abilityWindup = 0;
+      this.abilityHits = false;
+      // The charge is aimed as the windup starts, not on release: stepping
+      // aside is the counter-play, and standing still is the mistake.
+      if (kind === 'charge') {
+        this.chargeDir.copy(toPlayer).normalize();
+        // Cover the gap in roughly three quarters of a second, with a hard cap
+        // so it lunges rather than teleporting onto the player.
+        this.chargeSpeed = Math.min(this.speed * 7, Math.max(this.speed * 2.2, (dist - 1) / 0.75));
+      }
+      if (ctx.abilityCry) ctx.abilityCry(this, 'windup');
+      return { dir: zero, speed: 0 };
+    }
+
+    this.abilityWindup += dt;
+
+    if (this.abilityState === 'windup') {
+      const warn = this.bossAbility === 'charge' ? 0.7 : 0.85;
+      if (this.abilityWindup >= warn) {
+        this.abilityState = 'active';
+        this.abilityWindup = 0;
+        this.chargeMark.copy(pos);
+        if (ctx.abilityCry) ctx.abilityCry(this, 'release');
+        if (this.bossAbility === 'slam' && ctx.shockwave) ctx.shockwave(this);
+      }
+      return { dir: zero, speed: 0 };
+    }
+
+    if (this.abilityState === 'active') {
+      if (this.bossAbility === 'charge') {
+        // A building stops the charge; the boss eats the recovery instead of
+        // grinding straight through a wall.
+        const moved = Math.hypot(pos.x - this.chargeMark.x, pos.z - this.chargeMark.z);
+        this.chargeMark.copy(pos);
+        if (this.abilityWindup > 0.1 && moved < 0.4 * dt) {
+          this.finishAbility();
+          return { dir: zero, speed: 0 };
+        }
+        if (!this.abilityHits && dist < this.radius + 1.4) {
+          this.abilityHits = true;
+          ctx.damage(this.damage * 1.4, this);
+          // Plant on impact: a charge that carries on through the player reads
+          // as the boss teleporting behind you.
+          this.finishAbility();
+          return { dir: zero, speed: 0 };
+        }
+        if (this.abilityWindup > 1.1) {
+          this.finishAbility();
+          return { dir: zero, speed: 0 };
+        }
+        return { dir: this.chargeDir, speed: this.chargeSpeed || this.speed * 4.6 };
+      }
+
+      if (this.bossAbility === 'cleave') {
+        if (!this.abilityHits) {
+          this.abilityHits = true;
+          if (dist < this.def.reach * 1.7) ctx.damage(this.damage * 1.55, this);
+          if (ctx.abilityCry) ctx.abilityCry(this, 'hit');
+        }
+        if (this.abilityWindup > 0.42) this.finishAbility();
+        return { dir: zero, speed: 0 };
+      }
+
+      // Slam: hold the crouch for a beat, then recover.
+      if (this.abilityWindup > 0.5) this.finishAbility();
+      return { dir: zero, speed: 0 };
+    }
+
+    return null;
+  }
+
+  finishAbility() {
+    this.abilityState = 'idle';
+    this.abilityWindup = 0;
+    this.abilityHits = false;
+    this.abilityCd = this.bossAbility === 'charge' ? 6.5
+      : this.bossAbility === 'cleave' ? 5 : 7.5;
+  }
+
   animate(dt, speed, dist) {
     const r = this.rig;
     const walking = speed > 0.05;
@@ -354,6 +469,30 @@ export class Zombie {
     r.neck.rotation.y = Math.sin(this.phase * 0.23) * 0.12 + this.twitch * 0.2;
     r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + slam * 0.4;
     r.jaw.position.y = 0.05;
+
+    // Boss tells. Both arms overhead read as a slam or a cleave from across
+    // the street; a charge drops the whole body forward.
+    if (this.isBoss) {
+      if (this.abilityState === 'windup') {
+        const t = Math.min(1, this.abilityWindup / 0.6);
+        r.armL.shoulder.rotation.x = -2.3 * t;
+        r.armR.shoulder.rotation.x = -2.3 * t;
+        r.armL.elbow.rotation.x = -0.35;
+        r.armR.elbow.rotation.x = -0.35;
+        r.hips.rotation.x = lean - 0.24 * t;
+        r.neck.rotation.x = -0.34 * t;
+      } else if (this.abilityState === 'active') {
+        if (this.bossAbility === 'charge') {
+          r.hips.rotation.x = lean + 0.55;
+          r.armL.shoulder.rotation.x = -1.75;
+          r.armR.shoulder.rotation.x = -1.75;
+        } else if (this.bossAbility === 'cleave') {
+          r.armL.shoulder.rotation.x = 0.95;
+          r.armR.shoulder.rotation.x = 0.95;
+          r.hips.rotation.x = lean + 0.3;
+        }
+      }
+    }
 
     // Hit reaction: brief recoil of the whole upper body.
     if (this.hitTimer > 0) {

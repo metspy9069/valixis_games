@@ -9,6 +9,7 @@ import { wavePlan, rollType, MAX_WAVE_ENEMIES } from './waves.js';
 import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE } from './data.js';
 import { SHOP_ITEMS, SHOP_SECTIONS, itemCost, itemMaxed } from './shop.js';
 import { challengeFor, markChallengeDone, clearedCount } from './challenges.js';
+import { recordRun, noteContractClear, loadCareer, activeStreak } from './career.js';
 import { AudioEngine } from './audio.js';
 
 // ---------------------------------------------------------------- renderer
@@ -1302,6 +1303,10 @@ function spawnFromQueue() {
     z.group.scale.multiplyScalar(boss.scaleMul);
     z.radius *= boss.scaleMul;
     z.attackCooldown = 1.2;
+    z.bossAbility = boss.ability || '';
+    // The boss opens on its signature move rather than biting, so the fight
+    // announces itself before it can corner you.
+    z.abilityCd = 2.2;
     game.boss = z;
     showBanner('BOSS CONTACT', boss.name, boss.line, 3400);
     audio.bossAlarm();
@@ -1373,6 +1378,42 @@ function bloaterBurst(zombie) {
   }
 }
 
+/**
+ * GATEKEEPER ground slam. A short ring around the boss that hits through the
+ * horde but not through a building, so cover and distance both work.
+ */
+function bossShockwave(zombie) {
+  const at = zombie.group.position.clone();
+  at.y = 0.35;
+  const radius = 6.2;
+
+  audio.bossSlam();
+  player.shake = Math.min(1.6, player.shake + 0.85);
+  spawnParticles(at, 26, 'spark', 1.5);
+  spawnParticles(at, 10, 'blood', 0.8);
+  burstLight.position.set(at.x, 1.1, at.z);
+  burstLight.intensity = 65;
+  burstLightTimer = 0.28;
+
+  const dx = player.pos.x - at.x;
+  const dz = player.pos.z - at.z;
+  const self = Math.hypot(dx, dz);
+  if (self > radius || self < 1e-3) return;
+  const dir = new THREE.Vector3(dx / self, 0, dz / self);
+  const wall = rayWorld(new THREE.Vector3(at.x, 1.0, at.z), dir, self);
+  if (wall && wall.distance < self - 0.25) return;
+  player.vel.x += dir.x * 8.5;
+  player.vel.z += dir.z * 8.5;
+  damagePlayer(Math.round(zombie.damage * 1.1 * (1 - (self / radius) * 0.45)), zombie);
+}
+
+/** Boss ability audio: a tell before the move, an impact when it commits. */
+function bossCry(zombie, kind) {
+  const pan = panFor(zombie.group.position);
+  if (kind === 'windup') audio.bossTell(pan);
+  else audio.bossRelease(pan);
+}
+
 function creditsFor(zombie) {
   if (zombie.isBoss) return 280;
   if (zombie.type === 'bloater') return 65;
@@ -1386,7 +1427,10 @@ function onZombieKilled(zombie, head) {
   game.kills++;
   if (head) game.headshots++;
   game.score += Math.round(zombie.def.score * (head ? 1.6 : 1) * scoreMulFor());
-  game.credits += creditsFor(zombie) + (head ? 3 : 0);
+  const payout = creditsFor(zombie) + (head ? 3 : 0);
+  game.credits += payout;
+  game.creditsEarned = (game.creditsEarned || 0) + payout;
+  if (zombie.isBoss) game.bossesKilled = (game.bossesKilled || 0) + 1;
   audio.kill();
   world.addDecal(zombie.group.position.x, zombie.group.position.z, 0.55 + Math.random() * 0.35);
   if (zombie.def && zombie.def.explode) bloaterBurst(zombie);
@@ -1401,6 +1445,8 @@ function onZombieKilled(zombie, head) {
     addPickup('armor', at.clone().add(new THREE.Vector3(1.1, 0, 0.4)));
     addPickup('health', at.clone().add(new THREE.Vector3(-1.1, 0, -0.4)));
     if (game.meleeTier < MELEE_TIERS.length - 1) addPickup('blade', at.clone().add(new THREE.Vector3(0, 0, 1.2)));
+    // The next boss's answer: a guaranteed frag, never left to a roll.
+    addPickup('grenade', at.clone().add(new THREE.Vector3(0, 0, -1.2)));
   } else if (zombie.type === 'spitter' && roll < 0.4) {
     addPickup('ammo', at);
   } else if (roll < 0.2) addPickup('ammo', at);
@@ -1420,6 +1466,7 @@ const PICKUP_STYLE = {
   armor: { color: 0x6ab8ff, emissive: 0x2a7dff, light: 0x5aa8ff },
   blade: { color: 0xd6e0e8, emissive: 0x9fb4c8, light: 0xbcd0e4 },
   weapon: { color: 0xd08cff, emissive: 0x8a3cff, light: 0xb46bff },
+  grenade: { color: 0x7b8c4a, emissive: 0xb6d24a, light: 0xa8c44a },
 };
 const pickupMats = {};
 function addPickup(kind, position) {
@@ -1466,6 +1513,9 @@ function updatePickups(dt) {
       } else if (p.kind === 'armor') {
         player.armor = Math.min(player.maxArmor, player.armor + 55);
         showHint('PLATE CARRIER +55', 1200);
+      } else if (p.kind === 'grenade') {
+        player.grenades = Math.min(player.grenadeMax, player.grenades + 1);
+        showHint('FRAG +1', 1200);
       } else if (p.kind === 'blade') {
         const nextTier = Math.min(MELEE_TIERS.length - 1, game.meleeTier + 1);
         if (nextTier !== game.meleeTier) {
@@ -1577,6 +1627,8 @@ function makeContext() {
     nav,
     damage: (dmg, from) => damagePlayer(dmg, from),
     spit: (z) => spitAcid(z),
+    shockwave: (z) => bossShockwave(z),
+    abilityCry: (z, kind) => bossCry(z, kind),
     panOf: (worldPos) => panFor(worldPos),
     onDeath: (z, part) => onZombieKilled(z, part === 'head'),
   };
@@ -1857,6 +1909,10 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   game.elapsed = 0;
   game.shots = 0;
   game.hits = 0;
+  // Lifetime-of-the-run counters for the career profile: credits actually
+  // earned (launch credits do not count) and bosses put down.
+  game.creditsEarned = 0;
+  game.bossesKilled = 0;
   game.plan = null;
   game.mods = mods || null;
   game.challenge = challenge || null;
@@ -1952,6 +2008,22 @@ function endRun() {
   const accuracy = game.shots > 0 ? Math.min(100, Math.round((game.hits / game.shots) * 100)) : 0;
   el('overAcc').textContent = game.shots > 0 ? `${accuracy}%` : '\u2014';
   el('overBest').textContent = best.score > 0 ? `w${best.wave} ${best.score}` : '\u2014';
+
+  // Career profile: this run joins the record whether it was survived or not.
+  const mode = game.challenge ? game.challenge.kind : 'survival';
+  const cleared = !!(game.challenge && game.wave >= game.challenge.targetWave);
+  recordRun({
+    mode,
+    wave: game.wave,
+    kills: game.kills,
+    headshots: game.headshots,
+    accuracy,
+    credits: game.creditsEarned || 0,
+    bosses: game.bossesKilled || 0,
+    cleared,
+  });
+  if (cleared) noteContractClear(mode);
+  renderCareer();
   el('overSub').textContent = (isBest
     ? `New personal best. You held until wave ${game.wave}.`
     : `You held until wave ${game.wave}. The relay kept transmitting without you.`) + challengeLine;
@@ -2003,11 +2075,70 @@ function renderChallenge(kind, prefix) {
   }
 }
 
+// Both "contracts cleared" readouts come from the same set of cleared
+// contract ids, so the menu line and the career panel can never disagree.
+function renderContractCounts() {
+  const total = String(clearedCount());
+  const menu = el('challengeCount');
+  if (menu) menu.textContent = total;
+  const career = el('careerContracts');
+  if (career) career.textContent = total;
+}
+
 function renderChallenges() {
   renderChallenge('daily', 'daily');
   renderChallenge('weekly', 'weekly');
-  const counter = el('challengeCount');
-  if (counter) counter.textContent = String(clearedCount());
+  renderContractCounts();
+}
+
+// ---------------------------------------------------------------- career
+// The persistent layer: totals, best wave per mode, the last ten runs and the
+// daily contract streak. It is written at the end of every run, never mid-run.
+function renderCareer() {
+  const career = loadCareer();
+  const set = (id, text) => { const node = el(id); if (node) node.textContent = text; };
+  set('careerKills', String(career.kills));
+  set('careerHeads', String(career.headshots));
+  set('careerBosses', String(career.bosses));
+  set('careerRuns', String(career.runs));
+  set('careerBest', `S${career.bestWave.survival || 0} \u00b7 D${career.bestWave.daily || 0} \u00b7 W${career.bestWave.weekly || 0}`);
+  renderContractCounts();
+
+  const streak = activeStreak();
+  const badge = el('careerStreak');
+  if (badge) {
+    badge.textContent = streak > 0 ? `${streak} DAY STREAK` : 'NO STREAK';
+    badge.classList.toggle('live', streak > 0);
+  }
+
+  const list = el('careerHistory');
+  if (!list) return;
+  list.textContent = '';
+  if (!career.history.length) {
+    const empty = document.createElement('div');
+    empty.className = 'career-empty';
+    empty.textContent = 'No runs logged yet.';
+    list.appendChild(empty);
+    return;
+  }
+  for (const run of career.history) {
+    const row = document.createElement('div');
+    row.className = run.cleared ? 'career-row cleared' : 'career-row';
+    const cells = [
+      run.date.slice(5),
+      run.mode === 'survival' ? 'SURV' : run.mode.toUpperCase(),
+      `W${run.wave}`,
+      `${run.kills} K`,
+      `${run.accuracy}%`,
+      `${run.credits} CR`,
+    ];
+    for (const text of cells) {
+      const cell = document.createElement('span');
+      cell.textContent = text;
+      row.appendChild(cell);
+    }
+    list.appendChild(row);
+  }
 }
 
 // ---------------------------------------------------------------- depot
@@ -2284,6 +2415,7 @@ function stepSimulation(dt) {
       const pay = 45 * game.wave + (game.plan && game.plan.boss ? 150 : 0);
       game.score += bonus;
       game.credits += pay;
+      game.creditsEarned = (game.creditsEarned || 0) + pay;
       showBanner('WAVE CLEARED', `+${bonus}`, `+${pay} CR \u00b7 press B for the supply depot.`, 2600);
       updateWaveHud();
     }
@@ -2514,6 +2646,7 @@ function bindSettings() {
 
 // ---------------------------------------------------------------- boot
 refreshBestLine();
+renderCareer();
 updateAmmoHud();
 updateVitalsHud();
 hud.flashBtn.textContent = 'FLASHLIGHT [F] ON';

@@ -387,5 +387,25 @@ export class AudioEngine {
     this._noise({ dur: 1.2, gain: 0.16, type: 'lowpass', freq: 340, q: 2, sweepTo: 120, send: 0.6 });
   }
 
+  /** Boss tell: an indrawn, rising growl. This is the warning, so it is
+   * deliberately louder and longer than an ordinary snarl. */
+  bossTell(pan = 0) {
+    this._tone({ freq: 82, to: 140, dur: 0.55, gain: 0.2, type: 'sawtooth', pan, send: 0.6 });
+    this._noise({ dur: 0.5, gain: 0.13, type: 'bandpass', freq: 420, q: 2.4, sweepTo: 900, pan, send: 0.4 });
+  }
+
+  /** The instant a boss commits to its move. */
+  bossRelease(pan = 0) {
+    this._tone({ freq: 195, to: 62, dur: 0.4, gain: 0.26, type: 'square', pan, send: 0.5 });
+    this._noise({ dur: 0.32, gain: 0.22, type: 'lowpass', freq: 900, sweepTo: 220, pan, send: 0.4 });
+  }
+
+  /** Ground slam: sub-bass thud with a debris tail. */
+  bossSlam() {
+    this._tone({ freq: 44, to: 25, dur: 0.5, gain: 0.42, type: 'sine' });
+    this._noise({ dur: 0.46, gain: 0.3, type: 'lowpass', freq: 240, sweepTo: 70, send: 0.6 });
+    this._noise({ dur: 0.3, gain: 0.1, type: 'highpass', freq: 1400, send: 0.4 });
+  }
+
   heartbeat() { this._tone({ freq: 60, to: 40, dur: 0.16, gain: 0.24, type: 'sine' }); }
 }

@@ -262,6 +262,28 @@
     padding: 9px 13px; border-radius: 8px; border: 0; background: linear-gradient(135deg, #ecffcf, #9dff4d); }
   .challenge-foot button:hover { filter: brightness(1.08); }
 
+  /* career profile */
+  .career { width: min(860px, 100%); background: linear-gradient(160deg, rgba(16, 22, 18, 0.94), rgba(6, 9, 7, 0.94));
+    border: 1px solid rgba(255,255,255,0.09); border-radius: 13px; padding: 0 14px; text-align: left; }
+  .career > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center;
+    gap: 10px; padding: 13px 0; font: 700 9px/1 var(--mono); letter-spacing: 2px; color: var(--toxic); }
+  .career > summary::-webkit-details-marker { display: none; }
+  .career > summary em { font-style: normal; color: #7f8c80; letter-spacing: 1.6px; padding: 4px 7px; border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1); }
+  .career > summary em.live { color: #120a00; background: var(--amber); border-color: var(--amber); }
+  .career[open] > summary { border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .career-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; padding: 13px 0; }
+  .career-stats div { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 9px; padding: 9px 8px; }
+  .career-stats span { display: block; font: 700 8px/1 var(--mono); letter-spacing: 1.2px; color: #7f8c80; margin-bottom: 6px; }
+  .career-stats b { font: 800 14px/1 var(--mono); color: #fff; }
+  .career-history-head { font: 700 8px/1 var(--mono); letter-spacing: 1.8px; color: #7f8c80; padding-bottom: 7px; }
+  .career-history { display: grid; gap: 2px; padding-bottom: 13px; }
+  .career-row { display: grid; grid-template-columns: 46px 62px 48px 1fr 54px 76px; gap: 8px;
+    font: 700 10px/1.7 var(--mono); color: #b9c4b6; }
+  .career-row span:last-child { text-align: right; color: var(--toxic-2); }
+  .career-row.cleared span:nth-child(2) { color: var(--toxic); }
+  .career-empty { font: 600 10px/1.8 var(--mono); color: #6f7c70; }
+
   /* supply depot */
   .shop-panel { width: min(1040px, 100%); margin: auto; text-align: left;
     background: linear-gradient(165deg, rgba(18, 26, 20, 0.99), rgba(6, 9, 7, 0.99));
@@ -303,6 +325,8 @@
   @media (max-width: 760px) {
     .loadout { grid-template-columns: 1fr; }
     .challenges { grid-template-columns: 1fr; }
+    .career-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .career-row { grid-template-columns: 42px 56px 44px 1fr 44px 62px; gap: 5px; font-size: 9px; }
     .hud-top { gap: 8px; }
     .stats { gap: 10px; }
     .stat-cell { min-width: 38px; }
@@ -434,6 +458,20 @@
     </div>
   </div>
   <div class="record">CONTRACTS CLEARED &middot; <b id="challengeCount">0</b></div>
+
+  <details class="career" id="careerPanel">
+    <summary><span>CAREER PROFILE</span><em id="careerStreak">NO STREAK</em></summary>
+    <div class="career-stats">
+      <div><span>KILLS</span><b id="careerKills">0</b></div>
+      <div><span>HEADSHOTS</span><b id="careerHeads">0</b></div>
+      <div><span>BOSSES</span><b id="careerBosses">0</b></div>
+      <div><span>CONTRACTS</span><b id="careerContracts">0</b></div>
+      <div><span>RUNS</span><b id="careerRuns">0</b></div>
+      <div><span>BEST WAVE S/D/W</span><b id="careerBest">S0 &middot; D0 &middot; W0</b></div>
+    </div>
+    <div class="career-history-head">LAST 10 RUNS &middot; DATE / MODE / WAVE / KILLS / ACCURACY / CREDITS</div>
+    <div class="career-history" id="careerHistory"></div>
+  </details>
 
   <div class="loadout">
     <div class="gun-card">

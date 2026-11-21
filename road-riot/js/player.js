@@ -183,19 +183,33 @@ export class PlayerCar {
     this.underglowLight.position.set(0, 0.25, 0);
     this.mesh.add(this.underglowLight);
 
-    // 3. Dual Exhaust Nitro Jet Cones
+    // 3. Dual Exhaust Nitro Jet Cones (Hypersonic Diamond Plasma Plumes)
     [-0.6, 0.6].forEach(x => {
-      // Visual Flame Cone with luminous electric blue
-      const coneGeo = new THREE.ConeGeometry(0.18, 0.9, 8);
+      const jetGroup = new THREE.Group();
+      jetGroup.position.set(x, 0.45, 2.3);
+
+      // Outer Cyan Plasma Flame Cone
+      const coneGeo = new THREE.ConeGeometry(0.18, 1.1, 8);
       coneGeo.rotateX(-Math.PI / 2);
       const coneMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0 });
       const coneMesh = new THREE.Mesh(coneGeo, coneMat);
-      coneMesh.position.set(x, 0.45, 2.3);
-      this.chassis.add(coneMesh);
+      jetGroup.add(coneMesh);
 
-      // Lightweight flame object for animation
-      const flame = { userData: { cone: coneMesh } };
-      this.exhaustFlames.push(flame);
+      // Inner Diamond White Core Cone
+      const coreGeo = new THREE.ConeGeometry(0.09, 0.7, 8);
+      coreGeo.rotateX(-Math.PI / 2);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+      const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+      coreMesh.position.z = -0.05;
+      jetGroup.add(coreMesh);
+
+      // Exhaust Tip Flare Point Light
+      const flareLight = new THREE.PointLight(0x00d9ff, 0, 4.0);
+      flareLight.position.set(0, 0, 0.2);
+      jetGroup.add(flareLight);
+
+      this.chassis.add(jetGroup);
+      this.exhaustFlames.push({ cone: coneMesh, core: coreMesh, light: flareLight });
     });
 
     // 4. High-Detail Xenon Forward Projector Headlights
@@ -396,6 +410,9 @@ export class PlayerCar {
         }
       });
 
+      // Rig Wheel Pivots and Spinners for Animation
+      this.setupWheelRig(model);
+
       // Compute bounding box and normalize scale & center
       const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
@@ -428,6 +445,79 @@ export class PlayerCar {
     } else {
       this.carModel = this.buildProceduralSupercar();
       this.chassis.add(this.carModel);
+    }
+  }
+
+  setupWheelRig(model) {
+    this.wheels = { fl: null, fr: null, rl: null, rr: null };
+    this.wheelSpinners = [];
+
+    // Check Pattern 1: Custom Blender supercars (venom, phantom, interceptor, titan)
+    const hasBlenderWheels = Boolean(model.getObjectByName('FL_Tire'));
+    if (hasBlenderWheels) {
+      ['FL', 'FR', 'RL', 'RR'].forEach(prefix => {
+        const parts = [];
+        model.traverse(node => {
+          if (node.name && node.name.startsWith(prefix + '_') && !node.name.includes('Caliper')) {
+            parts.push(node);
+          }
+        });
+        if (parts.length > 0) {
+          const center = parts[0].position.clone();
+          const pivot = new THREE.Group();
+          pivot.name = prefix + '_SteerPivot';
+          pivot.position.copy(center);
+
+          const spinner = new THREE.Group();
+          spinner.name = prefix + '_SpinGroup';
+          pivot.add(spinner);
+
+          parts.forEach(p => {
+            p.position.sub(center);
+            spinner.add(p);
+          });
+
+          model.add(pivot);
+          this.wheels[prefix.toLowerCase()] = pivot;
+          this.wheelSpinners.push(spinner);
+        }
+      });
+      return;
+    }
+
+    // Check Pattern 2: Apex GT (player-ferrari.glb)
+    const ferrariFL = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel1');
+    const ferrariFR = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel');
+    const ferrariRL = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel1');
+    const ferrariRR = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel');
+    if (ferrariFL && ferrariFR) {
+      this.wheels.fl = ferrariFL;
+      this.wheels.fr = ferrariFR;
+      this.wheels.rl = ferrariRL;
+      this.wheels.rr = ferrariRR;
+      [ferrariFL, ferrariFR, ferrariRL, ferrariRR].filter(Boolean).forEach(w => {
+        this.wheelSpinners.push(w);
+      });
+      return;
+    }
+
+    // Check Pattern 3: Hyperion GTR (player-lamborghini.glb)
+    let lamboFL = null, lamboFR = null, lamboRL = null, lamboRR = null;
+    model.traverse(n => {
+      if (!n.name) return;
+      if (/3DWheel Front L/i.test(n.name)) lamboFL = n;
+      else if (/3DWheel Front R/i.test(n.name)) lamboFR = n;
+      else if (/3DWheel Rear L/i.test(n.name)) lamboRL = n;
+      else if (/3DWheel Rear R/i.test(n.name)) lamboRR = n;
+    });
+    if (lamboFL && lamboFR) {
+      this.wheels.fl = lamboFL;
+      this.wheels.fr = lamboFR;
+      this.wheels.rl = lamboRL;
+      this.wheels.rr = lamboRR;
+      [lamboFL, lamboFR, lamboRL, lamboRR].filter(Boolean).forEach(w => {
+        this.wheelSpinners.push(w);
+      });
     }
   }
 
@@ -594,8 +684,10 @@ export class PlayerCar {
     const targetWheelTurn = normTurn * 0.45;
     this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 14);
     if (this.wheels.fl && this.wheels.fr) {
-      this.wheels.fl.rotation.y = this.steerAngle;
-      this.wheels.fr.rotation.y = this.steerAngle;
+      const isInnerRotated = Boolean(this.carModel && this.carModel.children[0]?.rotation.y === Math.PI);
+      const steerVal = isInnerRotated ? -this.steerAngle : this.steerAngle;
+      this.wheels.fl.rotation.y = steerVal;
+      this.wheels.fr.rotation.y = steerVal;
     }
 
     // Suspension Body Roll into Turns
@@ -740,8 +832,13 @@ export class PlayerCar {
 
     // 2. Wheel Spinning Animation
     this.wheelRotation += (this.speed * dt) * 2.8;
+    if (this.wheelSpinners && this.wheelSpinners.length > 0) {
+      this.wheelSpinners.forEach(s => {
+        s.rotation.x = this.wheelRotation;
+      });
+    }
     Object.values(this.wheels).forEach(w => {
-      if (w && w.children[0]) {
+      if (w && w.children[0] && (!this.wheelSpinners || !this.wheelSpinners.includes(w.children[0]))) {
         w.children[0].rotation.x = this.wheelRotation;
       }
     });
@@ -812,6 +909,17 @@ export class PlayerCar {
       this.underglowLight.intensity = this.isBoosting ? 5.5 : 3.0;
     }
     this.exhaustFlames.forEach(f => {
+      if (f.light) {
+        f.light.intensity = this.isBoosting ? 5.0 + Math.random() * 2.5 : 0;
+      }
+      if (f.cone) {
+        f.cone.material.opacity = this.isBoosting ? 0.95 : 0;
+        f.cone.scale.y = this.isBoosting ? 1.0 + Math.random() * 0.55 : 0.1;
+      }
+      if (f.core) {
+        f.core.material.opacity = this.isBoosting ? 1.0 : 0;
+        f.core.scale.y = this.isBoosting ? 0.8 + Math.random() * 0.4 : 0.1;
+      }
       if (f.intensity !== undefined) f.intensity = this.isBoosting ? 6.5 : 0.8;
       if (f.userData && f.userData.cone) {
         f.userData.cone.material.opacity = this.isBoosting ? 0.92 : 0;

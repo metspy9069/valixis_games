@@ -20,10 +20,10 @@
   <link rel="icon" href="../favicon-32x32.png">
   <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 
-  <!-- Fonts: High-impact AAA Arcade Typography -->
+  <!-- Fonts: High-impact AAA Motorsport & Arcade Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;0,800;1,700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&family=Russo+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,700;0,800;1,700;1,800;1,900&family=Chakra+Petch:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700;800&family=Orbitron:wght@700;800;900&family=Russo+One&family=Teko:wght@600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="./css/style.css">
   <link rel="stylesheet" href="./css/shop.css">
@@ -76,20 +76,20 @@
 
       <div class="hud-stats-group">
         <div id="hud-race-pos-box" class="glass-panel hud-stat-box race-pos-badge hidden" style="border-color: rgba(255, 184, 0, 0.45); background: rgba(255, 184, 0, 0.1);">
-          <div class="hud-stat-label">POSITION</div>
+          <div class="hud-stat-label">🏁 POSITION</div>
           <div class="hud-stat-value" style="color:#ffea00"><span id="hud-race-pos">1ST</span><span class="hud-stat-unit" style="color:#8fa0b5">/4</span></div>
         </div>
         <div class="glass-panel hud-stat-box">
-          <div class="hud-stat-label">DISTANCE</div>
+          <div class="hud-stat-label">HIGHWAY DIST</div>
           <div class="hud-stat-value"><span id="hud-distance">0</span><span class="hud-stat-unit">m</span></div>
         </div>
         <div class="glass-panel hud-stat-box">
-          <div class="hud-stat-label">SCORE</div>
+          <div class="hud-stat-label">RACE SCORE</div>
           <div class="hud-stat-value"><span id="hud-score">0</span><span id="hud-multiplier" class="multiplier-badge">x1</span></div>
         </div>
         <div class="glass-panel hud-stat-box">
-          <div class="hud-stat-label">COINS</div>
-          <div class="hud-stat-value" style="color:#ffb800; display:flex; align-items:center; gap:5px;">
+          <div class="hud-stat-label">CREDITS</div>
+          <div class="hud-stat-value" style="color:#ffb800; display:flex; align-items:center; justify-content:center; gap:5px;">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="#ffb800"><circle cx="12" cy="12" r="10" stroke="#ffd966" stroke-width="2"/><text x="12" y="16" font-size="12" font-family="sans-serif" font-weight="900" fill="#000" text-anchor="middle">V</text></svg>
             <span id="hud-coins">0</span>
           </div>
@@ -126,9 +126,27 @@
     <footer class="hud-bottombar">
       <!-- Speedometer & Nitro Panel -->
       <div class="glass-panel speed-panel">
+        <!-- Sequential Shift Light Array (GT3 Cockpit Telemetry) -->
+        <div class="shift-lights-row">
+          <div class="shift-lights-label">SHIFT LIGHTS</div>
+          <div id="hud-shift-lights" class="shift-lights-cluster">
+            <span class="shift-led green" data-idx="0"></span>
+            <span class="shift-led green" data-idx="1"></span>
+            <span class="shift-led green" data-idx="2"></span>
+            <span class="shift-led amber" data-idx="3"></span>
+            <span class="shift-led amber" data-idx="4"></span>
+            <span class="shift-led red" data-idx="5"></span>
+            <span class="shift-led red" data-idx="6"></span>
+            <span class="shift-led redline" data-idx="7"></span>
+          </div>
+        </div>
+
         <div class="speed-readout">
           <span id="hud-speed" class="speed-number">0</span>
-          <span class="speed-unit">KM/H</span>
+          <div class="speed-unit-cluster">
+            <span class="speed-unit">KM/H</span>
+            <span class="speed-sub-mph"><span id="hud-mph">0</span> MPH</span>
+          </div>
           <span id="hud-gear" class="gear-badge">GEAR 1</span>
         </div>
         <div class="speed-bar-track">
@@ -147,8 +165,8 @@
 
         <div class="nitro-container">
           <div class="nitro-label-row">
-            <span>NITRO TANK</span>
-            <span>SPACEBAR</span>
+            <span>N₂O NITRO SYSTEM</span>
+            <span id="nitro-status-tag" class="nitro-tag">READY [SPACE]</span>
           </div>
           <div id="hud-nitro-track" class="nitro-bar-track">
             <div id="hud-nitro-fill" class="nitro-bar-fill"></div>

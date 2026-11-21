@@ -16,8 +16,9 @@
   --border-panel: rgba(0, 217, 255, 0.3);
   --text-main: #f0f6fc;
   --text-muted: #8fa0b5;
-  --font-display: 'Orbitron', 'Russo One', sans-serif;
-  --font-speed: 'Russo One', 'Orbitron', sans-serif;
+  --font-display: 'Barlow Semi Condensed', 'Orbitron', sans-serif;
+  --font-speed: 'Teko', 'Russo One', sans-serif;
+  --font-racing: 'Barlow Semi Condensed', 'Chakra Petch', sans-serif;
   --font-hud: 'Chakra Petch', 'JetBrains Mono', sans-serif;
   --font-mono: 'JetBrains Mono', 'Chakra Petch', ui-monospace, monospace;
 }
@@ -186,33 +187,42 @@ html, body {
 }
 
 .hud-stat-box {
-  padding: 9px 15px;
+  padding: 8px 16px;
   min-width: 105px;
   text-align: center;
+  transform: skewX(-10deg);
+  border: 1px solid rgba(0, 217, 255, 0.35);
+  background: linear-gradient(135deg, rgba(8, 16, 32, 0.92), rgba(4, 9, 20, 0.96)),
+              repeating-linear-gradient(45deg, rgba(0, 217, 255, 0.02) 0, rgba(0, 217, 255, 0.02) 2px, transparent 2px, transparent 4px);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12);
 }
 
 .hud-stat-label {
-  font-family: var(--font-hud);
-  font-size: 10px;
+  font-family: var(--font-racing);
+  font-style: italic;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.6px;
   color: var(--neon-cyan);
   margin-bottom: 2px;
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.4);
 }
 
 .hud-stat-value {
   font-family: var(--font-speed);
-  font-size: 24px;
-  font-weight: 900;
+  font-size: 28px;
+  font-weight: 700;
   color: #fff;
-  line-height: 1.1;
-  letter-spacing: 0.5px;
+  line-height: 0.95;
+  letter-spacing: 0.8px;
 }
 
 .hud-stat-unit {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   font-weight: 600;
+  margin-left: 2px;
 }
 
 /* Hull Health Bar */
@@ -346,49 +356,158 @@ html, body {
   pointer-events: auto;
 }
 
-/* Speedometer & Nitro Panel */
+/* Speedometer & Nitro Panel (Championship GT3 Cockpit Telemetry) */
 .speed-panel {
-  padding: 12px 18px;
-  min-width: 190px;
+  padding: 14px 22px;
+  min-width: 250px;
+  transform: skewX(-10deg);
+  border: 1px solid rgba(0, 217, 255, 0.45);
+  border-radius: 12px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 217, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(8, 16, 30, 0.95), rgba(4, 9, 20, 0.98)),
+              repeating-linear-gradient(45deg, rgba(0, 217, 255, 0.02) 0, rgba(0, 217, 255, 0.02) 2px, transparent 2px, transparent 4px);
+}
+
+/* Sequential Shift Light Array */
+.shift-lights-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shift-lights-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  color: var(--neon-cyan);
+}
+
+.shift-lights-cluster {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.shift-led {
+  width: 9px;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: all 0.08s ease;
+}
+
+.shift-led.green.active {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88, 0 0 14px rgba(0, 255, 136, 0.8);
+}
+
+.shift-led.amber.active {
+  background: #ffb800;
+  box-shadow: 0 0 8px #ffb800, 0 0 14px rgba(255, 184, 0, 0.8);
+}
+
+.shift-led.red.active {
+  background: #ff1644;
+  box-shadow: 0 0 8px #ff1644, 0 0 14px rgba(255, 22, 68, 0.9);
+}
+
+.shift-led.redline.active {
+  background: #00f0ff;
+  box-shadow: 0 0 10px #00f0ff, 0 0 18px rgba(0, 240, 255, 1);
+}
+
+.shift-led.redline.strobe {
+  animation: shiftStrobe 0.12s infinite alternate;
+}
+
+@keyframes shiftStrobe {
+  0% { background: #ff0055; box-shadow: 0 0 12px #ff0055; }
+  100% { background: #ffffff; box-shadow: 0 0 18px #ffffff, 0 0 25px #00f0ff; }
 }
 
 .speed-readout {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
 }
 
 .speed-number {
   font-family: var(--font-speed);
-  font-size: 42px;
-  font-weight: 900;
-  line-height: 1;
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 0.9;
   color: #fff;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 20px rgba(0, 217, 255, 0.55);
+  letter-spacing: 1px;
+  text-shadow: 0 0 24px rgba(0, 217, 255, 0.65);
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.speed-number.speed-hypersonic {
+  color: #ffea00;
+  text-shadow: 0 0 28px rgba(255, 234, 0, 0.85), 0 0 45px rgba(255, 42, 133, 0.6);
+  animation: hypersonicPulse 0.4s infinite alternate;
+}
+
+@keyframes hypersonicPulse {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.25); }
+}
+
+.speed-unit-cluster {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-left: 2px;
 }
 
 .speed-unit {
-  font-family: var(--font-hud);
-  font-size: 13px;
+  font-family: var(--font-racing);
+  font-style: italic;
+  font-size: 15px;
   font-weight: 800;
   color: var(--neon-cyan);
+  letter-spacing: 1.5px;
+  line-height: 1;
+}
+
+.speed-sub-mph {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
   letter-spacing: 1px;
+  margin-top: 2px;
 }
 
 .gear-badge {
   margin-left: auto;
-  font-family: var(--font-hud);
-  font-size: 12px;
+  font-family: var(--font-racing);
+  font-style: italic;
+  font-size: 13px;
   font-weight: 900;
   color: var(--neon-gold);
-  background: rgba(255, 184, 0, 0.18);
-  border: 1px solid rgba(255, 184, 0, 0.5);
-  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(255, 184, 0, 0.25), rgba(255, 140, 0, 0.12));
+  border: 1px solid rgba(255, 184, 0, 0.6);
+  padding: 4px 12px;
   border-radius: 6px;
   letter-spacing: 1.5px;
-  text-shadow: 0 0 10px rgba(255, 184, 0, 0.5);
-  box-shadow: 0 0 12px rgba(255, 184, 0, 0.2);
+  text-shadow: 0 0 10px rgba(255, 184, 0, 0.6);
+  box-shadow: 0 0 14px rgba(255, 184, 0, 0.25);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.gear-badge.gear-kick {
+  animation: gearPunch 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes gearPunch {
+  0% { transform: scale(1.35); filter: brightness(2) drop-shadow(0 0 16px #ffea00); }
+  50% { transform: scale(1.1); filter: brightness(1.4); }
+  100% { transform: scale(1); filter: brightness(1); }
 }
 
 /* Speed Gauge Arch */
@@ -426,7 +545,7 @@ html, body {
 
 .rpm-bar-track {
   width: 100%;
-  height: 4px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 99px;
   overflow: hidden;
@@ -447,6 +566,7 @@ html, body {
 .nitro-label-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 800;
@@ -455,27 +575,53 @@ html, body {
   margin-bottom: 4px;
 }
 
+.nitro-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--neon-cyan);
+  letter-spacing: 1px;
+}
+
+.nitro-tag.active {
+  color: #ffea00;
+  text-shadow: 0 0 10px rgba(255, 234, 0, 0.9);
+  animation: nitroPulse 0.3s infinite alternate;
+}
+
+@keyframes nitroPulse {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+
 .nitro-bar-track {
   height: 10px;
   width: 100%;
-  background: rgba(0, 20, 40, 0.65);
-  border: 1px solid rgba(0, 217, 255, 0.4);
+  background: rgba(0, 15, 30, 0.8);
+  border: 1px solid rgba(0, 217, 255, 0.45);
   border-radius: 99px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .nitro-bar-fill {
   height: 100%;
   width: 40%;
-  background: linear-gradient(90deg, #0099ff, #00f0ff, #7dffe3);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.8);
+  background: linear-gradient(90deg, #0077ff, #00d9ff, #00ffcc);
+  box-shadow: 0 0 14px rgba(0, 217, 255, 0.9);
   transition: width 0.1s linear;
 }
 
 .nitro-ready .nitro-bar-fill {
-  background: linear-gradient(90deg, #00f0ff, #ff2a85, #ffb800);
-  box-shadow: 0 0 18px rgba(255, 42, 133, 0.9);
+  background: linear-gradient(90deg, #00d9ff, #ff2a85, #ffb800);
+  box-shadow: 0 0 22px rgba(255, 42, 133, 1), 0 0 35px rgba(255, 184, 0, 0.8);
+  animation: nitroSurge 0.6s infinite alternate;
+}
+
+@keyframes nitroSurge {
+  0% { filter: brightness(1) drop-shadow(0 0 8px #00f0ff); }
+  100% { filter: brightness(1.4) drop-shadow(0 0 18px #ff2a85); }
 }
 
 /* Screen FX Overlays */
@@ -1841,12 +1987,13 @@ html, body {
   position: fixed;
   top: 14%;
   left: 50%;
-  transform: translateX(-50%);
-  background: rgba(12, 18, 30, 0.88);
-  border: 2px solid var(--neon-magenta);
-  box-shadow: 0 0 35px rgba(255, 42, 133, 0.4), inset 0 0 20px rgba(255, 42, 133, 0.2);
+  transform: translateX(-50%) skewX(-10deg);
+  background: linear-gradient(135deg, rgba(12, 22, 38, 0.94), rgba(6, 12, 24, 0.98)),
+              repeating-linear-gradient(45deg, rgba(0, 217, 255, 0.08) 0, rgba(0, 217, 255, 0.08) 12px, transparent 12px, transparent 24px);
+  border: 2px solid var(--neon-cyan);
+  box-shadow: 0 0 40px rgba(0, 217, 255, 0.5), inset 0 0 25px rgba(0, 217, 255, 0.25);
   border-radius: 12px;
-  padding: 14px 28px;
+  padding: 16px 36px;
   text-align: center;
   z-index: 45;
   animation: pulse-checkpoint 1.4s infinite alternate;
@@ -1854,25 +2001,27 @@ html, body {
 }
 
 @keyframes pulse-checkpoint {
-  0% { transform: translateX(-50%) scale(0.98); box-shadow: 0 0 25px rgba(255, 42, 133, 0.3); }
-  100% { transform: translateX(-50%) scale(1.02); box-shadow: 0 0 45px rgba(255, 42, 133, 0.65); }
+  0% { transform: translateX(-50%) skewX(-10deg) scale(0.98); box-shadow: 0 0 25px rgba(0, 217, 255, 0.4); }
+  100% { transform: translateX(-50%) skewX(-10deg) scale(1.02); box-shadow: 0 0 50px rgba(0, 217, 255, 0.8); }
 }
 
 .checkpoint-glitch-badge {
-  font-family: var(--font-display);
-  font-size: 15px;
+  font-family: var(--font-racing);
+  font-style: italic;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: 2px;
+  letter-spacing: 2.5px;
   color: #fff;
-  text-shadow: 0 0 10px rgba(255, 42, 133, 0.8);
+  text-shadow: 0 0 14px rgba(0, 217, 255, 0.9);
 }
 
 .checkpoint-sub {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--neon-cyan);
-  margin-top: 5px;
-  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--neon-gold);
+  margin-top: 6px;
+  letter-spacing: 1.8px;
 }
 
 /* 180° Turret Gunner Crosshair */

@@ -109,6 +109,7 @@ class RoadRiotGame {
     // Garage carousel index
     this.garageVehicleList = Object.keys(VEHICLE_ROSTER);
     this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle) || 0;
+    this.lastGear = 1;
 
     // Bind UI & Inputs
     this.cacheDomElements();
@@ -135,12 +136,15 @@ class RoadRiotGame {
       hullBar: document.querySelector('#hud-hull-fill'),
       hullBox: document.querySelector('#hud-hull-box'),
       speedNum: document.querySelector('#hud-speed'),
+      speedMph: document.querySelector('#hud-mph'),
       speedBar: document.querySelector('#hud-speed-fill'),
       gearBadge: document.querySelector('#hud-gear'),
+      shiftLeds: document.querySelectorAll('#hud-shift-lights .shift-led'),
       rpmNum: document.querySelector('#hud-rpm'),
       rpmBar: document.querySelector('#hud-rpm-fill'),
       nitroBar: document.querySelector('#hud-nitro-fill'),
       nitroTrack: document.querySelector('#hud-nitro-track'),
+      nitroTag: document.querySelector('#nitro-status-tag'),
       announcer: document.querySelector('#announcer-zone'),
       floatingScores: document.querySelector('#floating-scores-layer'),
       countdownOverlay: document.querySelector('#countdown-overlay'),
@@ -704,6 +708,7 @@ class RoadRiotGame {
     const upg = progression.data.upgrades[sel] || {};
     this.player.setVehicle(sel, upg, progression.data.selectedPaint, progression.data.selectedGlow);
     this.player.reset();
+    this.lastGear = 1;
 
     if (this.gameMode === 'SPRINT') {
       if (this.ui.racePosBox) this.ui.racePosBox.classList.remove('hidden');
@@ -1805,24 +1810,59 @@ class RoadRiotGame {
     this.ui.hullBox.classList.toggle('hull-low', hullPct < 30);
 
     this.ui.speedNum.textContent = Math.round(kmh);
+    if (this.ui.speedMph) {
+      this.ui.speedMph.textContent = Math.round(kmh * 0.621371);
+    }
+    this.ui.speedNum.classList.toggle('speed-hypersonic', kmh >= 260);
+
     const speedRatio = Math.min(100, (kmh / 360) * 100);
     this.ui.speedBar.style.width = `${speedRatio}%`;
 
     // Real-Time Gear & RPM Tachometer HUD
+    const curGear = audio.getGear();
     if (this.ui.gearBadge) {
-      this.ui.gearBadge.textContent = `GEAR ${audio.getGear()}`;
+      if (this.lastGear !== curGear) {
+        this.lastGear = curGear;
+        this.ui.gearBadge.textContent = `GEAR ${curGear}`;
+        this.ui.gearBadge.classList.remove('gear-kick');
+        void this.ui.gearBadge.offsetWidth;
+        this.ui.gearBadge.classList.add('gear-kick');
+      }
     }
 
+    const rpm = audio.getRpm();
     if (this.ui.rpmNum && this.ui.rpmBar) {
-      const rpm = audio.getRpm();
       this.ui.rpmNum.textContent = `${rpm.toLocaleString()} RPM`;
       const rpmPct = Math.min(100, Math.max(8, (rpm / 8000) * 100));
       this.ui.rpmBar.style.width = `${rpmPct}%`;
     }
 
+    // Sequential Shift LEDs (GT3 Style)
+    if (this.ui.shiftLeds && this.ui.shiftLeds.length > 0) {
+      const thresholds = [3200, 4000, 4800, 5600, 6400, 7000, 7400, 7700];
+      const isRedline = rpm >= 7700;
+      this.ui.shiftLeds.forEach((led, idx) => {
+        const active = rpm >= thresholds[idx];
+        led.classList.toggle('active', active);
+        led.classList.toggle('strobe', isRedline && idx === 7);
+      });
+    }
+
     const nitroPct = (this.player.nitro / this.player.maxNitro) * 100;
     this.ui.nitroBar.style.width = `${nitroPct}%`;
     this.ui.nitroTrack.classList.toggle('nitro-ready', nitroPct >= 95);
+    if (this.ui.nitroTag) {
+      if (this.player.isBoosting) {
+        this.ui.nitroTag.textContent = 'NITRO FIRING';
+        this.ui.nitroTag.classList.add('active');
+      } else if (nitroPct >= 95) {
+        this.ui.nitroTag.textContent = 'MAX OVERDRIVE';
+        this.ui.nitroTag.classList.remove('active');
+      } else {
+        this.ui.nitroTag.textContent = `${Math.round(nitroPct)}% CHARGE`;
+        this.ui.nitroTag.classList.remove('active');
+      }
+    }
 
     // Highway Distance Radar
     const targetMilestone = this.world.challengeDistance || 10000;

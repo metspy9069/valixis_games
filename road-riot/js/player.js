@@ -39,7 +39,7 @@ export const VEHICLE_ROSTER = {
     name: 'Venom Drift-R',
     tier: 'DRIFT SPEC',
     desc: 'Lightweight carbon chassis engineered for high-angle corner slides and slipstream slingshots.',
-    modelAsset: './assets/sports.glb',
+    modelAsset: './assets/venom.glb',
     baseStats: { topSpeed: 31, accel: 35, handling: 38, nitro: 55, armor: 85 },
     paint: 0x9d4edd, // Cyber Purple
     glow: 0xff2a85,
@@ -51,7 +51,7 @@ export const VEHICLE_ROSTER = {
     name: 'Phantom GT V8',
     tier: 'SUPER SEDAN',
     desc: 'Twin-turbo executive sport sedan with brutal straight-line acceleration and rapid nitrous recharge.',
-    modelAsset: './assets/sedan-sports.glb',
+    modelAsset: './assets/phantom.glb',
     baseStats: { topSpeed: 33, accel: 38, handling: 31, nitro: 60, armor: 110 },
     paint: 0xffb800, // Electric Gold
     glow: 0xff8800,
@@ -63,7 +63,7 @@ export const VEHICLE_ROSTER = {
     name: 'Highway Interceptor',
     tier: 'PURSUIT SPEC',
     desc: 'Reinforced high-output police cruiser with front tactical push-bar and active siren strobes.',
-    modelAsset: './assets/police.glb',
+    modelAsset: './assets/interceptor.glb',
     baseStats: { topSpeed: 34, accel: 36, handling: 33, nitro: 65, armor: 160 },
     paint: 0x0c121e, // Stealth Midnight
     glow: 0x00d9ff,
@@ -75,7 +75,7 @@ export const VEHICLE_ROSTER = {
     name: 'Titan Juggernaut',
     tier: 'HEAVY ARMOR',
     desc: 'Heavy-duty armored tactical SUV. Crushes oncoming traffic and shrugs off massive collisions.',
-    modelAsset: './assets/suv.glb',
+    modelAsset: './assets/titan.glb',
     baseStats: { topSpeed: 27, accel: 28, handling: 26, nitro: 45, armor: 220 },
     paint: 0x1e2d3d, // Battleship Slate
     glow: 0x00ff88,
@@ -84,7 +84,7 @@ export const VEHICLE_ROSTER = {
   },
   hyperion: {
     id: 'hyperion',
-    name: 'Lamborghini Hyperion',
+    name: 'Valixis Hyperion GTR',
     tier: 'CYBER HYPERCAR',
     desc: 'The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 320+ KM/H.',
     modelAsset: './assets/player-lamborghini.glb',

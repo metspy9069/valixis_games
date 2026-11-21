@@ -629,13 +629,13 @@ class RoadRiotGame {
     const assetsToLoad = [
       { key: 'apex', url: './assets/player-ferrari.glb' },
       { key: 'player', url: './assets/player-ferrari.glb' },
-      { key: 'venom', url: './assets/sports.glb' },
+      { key: 'venom', url: './assets/venom.glb' },
       { key: 'sports', url: './assets/sports.glb' },
-      { key: 'phantom', url: './assets/sedan-sports.glb' },
+      { key: 'phantom', url: './assets/phantom.glb' },
       { key: 'sedan-sports', url: './assets/sedan-sports.glb' },
-      { key: 'interceptor', url: './assets/police.glb' },
+      { key: 'interceptor', url: './assets/interceptor.glb' },
       { key: 'police', url: './assets/police.glb' },
-      { key: 'titan', url: './assets/suv.glb' },
+      { key: 'titan', url: './assets/titan.glb' },
       { key: 'suv', url: './assets/suv.glb' },
       { key: 'hyperion', url: './assets/player-lamborghini.glb' },
       { key: 'van', url: './assets/van.glb' },
@@ -1298,7 +1298,7 @@ class RoadRiotGame {
     // Update NPC Traffic Loop Cars
     if (this.npcCars) {
       for (const npc of this.npcCars) {
-        npc.update(dt);
+        npc.update(dt, currentSpeed);
       }
     }
 
@@ -1754,13 +1754,18 @@ class RoadRiotGame {
     this.camera.updateProjectionMatrix();
 
     // High-speed asphalt micro-rumble
-    const speedRumble = (kmh > 220) ? Math.min(0.06, ((kmh - 220) / 140) * 0.04) : 0;
-    this.camShake = Math.max(0, this.camShake - dt * 2.2);
+    const speedRumble = (kmh > 220) ? Math.min(0.04, ((kmh - 220) / 140) * 0.03) : 0;
+    this.camShake = Math.max(0, this.camShake - dt * 2.5);
     const totalShake = this.camShake + speedRumble;
 
+    // Smooth Harmonic Camera Rumble & Impact Shake (eliminates single-frame jagged twitch)
+    const timeNow = performance.now() * 0.04;
+    const shakeNoiseX = Math.sin(timeNow * 1.1) * totalShake * 0.6;
+    const shakeNoiseY = Math.cos(timeNow * 0.9) * totalShake * 0.5;
+
     // Cinematic GT Chase Cam: Elevated rear angle that reveals 150+ meters of open highway ahead
-    const targetCamX = this.player.x * 0.52 + (Math.random() - 0.5) * totalShake;
-    const targetCamY = 3.8 + this.player.verticalY * 0.55 + (Math.random() - 0.5) * totalShake;
+    const targetCamX = this.player.x * 0.52 + shakeNoiseX;
+    const targetCamY = 3.8 + this.player.verticalY * 0.55 + shakeNoiseY;
     const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0);
 
     this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);

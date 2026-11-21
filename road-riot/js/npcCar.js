@@ -1,16 +1,24 @@
-// road-riot/js/npcCar.js – Traffic Car AI with Circular/Loop Waypoints
+// road-riot/js/npcCar.js – Highway Street Racer AI with Relative Speed & Lane Dynamics
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export class NPCCar {
-  constructor(scene, pathPoints, color = 0x00d9ff, speed = 18) {
+  constructor(scene, pathPoints, color = 0x00d9ff, speed = 21) {
     this.scene = scene;
-    this.pathPoints = pathPoints || []; // array of THREE.Vector3
+    this.pathPoints = pathPoints || []; // fallback path support
     this.loader = new GLTFLoader();
     this.car = null;
-    this.progress = Math.random(); // staggered 0..1 along path
-    this.speed = speed; // units per second
+    this.progress = Math.random();
+    this.speed = speed; // units per second (~80 km/h)
     this.color = color;
+
+    // Highway Lane Relative Coordinates
+    this.lanes = [-6, 0, 6];
+    this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+    this.targetX = this.currentLane;
+    this.laneChangeTimer = 4.0 + Math.random() * 6.0;
+    this.isColliding = false;
+
     this.loadModel();
   }
 
@@ -19,7 +27,6 @@ export class NPCCar {
       const gltf = await this.loader.loadAsync('assets/models/car_placeholder.glb');
       this.car = gltf.scene;
 
-      // Check if loaded model has geometry; if empty placeholder, build stylized procedural car
       let hasGeometry = false;
       this.car.traverse(node => {
         if (node.isMesh && node.geometry) hasGeometry = true;
@@ -39,12 +46,12 @@ export class NPCCar {
   buildProceduralCarMesh() {
     this.car = new THREE.Group();
 
-    // Aerodynamic Chassis
+    // Aerodynamic GT Chassis
     const bodyGeo = new THREE.BoxGeometry(2.0, 0.55, 4.0);
     const bodyMat = new THREE.MeshStandardMaterial({
       color: this.color,
-      roughness: 0.25,
-      metalness: 0.7
+      roughness: 0.22,
+      metalness: 0.8
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = 0.55;
@@ -53,9 +60,9 @@ export class NPCCar {
     // Dark Tinted Glass Canopy
     const roofGeo = new THREE.BoxGeometry(1.5, 0.45, 2.0);
     const roofMat = new THREE.MeshStandardMaterial({
-      color: 0x0a1525,
-      roughness: 0.1,
-      metalness: 0.9,
+      color: 0x08101a,
+      roughness: 0.08,
+      metalness: 0.95,
       transparent: true,
       opacity: 0.85
     });
@@ -73,11 +80,11 @@ export class NPCCar {
       this.car.add(tail);
     });
 
-    // Headlights facing forward (-Z)
+    // Projector Headlights facing forward (-Z)
     [-0.65, 0.65].forEach(x => {
       const head = new THREE.Mesh(
         new THREE.BoxGeometry(0.35, 0.1, 0.08),
-        new THREE.MeshBasicMaterial({ color: 0xfffae0 })
+        new THREE.MeshBasicMaterial({ color: 0xddf4ff })
       );
       head.position.set(x, 0.55, -2.02);
       this.car.add(head);
@@ -87,7 +94,7 @@ export class NPCCar {
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111620, roughness: 0.8 });
     [-1.0, 1.0].forEach(wx => {
       [-1.2, 1.2].forEach(wz => {
-        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 12), wheelMat);
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 16), wheelMat);
         wheel.rotation.z = Math.PI / 2;
         wheel.position.set(wx, 0.38, wz);
         this.car.add(wheel);
@@ -101,11 +108,49 @@ export class NPCCar {
       }
     });
 
+    // Initial position on highway
+    const spawnZ = -50 - Math.random() * 120;
+    this.car.position.set(this.currentLane, 0, spawnZ);
     this.scene.add(this.car);
   }
 
-  update(delta) {
-    if (!this.car || this.pathPoints.length < 2) return;
+  update(delta, playerSpeed = 0) {
+    if (!this.car) return;
+
+    if (playerSpeed > 0) {
+      // 1. Natural Relative Highway Scrolling:
+      // The road moves toward camera at playerSpeed * delta.
+      // The NPC drives forward at this.speed * delta.
+      // Net change in Z: (playerSpeed - this.speed) * delta.
+      this.car.position.z += (playerSpeed - this.speed) * delta;
+
+      // 2. Autonomous Lane Decisions (Smooth Lane Swapping)
+      this.laneChangeTimer -= delta;
+      if (this.laneChangeTimer <= 0) {
+        this.laneChangeTimer = 5.0 + Math.random() * 8.0;
+        this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+        this.targetX = this.currentLane;
+      }
+
+      // Smooth Lane Steer & Yaw Tilt
+      const dx = this.targetX - this.car.position.x;
+      this.car.position.x += dx * Math.min(1, delta * 3.5);
+      this.car.rotation.y = Math.PI - dx * 0.08;
+
+      // 3. Clean Highway Recycling:
+      // When vehicle is scrolled past camera (+Z), recycle ahead of player (-Z)
+      if (this.car.position.z > 35) {
+        this.car.position.z = -180 - Math.random() * 70;
+        this.currentLane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+        this.targetX = this.currentLane;
+        this.car.position.x = this.targetX;
+        this.speed = 19 + Math.random() * 6;
+      }
+      return;
+    }
+
+    // Fallback: Path Interpolation if static path loop is explicitly tested without playerSpeed
+    if (this.pathPoints.length < 2) return;
     const len = this.pathLength();
     if (len <= 0) return;
 
@@ -115,7 +160,6 @@ export class NPCCar {
     const pos = this.interpolate(this.progress);
     this.car.position.copy(pos);
 
-    // Orient along tangent
     const nextT = (this.progress + 0.01) % 1;
     const nextPos = this.interpolate(nextT);
     this.car.lookAt(nextPos);

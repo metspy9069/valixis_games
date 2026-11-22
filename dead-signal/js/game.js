@@ -1042,10 +1042,18 @@ function fireRound(opts = {}) {
   camera.getWorldPosition(eye);
   camera.getWorldDirection(aimDir);
   const aimWall = rayWorld(eye, aimDir, 160);
-  const aimPoint = eye.clone().addScaledVector(aimDir, aimWall ? Math.max(3.5, aimWall.distance) : 90);
+  // Converge on whatever the crosshair is really on, corpse-clear zombie
+  // included. Using only the wall distance aimed the barrel at the far end of
+  // an open street, and the muzzle offset then put close targets beside the
+  // shot even though the crosshair was on them.
+  const aimZombie = rayZombies(eye, aimDir, aimWall ? aimWall.distance : 160);
+  const aimRange = aimZombie && (!aimWall || aimZombie.distance <= aimWall.distance)
+    ? aimZombie.distance
+    : (aimWall ? aimWall.distance : 90);
+  const aimPoint = eye.clone().addScaledVector(aimDir, Math.max(3.5, aimRange));
 
   const muzzle = new THREE.Vector3();
-  viewModel.muzzleWorld(muzzle);
+  viewModel.muzzleWorld(muzzle, camera);
   muzzleLight.position.copy(muzzle);
 
   const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul() * spreadMul;

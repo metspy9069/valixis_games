@@ -216,16 +216,18 @@ export class ViewModel {
    * Muzzle position in WORLD space.
    *
    * The viewmodel renders in its own scene with the camera fixed at the
-   * origin, so localToWorld() only gets us back to camera space. Applying the
-   * camera's world matrix is what puts the barrel in the street; without it
-   * every tracer started near the map origin instead of at the gun.
+   * origin, so localToWorld() only gets us back to camera space. The camera
+   * passed in here must be the PLAYER camera (the one that moves with the
+   * view), not this.camera: that one never leaves the origin, so its matrix is
+   * identity and every tracer started near the map origin instead of at the
+   * gun.
    */
-  muzzleWorld(target) {
+  muzzleWorld(target, worldCamera = this.camera) {
     this.scene.updateMatrixWorld(true);
-    this.camera.updateMatrixWorld(true);
+    worldCamera.updateMatrixWorld(true);
     const m = this.models[this.index];
     const local = m.userData.muzzle.clone();
     m.localToWorld(local);
-    return target.copy(local).applyMatrix4(this.camera.matrixWorld);
+    return target.copy(local).applyMatrix4(worldCamera.matrixWorld);
   }
 }

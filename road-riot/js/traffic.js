@@ -232,14 +232,14 @@ export class TrafficManager {
     if (!ctx) return null;
 
     // Ambient Occlusion drop shadow under NPC vehicle chassis
-    const grad = ctx.createRadialGradient(128, 128, 20, 128, 128, 118);
-    grad.addColorStop(0, 'rgba(0, 0, 0, 0.92)');
-    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.78)');
-    grad.addColorStop(0.72, 'rgba(0, 0, 0, 0.38)');
+    const grad = ctx.createRadialGradient(128, 128, 15, 128, 128, 120);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0.72)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.54)');
+    grad.addColorStop(0.72, 'rgba(0, 0, 0, 0.22)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.ellipse(128, 128, 92, 116, 0, 0, Math.PI * 2);
+    ctx.ellipse(128, 128, 92, 118, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 4 Tire Contact Footprints (FL, FR, RL, RR)
@@ -251,8 +251,8 @@ export class TrafficManager {
     ];
     tirePositions.forEach(tp => {
       const tireGrad = ctx.createRadialGradient(tp.x, tp.y, 4, tp.x, tp.y, tp.rx * 1.4);
-      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
-      tireGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
+      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 0.88)');
+      tireGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.55)');
       tireGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
       ctx.fillStyle = tireGrad;
       ctx.beginPath();
@@ -272,7 +272,7 @@ export class TrafficManager {
     const shadowMat = new THREE.MeshBasicMaterial({
       map: this.sharedShadowTex || undefined,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.74,
       depthWrite: false
     });
     const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
@@ -1075,25 +1075,22 @@ export class TrafficManager {
           const relX = v.mesh.position.x - ramp.lane;
           const absX = Math.abs(relX);
           if (relZ >= -2.4 && relZ <= 2.4) {
-            if (absX < 1.35) {
+            if (absX < 1.45) {
               // Ride incline deck without interior clipping
-              const progress = (2.4 - relZ) / 4.8;
+              const progress = Math.max(0, Math.min(1, (2.4 - relZ) / 4.8));
               const deckY = 0.03 + progress * 1.32;
               v.mesh.position.y = Math.max(v.mesh.position.y || 0, deckY);
-              if (relZ <= -1.9 && !v.isAirborne) {
+              if (relZ <= -1.8 && !v.isAirborne) {
                 v.isAirborne = true;
-                v.airVy = 7.5;
+                v.airVy = 8.0;
+                v.mesh.position.y = Math.max(v.mesh.position.y || 0, deckY);
               }
-            } else if (absX >= 1.35 && absX <= 2.0) {
+            } else if (absX >= 1.45 && absX <= 2.1) {
               // Solid ramp rail bounce
               const side = Math.sign(relX) || 1;
               v.mesh.position.x = ramp.lane + side * 2.2;
-              v.speed *= 0.85;
+              v.speed *= 0.92;
             }
-          } else if (relZ < -2.4 && relZ >= -3.2 && absX < 1.35 && (v.mesh.position.y || 0) < 1.2) {
-            // Solid ramp back wall stop: traffic cannot pass through back of ramp
-            v.speed = Math.max(0, v.speed * 0.35);
-            v.mesh.position.z = rampWorldZ - 3.25;
           }
         }
       }

@@ -132,9 +132,11 @@ export class PlayerCar {
     this.steerInput = 0;
     this.steerAngle = 0;
     this.rampElevation = 0;
+    this.rampPitch = 0;
 
     // Suspension Kinetics
     this.suspensionPitch = 0;
+    this.targetPitch = 0;
     this.suspensionRoll = 0;
     this.wheelRotation = 0;
 
@@ -172,51 +174,65 @@ export class PlayerCar {
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
 
-    // 1. Soft Ambient Occlusion Drop Shadow (Gaussian falloff under chassis)
-    const grad = ctx.createRadialGradient(256, 256, 40, 256, 256, 220);
-    grad.addColorStop(0, 'rgba(0, 0, 0, 0.94)');
-    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.86)');
-    grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.48)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
-    ctx.fillStyle = grad;
+    // 1. Ultra-soft outer ambient occlusion drop shadow (large Gaussian falloff)
+    const outerGrad = ctx.createRadialGradient(256, 256, 30, 256, 256, 235);
+    outerGrad.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+    outerGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.52)');
+    outerGrad.addColorStop(0.70, 'rgba(0, 0, 0, 0.22)');
+    outerGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = outerGrad;
     ctx.beginPath();
-    ctx.ellipse(256, 256, 175, 225, 0, 0, Math.PI * 2);
+    ctx.ellipse(256, 256, 185, 235, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Heavy Engine Bay & Transmission Deep Under-Chassis Occlusion
-    const engGrad = ctx.createRadialGradient(256, 240, 10, 256, 240, 140);
-    engGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
-    engGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.7)');
-    engGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
-    ctx.fillStyle = engGrad;
+    // 2. Chassis Core & Deep Floor Underbody Occlusion (Medium soft ellipse)
+    const coreGrad = ctx.createRadialGradient(256, 250, 15, 256, 250, 160);
+    coreGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+    coreGrad.addColorStop(0.50, 'rgba(0, 0, 0, 0.60)');
+    coreGrad.addColorStop(0.85, 'rgba(0, 0, 0, 0.20)');
+    coreGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.ellipse(256, 240, 130, 170, 0, 0, Math.PI * 2);
+    ctx.ellipse(256, 250, 140, 185, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. 4 Intense Tire Contact Footprints (FL, FR, RL, RR)
-    // Anchors the 4 rubber tires solidly onto the ground
+    // 3. 4 Softly Feathered Tire Contact Footprints (FL, FR, RL, RR)
     const tirePositions = [
-      { x: 138, y: 140, rx: 32, ry: 48 }, // Front Left
-      { x: 374, y: 140, rx: 32, ry: 48 }, // Front Right
-      { x: 138, y: 370, rx: 36, ry: 56 }, // Rear Left
-      { x: 374, y: 370, rx: 36, ry: 56 }  // Rear Right
+      { x: 138, y: 140, rx: 30, ry: 46 }, // Front Left
+      { x: 374, y: 140, rx: 30, ry: 46 }, // Front Right
+      { x: 138, y: 370, rx: 34, ry: 54 }, // Rear Left
+      { x: 374, y: 370, rx: 34, ry: 54 }  // Rear Right
     ];
 
     tirePositions.forEach(tp => {
-      const tireGrad = ctx.createRadialGradient(tp.x, tp.y, 8, tp.x, tp.y, tp.rx * 1.5);
-      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
-      tireGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.92)');
-      tireGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+      const tireGrad = ctx.createRadialGradient(tp.x, tp.y, 6, tp.x, tp.y, tp.rx * 1.4);
+      tireGrad.addColorStop(0, 'rgba(0, 0, 0, 0.90)');
+      tireGrad.addColorStop(0.55, 'rgba(0, 0, 0, 0.65)');
+      tireGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
       ctx.fillStyle = tireGrad;
       ctx.beginPath();
       ctx.ellipse(tp.x, tp.y, tp.rx * 1.3, tp.ry * 1.3, 0, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // 4. Aerodynamic Front Splitter & Rear Diffuser Shadows
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-    ctx.fillRect(150, 75, 212, 12);
-    ctx.fillRect(150, 425, 212, 14);
+    // 4. Soft Front Aerodynamic Splitter & Rear Diffuser Shadows (smooth feathered ellipses, NO hard fillRect!)
+    const frontGrad = ctx.createRadialGradient(256, 85, 10, 256, 85, 120);
+    frontGrad.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
+    frontGrad.addColorStop(0.60, 'rgba(0, 0, 0, 0.25)');
+    frontGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = frontGrad;
+    ctx.beginPath();
+    ctx.ellipse(256, 85, 110, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const rearGrad = ctx.createRadialGradient(256, 425, 10, 256, 425, 120);
+    rearGrad.addColorStop(0, 'rgba(0, 0, 0, 0.60)');
+    rearGrad.addColorStop(0.60, 'rgba(0, 0, 0, 0.30)');
+    rearGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = rearGrad;
+    ctx.beginPath();
+    ctx.ellipse(256, 425, 115, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     return new THREE.CanvasTexture(canvas);
   }
@@ -229,7 +245,7 @@ export class PlayerCar {
     const shadowMat = new THREE.MeshBasicMaterial({
       map: shadowTex,
       transparent: true,
-      opacity: 0.94,
+      opacity: 0.76,
       depthWrite: false
     });
     this.shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
@@ -313,12 +329,14 @@ export class PlayerCar {
     this.steerAngle = 0;
     this.vx = 0;
     this.suspensionPitch = 0;
+    this.targetPitch = 0;
     this.suspensionRoll = 0;
     this.wheelRotation = 0;
     this.isAirborne = false;
     this.verticalY = 0;
     this.verticalVel = 0;
     this.rampElevation = 0;
+    this.rampPitch = 0;
     this.shieldActive = false;
     this.shieldTime = 0;
     this.magnetActive = false;
@@ -733,16 +751,16 @@ export class PlayerCar {
     // Progressive lateral steering momentum with smooth damping (eliminates robotic twitch)
     this.vx = this.vx || 0;
     const targetVx = inputDir * (this.handling * 0.52 * sensitivity);
-    const damping = inputDir !== 0 ? 15 : 12;
+    const damping = inputDir !== 0 ? 14 : 9.5;
     this.vx += (targetVx - this.vx) * Math.min(1, dt * damping);
     this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -8.2, 8.2);
     this.mesh.position.x = this.x;
 
-    // Target Front Wheel Turn Angle
+    // Target Front Wheel Turn Angle (Smooth progressive steering)
     const maxSpeedHandling = Math.max(1, this.handling * 0.52 * sensitivity);
     const normTurn = THREE.MathUtils.clamp(this.vx / maxSpeedHandling, -1, 1);
-    const targetWheelTurn = normTurn * 0.45;
-    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 14);
+    const targetWheelTurn = normTurn * 0.42;
+    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 11);
     if (this.wheels.fl && this.wheels.fr) {
       const isInnerRotated = Boolean(this.carModel && this.carModel.children[0]?.rotation.y === Math.PI);
       const steerVal = isInnerRotated ? -this.steerAngle : this.steerAngle;
@@ -750,13 +768,13 @@ export class PlayerCar {
       this.wheels.fr.rotation.y = steerVal;
     }
 
-    // Suspension Body Roll into Turns
-    const targetRoll = -normTurn * (this.isDrifting ? 0.22 : 0.12);
-    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 9);
+    // Suspension Body Roll into Turns (Silky smooth weight transfer)
+    const targetRoll = -normTurn * (this.isDrifting ? 0.20 : 0.11);
+    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8.0);
 
-    // Car Yaw Slide: In Three.js looking towards -Z, turning right (+X) points nose right
-    const targetYaw = -normTurn * (this.isDrifting ? 0.38 : 0.09);
-    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 8);
+    // Car Yaw Slide: Fluid arcade rotation
+    const targetYaw = -normTurn * (this.isDrifting ? 0.36 : 0.08);
+    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.0);
   }
 
   setDrift(drifting) {
@@ -765,6 +783,11 @@ export class PlayerCar {
 
   setBraking(braking) {
     this.isBraking = Boolean(braking);
+  }
+
+  setRampElevation(elevation, pitch = -0.24) {
+    this.rampElevation = elevation;
+    this.rampPitch = pitch;
   }
 
   repairHull(amount) {
@@ -781,9 +804,10 @@ export class PlayerCar {
     }
   }
 
-  triggerJump(launchVel = 14) {
+  triggerJump(launchVel = 18, startY = 1.35) {
     if (this.isAirborne) return;
     this.isAirborne = true;
+    this.verticalY = Math.max(this.verticalY, startY);
     this.verticalVel = launchVel;
   }
 
@@ -924,39 +948,55 @@ export class PlayerCar {
       this.verticalVel += this.gravity * dt;
       this.verticalY += this.verticalVel * dt;
 
-      // Slight nose-up pitch in air
-      this.chassis.rotation.x = -0.12;
+      // Aerodynamic glide nose-up pitch in air
+      this.targetPitch = -0.10;
 
       // Landing detection
       if (this.verticalY <= 0) {
         this.verticalY = 0;
         this.verticalVel = 0;
         this.isAirborne = false;
-        this.suspensionPitch = 0.16; // heavy landing bounce!
+        this.targetPitch = 0.12; // Smooth suspension landing compression
         if (onLandCallback) onLandCallback();
       }
+    } else if (this.rampElevation > 0) {
+      // Smoothly match ramp incline
+      this.targetPitch = this.rampPitch || -0.24;
     } else {
-      this.verticalY = 0;
-      this.chassis.rotation.x = this.suspensionPitch;
+      // Flat road pitch from braking / acceleration
+      if (this.isBrakingToHalt) {
+        this.targetPitch = 0.12;
+      } else if (this.isBraking) {
+        this.targetPitch = 0.10;
+      } else if (this.isBoosting) {
+        this.targetPitch = -0.08;
+      } else {
+        this.targetPitch = 0;
+      }
     }
+
+    // Silky smooth suspension pitch lerp (eliminates 60Hz twitch and jitter)
+    this.suspensionPitch += (this.targetPitch - this.suspensionPitch) * Math.min(1, dt * 11.0);
+    this.chassis.rotation.x = this.suspensionPitch;
 
     // Ensure mesh X is 100% synchronized with physics state
     this.mesh.position.x = this.x;
-    const baseElevation = this.isAirborne ? this.verticalY : Math.max(this.verticalY, this.rampElevation || 0);
+    const baseElevation = this.isAirborne ? Math.max(this.verticalY, this.rampElevation || 0) : (this.rampElevation || 0);
     this.mesh.position.y = baseElevation;
     this.chassis.rotation.y = 0; // Chassis yaw is strictly locked forward; steering yaw is applied to this.mesh
     this.chassis.rotation.z = this.suspensionRoll;
     this.rampElevation = 0; // Reset for next frame
+    this.rampPitch = 0;
 
     // Dynamic ground contact shadow anchoring (stays on ground during jumps)
     if (this.shadowMesh) {
       if (baseElevation > 0) {
         this.shadowMesh.position.y = -baseElevation + 0.008;
-        this.shadowMesh.material.opacity = Math.max(0.15, 0.94 - baseElevation * 0.12);
-        this.shadowMesh.scale.setScalar(1.0 + baseElevation * 0.08);
+        this.shadowMesh.material.opacity = Math.max(0.12, 0.76 - baseElevation * 0.10);
+        this.shadowMesh.scale.setScalar(1.0 + baseElevation * 0.06);
       } else {
         this.shadowMesh.position.y = 0.008;
-        this.shadowMesh.material.opacity = 0.94;
+        this.shadowMesh.material.opacity = 0.76;
         this.shadowMesh.scale.set(1, 1, 1);
       }
     }

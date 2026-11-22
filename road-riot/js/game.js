@@ -304,9 +304,10 @@ class RoadRiotGame {
     spotKey.position.set(-3, 7, -4);
     spotKey.target = base;
     spotKey.castShadow = true;
-    spotKey.shadow.bias = -0.001;
-    spotKey.shadow.mapSize.width = 1024;
-    spotKey.shadow.mapSize.height = 1024;
+    spotKey.shadow.bias = -0.0005;
+    spotKey.shadow.mapSize.width = 2048;
+    spotKey.shadow.mapSize.height = 2048;
+    spotKey.shadow.radius = 3.2;
     group.add(spotKey);
 
     const spotFill = new THREE.SpotLight(0x00d9ff, 3.5, 20, Math.PI / 3, 0.4);
@@ -1584,7 +1585,7 @@ class RoadRiotGame {
       }
     });
 
-    // 100% Solid Stunt Jump Ramps Physics (Incline deck ride, solid rails, solid back wall)
+    // 100% Solid Stunt Jump Ramps Physics (Incline deck ride, solid rails, smooth launch)
     for (const ramp of this.world.jumpRamps) {
       const rampWorldZ = ramp.parent.position.z + ramp.mesh.position.z;
       const relZ = this.player.mesh.position.z - rampWorldZ;
@@ -1593,49 +1594,34 @@ class RoadRiotGame {
 
       // Footprint: length is 4.8 (-2.4 to +2.4 relative to rampWorldZ), width is 2.8 (-1.4 to +1.4)
       if (relZ >= -2.4 && relZ <= 2.4) {
-        if (absX < 1.35) {
-          // DRIVING ON THE RAMP DECK: Solid physical incline elevation
-          const progress = (2.4 - relZ) / 4.8; // 0 at entrance, 1 at takeoff lip
+        if (absX < 1.45) {
+          // DRIVING ON THE RAMP DECK: Solid physical incline elevation & smooth incline pitch
+          const progress = Math.max(0, Math.min(1, (2.4 - relZ) / 4.8)); // 0 at entrance, 1 at takeoff lip
           const deckY = 0.03 + progress * 1.32;
-          this.player.rampElevation = deckY;
-          this.player.mesh.position.y = Math.max(this.player.mesh.position.y, deckY);
-          if (!this.player.isAirborne) {
-            this.player.chassis.rotation.x = -0.26; // Match ~15 deg incline
-          }
+          this.player.setRampElevation(deckY, -0.24);
 
-          // Launch takeoff when reaching lip (-1.9 to -2.4)
-          if (relZ <= -1.9 && !ramp.triggered) {
+          // Launch takeoff when reaching lip (-1.8 to -2.4)
+          if (relZ <= -1.8 && !ramp.triggered) {
             ramp.triggered = true;
-            this.player.triggerJump(18);
+            this.player.triggerJump(18, deckY);
             audio.play('ramp_launch');
             this.toast('STUNT AIRTIME LAUNCH', 'gold');
             this.score += 500 * this.multiplier;
+            progression.activeRunStats.rampsJumped++;
             this.spawnScorePopup('+500 STUNT JUMP', '#ffea00');
             this.vibrate([60, 40, 80]);
-            this.camShake = 0.4;
+            this.camShake = 0.25;
           }
-        } else if (absX >= 1.35 && absX <= 1.95) {
-          // SOLID GUARDRAIL: Bounces car off the side of the ramp
+        } else if (absX >= 1.45 && absX <= 2.15 && !this.player.isAirborne) {
+          // SOLID GUARDRAIL: Smooth deflection without stopping or damaging the car
           const side = Math.sign(relX) || 1;
-          this.player.x = ramp.lane + side * 2.05;
+          this.player.x = ramp.lane + side * 2.15;
           this.player.mesh.position.x = this.player.x;
-          this.player.speed = Math.max(0, this.player.speed * 0.85);
-          this.camShake = 0.3;
+          this.player.vx = side * 2.0;
+          this.camShake = 0.15;
           audio.play('collision');
-          this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.4, this.player.mesh.position.z), 0xffaa00, 12);
+          this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.4, this.player.mesh.position.z), 0xffaa00, 8);
           this.toast('RAMP GUARDRAIL SCRAPE', 'magenta');
-        }
-      } else if (relZ < -2.4 && relZ >= -3.2 && absX < 1.35 && this.player.mesh.position.y < 1.2) {
-        // SOLID BACK DROP WALL: Head-on stop against the back of the ramp
-        this.player.speed = 0;
-        this.camShake = 0.65;
-        audio.play('collision');
-        this.player.takeDamage(22);
-        this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.6, this.player.mesh.position.z), 0xff2a44, 25);
-        this.toast('SOLID RAMP WALL COLLISION!', 'magenta');
-        if (this.player.hull <= 0) {
-          this.gameOver(false, false);
-          return;
         }
       }
     }
@@ -2082,32 +2068,32 @@ class RoadRiotGame {
 
     // 10. Dynamic Camera Motion & Wide-Angle Long Highway Sightline
     const dynamicFov = 64 + Math.min(18, (kmh / 360) * 16) + (this.player.isBoosting ? 8 : 0) + (this.player.isAirborne ? 4 : 0) - (this.player.isBraking ? 5 : 0);
-    this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 6.5);
+    this.camera.fov += (dynamicFov - this.camera.fov) * Math.min(1, dt * 5.2);
     this.camera.updateProjectionMatrix();
 
-    // High-speed asphalt micro-rumble
-    const speedRumble = (kmh > 220) ? Math.min(0.04, ((kmh - 220) / 140) * 0.03) : 0;
-    this.camShake = Math.max(0, this.camShake - dt * 2.5);
+    // High-speed asphalt micro-rumble (smooth & subtle)
+    const speedRumble = (kmh > 240) ? Math.min(0.025, ((kmh - 240) / 140) * 0.02) : 0;
+    this.camShake = Math.max(0, this.camShake - dt * 2.8);
     const totalShake = this.camShake + speedRumble;
 
     // Smooth Harmonic Camera Rumble & Impact Shake (eliminates single-frame jagged twitch)
-    const timeNow = performance.now() * 0.04;
-    const shakeNoiseX = Math.sin(timeNow * 1.1) * totalShake * 0.6;
-    const shakeNoiseY = Math.cos(timeNow * 0.9) * totalShake * 0.5;
+    const timeNow = performance.now() * 0.035;
+    const shakeNoiseX = Math.sin(timeNow * 1.1) * totalShake * 0.45;
+    const shakeNoiseY = Math.cos(timeNow * 0.9) * totalShake * 0.35;
 
     // Cinematic GT Chase Cam: Elevated rear angle that reveals 150+ meters of open highway ahead
-    const targetCamX = this.player.x * 0.52 + shakeNoiseX;
-    const targetCamY = 3.8 + this.player.mesh.position.y * 0.55 + shakeNoiseY - (this.player.isBraking ? 0.16 : 0);
+    const targetCamX = this.player.x * 0.48 + shakeNoiseX;
+    const targetCamY = 3.8 + this.player.mesh.position.y * 0.48 + shakeNoiseY - (this.player.isBraking ? 0.16 : 0);
     const targetCamZ = 1.2 + (this.player.isBoosting ? 0.8 : 0) - (this.player.isBraking ? 0.45 : 0);
 
-    this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 8);
-    this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 8);
-    this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 6);
+    this.camera.position.x += (targetCamX - this.camera.position.x) * Math.min(1, dt * 7.0);
+    this.camera.position.y += (targetCamY - this.camera.position.y) * Math.min(1, dt * 6.0);
+    this.camera.position.z += (targetCamZ - this.camera.position.z) * Math.min(1, dt * 5.2);
 
     // Look far down the highway (Z = -85m) towards the horizon so all 3 lanes, oncoming cars, ramps, and horizon are fully visible
     this.camera.lookAt(
-      this.player.x * 0.25,
-      1.85 + this.player.mesh.position.y * 0.38,
+      this.player.x * 0.22,
+      1.80 + this.player.mesh.position.y * 0.32,
       -85
     );
 

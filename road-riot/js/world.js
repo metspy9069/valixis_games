@@ -288,9 +288,9 @@ export class WorldManager {
     this.dirLight.shadow.camera.right = 35;
     this.dirLight.shadow.camera.top = 35;
     this.dirLight.shadow.camera.bottom = -35;
-    this.dirLight.shadow.bias = -0.0004;
-    this.dirLight.shadow.normalBias = 0.02;
-    this.dirLight.shadow.radius = 2.0;
+    this.dirLight.shadow.bias = -0.0003;
+    this.dirLight.shadow.normalBias = 0.025;
+    this.dirLight.shadow.radius = 3.6;
     this.scene.add(this.dirLight);
 
     this.ambientMoon = new THREE.DirectionalLight(0x4095ff, 0.85);

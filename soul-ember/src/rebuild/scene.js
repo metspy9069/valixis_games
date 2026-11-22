@@ -405,7 +405,7 @@ export class Scene{
 
   // Evolutions & Boss Phase Visibility
   d.evolutions.forEach((e,i)=>e.visible=!!ranks&&ranks[i]>=3);
-  if(d.phaseParts){
+  if(d.phaseParts&&d.phaseParts.length>=2){
    d.phaseParts[0].visible=(entity.phase||1)>=2;
    d.phaseParts[1].visible=(entity.phase||1)>=3;
   }

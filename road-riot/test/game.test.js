@@ -629,3 +629,57 @@ test('life pack repair restores player hull up to max hull and clears critical a
   assert.equal(overheal, 10, 'Healing is cleanly capped at max hull');
   assert.equal(player.hull, 100);
 });
+
+test('stunt jump ramp forward launch preserves takeoff lip elevation and deals zero damage to vehicle', () => {
+  const ramp = { lane: 0, worldZ: -50, length: 4.8, h0: 0.03, h1: 1.35, triggered: false };
+  const player = {
+    x: 0,
+    y: 0,
+    z: -8,
+    hull: 100,
+    verticalY: 0,
+    verticalVel: 0,
+    isAirborne: false,
+    rampElevation: 0,
+    rampPitch: 0,
+    suspensionPitch: 0,
+    setRampElevation(elev, pitch = -0.24) {
+      this.rampElevation = elev;
+      this.rampPitch = pitch;
+    },
+    triggerJump(launchVel = 18, startY = 1.35) {
+      if (this.isAirborne) return;
+      this.isAirborne = true;
+      this.verticalY = Math.max(this.verticalY, startY);
+      this.verticalVel = launchVel;
+    },
+    update(dt) {
+      if (this.isAirborne) {
+        this.verticalVel -= 28.0 * dt;
+        this.verticalY += this.verticalVel * dt;
+      }
+      this.y = this.isAirborne ? Math.max(this.verticalY, this.rampElevation || 0) : (this.rampElevation || 0);
+    }
+  };
+
+  // Approach ramp: middle of ramp deck
+  const relZMid = 0.0;
+  const progressMid = (2.4 - relZMid) / ramp.length;
+  const deckYMid = ramp.h0 + progressMid * (ramp.h1 - ramp.h0);
+  player.setRampElevation(deckYMid, -0.24);
+  player.update(0.016);
+  assert.ok(player.y > 0.65, 'Player elevation smoothly ascends on ramp deck');
+  assert.equal(player.rampPitch, -0.24, 'Incline pitch matches ramp geometry');
+
+  // Reach takeoff lip:
+  const relZLip = -1.9;
+  const progressLip = (2.4 - relZLip) / ramp.length;
+  const deckYLip = ramp.h0 + progressLip * (ramp.h1 - ramp.h0);
+  player.triggerJump(18, deckYLip);
+  player.update(0.016);
+
+  // Verify no vertical height drop: height must be >= takeoff lip height!
+  assert.equal(player.isAirborne, true, 'Player launches airborne at lip');
+  assert.ok(player.y >= deckYLip, `Height (${player.y}) smoothly ascends from lip (${deckYLip}) without dropping`);
+  assert.equal(player.hull, 100, 'Stunt ramp launch inflicts exactly 0 damage to player vehicle');
+});

@@ -580,6 +580,11 @@
     @media (max-width:900px) { .featured-card { grid-template-columns: minmax(0,1fr); } .featured-art { min-height: 280px; aspect-ratio: 16/9; order: -1; } }
     @media (max-width:560px) { .container { padding: 26px 16px; } .hero-title { font-size: clamp(2.1rem,9vw,3rem); } .quick-launch { display: grid; grid-template-columns: 1fr 1fr; } .quick-launch a { font-size: .55rem; justify-content: space-between; gap: 4px; padding-inline: 10px; } .featured-card { padding: 20px; } .featured-art { min-height: 230px; } .features-list { grid-template-columns: 1fr 1fr; } .games-grid { grid-template-columns: 1fr; } .game-art { height: 165px; } .soul-art-top,.soul-art-bottom { font-size: .43rem; letter-spacing: .08em; left: 12px; right: 12px; } .soul-art-mark { width: 95px; } .soul-art-wordmark { font-size: 1.45rem; } }
     @media (prefers-reduced-motion: reduce) { .featured-art img, .game-art img, .quick-launch a { transition: none; } .featured-card:hover .featured-art img, .game-mini-card:hover .game-art img, .quick-launch a:hover { transform: none; } .soul-art-orbit,.soul-art-mark { animation: none; } }
+    /* Coming-soon card: no pointer tilt, no glow on hover */
+    .cs-card { pointer-events: none; }
+    .cs-card:hover { transform: none !important; box-shadow: none !important; border-color: inherit !important; }
+    .cs-card::before { display: none !important; }
+    @keyframes cyber-scan-anim { 0%{transform:translateY(0)} 100%{transform:translateY(180px)} }
   </style>
 </head>
 <body>
@@ -614,7 +619,7 @@
         <a href="soul-ember/index.html?v=16" data-game-id="soul-ember">SOUL EMBER <span>↗</span></a>
         <a href="dead-signal/index.html" data-game-id="dead-signal">DEAD SIGNAL <span>↗</span></a>
         <a href="road-riot/index.html" data-game-id="road-riot">ROAD RIOT <span>↗</span></a>
-        <a href="dev-tycoon/index.html" data-game-id="dev-tycoon">DEV TYCOON <span>↗</span></a>
+        <span class="quick-launch-soon" style="display:inline-flex;align-items:center;gap:15px;min-height:42px;padding:0 14px;border:1px solid rgba(217,70,239,0.2);border-radius:999px;background:rgba(217,70,239,0.06);color:rgba(217,70,239,0.5);font:700 .68rem 'JetBrains Mono',monospace;letter-spacing:.07em;cursor:default;" aria-label="Dev Tycoon – coming soon">DEV TYCOON <span style="color:rgba(217,70,239,0.5);font-size:1rem;">○</span></span>
       </nav>
     </div>
 
@@ -718,34 +723,112 @@
     </h3>
 
     <div class="games-grid portal-reveal">
-      <div class="game-mini-card">
-        <div>
-          <div class="mini-status" style="color: var(--accent-cyan);">In Active Development &bull; Procedural Action</div>
-          <h4 class="mini-title">Bit By Bit: Cyber Protocol</h4>
-          <p class="mini-desc">
-            Fast-paced top-down cyberpunk tactical roguelite featuring procedural room generation, modular drone companions, dynamic neon lighting, and high-intensity boss encounters.
-          </p>
+
+      <!-- ══ Bit By Bit: Cyber Protocol — COMING SOON card ══ -->
+      <div class="game-mini-card cs-card" style="border-color:rgba(0,229,255,0.4); background:linear-gradient(145deg,rgba(6,18,32,0.95),rgba(4,10,20,0.98)); cursor:default;">
+        <!-- Cyberpunk SVG art panel -->
+        <div class="game-art" style="height:180px; margin-bottom:18px; overflow:hidden; border:1px solid rgba(0,229,255,0.22); border-radius:10px; background:#060f1a; position:relative;">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;inset:0;">
+            <defs>
+              <linearGradient id="cg1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00e5ff" stop-opacity=".18"/><stop offset="1" stop-color="#7c3aed" stop-opacity=".1"/></linearGradient>
+              <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#00e5ff"/><stop offset="1" stop-color="#2563ff"/></linearGradient>
+              <filter id="cglow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <!-- grid -->
+            <rect width="400" height="180" fill="url(#cg1)"/>
+            <line x1="0" y1="30" x2="400" y2="30" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+            <line x1="0" y1="60" x2="400" y2="60" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+            <line x1="0" y1="90" x2="400" y2="90" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+            <line x1="0" y1="120" x2="400" y2="120" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+            <line x1="0" y1="150" x2="400" y2="150" stroke="rgba(0,229,255,.07)" stroke-width="1"/>
+            <line x1="50" y1="0" x2="50" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="100" y1="0" x2="100" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="150" y1="0" x2="150" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="200" y1="0" x2="200" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="250" y1="0" x2="250" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="300" y1="0" x2="300" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <line x1="350" y1="0" x2="350" y2="180" stroke="rgba(0,229,255,.05)" stroke-width="1"/>
+            <!-- circuit traces -->
+            <path d="M20 90 H80 L100 70 H160 L180 90 H240 L260 110 H320 L340 90 H390" fill="none" stroke="rgba(0,229,255,.35)" stroke-width="1.5"/>
+            <path d="M0 50 H40 L60 70 H100 L120 50 H200 L220 70 H280 L300 50 H400" fill="none" stroke="rgba(124,58,237,.3)" stroke-width="1"/>
+            <path d="M0 130 H60 L80 110 H140 L160 130 H220 L240 110 H300 L320 130 H400" fill="none" stroke="rgba(0,229,255,.2)" stroke-width="1"/>
+            <!-- nodes -->
+            <circle cx="100" cy="70" r="4" fill="none" stroke="#00e5ff" stroke-width="1.5" filter="url(#cglow)"/>
+            <circle cx="260" cy="110" r="4" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+            <circle cx="180" cy="90" r="3" fill="#00e5ff" opacity=".6"/>
+            <circle cx="340" cy="90" r="3" fill="#2563ff" opacity=".6"/>
+            <!-- drone icon - center -->
+            <g transform="translate(200,90)" filter="url(#cglow)">
+              <polygon points="0,-28 8,-10 28,0 8,10 0,28 -8,10 -28,0 -8,-10" fill="none" stroke="url(#cg2)" stroke-width="2"/>
+              <line x1="-20" y1="-20" x2="-28" y2="-28" stroke="#00e5ff" stroke-width="1.5"/>
+              <line x1="20" y1="-20" x2="28" y2="-28" stroke="#00e5ff" stroke-width="1.5"/>
+              <line x1="-20" y1="20" x2="-28" y2="28" stroke="#00e5ff" stroke-width="1.5"/>
+              <line x1="20" y1="20" x2="28" y2="28" stroke="#00e5ff" stroke-width="1.5"/>
+              <circle cx="-28" cy="-28" r="3" fill="#00e5ff" opacity=".8"/>
+              <circle cx="28" cy="-28" r="3" fill="#00e5ff" opacity=".8"/>
+              <circle cx="-28" cy="28" r="3" fill="#00e5ff" opacity=".8"/>
+              <circle cx="28" cy="28" r="3" fill="#00e5ff" opacity=".8"/>
+              <circle cx="0" cy="0" r="6" fill="none" stroke="#00e5ff" stroke-width="1.5"/>
+              <circle cx="0" cy="0" r="2.5" fill="#00e5ff" opacity=".9"/>
+            </g>
+            <!-- scan line animation -->
+            <rect class="cyber-scan" x="0" y="0" width="400" height="3" fill="rgba(0,229,255,0.12)" style="animation:cyber-scan-anim 3s linear infinite"/>
+          </svg>
+          <span style="position:absolute;z-index:1;left:14px;bottom:13px;color:#00e5ff;font:800 .65rem 'Orbitron',sans-serif;letter-spacing:.08em;">TACTICAL ROGUELITE</span>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
-          <span style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--accent-cyan);">STATUS: IN DEV</span>
-          <span class="game-tag" style="background:rgba(0,217,255,0.1); border:1px solid rgba(0,217,255,0.3); color:var(--accent-cyan);">COMING SOON</span>
+        <div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <span class="game-tag" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.35);color:#00e5ff;">IN ACTIVE DEVELOPMENT</span>
+            <span class="game-tag" style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);color:#a78bfa;">PROCEDURAL ACTION</span>
+          </div>
+          <h3 style="font-family:'Orbitron',sans-serif;font-size:1.3rem;color:#fff;margin-bottom:8px;">Bit By Bit: Cyber Protocol</h3>
+          <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.6;margin-bottom:14px;">
+            Top-down cyberpunk tactical roguelite. Procedural room generation, modular drone companions, dynamic neon lighting, and high-intensity boss encounters await.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:16px;">
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#00e5ff;display:block;font-weight:700;font-size:.7rem;">PROC-GEN ROOMS</span>Every run is unique</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#00e5ff;display:block;font-weight:700;font-size:.7rem;">DRONE COMPANIONS</span>Modular loadouts</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#a78bfa;display:block;font-weight:700;font-size:.7rem;">NEON LIGHTING</span>Dynamic environments</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#a78bfa;display:block;font-weight:700;font-size:.7rem;">BOSS ENCOUNTERS</span>High-intensity fights</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(0,229,255,0.1);">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:rgba(0,229,255,0.7);">STATUS: IN DEV</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:0.75rem;font-weight:800;background:linear-gradient(110deg,rgba(0,229,255,0.15),rgba(124,58,237,0.15));border:1px solid rgba(0,229,255,0.4);color:#00e5ff;padding:6px 14px;border-radius:8px;letter-spacing:.06em;">⬡ COMING SOON</span>
         </div>
       </div>
 
-      <a class="game-mini-card" href="dev-tycoon/index.html" data-game-id="dev-tycoon" style="text-decoration: none; color: inherit; border-color: rgba(255, 106, 0, 0.35); background: linear-gradient(145deg, rgba(38, 24, 14, 0.9), rgba(16, 12, 10, 0.95));">
-        <div class="game-art game-art-dev"><img src="portal-dev-tycoon.png" alt="Dev Tycoon app icon" width="512" height="512" loading="lazy"><span>BUILD YOUR EMPIRE</span></div>
+      <!-- ══ Dev Tycoon — COMING SOON card ══ -->
+      <div class="game-mini-card cs-card" style="border-color:rgba(217,70,239,0.4); background:linear-gradient(145deg,rgba(28,14,38,0.95),rgba(12,8,20,0.98)); cursor:default;">
+        <div class="game-art game-art-dev" style="height:180px;margin-bottom:18px;position:relative;">
+          <img src="portal-dev-tycoon.png" alt="Dev Tycoon app icon" width="512" height="512" loading="lazy">
+          <span>BUILD YOUR EMPIRE</span>
+          <!-- Coming Soon overlay -->
+          <div style="position:absolute;inset:0;background:rgba(10,5,20,0.52);display:flex;align-items:center;justify-content:center;z-index:2;">
+            <span style="font-family:'Orbitron',sans-serif;font-size:0.8rem;font-weight:900;letter-spacing:.12em;color:#d946ef;border:1px solid rgba(217,70,239,0.5);padding:7px 18px;border-radius:8px;background:rgba(217,70,239,0.12);backdrop-filter:blur(6px);">IN DEVELOPMENT</span>
+          </div>
+        </div>
         <div>
-          <div class="mini-status" style="color: var(--accent-ember);">Playable Release &bull; Flutter Web</div>
-          <h4 class="mini-title">Dev Tycoon</h4>
-          <p class="mini-desc">
-            Idle code empire. Tap the terminal to ship lines of code, hire seven tiers of talent from Solo Dev to AI Singularity, buy market upgrades, bank offline earnings, and sell the startup for permanent Founder XP.
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <span class="game-tag" style="background:rgba(217,70,239,0.12);border:1px solid rgba(217,70,239,0.4);color:#e879f9;">IN DEVELOPMENT</span>
+            <span class="game-tag" style="background:rgba(255,255,255,0.06);color:#cbd5e1;">Flutter Web</span>
+          </div>
+          <h3 style="font-family:'Orbitron',sans-serif;font-size:1.3rem;color:#fff;margin-bottom:8px;">Dev Tycoon</h3>
+          <p style="color:var(--text-muted);font-size:0.92rem;line-height:1.6;margin-bottom:14px;">
+            Idle code empire. Tap the terminal to ship lines of code, hire seven tiers of talent from Solo Dev to AI Singularity, buy market upgrades, and bank offline earnings.
           </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:16px;">
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#e879f9;display:block;font-weight:700;font-size:.7rem;">7 TALENT TIERS</span>Solo Dev → AI Singularity</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#e879f9;display:block;font-weight:700;font-size:.7rem;">OFFLINE EARNINGS</span>Progress while away</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#a78bfa;display:block;font-weight:700;font-size:.7rem;">MARKET UPGRADES</span>Grow your startup</div>
+            <div style="font-size:.78rem;color:var(--text-muted);"><span style="color:#a78bfa;display:block;font-weight:700;font-size:.7rem;">FOUNDER XP</span>Prestige system</div>
+          </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
-          <span style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--accent-ember);">STATUS: LIVE RUNTIME</span>
-          <span class="game-tag" style="background:rgba(255,106,0,0.12); border:1px solid rgba(255,106,0,0.35); color:var(--accent-glow);">PLAY DEV TYCOON &rarr;</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(217,70,239,0.1);">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:rgba(217,70,239,0.7);">STATUS: IN DEV</span>
+          <span style="font-family:'Orbitron',sans-serif;font-size:0.75rem;font-weight:800;background:linear-gradient(110deg,rgba(217,70,239,0.15),rgba(124,58,237,0.15));border:1px solid rgba(217,70,239,0.4);color:#e879f9;padding:6px 14px;border-radius:8px;letter-spacing:.06em;">⬡ COMING SOON</span>
         </div>
-      </a>
+      </div>
     </div>
 
   </main>
@@ -767,7 +850,6 @@
         { title: 'Light the Soul Ember.', copy: 'Try a fresh hero build in today’s featured run.', href: 'soul-ember/index.html?v=16', game: 'soul-ember' },
         { title: 'Hold the night.', copy: 'See how far you can push the next Dead Signal wave.', href: 'dead-signal/index.html', game: 'dead-signal' },
         { title: 'Find top speed.', copy: 'Take Road Riot back onto the highway and chase a cleaner run.', href: 'road-riot/index.html', game: 'road-riot' },
-        { title: 'Ship another startup.', copy: 'Build your next software empire in Dev Tycoon.', href: 'dev-tycoon/index.html', game: 'dev-tycoon' }
       ];
       const today = new Date().toISOString().slice(0, 10);
       let state = { lastVisit: '', streak: 0, recent: [] };

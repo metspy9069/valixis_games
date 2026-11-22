@@ -750,16 +750,19 @@ export class PlayerCar {
 
     // Progressive lateral steering momentum with smooth damping (eliminates robotic twitch)
     this.vx = this.vx || 0;
-    const targetVx = inputDir * (this.handling * 0.52 * sensitivity);
-    const damping = inputDir !== 0 ? 14 : 9.5;
+    const handlingScale = this.isDrifting ? 0.65 : 0.52;
+    const targetVx = inputDir * (this.handling * handlingScale * sensitivity);
+    const damping = this.isDrifting ? (inputDir !== 0 ? 9.0 : 6.5) : (inputDir !== 0 ? 14 : 9.5);
     this.vx += (targetVx - this.vx) * Math.min(1, dt * damping);
     this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -8.2, 8.2);
     this.mesh.position.x = this.x;
 
-    // Target Front Wheel Turn Angle (Smooth progressive steering)
-    const maxSpeedHandling = Math.max(1, this.handling * 0.52 * sensitivity);
+    // Target Front Wheel Turn Angle (Smooth progressive steering with drift counter-steer)
+    const maxSpeedHandling = Math.max(1, this.handling * handlingScale * sensitivity);
     const normTurn = THREE.MathUtils.clamp(this.vx / maxSpeedHandling, -1, 1);
-    const targetWheelTurn = normTurn * 0.42;
+    const targetWheelTurn = (this.isDrifting && Math.sign(inputDir) !== Math.sign(normTurn) && inputDir !== 0)
+      ? inputDir * 0.48 // Crisp counter-steer lock
+      : normTurn * 0.42;
     this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 11);
     if (this.wheels.fl && this.wheels.fr) {
       const isInnerRotated = Boolean(this.carModel && this.carModel.children[0]?.rotation.y === Math.PI);
@@ -769,12 +772,12 @@ export class PlayerCar {
     }
 
     // Suspension Body Roll into Turns (Silky smooth weight transfer)
-    const targetRoll = -normTurn * (this.isDrifting ? 0.20 : 0.11);
+    const targetRoll = -normTurn * (this.isDrifting ? 0.22 : 0.11);
     this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8.0);
 
     // Car Yaw Slide: Fluid arcade rotation
-    const targetYaw = -normTurn * (this.isDrifting ? 0.36 : 0.08);
-    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.0);
+    const targetYaw = -normTurn * (this.isDrifting ? 0.42 : 0.08);
+    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.5);
   }
 
   setDrift(drifting) {
@@ -1002,7 +1005,7 @@ export class PlayerCar {
     }
 
     // 4. Drift Tire Skids & Smoke
-    if (this.isDrifting && this.speed > 14 && !this.isAirborne) {
+    if (this.isDrifting && this.speed > 10 && !this.isAirborne) {
       [-0.85, 0.85].forEach(offsetX => {
         const markPos = new THREE.Vector3(this.x + offsetX, 0, this.mesh.position.z + 1.2);
         this.spawnSkidMark(markPos.x, markPos.z);

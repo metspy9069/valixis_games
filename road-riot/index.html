@@ -37,6 +37,8 @@
 
   <!-- 3D Canvas -->
   <canvas id="game-canvas"></canvas>
+  <!-- Fullscreen Hypersonic Nitro Speed Lines Canvas -->
+  <canvas id="nitro-speed-lines" class="nitro-speed-lines"></canvas>
 
   <!-- Screen FX Overlays -->
   <div id="overlay-damage"></div>
@@ -114,13 +116,57 @@
     </header>
 
     <!-- Highway Distance Radar Progress Bar -->
-    <div id="highway-radar">
-      <span class="radar-label">HIGHWAY RADAR</span>
-      <div class="radar-track">
-        <div id="radar-progress" class="radar-progress"></div>
-        <div id="radar-pin-player" class="radar-pin-player"></div>
-        <span id="radar-pin-beacon" class="radar-pin-beacon">◆</span>
+    <!-- Highway Distance Radar & Speed Checkpoint Progress -->
+    <div id="highway-radar-panel" class="radar-panel-container">
+      <div id="highway-radar">
+        <span class="radar-label">HIGHWAY RADAR</span>
+        <div class="radar-track">
+          <div id="radar-progress" class="radar-progress"></div>
+          <div id="radar-pin-player" class="radar-pin-player"></div>
+          <span id="radar-pin-beacon" class="radar-pin-beacon">◆</span>
+        </div>
       </div>
+      <!-- Checkpoint Distance Progress Gauge -->
+      <div id="hud-checkpoint-gauge" class="checkpoint-gauge">
+        <span class="checkpoint-gauge-label">CHECKPOINT</span>
+        <div class="checkpoint-gauge-track">
+          <div id="hud-checkpoint-fill" class="checkpoint-gauge-fill"></div>
+        </div>
+        <span id="hud-checkpoint-rem" class="checkpoint-gauge-rem">380m</span>
+      </div>
+    </div>
+
+    <!-- 3-Lane Highway Spatial Traffic Radar HUD -->
+    <div id="highway-spatial-radar" class="spatial-radar-hud">
+      <div class="spatial-radar-header">
+        <span class="radar-dot live"></span>
+        <span>TRAFFIC SENSORS &bull; 60M</span>
+      </div>
+      <div class="spatial-radar-grid">
+        <div class="spatial-lane" data-lane="-6">
+          <span class="lane-tag">L</span>
+          <div class="lane-blips" id="blips-lane-left"></div>
+        </div>
+        <div class="spatial-lane" data-lane="0">
+          <span class="lane-tag">C</span>
+          <div class="lane-blips" id="blips-lane-center"></div>
+        </div>
+        <div class="spatial-lane" data-lane="6">
+          <span class="lane-tag">R</span>
+          <div class="lane-blips" id="blips-lane-right"></div>
+        </div>
+        <div id="spatial-player-marker" class="spatial-player-marker"></div>
+      </div>
+    </div>
+
+    <!-- Directional Forward Hazard Alert & Stunt Ramp Cue -->
+    <div id="hud-proximity-alert" class="hud-proximity-alert hidden">
+      <span class="alert-icon">⚠️</span>
+      <span id="hud-proximity-text" class="alert-text">HEAVY TRUCK AHEAD &bull; SHIFT LANE</span>
+    </div>
+    <div id="hud-ramp-cue" class="hud-ramp-cue hidden">
+      <span class="ramp-icon">▲</span>
+      <span class="ramp-text">STUNT RAMP INCOMING &bull; ALIGN FOR TAKEOFF!</span>
     </div>
 
     <!-- Center Floating Announcer & Combo Popups -->

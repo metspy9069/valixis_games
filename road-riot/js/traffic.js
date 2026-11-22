@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 
 const SHARED_DEBRIS_GEO = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+const SHARED_SPARK_GEO = new THREE.BoxGeometry(0.12, 0.12, 0.35);
 
 export class TrafficManager {
   constructor(scene, assetPrototypes = {}) {
@@ -962,6 +963,36 @@ export class TrafficManager {
       );
 
       this.particles.push({ mesh, vel, life: 0.75, maxLife: 0.75 });
+    }
+  }
+
+  spawnSparks(pos, count = 14, color = 0xffe066) {
+    if (this.particles.length > 55) {
+      const excess = this.particles.splice(0, count);
+      excess.forEach(p => {
+        this.scene.remove(p.mesh);
+        if (p.mesh.material) p.mesh.material.dispose();
+      });
+    }
+
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 });
+    for (let i = 0; i < count; i++) {
+      const mesh = new THREE.Mesh(SHARED_SPARK_GEO, mat.clone());
+      mesh.position.set(
+        pos.x + (Math.random() - 0.5) * 0.6,
+        pos.y + (Math.random() - 0.5) * 0.4,
+        pos.z + (Math.random() - 0.5) * 0.6
+      );
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      this.scene.add(mesh);
+
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 16,
+        2 + Math.random() * 8,
+        (Math.random() - 0.5) * 16
+      );
+
+      this.particles.push({ mesh, vel, life: 0.45, maxLife: 0.45 });
     }
   }
 

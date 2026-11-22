@@ -133,6 +133,7 @@ class RoadRiotGame {
     this.updateMenuVehicleDisplay();
     this.loadAssets();
     this.checkUrlChallenge();
+    this.initSpeedLines();
 
     // Start render loop
     this.lastTime = performance.now();
@@ -164,10 +165,20 @@ class RoadRiotGame {
       countdownOverlay: document.querySelector('#countdown-overlay'),
       countdownText: document.querySelector('#countdown-text'),
 
-      // Radar
+      // Radar & Checkpoint Progress
       radarProgress: document.querySelector('#radar-progress'),
       radarPinPlayer: document.querySelector('#radar-pin-player'),
       radarPinBeacon: document.querySelector('#radar-pin-beacon'),
+      checkpointFill: document.querySelector('#hud-checkpoint-fill'),
+      checkpointRem: document.querySelector('#hud-checkpoint-rem'),
+      spatialRadar: document.querySelector('#highway-spatial-radar'),
+      blipsLeft: document.querySelector('#blips-lane-left'),
+      blipsCenter: document.querySelector('#blips-lane-center'),
+      blipsRight: document.querySelector('#blips-lane-right'),
+      spatialPlayerMarker: document.querySelector('#spatial-player-marker'),
+      proximityAlert: document.querySelector('#hud-proximity-alert'),
+      proximityText: document.querySelector('#hud-proximity-text'),
+      rampCue: document.querySelector('#hud-ramp-cue'),
 
       // Screen Overlays
       overlayDamage: document.querySelector('#overlay-damage'),
@@ -1511,9 +1522,9 @@ class RoadRiotGame {
       }
     }
 
-    // 3. Ground Speed & Km/h (1:1 Physical Calibration: 1 m/s = 3.6 km/h)
+    // 3. Supercar Ground Speed & Km/h (Calibrated with Showroom & Gearing Specs: 1 physical unit = 9.0 km/h)
     const currentSpeed = this.player.speed;
-    const kmh = currentSpeed * 3.6;
+    const kmh = currentSpeed * 9;
     if (kmh > progression.activeRunStats.topSpeed) {
       progression.activeRunStats.topSpeed = kmh;
     }
@@ -1769,11 +1780,14 @@ class RoadRiotGame {
             // 1. Push player completely outside the vehicle's bounding box
             this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.18), -8.2, 8.2);
             this.player.mesh.position.x = this.player.x;
-            // 2. Lateral speed deflection
+            // 2. Lateral speed deflection & friction sparks
             this.player.vx = bounceDir * 3.5;
             this.player.steerAngle += bounceDir * 0.22;
             v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.35, -7.5, 7.5);
             this.player.speed = Math.max(0, this.player.speed * 0.8);
+            if (this.traffic.spawnSparks) {
+              this.traffic.spawnSparks(new THREE.Vector3(this.player.x + bounceDir * 0.85, 0.45, this.player.mesh.position.z), 12, 0xffd900);
+            }
           }
 
           // Damage and effects triggered on initial contact or cooldown
@@ -1785,6 +1799,9 @@ class RoadRiotGame {
             audio.play('collision');
             this.vibrate([90, 50, 150]);
             this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff2a44, 25);
+            if (this.traffic.spawnSparks) {
+              this.traffic.spawnSparks(new THREE.Vector3((this.player.x + v.mesh.position.x) * 0.5, 0.5, (this.player.mesh.position.z + v.mesh.position.z) * 0.5), 20, 0xffea00);
+            }
             this.showDamageOverlay();
             this.toast(v.isTruck ? 'CRASHED INTO HEAVY TRUCK! -26% HULL' : 'CAR COLLISION! -18% HULL', 'magenta');
             if (this.player.hull <= 0) {
@@ -1984,6 +2001,9 @@ class RoadRiotGame {
             audio.play('collision');
             this.vibrate([60, 40, 100]);
             this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff6600, 18);
+            if (this.traffic.spawnSparks) {
+              this.traffic.spawnSparks(new THREE.Vector3(this.player.x, 0.45, this.player.mesh.position.z), 16, 0xffaa00);
+            }
             this.toast('SOLID BARRIER COLLISION', 'magenta');
             if (this.player.hull <= 0) {
               this.gameOver(false, false);
@@ -2199,8 +2219,181 @@ class RoadRiotGame {
     // Highway Distance Radar
     const targetMilestone = this.world.challengeDistance || 10000;
     const radarPct = Math.min(100, (this.distance / targetMilestone) * 100);
-    this.ui.radarProgress.style.width = `${radarPct}%`;
-    this.ui.radarPinPlayer.style.left = `${radarPct}%`;
+    if (this.ui.radarProgress) this.ui.radarProgress.style.width = `${radarPct}%`;
+    if (this.ui.radarPinPlayer) this.ui.radarPinPlayer.style.left = `${radarPct}%`;
+
+    // 1. Checkpoint Distance Progress Gauge
+    const remainingCheckpoint = Math.max(0, this.checkpointDistance - this.distance);
+    const interval = this.checkpointInterval || (this.gameMode === 'SPRINT' ? 2000 : 850);
+    const checkpointPct = Math.max(0, Math.min(100, (1 - (remainingCheckpoint / interval)) * 100));
+    if (this.ui.checkpointFill) this.ui.checkpointFill.style.width = `${checkpointPct}%`;
+    if (this.ui.checkpointRem) this.ui.checkpointRem.textContent = `${Math.round(remainingCheckpoint)}m`;
+
+    // 2. 3-Lane Highway Spatial Traffic Radar & Proximity Hazard Alerts
+    if (this.ui.spatialRadar) {
+      if (this.ui.spatialPlayerMarker) {
+        const markerPct = THREE.MathUtils.clamp(((this.player.x + 8.2) / 16.4) * 100, 10, 90);
+        this.ui.spatialPlayerMarker.style.left = `${markerPct}%`;
+      }
+
+      const playerZ = this.player.mesh.position.z;
+      const blipsL = [];
+      const blipsC = [];
+      const blipsR = [];
+
+      let hazardAhead = false;
+      let hazardIsTruck = false;
+
+      if (this.traffic && this.traffic.vehicles) {
+        this.traffic.vehicles.forEach(v => {
+          const relZ = v.mesh.position.z - playerZ;
+          if (relZ < 0 && relZ > -65) {
+            const topPct = Math.min(95, Math.max(5, (-relZ / 65) * 100));
+            const isTruck = v.isTruck || v.isTanker;
+            const blipClass = isTruck ? 'blip-truck' : 'blip-car';
+            const blipHtml = `<div class="radar-blip ${blipClass}" style="top:${topPct.toFixed(1)}%;"></div>`;
+
+            if (v.mesh.position.x < -2.5) blipsL.push(blipHtml);
+            else if (v.mesh.position.x > 2.5) blipsR.push(blipHtml);
+            else blipsC.push(blipHtml);
+
+            if (relZ > -32 && Math.abs(v.mesh.position.x - this.player.x) < 2.0) {
+              hazardAhead = true;
+              if (isTruck) hazardIsTruck = true;
+            }
+          }
+        });
+      }
+
+      if (this.traffic && this.traffic.obstacles) {
+        this.traffic.obstacles.forEach(o => {
+          const relZ = o.mesh.position.z - playerZ;
+          if (relZ < 0 && relZ > -60) {
+            const topPct = Math.min(95, Math.max(5, (-relZ / 60) * 100));
+            const blipHtml = `<div class="radar-blip blip-truck" style="top:${topPct.toFixed(1)}%;"></div>`;
+            if (o.mesh.position.x < -2.5) blipsL.push(blipHtml);
+            else if (o.mesh.position.x > 2.5) blipsR.push(blipHtml);
+            else blipsC.push(blipHtml);
+
+            if (relZ > -28 && Math.abs(o.mesh.position.x - this.player.x) < 1.8) {
+              hazardAhead = true;
+            }
+          }
+        });
+      }
+
+      if (this.traffic && this.traffic.jumpRamps) {
+        this.traffic.jumpRamps.forEach(r => {
+          const rz = r.parent.position.z + r.mesh.position.z;
+          const relZ = rz - playerZ;
+          if (relZ < 0 && relZ > -65) {
+            const topPct = Math.min(95, Math.max(5, (-relZ / 65) * 100));
+            const blipHtml = `<div class="radar-blip blip-ramp" style="top:${topPct.toFixed(1)}%;"></div>`;
+            if (r.lane < -2.5) blipsL.push(blipHtml);
+            else if (r.lane > 2.5) blipsR.push(blipHtml);
+            else blipsC.push(blipHtml);
+          }
+        });
+      }
+
+      if (this.ui.blipsLeft) this.ui.blipsLeft.innerHTML = blipsL.join('');
+      if (this.ui.blipsCenter) this.ui.blipsCenter.innerHTML = blipsC.join('');
+      if (this.ui.blipsRight) this.ui.blipsRight.innerHTML = blipsR.join('');
+
+      // Forward Hazard Proximity Alert
+      if (hazardAhead) {
+        this.ui.proximityAlert?.classList.remove('hidden');
+        if (this.ui.proximityText) {
+          this.ui.proximityText.textContent = hazardIsTruck ? 'HEAVY TRUCK AHEAD • SHIFT LANE' : 'HAZARD IN LANE • EVADE';
+        }
+      } else {
+        this.ui.proximityAlert?.classList.add('hidden');
+      }
+
+      // Stunt Ramp Trajectory Cue
+      let rampClose = false;
+      if (this.traffic && this.traffic.jumpRamps) {
+        rampClose = this.traffic.jumpRamps.some(r => {
+          const rz = r.parent.position.z + r.mesh.position.z;
+          const relZ = rz - playerZ;
+          return relZ < 0 && relZ > -55 && Math.abs(r.lane - this.player.x) < 3.2;
+        });
+      }
+      if (rampClose && !this.player.isAirborne) {
+        this.ui.rampCue?.classList.remove('hidden');
+      } else {
+        this.ui.rampCue?.classList.add('hidden');
+      }
+    }
+
+    // 3. Hypersonic Nitro Speed Lines Rendering
+    this.updateSpeedLines(kmh);
+  }
+
+  initSpeedLines() {
+    this.speedLinesCanvas = document.querySelector('#nitro-speed-lines');
+    if (!this.speedLinesCanvas) return;
+    this.speedLinesCtx = this.speedLinesCanvas.getContext('2d');
+    this.speedLines = [];
+    const count = 45;
+    for (let i = 0; i < count; i++) {
+      this.speedLines.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: 0.15 + Math.random() * 0.85,
+        speed: 0.8 + Math.random() * 1.6,
+        len: 25 + Math.random() * 80
+      });
+    }
+
+    const resize = () => {
+      if (this.speedLinesCanvas) {
+        this.speedLinesCanvas.width = window.innerWidth;
+        this.speedLinesCanvas.height = window.innerHeight;
+      }
+    };
+    window.addEventListener('resize', resize);
+    resize();
+  }
+
+  updateSpeedLines(kmh) {
+    if (!this.speedLinesCanvas || !this.speedLinesCtx) return;
+    const isHighSpeed = this.player.isBoosting || kmh >= 270;
+    const targetOpacity = this.player.isBoosting ? 0.95 : (kmh >= 270 ? Math.min(0.65, (kmh - 270) / 90) : 0);
+    this.speedLinesCanvas.style.opacity = targetOpacity;
+
+    if (targetOpacity <= 0) return;
+
+    const ctx = this.speedLinesCtx;
+    const w = this.speedLinesCanvas.width;
+    const h = this.speedLinesCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w * 0.5;
+    const cy = h * 0.52;
+
+    ctx.strokeStyle = this.player.isBoosting ? '#00f0ff' : '#ffffff';
+    ctx.lineWidth = this.player.isBoosting ? 2.5 : 1.5;
+
+    for (const line of this.speedLines) {
+      line.dist += line.speed * (this.player.isBoosting ? 0.045 : 0.025);
+      if (line.dist > 1.0) {
+        line.dist = 0.12;
+        line.angle = Math.random() * Math.PI * 2;
+      }
+
+      const r1 = line.dist * Math.min(w, h) * 0.5;
+      const r2 = r1 + line.len * (this.player.isBoosting ? 1.6 : 1.0);
+
+      const x1 = cx + Math.cos(line.angle) * r1;
+      const y1 = cy + Math.sin(line.angle) * r1;
+      const x2 = cx + Math.cos(line.angle) * r2;
+      const y2 = cy + Math.sin(line.angle) * r2;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
   }
 
   loop(now) {

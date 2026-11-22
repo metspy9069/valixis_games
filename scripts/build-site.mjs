@@ -26,7 +26,7 @@ if (existsSync(out)) {
 }
 writeFileSync(join(out, ".generated-arcade"), "Generated arcade build");
 for (const f of readdirSync(root))
-  if (/\.(html|png|ico)$/.test(f) || ["CNAME", ".nojekyll"].includes(f))
+  if (/\.(html|png|ico|txt)$/.test(f) || ["CNAME", ".nojekyll"].includes(f))
     cpSync(join(root, f), join(out, f));
 cpSync(join(root, "soul-ember/dist"), join(out, "soul-ember"), {
   recursive: true,

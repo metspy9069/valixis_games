@@ -86,9 +86,9 @@ export class TrafficManager {
         type = 'rival';
         speed = 26 + Math.random() * 5; // ~98 km/h
         isRival = true;
-      } else if (currentDistance > 2200 && Math.random() < 0.18) {
+      } else if (((this.heatLevel || 0) >= 1 && Math.random() < 0.35 + (this.heatLevel || 0) * 0.12) || (currentDistance > 400 && Math.random() < 0.15)) {
         type = 'police';
-        speed = 24 + Math.random() * 4; // ~90 km/h
+        speed = 25 + Math.random() * 4; // ~92 km/h
         isPolice = true;
       } else if (roll < 0.12) {
         type = 'truck';
@@ -999,6 +999,9 @@ export class TrafficManager {
   update(dt, playerSpeed, playerX, playerZ, currentDistance, callbacks = {}) {
     if (callbacks.jumpRamps) {
       this.jumpRamps = callbacks.jumpRamps;
+    }
+    if (typeof callbacks.heatLevel === 'number') {
+      this.heatLevel = callbacks.heatLevel;
     }
 
     // 1. Spawning Timers

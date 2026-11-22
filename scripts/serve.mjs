@@ -21,6 +21,7 @@ const mimeTypes = {
   '.ogg': 'audio/ogg',
   '.glb': 'model/gltf-binary',
   '.wasm': 'application/wasm',
+  '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8'
 };
 
@@ -28,6 +29,13 @@ const server = http.createServer((req, res) => {
   let reqPath = decodeURIComponent(req.url.split('?')[0]);
   if (reqPath === '/') reqPath = '/index.html';
   if (reqPath.endsWith('/')) reqPath += 'index.html';
+  if (reqPath.startsWith('/soul_ember/')) {
+    reqPath = '/soul-ember/dist/' + reqPath.slice('/soul_ember/'.length);
+  } else if (reqPath === '/soul_ember') {
+    reqPath = '/soul-ember/dist/index.html';
+  } else if (reqPath.startsWith('/soul-ember/') && !reqPath.startsWith('/soul-ember/dist/')) {
+    reqPath = '/soul-ember/dist/' + reqPath.slice('/soul-ember/'.length);
+  }
 
   let filePath = path.join(root, reqPath);
 
@@ -62,4 +70,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/`);
   console.log(`Road Riot: http://localhost:${PORT}/road-riot/`);
+  console.log(`Dead Signal: http://localhost:${PORT}/dead-signal/`);
 });

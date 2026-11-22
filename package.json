@@ -8,7 +8,8 @@
     "build:soul-ember": "npm --prefix soul-ember run build",
     "test:soul-ember": "npm --prefix soul-ember run test",
     "test:road-riot": "node --test road-riot/test/game.test.js",
-    "test": "node --test soul-ember/test/rebuild.test.js road-riot/test/game.test.js",
+    "test:dead-signal": "node dead-signal/tools/check.mjs",
+    "test": "node dead-signal/tools/check.mjs && node --test soul-ember/test/rebuild.test.js road-riot/test/game.test.js",
     "build": "npm run build:soul-ember && node scripts/build-site.mjs"
   },
   "workspaces": [

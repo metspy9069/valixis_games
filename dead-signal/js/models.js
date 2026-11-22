@@ -1113,6 +1113,7 @@ function buildLurker() {
     shoulder.add(upper);
     const elbow = new THREE.Group();
     elbow.position.set(0, -0.34, 0);
+    shoulder.userData.elbow = elbow;
     shoulder.add(elbow);
     const fore = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.032, 0.26, 4, 8),
@@ -1128,7 +1129,9 @@ function buildLurker() {
     elbow.add(hand);
     return shoulder;
   };
-  g.add(arm(-1), arm(1));
+  const armL = arm(-1);
+  const armR = arm(1);
+  g.add(armL, armR);
 
   // Legs: short and bent, so the whole body sits lower.
   const legMat = new THREE.MeshStandardMaterial({ color: 0x221f1c, roughness: 0.95 });
@@ -1144,6 +1147,7 @@ function buildLurker() {
     hip.add(thigh);
     const knee = new THREE.Group();
     knee.position.set(0, -0.26, 0);
+    hip.userData.knee = knee;
     hip.add(knee);
     const shin = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.04, 0.18, 4, 8),
@@ -1159,7 +1163,9 @@ function buildLurker() {
     knee.add(foot);
     return hip;
   };
-  g.add(leg(-1), leg(1));
+  const legL = leg(-1);
+  const legR = leg(1);
+  g.add(legL, legR);
 
   // A ragged little cloak-like shell so the lurker reads as hunched even at a
   // glance, and so it blends into the dark streets it comes out of.
@@ -1171,6 +1177,14 @@ function buildLurker() {
   cloak.rotation.x = 0.35;
   g.add(cloak);
 
+  // The animator drives these joints; without them the lurker's first update
+  // threw on a null rig and aborted the whole simulation frame.
+  g.userData.rig = {
+    armL: { shoulder: armL, elbow: armL.userData.elbow },
+    armR: { shoulder: armR, elbow: armR.userData.elbow },
+    legL: { hip: legL, knee: legL.userData.knee },
+    legR: { hip: legR, knee: legR.userData.knee },
+  };
   g.userData.muzzle = new THREE.Vector3(0, 0.7, -0.18);
   return g;
 }
@@ -1202,9 +1216,14 @@ function buildLurkerModel(def) {
   neck.position.set(0, 0.56, 0);
   hips.add(neck);
 
+  const limbs = g.userData.rig || {};
   return {
     group: g,
-    rig: { hips, torso: body || g, neck, head: head || g, jaw: null, armL: null, armR: null, legL: null, legR: null },
+    rig: {
+      hips, torso: body || g, neck, head: head || g, jaw: null,
+      armL: limbs.armL || null, armR: limbs.armR || null,
+      legL: limbs.legL || null, legR: limbs.legR || null,
+    },
     hitMeshes,
     detail: [],
   };

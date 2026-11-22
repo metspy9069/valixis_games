@@ -2027,6 +2027,8 @@ function makeContext() {
     colliders: world.colliders,
     zombies,
     nav,
+    // Nightfall changes how lurkers close; the flag lives on the world.
+    blackout: world.blackout,
     damage: (dmg, from) => damagePlayer(dmg, from),
     spit: (z) => spitAcid(z),
     shockwave: (z) => bossShockwave(z),
@@ -2940,8 +2942,13 @@ function stepSimulation(dt) {
       game.spawnTimer -= dt;
       if (game.spawnTimer <= 0) {
         const entry = game.spawnQueue[0];
-        game.spawnTimer = entry ? entry.delay : 0.5;
         spawnFromQueue();
+        // Each entry's delay is absolute from the wave's start, so the wait for
+        // the next body is the gap between the two entries. Reusing the later
+        // entry's whole delay compounded the spacing and turned every wave into
+        // a one-a-minute trickle after the first few arrivals.
+        const next = game.spawnQueue[0];
+        game.spawnTimer = next ? Math.max(0.05, next.delay - entry.delay) : 0.5;
       }
     } else if (aliveCount() === 0 && !game.over) {
       game.intermission = 4.5;

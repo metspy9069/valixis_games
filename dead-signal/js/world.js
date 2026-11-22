@@ -622,6 +622,7 @@ export function buildWorld(scene) {
 
   // ---------- update ----------
   let t = 0;
+  let blackout = false;
   updaters.push((dt) => {
     t += dt;
     beaconMat.emissiveIntensity = 2.2 + Math.sin(t * 2.4) * 1.5;
@@ -639,7 +640,9 @@ export function buildWorld(scene) {
     navRadius: CITY - 1,
     update(dt) { for (const fn of updaters) fn(dt); },
     // Blackout waves kill the street lighting and close the fog in.
+    get blackout() { return blackout; },
     setBlackout(on) {
+      blackout = !!on;
       hemi.intensity = on ? 0.4 : 1.75;
       ambient.intensity = on ? 0.22 : 1.05;
       if (scene.fog) scene.fog.density = on ? 0.05 : 0.019;

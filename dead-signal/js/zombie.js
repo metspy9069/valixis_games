@@ -198,7 +198,7 @@ export class Zombie {
         targetSpeed = this.speed;
         // Lurkers are the fast low shape: at night they do not just close, they
         // sprint until they are in reach, which is what makes darkness feel new.
-        if (this.type === 'lurker' && world && world.blackout && dist > this.def.reach) {
+        if (this.type === 'lurker' && ctx.blackout && dist > this.def.reach) {
           targetSpeed = this.def.speed * (this.def.nightSpeed / this.def.speed);
         }
         // Keep a body's width of space: they claw at you, they do not stand
@@ -438,10 +438,12 @@ export class Zombie {
 
     // Legs. The trailing leg swings less and the hips hitch, which reads as a
     // limp without needing a second animation state.
-    r.legL.hip.rotation.x = stride * 0.62;
-    r.legR.hip.rotation.x = strideOpp * 0.62 * this.limp;
-    r.legL.knee.rotation.x = Math.max(0, -stride) * 0.85;
-    r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85 * this.limp;
+    if (r.legL && r.legR) {
+      r.legL.hip.rotation.x = stride * 0.62;
+      r.legR.hip.rotation.x = strideOpp * 0.62 * this.limp;
+      r.legL.knee.rotation.x = Math.max(0, -stride) * 0.85;
+      r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85 * this.limp;
+    }
 
     // Arms: the classic outstretched shamble, swinging a little with the gait.
     const armOut = this.type === 'runner' ? -0.55 : this.ranged ? -0.9 : -1.35;
@@ -455,13 +457,15 @@ export class Zombie {
     }
     const slam = attackOverlay * attackOverlay;
 
-    r.armL.shoulder.rotation.x = armOut + swing - slam * 1.15;
-    // One arm always hangs lower: the classic uneven reach.
-    r.armR.shoulder.rotation.x = armOut * 0.78 - swing - slam * 1.15;
-    r.armL.shoulder.rotation.z = 0.22 + slam * 0.1;
-    r.armR.shoulder.rotation.z = -0.22 - slam * 0.1;
-    r.armL.elbow.rotation.x = -0.5 + slam * 0.35;
-    r.armR.elbow.rotation.x = -0.5 + slam * 0.35;
+    if (r.armL && r.armR) {
+      r.armL.shoulder.rotation.x = armOut + swing - slam * 1.15;
+      // One arm always hangs lower: the classic uneven reach.
+      r.armR.shoulder.rotation.x = armOut * 0.78 - swing - slam * 1.15;
+      r.armL.shoulder.rotation.z = 0.22 + slam * 0.1;
+      r.armR.shoulder.rotation.z = -0.22 - slam * 0.1;
+      r.armL.elbow.rotation.x = -0.5 + slam * 0.35;
+      r.armR.elbow.rotation.x = -0.5 + slam * 0.35;
+    }
 
     // Body: lean into the run, bounce with the stride, flinch when shot.
     r.hips.rotation.x = lean + slam * 0.18 + this.flinch * 0.18;
@@ -474,8 +478,10 @@ export class Zombie {
     r.neck.rotation.x = headTrack + Math.sin(this.phase * 0.5) * 0.06 - this.flinch * 0.35 + this.twitch * 0.25;
     r.neck.rotation.z = Math.sin(this.phase * 0.4) * 0.08 + this.headTilt + this.twitch * 0.18;
     r.neck.rotation.y = Math.sin(this.phase * 0.23) * 0.12 + this.twitch * 0.2;
-    r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + slam * 0.4;
-    r.jaw.position.y = 0.05;
+    if (r.jaw) {
+      r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + slam * 0.4;
+      r.jaw.position.y = 0.05;
+    }
 
     // Boss tells. Both arms overhead read as a slam or a cleave from across
     // the street; a charge drops the whole body forward.

@@ -29,7 +29,7 @@ export const WEAPONS = [
   {
     id: 'shotgun', name: 'BREACHER 12', key: '3',
     damage: 12, magSize: 6, reserveMax: 48,
-    rpm: 78, spread: 0.085, adsSpread: 0.055, recoil: 5.6,
+    rpm: 78, spread: 0.06, adsSpread: 0.04, recoil: 5.6,
     pellets: 12, reloadTime: 1.6, auto: false, sound: 'shotgun',
     falloffStart: 7, falloffEnd: 20, falloffMin: 0.3,
   },

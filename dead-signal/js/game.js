@@ -941,6 +941,9 @@ function selectWeapon(index, strict = false) {
   }
   if (!weaponAvailable(next) || next === ammo.weapon) return;
   ammo.weapon = next;
+  // Recoil bloom belongs to the gun that was being fired; a fresh weapon
+  // starts on its own cone instead of inheriting the last one's spread.
+  spreadBloom = 0;
   ammo.reloading = false;
   ammo.reloadTimer = 0;
   ammo.altCooldown = 0;
@@ -1031,8 +1034,6 @@ function fireRound(opts = {}) {
   recoil.pitch += (def.recoil * weaponRecoilMul() * 0.0038) * (player.ads ? 0.55 : 1);
   recoil.yaw += (Math.random() - 0.5) * def.recoil * weaponRecoilMul() * 0.0012;
 
-  spreadBloom = Math.min(0.05, spreadBloom + def.spread * 0.5);
-
   // The round leaves the barrel, not the eye. Aim is resolved from the camera
   // first so the shot still lands under the crosshair, and the muzzle is then
   // the origin of a ray that converges on that point. This is what makes the
@@ -1050,7 +1051,10 @@ function fireRound(opts = {}) {
   const aimRange = aimZombie && (!aimWall || aimZombie.distance <= aimWall.distance)
     ? aimZombie.distance
     : (aimWall ? aimWall.distance : 90);
-  const aimPoint = eye.clone().addScaledVector(aimDir, Math.max(3.5, aimRange));
+  // The convergence point is the crosshair's actual target. The old 3.5 m
+  // floor put it beyond anything closer than that, so a point-blank shell was
+  // aimed past and under the zombie and missed entirely.
+  const aimPoint = eye.clone().addScaledVector(aimDir, Math.max(1, aimRange));
 
   const muzzle = new THREE.Vector3();
   viewModel.muzzleWorld(muzzle, camera);
@@ -1058,7 +1062,10 @@ function fireRound(opts = {}) {
 
   const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul() * spreadMul;
   const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul() * spreadMul;
-  const aimDistance = Math.max(4, muzzle.distanceTo(aimPoint));
+  // Jitter is applied on the plane the crosshair is actually on, so the cone
+  // uses the real target distance. A floor of four metres made point-blank
+  // shells and rounds pattern as if fired from across the street.
+  const aimDistance = Math.max(1, muzzle.distanceTo(aimPoint));
 
   let anyMiss = false;
   for (let p = 0; p < pellets; p++) {
@@ -1090,6 +1097,9 @@ function fireRound(opts = {}) {
       anyMiss = true;
     }
   }
+  // Bloom is caused by this shot and paid for by the next one, so the round
+  // the player just aimed always uses the cone they were shown.
+  spreadBloom = Math.min(0.05, spreadBloom + def.spread * 0.5);
   if (anyMiss && hud.crossMiss) {
     hud.crossMiss.classList.add('show');
     setTimeout(() => hud.crossMiss.classList.remove('show'), 70);

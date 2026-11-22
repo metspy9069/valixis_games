@@ -228,6 +228,16 @@ export class ViewModel {
     const m = this.models[this.index];
     const local = m.userData.muzzle.clone();
     m.localToWorld(local);
-    return target.copy(local).applyMatrix4(worldCamera.matrixWorld);
+    if (worldCamera === this.camera) return target.copy(local);
+
+    // The viewmodel is drawn through this.camera (58°) and the world through
+    // worldCamera (78°). Copying the point straight across would put the
+    // tracer's on-screen start above the barrel. Keep the barrel's screen
+    // position and its depth: map to NDC through the viewmodel camera, then
+    // back out along that same pixel under the world camera.
+    const ndc = local.clone().project(this.camera);
+    const depth = Math.max(0.2, -local.z);
+    const dir = new THREE.Vector3(ndc.x, ndc.y, 0.5).unproject(worldCamera).sub(worldCamera.position).normalize();
+    return target.copy(worldCamera.position).addScaledVector(dir, depth);
   }
 }

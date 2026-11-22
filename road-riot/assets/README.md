@@ -16,8 +16,8 @@ The sound files are CC0 assets indexed by `Mcamento8/open-game-sfx-index`:
 
 The player supercar models are local Blender exports created for this project:
 
-- `player-ferrari.glb` (Apex GT)
-- `player-lamborghini.glb` (Hyperion GTR)
+- `player-apex.glb` (Valixis Apex GT)
+- `player-hyperion.glb` (Valixis Hyperion GTR)
 - `venom.glb` (Venom Drift-R)
 - `phantom.glb` (Phantom GT V8)
 - `interceptor.glb` (Highway Interceptor)

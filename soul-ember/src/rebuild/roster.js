@@ -6,7 +6,7 @@ const heroRows = [
  ['frost','Frost Oracle','#94bcc7','Frost prism','Crystal shards slow advancing enemies.','Winter Veil','shard',27,.57,95,7.1,['Permafrost','Shatterglass','Ice Ward']],
  ['bone','Bone Shepherd','#c4bc98','Soul lantern','Orbiting spirits seek nearby enemies.','Pale Procession','spirit',25,.65,105,7,['Soul Tether','Restless Choir','Grave Shelter']],
  ['storm','Storm Duelist','#a0a4c8','Twin sabers','Lightning jumps between close enemies.','Thunderstep','chain',31,.55,95,7.8,['Live Wire','Forked Sky','Static Guard']],
- ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',22,.8,110,7,['Virulence','Glass Garden','Antidote']],
+ ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',32,.7,115,7.2,['Virulence','Glass Garden','Antidote']],
  ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',39,.85,125,6.8,['Resonance','Echo Chamber','Sanctuary']],
 ];
 export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[15,80,15,15,48,80,48,80][index],soulYield:id==='plague'?1.25:1}]));

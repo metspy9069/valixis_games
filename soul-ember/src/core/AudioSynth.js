@@ -30,6 +30,20 @@ class SoulAudio{
  startDrone(){if(!this.ctx||this.drone)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=55;filter.type='lowpass';filter.frequency.value=180;g.gain.value=.025;o.connect(filter);filter.connect(g);g.connect(this.ambienceGain);o.start();this.drone=o;}
  startMusic(){if(this.timer||!this.ctx)return;const tick=()=>{if(!this.ctx){this.timer=null;return;}const scene=this.scene,bpm=scene==='boss'?142:scene==='danger'?132:scene==='menu'?78:104,step=this.step++%16,roots=scene==='boss'?[41.2,46.25,49,55]:scene==='menu'?[55,65.4,61.7,49]:[41.2,49,55,46.25],root=roots[Math.floor(step/4)%4];if(step%4===0)this.tone(root,.38,{type:'sine',gain:.15,bus:this.musicGain,slide:.98});if((scene==='danger'||scene==='boss')&&step%4===0)this.tone(95,.09,{type:'sine',gain:.16,bus:this.musicGain,slide:.35});if(step%2===0){const scale=[1,1.2,1.5,1.8,2,1.5,1.2,1.8];this.tone(root*4*scale[step/2],.12,{type:'triangle',gain:scene==='menu'?.045:.075,bus:this.musicGain,slide:.99});}this.timer=setTimeout(tick,(60/bpm)*250);};tick();}
  stopMusic(){clearTimeout(this.timer);this.timer=null;}
+ heartbeat(intensity=0.5){
+  if(!this.ctx)return;
+  const now=performance.now();
+  if(now-(this.last.heartbeat||0)<650/(1+intensity*0.8))return;
+  this.last.heartbeat=now;
+  this.tone(60,.12,{type:'sine',gain:Math.min(.35,.15+intensity*.2),slide:.5});
+  setTimeout(()=>{
+   if(this.ctx)this.tone(48,.16,{type:'sine',gain:Math.min(.28,.1+intensity*.18),slide:.6});
+  },140);
+ }
+ panFromPlayer(ex,ez,px,pz){
+  const dx=Number(ex)-Number(px);
+  return Math.max(-1,Math.min(1,(dx||0)/12));
+ }
 }
 
 export const AudioSys=new SoulAudio();

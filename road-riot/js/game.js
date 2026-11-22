@@ -68,8 +68,8 @@ class RoadRiotGame {
     this.racePosition = 1;
     this.currentBiome = 'midnight';
 
-    // 3D Turntable Drag Rotation
-    this.turntableAngle = 0;
+    // 3D Turntable Drag Rotation (Default hero 3/4 pose facing player)
+    this.turntableAngle = 2.45;
     this.isDraggingTurntable = false;
     this.lastDragX = 0;
 
@@ -679,9 +679,6 @@ class RoadRiotGame {
 
     window.addEventListener('pointermove', e => {
       if (this.state === 'MENU') {
-        this.mouseMenuX = (e.clientX / window.innerWidth) * 2 - 1;
-        this.mouseMenuY = (e.clientY / window.innerHeight) * 2 - 1;
-
         if (this.isDraggingMenuTurntable && this.player.chassis) {
           const dx = e.clientX - this.lastDragX;
           this.lastDragX = e.clientX;
@@ -741,8 +738,8 @@ class RoadRiotGame {
 
   loadAssets() {
     const assetsToLoad = [
-      { key: 'apex', url: './assets/player-ferrari.glb' },
-      { key: 'player', url: './assets/player-ferrari.glb' },
+      { key: 'apex', url: './assets/player-apex.glb' },
+      { key: 'player', url: './assets/player-apex.glb' },
       { key: 'venom', url: './assets/venom.glb' },
       { key: 'sports', url: './assets/sports.glb' },
       { key: 'phantom', url: './assets/phantom.glb' },
@@ -751,7 +748,7 @@ class RoadRiotGame {
       { key: 'police', url: './assets/police.glb' },
       { key: 'titan', url: './assets/titan.glb' },
       { key: 'suv', url: './assets/suv.glb' },
-      { key: 'hyperion', url: './assets/player-lamborghini.glb' },
+      { key: 'hyperion', url: './assets/player-hyperion.glb' },
       { key: 'van', url: './assets/van.glb' },
       { key: 'taxi', url: './assets/taxi.glb' },
       { key: 'ambulance', url: './assets/ambulance.glb' },
@@ -1018,10 +1015,10 @@ class RoadRiotGame {
     }
     this.player.mesh.position.set(-1.4, 0.19, -8);
     this.player.x = -1.4;
-    this.turntableAngle = 0;
+    this.turntableAngle = 2.45;
     if (this.player.chassis) {
       this.player.chassis.position.set(0, 0, 0);
-      this.player.chassis.rotation.set(0, 0, 0);
+      this.player.chassis.rotation.set(0, 2.45, 0);
     }
 
     // Set Showroom Beauty View Camera framed for unobstructed car view
@@ -1052,10 +1049,10 @@ class RoadRiotGame {
       }
       this.player.mesh.position.set(-0.5, 0.19, -8);
       this.player.x = -0.5;
-      this.turntableAngle = 0;
+      this.turntableAngle = 2.45;
       if (this.player.chassis) {
         this.player.chassis.position.set(0, 0, 0);
-        this.player.chassis.rotation.set(0, 0, 0);
+        this.player.chassis.rotation.set(0, 2.45, 0);
       }
 
       this.camera.position.set(-0.5, 1.85, -3.2);
@@ -1419,23 +1416,17 @@ class RoadRiotGame {
       return;
     }
 
-    // 3D Spatial Menu Turntable Showcase, Mouse Parallax & Dynamic Atmosphere
+    // 3D Spatial Menu Turntable Showcase & Dynamic Atmosphere (Screen only moves when user clicks & drags)
     if (this.state === 'MENU') {
-      if (!this.isDraggingMenuTurntable) {
-        this.turntableAngle += dt * 0.35;
-        if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
-        if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
-      }
-      // Solid tire contact with ground
       if (this.player.chassis) {
         this.player.chassis.position.set(0, 0, 0);
+        this.player.chassis.rotation.y = this.turntableAngle;
       }
-      // Smooth 3D mouse parallax camera lerp
-      const targetCamX = -0.5 + (this.mouseMenuX || 0) * 0.75;
-      const targetCamY = 1.85 - (this.mouseMenuY || 0) * 0.45;
-      this.camera.position.x += (targetCamX - this.camera.position.x) * 0.08;
-      this.camera.position.y += (targetCamY - this.camera.position.y) * 0.08;
-      this.camera.position.z += (-3.2 - this.camera.position.z) * 0.08;
+      if (this.turntableMesh) {
+        this.turntableMesh.rotation.y = this.turntableAngle;
+      }
+      // Rock-solid home screen camera (no screen drifting from mouse hover; only moves on click-and-drag)
+      this.camera.position.set(-0.5, 1.85, -3.2);
       this.camera.lookAt(-0.5, 0.75, -8);
 
       // Animate live background 3D world (stars rotation, weather particles, ambient lights)
@@ -1443,15 +1434,14 @@ class RoadRiotGame {
       return;
     }
 
-    // Garage Turntable Spin
+    // Garage Showcase (Rotates 360 only when user clicks and drags)
     if (this.state === 'GARAGE') {
-      if (!this.isDraggingTurntable) {
-        this.turntableAngle += dt * 0.45;
-        if (this.player.chassis) this.player.chassis.rotation.y = this.turntableAngle;
-        if (this.turntableMesh) this.turntableMesh.rotation.y = this.turntableAngle;
-      }
       if (this.player.chassis) {
         this.player.chassis.position.set(0, 0, 0);
+        this.player.chassis.rotation.y = this.turntableAngle;
+      }
+      if (this.turntableMesh) {
+        this.turntableMesh.rotation.y = this.turntableAngle;
       }
       this.camera.position.set(-1.4, 1.8, -3.2);
       this.camera.lookAt(-1.4, 0.75, -8);

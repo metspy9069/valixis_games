@@ -27,9 +27,9 @@ export const VEHICLE_ROSTER = {
     name: 'Valixis Apex GT',
     tier: 'GT SPORT',
     desc: 'Precision Italian aerodynamics, razor-sharp lane handling, and balanced track performance.',
-    modelAsset: './assets/player-ferrari.glb',
+    modelAsset: './assets/player-apex.glb',
     baseStats: { topSpeed: 28, accel: 32, handling: 34, nitro: 50, armor: 100 },
-    paint: 0xd71920, // Rosso Corsa
+    paint: 0xd71920, // Valixis Apex Red
     glow: 0x00d9ff,
     cost: 0,
     unlocked: true
@@ -87,7 +87,7 @@ export const VEHICLE_ROSTER = {
     name: 'Valixis Hyperion GTR',
     tier: 'CYBER HYPERCAR',
     desc: 'The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 320+ KM/H.',
-    modelAsset: './assets/player-lamborghini.glb',
+    modelAsset: './assets/player-hyperion.glb',
     baseStats: { topSpeed: 40, accel: 46, handling: 42, nitro: 75, armor: 140 },
     paint: 0x00f0ff, // Luminous Cyan
     glow: 0x00ffff,
@@ -563,37 +563,37 @@ export class PlayerCar {
       return;
     }
 
-    // Check Pattern 2: Apex GT (player-ferrari.glb)
-    const ferrariFL = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel1');
-    const ferrariFR = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel');
-    const ferrariRL = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel1');
-    const ferrariRR = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel');
-    if (ferrariFL && ferrariFR) {
-      this.wheels.fl = ferrariFL;
-      this.wheels.fr = ferrariFR;
-      this.wheels.rl = ferrariRL;
-      this.wheels.rr = ferrariRR;
-      [ferrariFL, ferrariFR, ferrariRL, ferrariRR].filter(Boolean).forEach(w => {
+    // Check Pattern 2: Apex GT (player-apex.glb)
+    const apexFL = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel1');
+    const apexFR = model.getObjectByName('gt3:LOD_A_WHEEL_mm_wheel');
+    const apexRL = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel1');
+    const apexRR = model.getObjectByName('gt3:LOD_A_WHEEL_REAR_mm_wheel');
+    if (apexFL && apexFR) {
+      this.wheels.fl = apexFL;
+      this.wheels.fr = apexFR;
+      this.wheels.rl = apexRL;
+      this.wheels.rr = apexRR;
+      [apexFL, apexFR, apexRL, apexRR].filter(Boolean).forEach(w => {
         this.wheelSpinners.push(w);
       });
       return;
     }
 
-    // Check Pattern 3: Hyperion GTR (player-lamborghini.glb)
-    let lamboFL = null, lamboFR = null, lamboRL = null, lamboRR = null;
+    // Check Pattern 3: Hyperion GTR (player-hyperion.glb)
+    let hyperionFL = null, hyperionFR = null, hyperionRL = null, hyperionRR = null;
     model.traverse(n => {
       if (!n.name) return;
-      if (/3DWheel Front L/i.test(n.name)) lamboFL = n;
-      else if (/3DWheel Front R/i.test(n.name)) lamboFR = n;
-      else if (/3DWheel Rear L/i.test(n.name)) lamboRL = n;
-      else if (/3DWheel Rear R/i.test(n.name)) lamboRR = n;
+      if (/3DWheel Front L/i.test(n.name)) hyperionFL = n;
+      else if (/3DWheel Front R/i.test(n.name)) hyperionFR = n;
+      else if (/3DWheel Rear L/i.test(n.name)) hyperionRL = n;
+      else if (/3DWheel Rear R/i.test(n.name)) hyperionRR = n;
     });
-    if (lamboFL && lamboFR) {
-      this.wheels.fl = lamboFL;
-      this.wheels.fr = lamboFR;
-      this.wheels.rl = lamboRL;
-      this.wheels.rr = lamboRR;
-      [lamboFL, lamboFR, lamboRL, lamboRR].filter(Boolean).forEach(w => {
+    if (hyperionFL && hyperionFR) {
+      this.wheels.fl = hyperionFL;
+      this.wheels.fr = hyperionFR;
+      this.wheels.rl = hyperionRL;
+      this.wheels.rr = hyperionRR;
+      [hyperionFL, hyperionFR, hyperionRL, hyperionRR].filter(Boolean).forEach(w => {
         this.wheelSpinners.push(w);
       });
     }

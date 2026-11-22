@@ -133,7 +133,7 @@ class RoadRiotGame {
     this.apexFlowTimer = 0;
     this.nearMissChain = 0;
     this.nearMissChainTimer = 0;
-    this.nextSpeedTrapDistance = 1200;
+    this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
     this.empCooldown = 0;
 
@@ -774,7 +774,7 @@ class RoadRiotGame {
     this.apexFlowTimer = 0;
     this.nearMissChain = 0;
     this.nearMissChainTimer = 0;
-    this.nextSpeedTrapDistance = 1200;
+    this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
     this.empCooldown = 0;
         const sel = progression.data.selectedVehicle || 'apex';
@@ -893,7 +893,7 @@ class RoadRiotGame {
     this.apexFlowTimer = 0;
     this.nearMissChain = 0;
     this.nearMissChainTimer = 0;
-    this.nextSpeedTrapDistance = 1200;
+    this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
     this.empCooldown = 0;
     const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
@@ -1749,20 +1749,20 @@ class RoadRiotGame {
     // Aerodynamic Slipstream Drafting & Slingshot Catapult
     let hasDraftTarget = false;
     for (const v of this.traffic.vehicles) {
-      if (!v.hit && Math.abs(v.mesh.position.x - this.player.x) < 1.45) {
+      if (!v.hit && Math.abs(v.mesh.position.x - this.player.x) < 2.2) {
         const distAhead = this.player.mesh.position.z - v.mesh.position.z;
-        if (distAhead > 3.0 && distAhead < 24.0) {
+        if (distAhead > 2.0 && distAhead < 32.0) {
           hasDraftTarget = true;
           break;
         }
       }
     }
 
-    if (hasDraftTarget && kmh > 120) {
+    if (hasDraftTarget && kmh > 75) {
       this.isDrafting = true;
-      this.draftCharge = Math.min(1.0, this.draftCharge + dt * 0.95);
-      this.player.addNitro(dt * 26);
-      this.score += Math.floor(dt * 180);
+      this.draftCharge = Math.min(1.0, this.draftCharge + dt * 1.05);
+      this.player.addNitro(dt * 28);
+      this.score += Math.floor(dt * 200);
 
       if (this.ui.draftingContainer) {
         this.ui.draftingContainer.classList.remove('hidden');
@@ -1779,8 +1779,8 @@ class RoadRiotGame {
       // Slingshot Catapult Launch Trigger!
       if (this.draftCharge >= 1.0) {
         this.draftCharge = 0;
-        this.player.triggerSpeedBoost(1.42, 2.6);
-        this.player.nitro = Math.min(this.player.maxNitro, this.player.nitro + 35);
+        this.player.triggerSpeedBoost(1.52, 2.8);
+        this.player.nitro = Math.min(this.player.maxNitro, this.player.nitro + 40);
         audio.play('slingshot');
         this.vibrate([60, 40, 120]);
         this.camShake = 0.35;
@@ -1798,7 +1798,7 @@ class RoadRiotGame {
 
     // Radar Speed Trap Checks
     if (this.distance >= this.nextSpeedTrapDistance) {
-      this.nextSpeedTrapDistance += 1200;
+      this.nextSpeedTrapDistance += 800;
       if (kmh >= 240) {
         if (this.ui.speedTrapFlash) {
           this.ui.speedTrapFlash.classList.remove('hidden');
@@ -1837,6 +1837,7 @@ class RoadRiotGame {
     this.traffic.update(dt, currentSpeed, this.player.x, this.player.mesh.position.z, this.distance, {
       isMagnetActive: this.player.magnetActive,
       jumpRamps: this.world.jumpRamps,
+      heatLevel: this.heatLevel,
       onNearMiss: (v) => {
         progression.activeRunStats.nearMisses++;
         this.score += 250 * this.multiplier;
@@ -1849,9 +1850,9 @@ class RoadRiotGame {
         this.nearMissChainTimer = 4.0;
         this.increaseHeat(0.25);
 
-        // Apex Flow (Bullet-Time Near-Miss Chain of 3+)
-        if (this.nearMissChain >= 3 && this.apexFlowTimer <= 0) {
-          this.apexFlowTimer = 2.5;
+        // Apex Flow (Bullet-Time Near-Miss Chain of 2+)
+        if (this.nearMissChain >= 2 && this.apexFlowTimer <= 0) {
+          this.apexFlowTimer = 3.0;
           if (this.ui.apexFlowOverlay) this.ui.apexFlowOverlay.classList.remove('hidden');
           audio.play('bullet_time');
           this.toast('APEX FLOW: BULLET-TIME REFLEXES ACTIVATED!', 'magenta');
@@ -2294,8 +2295,18 @@ class RoadRiotGame {
   }
 
   increaseHeat(amt) {
+    const oldLevel = Math.floor(this.heatLevel);
     this.heatLevel = Math.max(0, Math.min(5, this.heatLevel + amt));
+    const newLevel = Math.floor(this.heatLevel);
     this.updateHeatHud();
+    if (newLevel > oldLevel && newLevel >= 1) {
+      this.toast(`🚨 HEAT LEVEL ${newLevel}! HIGHWAY PATROL ALERTED`, 'magenta');
+      audio.play('fever');
+    }
+  }
+
+  triggerEmpShockwave() {
+    return this.triggerKineticEmp();
   }
 
   triggerKineticEmp() {

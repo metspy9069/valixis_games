@@ -3288,3 +3288,172 @@ html, body {
   padding: 2px 6px;
 }
 
+/* ==========================================================================
+   NEW MECHANISMS: PURSUIT HEAT, AERO DRAFTING, SPEED TRAP, APEX FLOW
+   ========================================================================== */
+
+/* 1. Highway Patrol Pursuit Heat Level Panel */
+.heat-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 15, 24, 0.75);
+  border: 1px solid rgba(255, 42, 68, 0.35);
+  border-radius: 6px;
+  padding: 3px 10px;
+  box-shadow: 0 0 10px rgba(255, 42, 68, 0.15);
+}
+
+.heat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #ff4d6d;
+}
+
+.heat-stars {
+  display: flex;
+  gap: 3px;
+}
+
+.heat-star {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.heat-star.active {
+  color: #ff1744;
+  text-shadow: 0 0 8px #ff1744, 0 0 16px rgba(255, 23, 68, 0.8);
+  animation: heatStarPulse 1.2s infinite alternate;
+}
+
+@keyframes heatStarPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.15); filter: brightness(1.3); }
+}
+
+/* 2. Aerodynamic Slipstream Drafting & Slingshot Gauge */
+.hud-drafting-container {
+  position: absolute;
+  top: 195px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(5, 12, 22, 0.88);
+  border: 1px solid rgba(0, 255, 204, 0.55);
+  border-radius: 8px;
+  padding: 6px 16px;
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.35);
+  pointer-events: none;
+  z-index: 45;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.drafting-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  color: #00ffcc;
+  text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+}
+
+.drafting-pct {
+  color: #ffffff;
+}
+
+.drafting-track {
+  width: 220px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  margin: 5px 0 3px 0;
+  overflow: hidden;
+}
+
+.drafting-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #0077b6, #00ffcc);
+  box-shadow: 0 0 10px #00ffcc;
+  transition: width 0.08s linear;
+}
+
+.drafting-hint {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #a7f3d0;
+}
+
+/* 3. Speed Trap Camera Flash Screen Overlay */
+.speed-trap-flash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(200, 240, 255, 0.7) 60%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 99;
+  opacity: 0;
+  transition: opacity 0.05s ease-out;
+}
+
+.speed-trap-flash.flash-active {
+  opacity: 1;
+}
+
+/* 4. Apex Flow Bullet-Time Screen Effect */
+.apex-flow-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apex-flow-vignette {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px rgba(157, 78, 221, 0.75), inset 0 0 40px rgba(0, 240, 255, 0.6);
+  animation: apexPulse 0.8s infinite alternate ease-in-out;
+}
+
+.apex-flow-text {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #00f0ff;
+  text-shadow: 0 0 16px #00f0ff, 0 0 32px #9d4edd;
+  transform: translateY(-80px);
+  animation: apexGlitch 0.4s infinite;
+}
+
+@keyframes apexPulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 0.95; }
+}
+
+@keyframes apexGlitch {
+  0% { transform: translateY(-80px) skewX(0deg); }
+  50% { transform: translateY(-80px) skewX(-2deg); }
+  100% { transform: translateY(-80px) skewX(2deg); }
+}
+
+/* 5. Mobile EMP Button */
+.emp-touch-btn {
+  background: linear-gradient(135deg, rgba(157, 78, 221, 0.4), rgba(0, 240, 255, 0.4)) !important;
+  border-color: #00f0ff !important;
+  color: #00f0ff !important;
+  font-weight: 900 !important;
+}
+

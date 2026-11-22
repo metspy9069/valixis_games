@@ -505,8 +505,9 @@ export function buildZombieModel(typeKey, def) {
     hip.add(knee);
     const shin = part(g.shin, pantsMat, 0, -0.22, 0);
     knee.add(shin);
-    knee.add(part(g.foot, skinMat, 0, -0.45, 0));
-    return { hip, knee, thigh, shin };
+    const foot = part(g.foot, skinMat, 0, -0.45, 0);
+    knee.add(foot);
+    return { hip, knee, foot, thigh, shin };
   };
   const legL = leg(-1);
   const legR = leg(1);
@@ -531,7 +532,17 @@ export function buildZombieModel(typeKey, def) {
   // is the difference between a few hundred draw calls and a thousand.
   return {
     group,
-    rig: { hips, torso: belly, neck, head, jaw, armL, armR, legL, legR },
+    rig: {
+      hips,
+      torso: belly,
+      neck,
+      head,
+      jaw,
+      armL: { shoulder: armL.shoulder, elbow: armL.elbow, hand: armL.hand },
+      armR: { shoulder: armR.shoulder, elbow: armR.elbow, hand: armR.hand },
+      legL: { hip: legL.hip, knee: legL.knee, foot: legL.foot },
+      legR: { hip: legR.hip, knee: legR.knee, foot: legR.foot },
+    },
     hitMeshes: [head, chest, belly, ...limbHits, ...extraHits],
     detail: [brow, nose, jaw, socketL, socketR, ...detail, armL.hand, armR.hand],
   };
@@ -716,6 +727,73 @@ export function buildCar(rng, colors = [0x4a2b2b, 0x2c3a44, 0x3b3b30, 0x40323f, 
     wheel(1.4, 0.92); wheel(-1.4, 0.92); wheel(1.4, -0.92); wheel(-1.4, -0.92);
     lights(2.12, -2.16, 0.86, 0.66);
   }
+
+  return g;
+}
+
+/** Heavy military APC / troop transport wreck. */
+export function buildApc(rng) {
+  const g = new THREE.Group();
+  const armor = new THREE.MeshStandardMaterial({ color: 0x2e382c, roughness: 0.88, metalness: 0.25 });
+  const darkArmor = new THREE.MeshStandardMaterial({ color: 0x1f261e, roughness: 0.95 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x151617, roughness: 0.95 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0x252a26, roughness: 0.7, metalness: 0.4 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x050c10, roughness: 0.2, metalness: 0.8 });
+  const hazard = new THREE.MeshStandardMaterial({ color: 0xff8811, emissive: 0x994400, emissiveIntensity: 0.8, roughness: 0.4 });
+
+  // Main hull: lower chassis + sloped upper hull
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(6.4, 1.4, 2.6), armor);
+  hull.position.y = 1.3;
+  hull.castShadow = true;
+  g.add(hull);
+
+  // Sloped glacis plate at the front
+  const glacis = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 2.58), armor);
+  glacis.position.set(2.6, 1.5, 0);
+  glacis.rotation.z = -0.52;
+  glacis.castShadow = true;
+  g.add(glacis);
+
+  // Armored viewing slits
+  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.9), glass);
+  slit.position.set(2.4, 1.7, 0);
+  g.add(slit);
+
+  // Commander's cupola / low turret
+  const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.95, 0.6, 10), armor);
+  turret.position.set(-0.2, 2.3, 0);
+  turret.castShadow = true;
+  g.add(turret);
+
+  // Autocannon barrel
+  const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 2.2, 8), darkArmor);
+  gun.rotation.z = Math.PI / 2;
+  gun.position.set(1.4, 2.35, 0);
+  gun.castShadow = true;
+  g.add(gun);
+
+  // 8 Heavy combat wheels (4 per side)
+  const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.36, 16);
+  const hubGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.38, 10);
+  for (const side of [-1.45, 1.45]) {
+    for (let i = 0; i < 4; i++) {
+      const wx = -2.1 + i * 1.4;
+      const tyre = new THREE.Mesh(wheelGeo, wheelMat);
+      tyre.rotation.x = Math.PI / 2;
+      tyre.position.set(wx, 0.55, side);
+      tyre.castShadow = true;
+      g.add(tyre);
+      const hub = new THREE.Mesh(hubGeo, rimMat);
+      hub.rotation.x = Math.PI / 2;
+      hub.position.set(wx, 0.55, side);
+      g.add(hub);
+    }
+  }
+
+  // Emergency hazard light on roof
+  const strobelight = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.25, 8), hazard);
+  strobelight.position.set(-1.4, 2.15, 0.7);
+  g.add(strobelight);
 
   return g;
 }
@@ -1127,6 +1205,8 @@ function buildLurker() {
     );
     hand.position.set(0, -0.3, 0.04);
     elbow.add(hand);
+    shoulder.userData.elbow = elbow;
+    shoulder.userData.hand = hand;
     return shoulder;
   };
   const armL = arm(-1);
@@ -1161,6 +1241,7 @@ function buildLurker() {
     );
     foot.position.set(0, -0.26, 0.03);
     knee.add(foot);
+    hip.userData.foot = foot;
     return hip;
   };
   const legL = leg(-1);
@@ -1179,12 +1260,21 @@ function buildLurker() {
 
   // The animator drives these joints; without them the lurker's first update
   // threw on a null rig and aborted the whole simulation frame.
+  const jaw = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.035, 0.09),
+    new THREE.MeshStandardMaterial({ color: 0x2e2724, roughness: 0.9 })
+  );
+  jaw.position.set(0, 0.67, 0.05);
+  jaw.rotation.x = 0.2;
+  g.add(jaw);
+
   g.userData.rig = {
-    armL: { shoulder: armL, elbow: armL.userData.elbow },
-    armR: { shoulder: armR, elbow: armR.userData.elbow },
-    legL: { hip: legL, knee: legL.userData.knee },
-    legR: { hip: legR, knee: legR.userData.knee },
+    armL: { shoulder: armL, elbow: armL.userData.elbow, hand: armL.userData.hand },
+    armR: { shoulder: armR, elbow: armR.userData.elbow, hand: armR.userData.hand },
+    legL: { hip: legL, knee: legL.userData.knee, foot: legL.userData.foot },
+    legR: { hip: legR, knee: legR.userData.knee, foot: legR.userData.foot },
   };
+  g.userData.jaw = jaw;
   g.userData.muzzle = new THREE.Vector3(0, 0.7, -0.18);
   return g;
 }
@@ -1220,9 +1310,15 @@ function buildLurkerModel(def) {
   return {
     group: g,
     rig: {
-      hips, torso: body || g, neck, head: head || g, jaw: null,
-      armL: limbs.armL || null, armR: limbs.armR || null,
-      legL: limbs.legL || null, legR: limbs.legR || null,
+      hips,
+      torso: body || g,
+      neck,
+      head: head || g,
+      jaw: g.userData.jaw || null,
+      armL: limbs.armL || { shoulder: new THREE.Group(), elbow: new THREE.Group(), hand: new THREE.Group() },
+      armR: limbs.armR || { shoulder: new THREE.Group(), elbow: new THREE.Group(), hand: new THREE.Group() },
+      legL: limbs.legL || { hip: new THREE.Group(), knee: new THREE.Group(), foot: new THREE.Group() },
+      legR: limbs.legR || { hip: new THREE.Group(), knee: new THREE.Group(), foot: new THREE.Group() },
     },
     hitMeshes,
     detail: [],
@@ -1355,9 +1451,23 @@ export function buildGun(kind) {
 export const PROP_GEO = {
   crate: new THREE.BoxGeometry(1, 1, 1),
   barrel: new THREE.CylinderGeometry(0.4, 0.4, 1.1, 12),
+  sandbag: new THREE.BoxGeometry(0.8, 0.32, 0.45),
+  barrier: new THREE.BoxGeometry(2.4, 0.95, 0.4),
+  milCrate: new THREE.BoxGeometry(1.3, 0.65, 0.85),
+  biohazardBarrel: new THREE.CylinderGeometry(0.42, 0.42, 1.15, 12),
+  puddle: new THREE.CircleGeometry(1.4, 16),
+  manhole: new THREE.CylinderGeometry(0.52, 0.52, 0.04, 16),
+  debris: new THREE.DodecahedronGeometry(0.42, 0),
 };
 
 export const PROP_MAT = {
   crate: new THREE.MeshStandardMaterial({ color: 0x4a3b28, roughness: 0.95 }),
   barrel: new THREE.MeshStandardMaterial({ color: 0x2f4535, roughness: 0.72, metalness: 0.4 }),
+  sandbag: new THREE.MeshStandardMaterial({ color: 0x8a7b5a, roughness: 0.98 }),
+  barrier: new THREE.MeshStandardMaterial({ color: 0x6e7270, roughness: 0.92 }),
+  milCrate: new THREE.MeshStandardMaterial({ color: 0x2f3d2b, roughness: 0.85, metalness: 0.15 }),
+  biohazardBarrel: new THREE.MeshStandardMaterial({ color: 0xd49b28, roughness: 0.65, metalness: 0.35 }),
+  puddle: new THREE.MeshStandardMaterial({ color: 0x14181a, roughness: 0.12, metalness: 0.82, depthWrite: false }),
+  manhole: new THREE.MeshStandardMaterial({ color: 0x222527, roughness: 0.8, metalness: 0.6 }),
+  debris: new THREE.MeshStandardMaterial({ color: 0x3d4144, roughness: 0.95 }),
 };

@@ -237,6 +237,84 @@ export const CAR_PREVIEWS = {
       <circle cx="214" cy="89" r="14" fill="url(#hyp-turbine)"/>
       <circle cx="214" cy="89" r="5" fill="#00f0ff"/>
     </svg>
+  `,
+
+  valkyrie: `
+    <svg viewBox="0 0 280 120" xmlns="http://www.w3.org/2000/svg" class="car-preview-svg">
+      <defs>
+        <linearGradient id="valk-body" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ff4757"/>
+          <stop offset="45%" stop-color="#ff1744"/>
+          <stop offset="100%" stop-color="#570014"/>
+        </linearGradient>
+        <linearGradient id="valk-wing" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#2d3436"/>
+          <stop offset="100%" stop-color="#090a0c"/>
+        </linearGradient>
+        <radialGradient id="valk-wheel" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffea00"/>
+          <stop offset="40%" stop-color="#d63031"/>
+          <stop offset="100%" stop-color="#1e272e"/>
+        </radialGradient>
+      </defs>
+      <!-- Ground Shadow & Gold Underglow -->
+      <ellipse cx="140" cy="105" rx="124" ry="10" fill="#000000" opacity="0.8" filter="blur(4px)"/>
+      <ellipse cx="140" cy="103" rx="95" ry="6" fill="#ffea00" opacity="0.5" filter="blur(7px)"/>
+      <!-- Giant Carbon Swan-Neck Rear Wing -->
+      <path d="M 232 40 L 268 38 L 270 46 L 234 48 Z" fill="url(#valk-wing)"/>
+      <path d="M 242 48 L 246 66 L 240 66 Z" fill="#090a0c"/>
+      <!-- Low Wedge V12 Track Body -->
+      <path d="M 16 86 C 26 80 44 74 68 74 C 92 74 110 56 130 42 C 154 28 190 30 216 46 C 238 56 254 66 262 76 C 266 80 264 88 254 90 L 240 90 C 236 78 226 72 212 72 C 198 72 188 78 184 90 L 96 90 C 92 78 82 72 68 72 C 54 72 44 78 40 90 L 14 90 C 10 90 10 86 16 86 Z" fill="url(#valk-body)"/>
+      <!-- Dark Tint Glass -->
+      <path d="M 124 46 C 142 32 178 32 200 42 C 214 48 220 56 220 60 L 130 60 Z" fill="#1e272e" stroke="#ffea00" stroke-width="0.8"/>
+      <!-- Racing Livery V12 Striping -->
+      <path d="M 50 78 L 220 78" stroke="#ffea00" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- Front Aero Canards & Splitter -->
+      <polygon points="12,88 38,88 36,92 8,92" fill="#090a0c"/>
+      <!-- Front Wheel -->
+      <circle cx="68" cy="90" r="18" fill="#090a0c"/>
+      <circle cx="68" cy="90" r="14" fill="url(#valk-wheel)"/>
+      <circle cx="68" cy="90" r="5" fill="#ffea00"/>
+      <!-- Rear Wheel -->
+      <circle cx="212" cy="90" r="18" fill="#090a0c"/>
+      <circle cx="212" cy="90" r="14" fill="url(#valk-wheel)"/>
+      <circle cx="212" cy="90" r="5" fill="#ffea00"/>
+    </svg>
+  `,
+
+  spectre: `
+    <svg viewBox="0 0 280 120" xmlns="http://www.w3.org/2000/svg" class="car-preview-svg">
+      <defs>
+        <linearGradient id="spec-body" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#55efc4"/>
+          <stop offset="45%" stop-color="#00b894"/>
+          <stop offset="100%" stop-color="#004d40"/>
+        </linearGradient>
+        <radialGradient id="spec-neon" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#55efc4"/>
+          <stop offset="50%" stop-color="#00b894"/>
+          <stop offset="100%" stop-color="#001e17"/>
+        </radialGradient>
+      </defs>
+      <!-- Ground Shadow & Cyber Emerald Underglow -->
+      <ellipse cx="140" cy="105" rx="126" ry="10" fill="#000000" opacity="0.8" filter="blur(4px)"/>
+      <ellipse cx="140" cy="103" rx="100" ry="7" fill="#00ffaa" opacity="0.65" filter="blur(8px)"/>
+      <!-- Cyber Aeroblade Body -->
+      <path d="M 14 86 C 26 80 46 72 70 72 C 94 72 112 54 134 40 C 160 26 198 28 224 44 C 248 56 260 66 268 76 C 272 80 268 88 258 90 L 244 90 C 240 78 228 72 214 72 C 200 72 188 78 184 90 L 96 90 C 92 78 80 72 66 72 C 52 72 40 78 36 90 L 12 90 C 8 90 8 86 14 86 Z" fill="url(#spec-body)"/>
+      <!-- Floating Glass Jet Canopy -->
+      <path d="M 126 44 C 146 30 186 30 208 40 C 220 46 226 54 226 58 L 134 58 Z" fill="#001e17" stroke="#00ffaa" stroke-width="1.2"/>
+      <!-- Active Laser Blade Headlight -->
+      <polygon points="16,84 34,80 36,83 18,87" fill="#00ffaa"/>
+      <path d="M 260 76 L 270 76 L 268 82" stroke="#00ffaa" stroke-width="2" fill="none"/>
+      <!-- Front Aero Rotor Wheel -->
+      <circle cx="66" cy="89" r="18" fill="#001e17"/>
+      <circle cx="66" cy="89" r="14" fill="url(#spec-neon)"/>
+      <circle cx="66" cy="89" r="5" fill="#55efc4"/>
+      <!-- Rear Aero Rotor Wheel -->
+      <circle cx="214" cy="89" r="18" fill="#001e17"/>
+      <circle cx="214" cy="89" r="14" fill="url(#spec-neon)"/>
+      <circle cx="214" cy="89" r="5" fill="#55efc4"/>
+    </svg>
   `
 };
 

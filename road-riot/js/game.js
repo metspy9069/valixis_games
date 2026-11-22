@@ -125,6 +125,18 @@ class RoadRiotGame {
     this.isDraggingMenuTurntable = false;
     this.lastGear = 1;
 
+    // New Mechanisms State: Heat Level, Slipstream Drafting, Apex Flow, Speed Trap
+    this.heatLevel = 0;
+    this.heatTimer = 0;
+    this.draftCharge = 0;
+    this.isDrafting = false;
+    this.apexFlowTimer = 0;
+    this.nearMissChain = 0;
+    this.nearMissChainTimer = 0;
+    this.nextSpeedTrapDistance = 1200;
+    this.policeActive = false;
+    this.empCooldown = 0;
+
     // Bind UI & Inputs
     this.cacheDomElements();
     this.bindShopEvents();
@@ -179,6 +191,16 @@ class RoadRiotGame {
       proximityAlert: document.querySelector('#hud-proximity-alert'),
       proximityText: document.querySelector('#hud-proximity-text'),
       rampCue: document.querySelector('#hud-ramp-cue'),
+
+      // New Gameplay Telemetry & Mechanisms
+      heatStars: document.querySelectorAll('.heat-star'),
+      draftingContainer: document.querySelector('#hud-drafting-container'),
+      draftingFill: document.querySelector('#hud-drafting-fill'),
+      draftingPct: document.querySelector('#hud-drafting-pct'),
+      draftingHint: document.querySelector('#hud-drafting-slingshot-hint'),
+      speedTrapFlash: document.querySelector('#hud-speed-trap-flash'),
+      apexFlowOverlay: document.querySelector('#hud-apex-flow-overlay'),
+      empBtn: document.querySelector('#hud-emp-btn'),
 
       // Screen Overlays
       overlayDamage: document.querySelector('#overlay-damage'),
@@ -393,6 +415,9 @@ class RoadRiotGame {
       if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
       }
+      if (e.key === 'e' || e.key === 'E' || e.key === 'f' || e.key === 'F') {
+        this.triggerKineticEmp();
+      }
       if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         this.togglePause();
       }
@@ -401,6 +426,8 @@ class RoadRiotGame {
     window.addEventListener('keyup', e => {
       this.keys.delete(e.key);
     });
+
+    this.ui.empBtn?.addEventListener('click', () => this.triggerKineticEmp());
 
     // Mouse Pointer Steering
     window.addEventListener('mousemove', e => {
@@ -738,7 +765,23 @@ class RoadRiotGame {
         audio.stopEngine();
         audio.resetTransmission();
         this.lastGear = 1;
-        if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
+
+    // New Mechanisms State: Heat Level, Slipstream Drafting, Apex Flow, Speed Trap
+    this.heatLevel = 0;
+    this.heatTimer = 0;
+    this.draftCharge = 0;
+    this.isDrafting = false;
+    this.apexFlowTimer = 0;
+    this.nearMissChain = 0;
+    this.nearMissChainTimer = 0;
+    this.nextSpeedTrapDistance = 1200;
+    this.policeActive = false;
+    this.empCooldown = 0;
+        const sel = progression.data.selectedVehicle || 'apex';
+    const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
+    audio.setEngineProfile(carDef.engineProfile || 'v8');
+    this.updateHeatHud();
+    if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
         const zeroToHundred = (2.65 + Math.random() * 0.45).toFixed(2);
         const horsepower = Math.floor(680 + Math.random() * 140);
         this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP`, 'cyan');
@@ -760,6 +803,8 @@ class RoadRiotGame {
       { key: 'titan', url: './assets/titan.glb' },
       { key: 'suv', url: './assets/suv.glb' },
       { key: 'hyperion', url: './assets/player-hyperion.glb' },
+      { key: 'valkyrie', url: './assets/player-lamborghini.glb' },
+      { key: 'spectre', url: './assets/sports.glb' },
       { key: 'van', url: './assets/van.glb' },
       { key: 'taxi', url: './assets/taxi.glb' },
       { key: 'ambulance', url: './assets/ambulance.glb' },
@@ -839,6 +884,21 @@ class RoadRiotGame {
     this.player.mesh.position.set(0, 0, -8);
     this.player.x = 0;
     this.lastGear = 1;
+
+    // New Mechanisms State: Heat Level, Slipstream Drafting, Apex Flow, Speed Trap
+    this.heatLevel = 0;
+    this.heatTimer = 0;
+    this.draftCharge = 0;
+    this.isDrafting = false;
+    this.apexFlowTimer = 0;
+    this.nearMissChain = 0;
+    this.nearMissChainTimer = 0;
+    this.nextSpeedTrapDistance = 1200;
+    this.policeActive = false;
+    this.empCooldown = 0;
+    const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
+    audio.setEngineProfile(carDef.engineProfile || 'v8');
+    this.updateHeatHud();
     if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
 
     if (this.gameMode === 'SPRINT') {
@@ -907,6 +967,11 @@ class RoadRiotGame {
     this.state = 'GAMEOVER';
     if (this.ui.checkpointBanner) this.ui.checkpointBanner.classList.add('hidden');
     if (this.ui.overlayRedAlert) this.ui.overlayRedAlert.classList.add('hidden');
+    if (this.ui.draftingContainer) this.ui.draftingContainer.classList.add('hidden');
+    if (this.ui.apexFlowOverlay) this.ui.apexFlowOverlay.classList.add('hidden');
+    if (this.ui.speedTrapFlash) this.ui.speedTrapFlash.classList.add('hidden');
+    audio.stopPoliceSiren();
+    audio.updateDraftingVortex(0);
     audio.stopEngine();
     audio.stopMusic();
 
@@ -1461,6 +1526,29 @@ class RoadRiotGame {
 
     if (this.state !== 'RUNNING') return;
 
+    // Tactical EMP Cooldown & Triggers
+    if (this.empCooldown > 0) this.empCooldown -= dt;
+    if (this.keys.has('KeyE') || this.keys.has('e') || this.keys.has('E') || this.keys.has('KeyF')) {
+      this.triggerKineticEmp();
+    }
+
+    // Apex Flow (Bullet-Time Near-Miss Time Dilation)
+    if (this.apexFlowTimer > 0) {
+      this.apexFlowTimer -= dt;
+      dt *= 0.45; // 55% slow motion!
+      if (this.apexFlowTimer <= 0 && this.ui.apexFlowOverlay) {
+        this.ui.apexFlowOverlay.classList.add('hidden');
+      }
+    }
+
+    // Near-Miss Chain Combos Decay
+    if (this.nearMissChainTimer > 0) {
+      this.nearMissChainTimer -= dt;
+      if (this.nearMissChainTimer <= 0) {
+        this.nearMissChain = 0;
+      }
+    }
+
     // 2. Poll Inputs (Keyboard, Gamepad, Mouse)
     const gp = this.pollGamepad();
     let steerDir = gp.steer;
@@ -1658,31 +1746,91 @@ class RoadRiotGame {
       }
     }
 
-    // Tactical Slipstream / Drafting Behind Traffic
-    let isDrafting = false;
+    // Aerodynamic Slipstream Drafting & Slingshot Catapult
+    let hasDraftTarget = false;
     for (const v of this.traffic.vehicles) {
-      if (!v.hit && Math.abs(v.mesh.position.x - this.player.x) < 1.35) {
+      if (!v.hit && Math.abs(v.mesh.position.x - this.player.x) < 1.45) {
         const distAhead = this.player.mesh.position.z - v.mesh.position.z;
-        if (distAhead > 3.0 && distAhead < 20.0) {
-          isDrafting = true;
+        if (distAhead > 3.0 && distAhead < 24.0) {
+          hasDraftTarget = true;
           break;
         }
       }
     }
 
-    if (isDrafting && currentSpeed > 35) {
-      this.draftTimer = (this.draftTimer || 0) + dt;
-      if (this.draftTimer >= 1.2) {
-        this.draftTimer = 0;
-        this.player.triggerSpeedBoost(1.35, 1.6);
-        audio.play('boost');
-        this.score += 250 * this.multiplier;
-        this.spawnScorePopup('+250 SLINGSHOT OVERTAKE', '#ff8800');
-        this.toast('SLINGSHOT OVERTAKE', 'gold');
-        this.vibrate([60, 40]);
+    if (hasDraftTarget && kmh > 120) {
+      this.isDrafting = true;
+      this.draftCharge = Math.min(1.0, this.draftCharge + dt * 0.95);
+      this.player.addNitro(dt * 26);
+      this.score += Math.floor(dt * 180);
+
+      if (this.ui.draftingContainer) {
+        this.ui.draftingContainer.classList.remove('hidden');
+        const pct = Math.round(this.draftCharge * 100);
+        if (this.ui.draftingPct) this.ui.draftingPct.textContent = `${pct}%`;
+        if (this.ui.draftingFill) this.ui.draftingFill.style.width = `${pct}%`;
+        if (this.ui.draftingHint) {
+          this.ui.draftingHint.textContent = this.draftCharge >= 1.0 ? '⚡ SLINGSHOT READY! LAUNCHING...' : 'CHARGING SLINGSHOT CATAPULT...';
+          this.ui.draftingHint.style.color = this.draftCharge >= 1.0 ? '#00ffcc' : '#a7f3d0';
+        }
+      }
+      audio.updateDraftingVortex(this.draftCharge);
+
+      // Slingshot Catapult Launch Trigger!
+      if (this.draftCharge >= 1.0) {
+        this.draftCharge = 0;
+        this.player.triggerSpeedBoost(1.42, 2.6);
+        this.player.nitro = Math.min(this.player.maxNitro, this.player.nitro + 35);
+        audio.play('slingshot');
+        this.vibrate([60, 40, 120]);
+        this.camShake = 0.35;
+        this.score += 500 * this.multiplier;
+        this.spawnScorePopup('+500 SLIPSTREAM SLINGSHOT', '#00ffcc');
+        this.toast('SLIPSTREAM SLINGSHOT CATAPULT FIRED!', 'cyan');
       }
     } else {
-      this.draftTimer = Math.max(0, (this.draftTimer || 0) - dt * 2);
+      this.draftCharge = Math.max(0, this.draftCharge - dt * 2.2);
+      if (this.draftCharge <= 0 && this.ui.draftingContainer) {
+        this.ui.draftingContainer.classList.add('hidden');
+      }
+      audio.updateDraftingVortex(this.draftCharge);
+    }
+
+    // Radar Speed Trap Checks
+    if (this.distance >= this.nextSpeedTrapDistance) {
+      this.nextSpeedTrapDistance += 1200;
+      if (kmh >= 240) {
+        if (this.ui.speedTrapFlash) {
+          this.ui.speedTrapFlash.classList.remove('hidden');
+          this.ui.speedTrapFlash.classList.add('flash-active');
+          setTimeout(() => this.ui.speedTrapFlash?.classList.remove('flash-active'), 120);
+          setTimeout(() => this.ui.speedTrapFlash?.classList.add('hidden'), 220);
+        }
+        audio.play('speed_trap');
+        this.toast(`📸 RADAR SPEED TRAP: ${Math.round(kmh)} KM/H! +350 PTS`, 'gold');
+        this.score += 350 * this.multiplier;
+        this.increaseHeat(1);
+      }
+    }
+
+    // Police Pursuit Evade Tracking
+    const activePolice = this.traffic.vehicles.find(v => v.isPolice && !v.hit);
+    if (activePolice) {
+      const relZ = activePolice.mesh.position.z - this.player.mesh.position.z;
+      if (!this.policeActive && relZ < 0 && relZ > -70) {
+        this.policeActive = true;
+        audio.startPoliceSiren();
+        this.toast('🚨 HIGHWAY PATROL INTERCEPTOR IN PURSUIT!', 'magenta');
+      } else if (this.policeActive && relZ > 18) {
+        this.policeActive = false;
+        audio.stopPoliceSiren();
+        this.toast('POLICE PURSUIT EVADED! +600 BOUNTY CREDITS', 'gold');
+        progression.activeRunStats.coinsEarned += 600;
+        this.increaseHeat(-1);
+      }
+    } else if (this.policeActive) {
+      this.policeActive = false;
+      audio.stopPoliceSiren();
     }
 
     // 6. Traffic & Obstacles System
@@ -1697,6 +1845,18 @@ class RoadRiotGame {
         this.vibrate(40);
         this.spawnScorePopup(`+${250 * this.multiplier} NEAR MISS!`, '#00d9ff');
 
+        this.nearMissChain++;
+        this.nearMissChainTimer = 4.0;
+        this.increaseHeat(0.25);
+
+        // Apex Flow (Bullet-Time Near-Miss Chain of 3+)
+        if (this.nearMissChain >= 3 && this.apexFlowTimer <= 0) {
+          this.apexFlowTimer = 2.5;
+          if (this.ui.apexFlowOverlay) this.ui.apexFlowOverlay.classList.remove('hidden');
+          audio.play('bullet_time');
+          this.toast('APEX FLOW: BULLET-TIME REFLEXES ACTIVATED!', 'magenta');
+        }
+
         this.multiplier = Math.min(5, this.multiplier + 1);
         this.multiplierTimer = 4.0;
         if (this.multiplier >= 4) {
@@ -1708,11 +1868,7 @@ class RoadRiotGame {
           this.toast(`NEAR MISS x${this.multiplier}`, 'cyan');
         }
       },
-      onDrafting: (delta, v) => {
-        this.player.addNitro(delta * 22);
-        this.score += Math.floor(delta * 120);
-        this.ui.overlayWarp.style.opacity = '0.35';
-      }
+      onDrafting: (delta, v) => {}
     });
 
     // 8. Continuous Solid Collisions: Traffic, Trucks, NPCs, Pedestrians, Obstacles
@@ -2127,6 +2283,80 @@ class RoadRiotGame {
     this.ui.overlayShield.style.opacity = this.player.shieldActive ? '0.75' : '0';
 
     this.updateHud(kmh);
+  }
+
+  updateHeatHud() {
+    if (!this.ui.heatStars || !this.ui.heatStars.length) return;
+    const roundedHeat = Math.round(this.heatLevel);
+    this.ui.heatStars.forEach((star, idx) => {
+      star.classList.toggle('active', idx < roundedHeat);
+    });
+  }
+
+  increaseHeat(amt) {
+    this.heatLevel = Math.max(0, Math.min(5, this.heatLevel + amt));
+    this.updateHeatHud();
+  }
+
+  triggerKineticEmp() {
+    if (this.state !== 'RUNNING') return;
+    if (this.empCooldown > 0) return;
+    if (this.player.nitro < 25) {
+      this.toast('EMP REQUIRES 25% NITRO OVERDRIVE CHARGE', 'magenta');
+      return;
+    }
+
+    this.player.nitro = Math.max(0, this.player.nitro - 25);
+    this.empCooldown = 3.2;
+    audio.play('emp_blast');
+    this.camShake = 0.55;
+    this.vibrate([100, 50, 150]);
+
+    // Visual Expanding Shockwave Ring in 3D Scene
+    const ringGeo = new THREE.RingGeometry(0.6, 2.4, 32);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.set(this.player.x, 0.45, this.player.mesh.position.z);
+    this.scene.add(ringMesh);
+
+    let ringScale = 1.0;
+    const expandInterval = setInterval(() => {
+      ringScale += 0.85;
+      ringMesh.scale.set(ringScale, 1, ringScale);
+      ringMat.opacity -= 0.12;
+      if (ringMat.opacity <= 0) {
+        clearInterval(expandInterval);
+        this.scene.remove(ringMesh);
+        ringGeo.dispose();
+        ringMat.dispose();
+      }
+    }, 35);
+
+    // Deflect all traffic vehicles within 45m out of player lane into shoulders
+    let clearedCount = 0;
+    if (this.traffic && this.traffic.vehicles) {
+      const pz = this.player.mesh.position.z;
+      this.traffic.vehicles.forEach(v => {
+        const rz = v.mesh.position.z - pz;
+        if (rz < 0 && rz > -45) {
+          clearedCount++;
+          const side = Math.sign(v.mesh.position.x || 1) || 1;
+          v.mesh.position.x = side * 8.5;
+          v.speed *= 0.5;
+          this.traffic.spawnExplosion(v.mesh.position, 0x00f0ff, 12);
+        }
+      });
+    }
+
+    this.toast(`⚡ KINETIC EMP SHOCKWAVE DISCHARGED! ${clearedCount} CARS CLEARED`, 'cyan');
+    this.spawnScorePopup('+300 KINETIC EMP', '#00f0ff');
+    this.score += 300;
   }
 
   showDamageOverlay() {

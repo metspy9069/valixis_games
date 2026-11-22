@@ -29,14 +29,13 @@ export function solid(x,z,radius=0){
  return PILLARS.some(p=>Math.hypot(x-p.x,z-p.z)<p.radius+radius);
 }
 export function collide(body,radius){
- body.x=Math.max(-39.5+radius,Math.min(39.5-radius,body.x));body.z=Math.max(-39.5+radius,Math.min(39.5-radius,body.z));
- for(const w of WALLS){const dx=body.x-w.x,dz=body.z-w.z,px=w.w/2+radius-Math.abs(dx),pz=w.d/2+radius-Math.abs(dz);if(px>0&&pz>0){if(px<pz)body.x+=(dx>=0?1:-1)*px;else body.z+=(dz>=0?1:-1)*pz;}}
- for(const o of PILLARS){const dx=body.x-o.x,dz=body.z-o.z,d=Math.hypot(dx,dz),min=o.radius+radius;if(d<min){body.x=o.x+(d?dx/d:1)*min;body.z=o.z+(d?dz/d:0)*min;}}
+ body.x=Math.max(-39.2+radius,Math.min(39.2-radius,body.x));body.z=Math.max(-39.2+radius,Math.min(39.2-radius,body.z));
+ for(const w of WALLS){const dx=body.x-w.x,dz=body.z-w.z,px=w.w/2+radius-Math.abs(dx),pz=w.d/2+radius-Math.abs(dz);if(px>0&&pz>0){if(px<pz){body.x+=(dx>=0?1:-1)*px;if(body.vx)body.vx=0;}else{body.z+=(dz>=0?1:-1)*pz;if(body.vz)body.vz=0;}}}
+ for(const o of PILLARS){const dx=body.x-o.x,dz=body.z-o.z,d=Math.hypot(dx,dz),min=o.radius+radius;if(d<min){body.x=o.x+(d?dx/d:1)*min;body.z=o.z+(d?dz/d:0)*min;if(body.vx)body.vx*=.2;if(body.vz)body.vz*=.2;}}
  if(!FLOORS.some(f=>Math.abs(body.x-f.x)<=f.w/2&&Math.abs(body.z-f.z)<=f.d/2)){
   const candidates=FLOORS.map(f=>({x:Math.max(f.x-f.w/2+radius+.6,Math.min(f.x+f.w/2-radius-.6,body.x)),z:Math.max(f.z-f.d/2+radius+.6,Math.min(f.z+f.d/2-radius-.6,body.z))})).filter(p=>!solid(p.x,p.z,radius-.01)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z));
-  if(candidates.length){body.x=candidates[0].x;body.z=candidates[0].z;}
+  if(candidates.length){body.x=candidates[0].x;body.z=candidates[0].z;if(body.vx)body.vx=0;if(body.vz)body.vz=0;}
  }
-
 }
 export function clearLine(a,b,radius=.1){
  const dx=b.x-a.x,dz=b.z-a.z;

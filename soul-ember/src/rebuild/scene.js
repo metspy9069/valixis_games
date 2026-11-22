@@ -14,7 +14,7 @@ export class Scene{
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.mobile=matchMedia('(pointer:coarse)').matches;
   this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.mobile?1.25:1.5));this.renderer.shadowMap.enabled=!this.mobile;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
   this.frameAverage=1/60;this.qualitySamples=0;this.scene=new T.Scene();this.scene.background=new T.Color(0x080b0d);this.scene.fog=new T.FogExp2(0x080b0d,.018);this.camera=new T.OrthographicCamera();
-  this.scene.add(new T.HemisphereLight(0xb0c0bd,0x171311,1.55));this.sun=new T.DirectionalLight(0xd8d4c3,2);this.sun.position.set(-12,28,10);this.sun.castShadow=!this.mobile;this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26});this.scene.add(this.sun,this.sun.target);
+  this.scene.add(new T.HemisphereLight(0xc4d2cf,0x24201e,1.85));this.sun=new T.DirectionalLight(0xd8d4c3,2);this.sun.position.set(-12,28,10);this.sun.castShadow=!this.mobile;this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26});this.scene.add(this.sun,this.sun.target);
   this.geo={
    box:new T.BoxGeometry(1,1,1),
    gem:new T.OctahedronGeometry(.22),
@@ -32,7 +32,7 @@ export class Scene{
    disk:new T.CylinderGeometry(.5,.5,.1,16)
   };
   this.texture=surfaceTexture();this.materials=new Map();this.objects=new Map();this.batches=new Map();this.props=new T.Group();this.temp=new T.Object3D();this.cameraFocus=new T.Vector2();this.dungeon=new DungeonView(this.scene);this.lastBiome=-1;this.hero=null;
-  this.light=new T.PointLight(0xffa34e,26,16,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.resize();window.addEventListener('resize',()=>this.resize());
+  this.light=new T.PointLight(0xffa34e,26,24,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.resize();window.addEventListener('resize',()=>this.resize());
  }
  mat(color,style='cloth',glow=false){
   const key=`${color}/${style}/${glow}`;
@@ -71,7 +71,7 @@ export class Scene{
   const headColor=spec.bone?bone:spec.armor?metal:0x91745f;
   data.head=this.mesh(g,this.geo.skull,headColor,[.62,.72,.61],[0,1.67,0],spec.bone?'bone':spec.armor?'metal':'cloth');
   this.detailPlate(g,0x151a19,[0,1.65,.35],[.45,.19,.1],'metal');
-  for(const x of[-.11,.11])this.mesh(g,this.geo.orb,id==='frost'?0x9be6f5:id==='bone'?0xb8e0c6:primary,[.26,.22,.16],[x,1.68,.42],'glass',true);
+  const eyeCol=id==='frost'?0x9be6f5:id==='bone'?0xb8e0c6:spec.boss?0xff4411:MONSTERS[id]?([0xff2200,0x22eedd,0xa3e635][MONSTERS[id].region||0]||0xff3311):primary;for(const x of[-.11,.11])this.mesh(g,this.geo.orb,eyeCol,[.32,.25,.2],[x,1.68,.42],'glass',true);if(MONSTERS[id]){const core=this.mesh(g,this.geo.gem,eyeCol,[.35,.45,.2],[0,1.05,.38],'glass',true);core.userData.enemyCore=true;}
   // Limbs with Pauldrons, Bracers and Greaves
   for(const side of[-1,1]){
    const arm=this.joint(g,[side*.46,1.29,0]);
@@ -289,15 +289,20 @@ export class Scene{
   }
   if(spec.kind==='swarm'){
    data.body=this.joint(g);
+   const eyeCol=MONSTERS[id]?([0xff2200,0x22eedd,0xa3e635][MONSTERS[id].region||0]||0x22eedd):0x22eedd;
    for(let i=0;i<9;i++){
     const a=i*.7;
     const leech=this.mesh(g,this.geo.torus,p,[.4,.22,.65],[Math.sin(a)*.65,.2+(i%3)*.15,Math.cos(a)*.65],'cloth');
     leech.rotation.x=Math.PI/2;data.wings.push(leech);
+    this.mesh(leech,this.geo.orb,eyeCol,[.18,.18,.18],[0,0,.22],'glass',true);
    }
   }
   if(spec.kind==='wraith'){
    data.body=this.mesh(g,this.geo.cone,p,[.82,1.35,.82],[0,.78,0],'glass');data.body.rotation.z=Math.PI;
    this.mesh(g,this.geo.skull,0x9bc7c3,[.58,.65,.55],[0,1.58,.05],'glass',true);
+   const eyeCol=MONSTERS[id]?([0xff2200,0x22eedd,0xa3e635][MONSTERS[id].region||0]||0x22eedd):0x22eedd;
+   for(const x of[-.12,.12])this.mesh(g,this.geo.orb,eyeCol,[.25,.2,.18],[x,1.64,.32],'glass',true);
+   const core=this.mesh(g,this.geo.gem,eyeCol,[.35,.45,.2],[0,1.05,.28],'glass',true);core.userData.enemyCore=true;
    for(const side of[-1,1]){
     const arm=this.joint(g,[side*.46,1.2,0]);
     this.mesh(arm,this.geo.cylinder,p,[.2,.7,.2],[side*.1,-.3,0],'glass');
@@ -342,6 +347,18 @@ export class Scene{
   const w=innerWidth,h=innerHeight;
   this.camera.left=-half*w/h;this.camera.right=half*w/h;this.camera.top=half;this.camera.bottom=-half;
   this.camera.near=.1;this.camera.far=200;this.camera.updateProjectionMatrix();
+ }
+ toScreen(x,y=0,z=0){
+  if(!this._vec3)this._vec3=new T.Vector3();
+  this._vec3.set(x,y,z);
+  this.camera.updateMatrixWorld();
+  this._vec3.project(this.camera);
+  const w=innerWidth,h=innerHeight;
+  return{
+   x:(this._vec3.x*0.5+0.5)*w,
+   y:(-this._vec3.y*0.5+0.5)*h,
+   visible:this._vec3.z<1&&this._vec3.x>=-1&&this._vec3.x<=1&&this._vec3.y>=-1&&this._vec3.y<=1
+  };
  }
  animate(model,entity,clock,reduced,{dead=false,showcase=false,ranks=null}={}){
   const d=model.userData,spec=d.spec,moving=showcase?false:(entity.moving??(!entity.windup&&!entity.attack));
@@ -414,7 +431,9 @@ export class Scene{
   const groups=new Map(),roots=[this.hero,...this.objects.values()].filter(Boolean),lodDistance=roots.length>55?5.5:11;
   for(const root of roots){
    root.updateMatrixWorld(true);
-   const distance=root===this.hero?0:Math.hypot(root.position.x-this.hero.position.x,root.position.z-this.hero.position.z);
+   const hx=this.hero?.position?.x||0,hz=this.hero?.position?.z||0;
+   const rx=root?.position?.x||0,rz=root?.position?.z||0;
+   const distance=root===this.hero?0:Math.hypot(rx-hx,rz-hz);
    const far=this.reducedQuality&&distance>lodDistance&&root.userData?.spec;
    const farMaterial=far?this.mat(root.userData.spec.boss?0x8a7559:0x62685c,'cloth'):null;
    root.traverse(o=>{
@@ -483,7 +502,7 @@ export class Scene{
 
   if(this.lastHero!==active){this.hero=this.character(active);this.lastHero=active;}
   const display=game?p:{...p,x:innerWidth<700?.25:5.1};
-  this.animate(this.hero,display,clock,low,{dead:game?.state==='dead',showcase:!game,ranks:game?.player.ranks});
+  this.animate(this.hero,display,clock,low,{dead:game?.state==='dead',showcase:!game,ranks:game?.player?.ranks});
 
   // Dynamic Biome & Boss Atmospheric Shading
   if(this.lastBiome!==biome||this.lastBossActive!==bossActive){
@@ -504,20 +523,20 @@ export class Scene{
   }
 
   if(game){
-   let targetX=p.x+(p.dx||0)*1.4+(p.vx||0)*0.25;
-   let targetZ=p.z+(p.dz||0)*1.4+(p.vz||0)*0.25;
+   let targetX=p.x+(p.vx||0)*0.06;
+   let targetZ=p.z+(p.vz||0)*0.06;
    if(activeBoss){
-    targetX=p.x*0.62+activeBoss.x*0.38;
-    targetZ=p.z*0.62+activeBoss.z*0.38;
+    targetX=p.x*0.82+activeBoss.x*0.18;
+    targetZ=p.z*0.82+activeBoss.z*0.18;
    }
-   this.cameraFocus.x+=(targetX-this.cameraFocus.x)*0.13;
-   this.cameraFocus.y+=(targetZ-this.cameraFocus.y)*0.13;
+   this.cameraFocus.x+=(targetX-this.cameraFocus.x)*0.065;
+   this.cameraFocus.y+=(targetZ-this.cameraFocus.y)*0.065;
   }else this.cameraFocus.set(-2.5,0);
 
   const trauma=game?.trauma||0,t=trauma*trauma;
-  const shakeX=low?0:(Math.sin(clock*53)*0.7+Math.sin(clock*89)*0.3)*t*1.2;
-  const shakeZ=low?0:(Math.cos(clock*61)*0.7+Math.cos(clock*97)*0.3)*t*1.2;
-  const shakeRoll=low?0:Math.sin(clock*79)*t*0.028;
+  const shakeX=low?0:Math.sin(clock*53)*t*0.4;
+  const shakeZ=low?0:Math.cos(clock*61)*t*0.4;
+  const shakeRoll=0;
 
   const cameraX=this.cameraFocus.x,cameraZ=this.cameraFocus.y;
   this.camera.position.set(cameraX+shakeX,game?26:11.5,cameraZ+(game?19:20)+shakeZ);

@@ -48,7 +48,9 @@ export class ProgressionManager {
         phantom: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         interceptor: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
         titan: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
-        hyperion: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 }
+        hyperion: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
+        valkyrie: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 },
+        spectre: { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 }
       },
       settings: {
         masterVolume: 0.85,

@@ -618,7 +618,10 @@
 <div id="menuScreen" class="screen">
   <div class="brand">
     <div class="eyebrow">VALIXIS GAMES &middot; WEBGL FIRST-PERSON</div>
-    <h1>DEAD SIGNAL</h1>
+    <div class="title-logo-wrap" style="margin: 8px auto 14px; max-width: 520px;">
+      <img src="assets/dead-signal-title-transparent.png" alt="DEAD SIGNAL: Night Siege" style="width: 100%; height: auto; display: block; filter: drop-shadow(0 0 25px rgba(125, 250, 52, 0.45));">
+    </div>
+    <h1 style="display:none;">DEAD SIGNAL</h1>
     <p>
       The relay station is the last thing still transmitting. Hold it through the night: conserve rounds, put the flashlight
       where it matters, and keep moving when they close the distance. There is no extraction &mdash; only the next wave.
@@ -786,7 +789,12 @@
 <div id="loading">LOADING THE DEAD&hellip;</div>
 
 <script type="importmap">
-  { "imports": { "three": "./vendor/three/three.module.js" } }
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/loaders/GLTFLoader.js": "./vendor/three/GLTFLoader.js"
+    }
+  }
 </script>
 <script type="module" src="./js/game.js"></script>
 </body>

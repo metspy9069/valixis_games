@@ -86,13 +86,40 @@ export const VEHICLE_ROSTER = {
     id: 'hyperion',
     name: 'Valixis Hyperion GTR',
     tier: 'CYBER HYPERCAR',
-    desc: 'The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 320+ KM/H.',
+    desc: 'The apex prototype. Advanced ground-effect downforce and twin-electric hyperdrive breaking 340+ KM/H.',
     modelAsset: './assets/player-hyperion.glb',
     baseStats: { topSpeed: 40, accel: 46, handling: 42, nitro: 75, armor: 140 },
     paint: 0x00f0ff, // Luminous Cyan
     glow: 0x00ffff,
     cost: 5000,
-    unlocked: false
+    unlocked: false,
+    engineProfile: 'electric'
+  },
+  valkyrie: {
+    id: 'valkyrie',
+    name: 'Valixis Valkyrie SV',
+    tier: 'V12 TRACK SERIES',
+    desc: 'Naturally-aspirated 6.5L screaming V12 atmospheric track monster with active aero and 8,500 RPM redline.',
+    modelAsset: './assets/player-lamborghini.glb',
+    baseStats: { topSpeed: 38, accel: 44, handling: 40, nitro: 70, armor: 130 },
+    paint: 0xff1744, // Rosso Corsa
+    glow: 0xffea00,
+    cost: 4200,
+    unlocked: false,
+    engineProfile: 'v12'
+  },
+  spectre: {
+    id: 'spectre',
+    name: 'Valixis Spectre EV',
+    tier: 'ELECTRIC HYPER GT',
+    desc: 'Quad-motor electric prototype with instantaneous torque vectoring, carbon aeroblades, and silent supersonic launch.',
+    modelAsset: './assets/sports.glb',
+    baseStats: { topSpeed: 42, accel: 48, handling: 45, nitro: 85, armor: 140 },
+    paint: 0x00ffaa, // Cyber Emerald
+    glow: 0x00f0ff,
+    cost: 6500,
+    unlocked: false,
+    engineProfile: 'electric'
   }
 };
 
@@ -596,6 +623,29 @@ export class PlayerCar {
       [hyperionFL, hyperionFR, hyperionRL, hyperionRR].filter(Boolean).forEach(w => {
         this.wheelSpinners.push(w);
       });
+      return;
+    }
+
+    // Check Pattern 4: Generic / Lamborghini / Sports Wheels
+    if (!this.wheels.fl) {
+      let fl = null, fr = null, rl = null, rr = null;
+      model.traverse(n => {
+        if (!n.name) return;
+        const nm = n.name.toLowerCase();
+        if (/wheel|tire|rim/i.test(nm)) {
+          if (/front.*(l|left)|wheel1|fl/i.test(nm)) fl = n;
+          else if (/front.*(r|right)|wheel0|fr/i.test(nm)) fr = n;
+          else if (/(rear|back).*(l|left)|rl/i.test(nm)) rl = n;
+          else if (/(rear|back).*(r|right)|rr/i.test(nm)) rr = n;
+        }
+      });
+      if (fl || fr) {
+        this.wheels.fl = fl;
+        this.wheels.fr = fr;
+        this.wheels.rl = rl;
+        this.wheels.rr = rr;
+        [fl, fr, rl, rr].filter(Boolean).forEach(w => this.wheelSpinners.push(w));
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import { assets } from './loader.js';
 // Zombies: hand-built skeletal hierarchy plus procedural animation and a
 // simple state machine (wander -> chase -> attack -> die).
 import * as THREE from 'three';
@@ -66,7 +67,10 @@ export class Zombie {
   }
 
   build() {
-    const model = buildZombieModel(this.type, this.def);
+    let model = (typeof assets !== 'undefined' && assets && assets.has(this.type)) ? assets.instantiate(this.type) : null;
+    if (!model) {
+      model = buildZombieModel(this.type, this.def);
+    }
     this.group = model.group;
     this.rig = model.rig;
     this.hitMeshes = model.hitMeshes;
@@ -431,86 +435,163 @@ export class Zombie {
 
   animate(dt, speed, dist) {
     const r = this.rig;
+    if (!r || !r.hips) return;
+
     const walking = speed > 0.05;
+    const isLurker = this.type === 'lurker';
+    const isRunner = this.type === 'runner';
+    const isBrute = this.type === 'brute';
+    const isBloater = this.type === 'bloater';
+    const isSpitter = this.type === 'spitter';
+
+    // Stride cadence & phase
     const stride = walking ? Math.sin(this.phase) : Math.sin(this.phase) * 0.12;
     const strideOpp = walking ? Math.sin(this.phase + Math.PI) : -Math.sin(this.phase) * 0.12;
-    const lean = (this.type === 'runner' ? 0.34 : this.type === 'brute' ? 0.22 : 0.16) + this.hunch;
 
-    // Legs. The trailing leg swings less and the hips hitch, which reads as a
-    // limp without needing a second animation state.
+    // Lean: Forward cant based on archetype and speed
+    let baseLean = isRunner ? 0.44 : isBrute ? 0.26 : isLurker ? 0.52 : isBloater ? 0.18 : 0.16;
+    let lean = baseLean + this.hunch;
+
+    // 1. Legs: Authentic locomotion with foot planting and knee bending
     if (r.legL && r.legR) {
-      r.legL.hip.rotation.x = stride * 0.62;
-      r.legR.hip.rotation.x = strideOpp * 0.62 * this.limp;
-      r.legL.knee.rotation.x = Math.max(0, -stride) * 0.85;
-      r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85 * this.limp;
+      if (isLurker) {
+        // Lurker low scuttling gait: wide crawling splay
+        r.legL.hip.rotation.x = stride * 0.72;
+        r.legR.hip.rotation.x = strideOpp * 0.72;
+        r.legL.hip.rotation.z = 0.22;
+        r.legR.hip.rotation.z = -0.22;
+        r.legL.knee.rotation.x = Math.max(0, -stride) * 0.95 + 0.35;
+        r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.95 + 0.35;
+      } else if (isRunner) {
+        // Runner: High knees, aggressive forward sprint drive
+        r.legL.hip.rotation.x = stride * 0.88;
+        r.legR.hip.rotation.x = strideOpp * 0.88;
+        r.legL.knee.rotation.x = Math.max(0, -stride) * 1.25;
+        r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 1.25;
+      } else {
+        // Walker / Brute / Bloater: Heavy asymmetric shamble with limp
+        r.legL.hip.rotation.x = stride * 0.62;
+        r.legR.hip.rotation.x = strideOpp * 0.62 * this.limp;
+        r.legL.knee.rotation.x = Math.max(0, -stride) * 0.85;
+        r.legR.knee.rotation.x = Math.max(0, -strideOpp) * 0.85 * this.limp;
+      }
     }
 
-    // Arms: the classic outstretched shamble, swinging a little with the gait.
-    const armOut = this.type === 'runner' ? -0.55 : this.ranged ? -0.9 : -1.35;
-    const swing = walking ? Math.sin(this.phase + Math.PI) * 0.18 : Math.sin(this.phase * 0.7) * 0.05;
+    // 2. Arms: Counterbalance, reaching claws, and archetype postures
+    let armOut = isRunner ? -0.45 : isLurker ? 0.55 : isSpitter ? -0.85 : isBloater ? -1.1 : -1.35;
+    let armSwing = walking ? Math.sin(this.phase + Math.PI) * (isRunner ? 0.48 : 0.2) : Math.sin(this.phase * 0.7) * 0.05;
 
     let attackOverlay = 0;
     if (this.state === 'attack') {
       attackOverlay = Math.min(1, this.windup / 0.42);
     } else if (this.state === 'spit') {
-      attackOverlay = Math.min(1, this.windup / 0.62) * 0.45;
+      attackOverlay = Math.min(1, this.windup / 0.62) * 0.5;
     }
-    const slam = attackOverlay * attackOverlay;
+    const attackCurve = attackOverlay * attackOverlay;
 
     if (r.armL && r.armR) {
-      r.armL.shoulder.rotation.x = armOut + swing - slam * 1.15;
-      // One arm always hangs lower: the classic uneven reach.
-      r.armR.shoulder.rotation.x = armOut * 0.78 - swing - slam * 1.15;
-      r.armL.shoulder.rotation.z = 0.22 + slam * 0.1;
-      r.armR.shoulder.rotation.z = -0.22 - slam * 0.1;
-      r.armL.elbow.rotation.x = -0.5 + slam * 0.35;
-      r.armR.elbow.rotation.x = -0.5 + slam * 0.35;
+      if (isLurker) {
+        // Lurker arms reach low to the ground for predatory scuttle
+        r.armL.shoulder.rotation.x = 0.55 + armSwing - attackCurve * 1.6;
+        r.armR.shoulder.rotation.x = 0.55 - armSwing - attackCurve * 1.6;
+        r.armL.shoulder.rotation.z = 0.32;
+        r.armR.shoulder.rotation.z = -0.32;
+        r.armL.elbow.rotation.x = -0.65 + attackCurve * 0.4;
+        r.armR.elbow.rotation.x = -0.65 + attackCurve * 0.4;
+      } else if (isBloater) {
+        // Bloater arms held wide around massive belly
+        r.armL.shoulder.rotation.x = armOut + armSwing - attackCurve * 1.2;
+        r.armR.shoulder.rotation.x = armOut - armSwing - attackCurve * 1.2;
+        r.armL.shoulder.rotation.z = 0.55 + attackCurve * 0.15;
+        r.armR.shoulder.rotation.z = -0.55 - attackCurve * 0.15;
+        r.armL.elbow.rotation.x = -0.45 + attackCurve * 0.35;
+        r.armR.elbow.rotation.x = -0.45 + attackCurve * 0.35;
+      } else {
+        r.armL.shoulder.rotation.x = armOut + armSwing - attackCurve * 1.25;
+        // Asymmetric hang on right arm
+        r.armR.shoulder.rotation.x = armOut * 0.78 - armSwing - attackCurve * 1.25;
+        r.armL.shoulder.rotation.z = 0.22 + attackCurve * 0.12;
+        r.armR.shoulder.rotation.z = -0.22 - attackCurve * 0.12;
+        r.armL.elbow.rotation.x = -0.48 + attackCurve * 0.38;
+        r.armR.elbow.rotation.x = -0.48 + attackCurve * 0.38;
+      }
     }
 
-    // Body: lean into the run, bounce with the stride, flinch when shot.
-    r.hips.rotation.x = lean + slam * 0.18 + this.flinch * 0.18;
-    r.hips.position.y = 0.9 + Math.abs(Math.sin(this.phase)) * (walking ? 0.045 : 0.012)
+    // 3. Torso / Hips: Realistic weight bob, side-to-side sway, and damage flinch
+    let hipBaseY = isLurker ? 0.38 : 0.9;
+    let bobAmp = (walking ? 0.05 : 0.012) * (isBrute ? 1.4 : isRunner ? 1.2 : 1.0);
+    r.hips.position.y = hipBaseY + Math.abs(Math.sin(this.phase)) * bobAmp
       + Math.sin(this.phase) * (1 - this.limp) * 0.012;
-    r.hips.rotation.z = Math.sin(this.phase) * 0.05 + Math.sin(this.phase * 0.5) * (1 - this.limp) * 0.06;
 
-    // Head tracks the player a little; jaw hangs open.
+    // Torso pitch & roll
+    let rollAmp = isBloater ? 0.16 : isBrute ? 0.09 : 0.05;
+    r.hips.rotation.x = lean + attackCurve * 0.2 + this.flinch * 0.22;
+    r.hips.rotation.z = Math.sin(this.phase) * rollAmp + (1 - this.limp) * 0.04;
+    r.hips.rotation.y = Math.sin(this.phase * 0.5) * (walking ? 0.08 : 0.02);
+
+    // 4. Head & Jaw tracking
     const headTrack = Math.max(-0.5, Math.min(0.5, -dist * 0.02));
-    r.neck.rotation.x = headTrack + Math.sin(this.phase * 0.5) * 0.06 - this.flinch * 0.35 + this.twitch * 0.25;
+    r.neck.rotation.x = headTrack + Math.sin(this.phase * 0.5) * 0.06 - this.flinch * 0.4 + this.twitch * 0.25;
     r.neck.rotation.z = Math.sin(this.phase * 0.4) * 0.08 + this.headTilt + this.twitch * 0.18;
     r.neck.rotation.y = Math.sin(this.phase * 0.23) * 0.12 + this.twitch * 0.2;
+
     if (r.jaw) {
-      r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + slam * 0.4;
+      r.jaw.rotation.x = 0.25 + Math.sin(this.phase * 0.8) * 0.12 + attackCurve * 0.45;
       r.jaw.position.y = 0.05;
     }
 
-    // Boss tells. Both arms overhead read as a slam or a cleave from across
-    // the street; a charge drops the whole body forward.
+    // 5. Boss signature move telegraphs & visual tell states
     if (this.isBoss) {
       if (this.abilityState === 'windup') {
-        const t = Math.min(1, this.abilityWindup / 0.6);
-        r.armL.shoulder.rotation.x = -2.3 * t;
-        r.armR.shoulder.rotation.x = -2.3 * t;
-        r.armL.elbow.rotation.x = -0.35;
-        r.armR.elbow.rotation.x = -0.35;
-        r.hips.rotation.x = lean - 0.24 * t;
-        r.neck.rotation.x = -0.34 * t;
+        const t = Math.min(1, this.abilityWindup / 0.65);
+        if (this.bossAbility === 'slam') {
+          // Both arms hoisted high overhead, spine arched backward in ominous tell
+          r.armL.shoulder.rotation.x = -2.5 * t;
+          r.armR.shoulder.rotation.x = -2.5 * t;
+          r.armL.shoulder.rotation.z = 0.35 * t;
+          r.armR.shoulder.rotation.z = -0.35 * t;
+          r.armL.elbow.rotation.x = -0.4;
+          r.armR.elbow.rotation.x = -0.4;
+          r.hips.rotation.x = lean - 0.35 * t;
+          r.neck.rotation.x = -0.45 * t;
+        } else if (this.bossAbility === 'charge') {
+          // Low 4-point sprinter crouch, jaws gaping
+          r.hips.position.y = hipBaseY - 0.28 * t;
+          r.hips.rotation.x = lean + 0.65 * t;
+          r.armL.shoulder.rotation.x = 0.7 * t;
+          r.armR.shoulder.rotation.x = 0.7 * t;
+          if (r.jaw) r.jaw.rotation.x = 0.75 * t;
+        } else if (this.bossAbility === 'cleave') {
+          // Torso coiled right, right arm cocked behind back
+          r.hips.rotation.y = -0.85 * t;
+          r.armR.shoulder.rotation.x = -1.2 * t;
+          r.armR.shoulder.rotation.y = 1.1 * t;
+          r.armL.shoulder.rotation.x = 0.4 * t;
+        }
       } else if (this.abilityState === 'active') {
         if (this.bossAbility === 'charge') {
-          r.hips.rotation.x = lean + 0.55;
-          r.armL.shoulder.rotation.x = -1.75;
-          r.armR.shoulder.rotation.x = -1.75;
+          // Aerodynamic torpedo rush forward
+          r.hips.rotation.x = lean + 0.65;
+          r.armL.shoulder.rotation.x = 1.25;
+          r.armR.shoulder.rotation.x = 1.25;
         } else if (this.bossAbility === 'cleave') {
+          // Explosive horizontal 160-degree slash across front
+          r.hips.rotation.y = 0.85;
+          r.armR.shoulder.rotation.x = 0.3;
+          r.armR.shoulder.rotation.y = -1.4;
+        } else if (this.bossAbility === 'slam') {
+          // Fists driven into ground
           r.armL.shoulder.rotation.x = 0.95;
           r.armR.shoulder.rotation.x = 0.95;
-          r.hips.rotation.x = lean + 0.3;
+          r.hips.position.y = hipBaseY - 0.35;
         }
       }
     }
 
-    // Hit reaction: brief recoil of the whole upper body.
+    // 6. Hit reaction: upper torso and head snap back
     if (this.hitTimer > 0) {
-      r.hips.rotation.x -= 0.12;
-      r.neck.rotation.x -= 0.2;
+      r.hips.rotation.x -= 0.16;
+      r.neck.rotation.x -= 0.28;
     }
   }
 }

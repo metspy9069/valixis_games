@@ -31,7 +31,10 @@ for (const f of readdirSync(root))
 cpSync(join(root, "soul-ember/dist"), join(out, "soul-ember"), {
   recursive: true,
 });
-for (const name of ["road-riot", "dev-tycoon", "dead-signal"])
+cpSync(join(root, "soul-ember/dist"), join(out, "soul_ember"), {
+  recursive: true,
+});
+for (const name of ["road-riot", "dev-tycoon", "dead-signal", "assets"])
   if (existsSync(join(root, name)))
     cpSync(join(root, name), join(out, name), {
       recursive: true,

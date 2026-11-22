@@ -66,6 +66,7 @@ export const ALT_FIRE = {
   smg: { name: 'MAG DUMP', desc: 'Empty the magazine in one burst.', cooldown: 3.4 },
   shotgun: { name: 'SLUG', desc: 'One heavy slug: five times the damage, a third of the spread.', cooldown: 1.8 },
   rifle: { name: 'STEADY BREATH', desc: '3.2 s of dead-still aim.', cooldown: 6.5 },
+  ripper: { name: 'BIPOD', desc: 'Brace in place for 6 s of tight fire.', cooldown: 9 },
   lmg: { name: 'BIPOD', desc: 'Brace in place for 6 s of tight fire.', cooldown: 9 },
 };
 

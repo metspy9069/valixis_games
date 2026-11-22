@@ -192,3 +192,152 @@ h2{font-size:29px}
 
 .ember-flash #vignette{box-shadow:inset 0 0 120px 40px rgba(255,226,119,.5)!important;filter:brightness(1.25);transition:all .1s ease}
 @keyframes combo-pop{0%{transform:scale(.8)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+
+/* 3x3 Mini-Sanctuary Grid (Minimap) */
+#minimap {
+ position: fixed;
+ top: 84px;
+ left: 24px;
+ background: rgba(14, 20, 17, 0.9);
+ border: 1px solid rgba(212, 175, 55, 0.4);
+ box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+ padding: 6px 8px;
+ border-radius: 4px;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 4px;
+ z-index: 50;
+ pointer-events: none;
+}
+.minimap-grid {
+ display: grid;
+ grid-template-columns: repeat(3, 14px);
+ grid-template-rows: repeat(3, 14px);
+ gap: 3px;
+}
+.minimap-cell {
+ background: rgba(22, 28, 25, 0.7);
+ border: 1px solid rgba(255, 255, 255, 0.08);
+ border-radius: 2px;
+ position: relative;
+ transition: all 0.25s ease;
+}
+.minimap-cell.visited {
+ background: rgba(45, 62, 53, 0.88);
+ border-color: rgba(212, 175, 55, 0.35);
+}
+.minimap-cell.sanctuary {
+ border-color: rgba(255, 110, 40, 0.6);
+}
+.minimap-cell.reliquary::after {
+ content: '';
+ position: absolute;
+ inset: 3px;
+ background: #facc15;
+ border-radius: 50%;
+ opacity: 0.75;
+}
+.minimap-cell.current::before {
+ content: '';
+ position: absolute;
+ inset: 2px;
+ background: #ffffff;
+ border-radius: 50%;
+ box-shadow: 0 0 6px #ffd700;
+ animation: pulseBeacon 1s infinite alternate;
+}
+@keyframes pulseBeacon {
+ 0% { transform: scale(0.85); opacity: 0.8; }
+ 100% { transform: scale(1.15); opacity: 1; }
+}
+.minimap-cell.boss-active {
+ background: rgba(200, 40, 20, 0.75) !important;
+ border-color: #ff4500 !important;
+ box-shadow: 0 0 8px rgba(255, 69, 0, 0.85);
+ animation: bossCellPulse 0.8s infinite alternate;
+}
+@keyframes bossCellPulse {
+ 0% { opacity: 0.7; }
+ 100% { opacity: 1; filter: drop-shadow(0 0 4px #ff3300); }
+}
+#minimap-label {
+ font: 600 8px/1 'Cinzel', serif;
+ color: #c9c5b2;
+ letter-spacing: 1px;
+ text-transform: uppercase;
+ white-space: nowrap;
+}
+
+/* Guardian Boss Compass Arrow */
+#boss-compass {
+ position: fixed;
+ z-index: 70;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ pointer-events: none;
+ transform: translate(-50%, -50%);
+ filter: drop-shadow(0 0 8px rgba(255, 69, 0, 0.85));
+}
+.compass-needle {
+ width: 0;
+ height: 0;
+ border-left: 8px solid transparent;
+ border-right: 8px solid transparent;
+ border-bottom: 18px solid #ff5511;
+ transform-origin: 50% 50%;
+ animation: needlePulse 0.9s infinite alternate;
+}
+@keyframes needlePulse {
+ 0% { transform: scale(0.92); filter: brightness(1); }
+ 100% { transform: scale(1.12); filter: brightness(1.3); }
+}
+.compass-text {
+ font: 700 9px/1 'Cinzel', serif;
+ color: #ffedd5;
+ background: rgba(20, 10, 5, 0.88);
+ padding: 3px 6px;
+ border: 1px solid #ff5511;
+ border-radius: 3px;
+ letter-spacing: 1px;
+ margin-top: 4px;
+ white-space: nowrap;
+}
+
+/* Action Button Radial Cooldown Sweeps */
+.skill-actions button, .combat-actions button {
+ position: relative;
+ overflow: hidden;
+}
+.skill-actions button::before, .combat-actions button::before {
+ content: '';
+ position: absolute;
+ inset: 0;
+ border-radius: inherit;
+ background: conic-gradient(rgba(217, 163, 95, 0.42) var(--cd, 0%), transparent 0%);
+ pointer-events: none;
+ opacity: var(--cd-active, 0);
+ transition: opacity 0.12s linear;
+}
+
+/* Combo Rank Milestone Visual Pulse */
+@keyframes comboFlare {
+ 0% { transform: scale(1); filter: brightness(1); }
+ 35% { transform: scale(1.18); filter: brightness(1.7) drop-shadow(0 0 16px rgba(255,215,0,0.9)); }
+ 100% { transform: scale(1); filter: brightness(1); }
+}
+#combo-meter.combo-flare {
+ animation: comboFlare 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+
+/* Guardian Entrance Cinematic Camera Flare */
+@keyframes bossFlareEffect {
+ 0% { filter: brightness(1) saturate(1); }
+ 30% { filter: brightness(1.8) saturate(1.6) contrast(1.2); }
+ 100% { filter: brightness(1) saturate(1); }
+}
+body.boss-cinematic-flare #world {
+ animation: bossFlareEffect 0.85s ease-out forwards;
+}

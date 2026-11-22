@@ -26,6 +26,17 @@ class SoulAudio{
   else if(event==='bossPhase'){[82,123,164].forEach((f,i)=>this.tone(f,.9,{type:'sawtooth',gain:.25,delay:i*.1,slide:.55}));}
   else if(event==='victory')for(const [i,f] of [220,330,440,554,660].entries())this.tone(f,1,{gain:.2,delay:i*.12,bus:this.musicGain});
   else if(event==='defeat'){this.tone(146,1.4,{type:'sawtooth',gain:.22,slide:.3,bus:this.musicGain});}
+   else if(event==='comboRank'){
+    const r=params.rank||'C';
+    if(r==='C'||r==='B')this.tone(660,.12,{type:'triangle',gain:.16,slide:1.3});
+    else if(r==='A'){this.tone(660,.1,{type:'triangle',gain:.18});this.tone(880,.18,{type:'triangle',gain:.22,delay:.08,slide:1.2});}
+    else if(r==='S'){[587,880,1174].forEach((f,i)=>this.tone(f,.22,{type:'triangle',gain:.22,delay:i*.07,slide:1.15}));}
+    else if(r==='SS'||r==='SSS'){[659,987,1318,1760].forEach((f,i)=>this.tone(f,.28,{type:'sine',gain:.25,delay:i*.06,slide:1.2}));this.noise(.15,{gain:.08,frequency:3200});}
+   }
+   else if(event==='bossAwaken'){
+    [55,82.4,110].forEach((f,i)=>this.tone(f,1.2,{type:'sawtooth',gain:.3,delay:i*.08,slide:.7}));
+    this.noise(.6,{gain:.22,frequency:380});
+   }
  }
  startDrone(){if(!this.ctx||this.drone)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=55;filter.type='lowpass';filter.frequency.value=180;g.gain.value=.025;o.connect(filter);filter.connect(g);g.connect(this.ambienceGain);o.start();this.drone=o;}
  startMusic(){if(this.timer||!this.ctx)return;const tick=()=>{if(!this.ctx){this.timer=null;return;}const scene=this.scene,bpm=scene==='boss'?142:scene==='danger'?132:scene==='menu'?78:104,step=this.step++%16,roots=scene==='boss'?[41.2,46.25,49,55]:scene==='menu'?[55,65.4,61.7,49]:[41.2,49,55,46.25],root=roots[Math.floor(step/4)%4];if(step%4===0)this.tone(root,.38,{type:'sine',gain:.15,bus:this.musicGain,slide:.98});if((scene==='danger'||scene==='boss')&&step%4===0)this.tone(95,.09,{type:'sine',gain:.16,bus:this.musicGain,slide:.35});if(step%2===0){const scale=[1,1.2,1.5,1.8,2,1.5,1.2,1.8];this.tone(root*4*scale[step/2],.12,{type:'triangle',gain:scene==='menu'?.045:.075,bus:this.musicGain,slide:.99});}this.timer=setTimeout(tick,(60/bpm)*250);};tick();}

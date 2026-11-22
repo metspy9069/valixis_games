@@ -106,5 +106,41 @@
       { "level": 4, "cost": 2000, "speedBoost": 72 },
       { "level": 5, "cost": 2500, "speedBoost": 90 }
     ]
+  },
+  {
+    "id": "valkyrie",
+    "name": "Valixis Valkyrie SV",
+    "tier": "V12 TRACK SERIES",
+    "baseSpeed": 330,
+    "acceleration": 9.6,
+    "handling": 9.2,
+    "price": 4200,
+    "color": "#ff1744",
+    "desc": "Naturally-aspirated 6.5L screaming V12 atmospheric track monster with active aero and 8,500 RPM redline.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 450, "speedBoost": 16 },
+      { "level": 2, "cost": 900, "speedBoost": 32 },
+      { "level": 3, "cost": 1350, "speedBoost": 48 },
+      { "level": 4, "cost": 1800, "speedBoost": 64 },
+      { "level": 5, "cost": 2250, "speedBoost": 80 }
+    ]
+  },
+  {
+    "id": "spectre",
+    "name": "Valixis Spectre EV",
+    "tier": "ELECTRIC HYPER GT",
+    "baseSpeed": 350,
+    "acceleration": 10.0,
+    "handling": 9.9,
+    "price": 6500,
+    "color": "#00ffaa",
+    "desc": "Quad-motor electric prototype with instantaneous torque vectoring, carbon aeroblades, and silent supersonic launch.",
+    "upgradeLevels": [
+      { "level": 1, "cost": 550, "speedBoost": 20 },
+      { "level": 2, "cost": 1100, "speedBoost": 40 },
+      { "level": 3, "cost": 1650, "speedBoost": 60 },
+      { "level": 4, "cost": 2200, "speedBoost": 80 },
+      { "level": 5, "cost": 2750, "speedBoost": 100 }
+    ]
   }
 ]

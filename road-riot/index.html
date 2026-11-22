@@ -44,6 +44,11 @@
   <div id="overlay-damage"></div>
   <div id="overlay-warp"></div>
   <div id="overlay-shield"></div>
+  <div id="hud-speed-trap-flash" class="speed-trap-flash hidden"></div>
+  <div id="hud-apex-flow-overlay" class="apex-flow-overlay hidden">
+    <div class="apex-flow-vignette"></div>
+    <div class="apex-flow-text">APEX FLOW &bull; BULLET TIME</div>
+  </div>
   <div id="overlay-red-alert" class="red-alert-screen hidden" aria-hidden="true">
     <div class="red-alert-border"></div>
     <div class="red-alert-vignette"></div>
@@ -134,6 +139,17 @@
         </div>
         <span id="hud-checkpoint-rem" class="checkpoint-gauge-rem">380m</span>
       </div>
+      <!-- Highway Patrol Pursuit Heat Level Panel -->
+      <div id="hud-heat-panel" class="heat-panel">
+        <span class="heat-label">PURSUIT HEAT</span>
+        <div id="hud-heat-stars" class="heat-stars">
+          <span class="heat-star" data-idx="0">★</span>
+          <span class="heat-star" data-idx="1">★</span>
+          <span class="heat-star" data-idx="2">★</span>
+          <span class="heat-star" data-idx="3">★</span>
+          <span class="heat-star" data-idx="4">★</span>
+        </div>
+      </div>
     </div>
 
     <!-- 3-Lane Highway Spatial Traffic Radar HUD -->
@@ -157,6 +173,19 @@
         </div>
         <div id="spatial-player-marker" class="spatial-player-marker"></div>
       </div>
+    </div>
+
+    <!-- Aerodynamic Slipstream Drafting & Slingshot Gauge -->
+    <div id="hud-drafting-container" class="hud-drafting-container hidden">
+      <div class="drafting-header">
+        <span class="drafting-icon">💨</span>
+        <span id="hud-drafting-title" class="drafting-title">AERO SLIPSTREAM DRAFTING</span>
+        <span id="hud-drafting-pct" class="drafting-pct">0%</span>
+      </div>
+      <div class="drafting-track">
+        <div id="hud-drafting-fill" class="drafting-fill"></div>
+      </div>
+      <div id="hud-drafting-slingshot-hint" class="drafting-hint">CHARGING SLINGSHOT LAUNCH...</div>
     </div>
 
     <!-- Directional Forward Hazard Alert & Stunt Ramp Cue -->
@@ -232,7 +261,7 @@
     </footer>
 
     <!-- Desktop Controls Hint -->
-    <div id="controls-hint">A / D or &larr; / &rarr;: STEER &bull; S or &darr;: BRAKE &amp; DRIFT &bull; SPACE: NITRO BOOST</div>
+    <div id="controls-hint">A / D or &larr; / &rarr;: STEER &bull; S or &darr;: BRAKE &amp; DRIFT &bull; SPACE / SHIFT: NITRO &bull; E / F: KINETIC EMP</div>
   </div>
 
   <!-- Mobile Touch Controls -->
@@ -243,7 +272,8 @@
       <button class="touch-btn brake-btn" data-key="ArrowDown" aria-label="Brake and Drift">BRAKE</button>
     </div>
     <div class="touch-cluster">
-      <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">NITRO BOOST</button>
+      <button class="touch-btn emp-touch-btn" data-key="KeyE" aria-label="Kinetic EMP">⚡ EMP</button>
+      <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">NITRO</button>
     </div>
   </div>
 
@@ -255,7 +285,8 @@
     <header class="menu-top-bar glass-panel">
       <div class="menu-brand-group">
         <div class="brand-eyebrow"><span class="pulse-dot"></span> VALIXIS ARCADE RACING</div>
-        <h1 class="brand-title">ROAD RIOT 3D</h1>
+        <img src="assets/road-riot-title-transparent.png" alt="ROAD RIOT 3D: Hyperspeed" style="height: 52px; width: auto; max-width: 300px; object-fit: contain; display: block; margin: 4px 0 2px; filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.45));">
+        <h1 class="brand-title" style="display:none;">ROAD RIOT 3D</h1>
         <div class="menu-sub-motto">HIGH-VELOCITY CYBER HIGHWAY INTERCEPTOR &bull; 3D SUPERCAR SHOWCASE</div>
       </div>
 

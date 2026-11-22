@@ -202,11 +202,11 @@ function box(w, h, d, material, cast = true) {
   return mesh;
 }
 
-const STREETS_X = [-56, 0, 56];
-const STREETS_Z = [-72, -24, 24, 72];
+const STREETS_X = [-84, -42, 0, 42, 84];
+const STREETS_Z = [-96, -60, -24, 12, 48, 84];
 const ROAD_HALF_X = 6.4;
 const ROAD_HALF_Z = 5.8;
-const CITY = 96;            // half extent of the playable city
+const CITY = 132;            // half extent of the playable city
 const CURB = 0.14;          // sidewalk height
 
 export function buildWorld(scene) {
@@ -228,12 +228,12 @@ export function buildWorld(scene) {
   moon.position.set(-34, 52, 26);
   moon.castShadow = true;
   moon.shadow.mapSize.set(2048, 2048);
-  moon.shadow.camera.left = -46;
-  moon.shadow.camera.right = 46;
-  moon.shadow.camera.top = 46;
-  moon.shadow.camera.bottom = -46;
+  moon.shadow.camera.left = -64;
+  moon.shadow.camera.right = 64;
+  moon.shadow.camera.top = 64;
+  moon.shadow.camera.bottom = -64;
   moon.shadow.camera.near = 1;
-  moon.shadow.camera.far = 160;
+  moon.shadow.camera.far = 220;
   moon.shadow.bias = -0.0014;
   moon.shadow.normalBias = 0.035;
   scene.add(moon);
@@ -247,7 +247,7 @@ export function buildWorld(scene) {
   // ---------- ground ----------
   const asphalt = asphaltTexture(rng);
   const groundMat = new THREE.MeshStandardMaterial({ color: 0x6a6f66, map: asphalt, roughness: 0.93, metalness: 0.04 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(CITY * 2 + 40, CITY * 2 + 40), groundMat);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(CITY * 2 + 80, CITY * 2 + 80), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
@@ -258,7 +258,7 @@ export function buildWorld(scene) {
   // ---------- lane markings ----------
   const lineMat = new THREE.MeshStandardMaterial({ color: 0x9a9a74, roughness: 0.85, emissive: 0x1a1a0d, emissiveIntensity: 0.5 });
   function laneDashes(alongZ, at) {
-    for (let t = -CITY + 4; t < CITY; t += 7) {
+    for (let t = -CITY + 4; t < CITY; t += 8) {
       const dash = new THREE.Mesh(new THREE.PlaneGeometry(alongZ ? 0.26 : 2.6, alongZ ? 2.6 : 0.26), lineMat);
       dash.rotation.x = -Math.PI / 2;
       if (alongZ) dash.position.set(at, 0.02, t);
@@ -417,6 +417,17 @@ export function buildWorld(scene) {
           const centre = 1 - Math.min(1, Math.hypot(px, pz) / CITY);
           const h = 7 + rng() * 10 + centre * (8 + rng() * 20);
           addBuilding(px, pz, w, d, h);
+
+          if (rng() > 0.45) {
+            const subW = Math.max(5, cellW * 0.22 - 1.2);
+            const subD = Math.max(5, cellD * 0.22 - 1.2);
+            if (subW >= 5 && subD >= 5) {
+              const sx = px + (rng() - 0.5) * cellW * 0.4;
+              const sz = pz + (rng() - 0.5) * cellD * 0.4;
+              const sh = 4 + rng() * 4 + centre * 4;
+              addBuilding(sx, sz, subW, subD, sh);
+            }
+          }
         }
       }
     }
@@ -436,16 +447,50 @@ export function buildWorld(scene) {
     addCollider(s * (CITY + 1), 0, 1.2, CITY * 2 + 8, 3.2);
   }
 
+  // Fence-topped border so the seam reads from the street and not just from
+  // a wall texture. Both sides share one rail material.
+  const fencePost = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 6),
+    new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.9 }));
+  const fenceRail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x2a2e2c, roughness: 0.9 }));
+  for (const s of [-1, 1]) {
+    const edgeZ = s * (CITY + 1);
+    for (let x = -CITY; x <= CITY; x += 6) {
+      const post = fencePost.clone();
+      post.position.set(x, 0.75, edgeZ);
+      scene.add(post);
+      addCollider(x, edgeZ, 0.1, 0.1, 1.5);
+    }
+    for (let x = -CITY; x < CITY; x += 6) {
+      const rail = fenceRail.clone();
+      rail.position.set(x + 3, 1.42, edgeZ);
+      scene.add(rail);
+    }
+    const edgeX = s * (CITY + 1);
+    for (let z = -CITY; z <= CITY; z += 6) {
+      const post = fencePost.clone();
+      post.position.set(edgeX, 0.75, z);
+      scene.add(post);
+      addCollider(edgeX, z, 0.1, 0.1, 1.5);
+    }
+    for (let z = -CITY; z < CITY; z += 6) {
+      const rail = fenceRail.clone();
+      rail.position.set(edgeX, 1.42, z + 3);
+      rail.rotation.y = Math.PI / 2;
+      scene.add(rail);
+    }
+  }
+
   // ---------- skyline beyond the walls ----------
   const skyMat = new THREE.MeshStandardMaterial({ color: 0x0b1216, roughness: 1 });
-  const skyline = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), skyMat, 70);
+  const skyline = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), skyMat, 110);
   skyline.castShadow = false;
   skyline.receiveShadow = false;
   const m4 = new THREE.Matrix4();
-  for (let i = 0; i < 70; i++) {
-    const a = (i / 70) * Math.PI * 2 + rng() * 0.06;
-    const r = 112 + rng() * 46;
-    const h = 14 + rng() * 40;
+  for (let i = 0; i < 110; i++) {
+    const a = (i / 110) * Math.PI * 2 + rng() * 0.06;
+    const r = 150 + rng() * 60;
+    const h = 14 + rng() * 46;
     m4.makeScale(9 + rng() * 9, h, 9 + rng() * 9);
     m4.setPosition(Math.cos(a) * r, h / 2, Math.sin(a) * r);
     skyline.setMatrixAt(i, m4);
@@ -569,7 +614,8 @@ export function buildWorld(scene) {
   instanceProps(barrelSpots, PROP_GEO.barrel, PROP_MAT.barrel, false);
 
   // ---------- dumpsters, barriers, trees ----------
-  for (const [x, z] of [[-9.2, -30], [9.4, 12], [-9.6, 46], [9.2, -74], [-40, 20], [38, -52]]) {
+  for (const [x, z] of [[-9.2, -30], [9.4, 12], [-9.6, 46], [9.2, -74], [-40, 20], [38, -52],
+    [64, 40], [-70, -20], [80, -60], [-82, 44], [22, -92], [-28, 86]]) {
     const d = buildDumpster(rng);
     d.position.set(x, CURB, z);
     d.rotation.y = rng() * 0.4;
@@ -577,16 +623,17 @@ export function buildWorld(scene) {
     addCollider(x, z, 2.4, 1.5, 1.5);
   }
 
-  for (const [x, z] of [[-7.6, -20], [7.6, 36], [-7.4, -66], [7.4, 68], [-30, 8], [24, -30]]) {
+  for (const [x, z] of [[-7.6, -20], [7.6, 36], [-7.4, -66], [7.4, 68], [-30, 8], [24, -30],
+    [70, -44], [-74, 26], [40, 72], [-44, -76], [90, 6], [-90, -22]]) {
     const b = buildBarrier(rng);
     b.position.set(x, 0, z);
     scene.add(b);
     addCollider(x, z, 2.2, 0.9, 1.2);
   }
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 52; i++) {
     const a = rng() * Math.PI * 2;
-    const r = 26 + rng() * 62;
+    const r = 26 + rng() * 94;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (Math.abs(x) < 9 || Math.abs(z) < 9) continue;
@@ -597,16 +644,16 @@ export function buildWorld(scene) {
   }
 
   // ---------- spawn ring ----------
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * Math.PI * 2;
-    const r = 34 + (i % 3) * 9;
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    const r = 36 + (i % 3) * 10;
     spawnPoints.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
   }
   // A few points deep down the avenues, so waves arrive from the streets.
-  for (const z of [-86, -70, -46, 30, 54, 82]) {
+  for (const z of [-118, -92, -66, -30, 8, 44, 80, 106]) {
     spawnPoints.push(new THREE.Vector3((rng() - 0.5) * 6, 0, z));
-    spawnPoints.push(new THREE.Vector3((rng() - 0.5) * 6 - 52, 0, z * 0.6));
-    spawnPoints.push(new THREE.Vector3((rng() - 0.5) * 6 + 52, 0, z * 0.6));
+    spawnPoints.push(new THREE.Vector3((rng() - 0.5) * 6 - 68, 0, z * 0.6));
+    spawnPoints.push(new THREE.Vector3((rng() - 0.5) * 6 + 68, 0, z * 0.6));
   }
 
   // ---------- blood decals ----------
@@ -645,7 +692,7 @@ export function buildWorld(scene) {
       blackout = !!on;
       hemi.intensity = on ? 0.4 : 1.75;
       ambient.intensity = on ? 0.22 : 1.05;
-      if (scene.fog) scene.fog.density = on ? 0.05 : 0.019;
+      if (scene.fog) scene.fog.density = on ? 0.046 : 0.017;
       moon.intensity = on ? 1.1 : 2.4;
     },
     // Keep the shadow frustum centred on the player so a big city still gets

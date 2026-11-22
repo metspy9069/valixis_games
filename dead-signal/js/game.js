@@ -1559,6 +1559,16 @@ function startWave(n) {
     });
   }
 
+  // Convert the absolute build delays into the gap each body waits after the
+  // one before it. A horde pack is inserted mid-delivery, and with absolute
+  // delays its tiny delay became the baseline for the next scheduled body:
+  // the last two walkers of a wave then waited the whole wave length again.
+  let prevDelay = 0;
+  for (const entry of game.spawnQueue) {
+    entry.gap = Math.max(0.05, entry.delay - prevDelay);
+    prevDelay = entry.delay;
+  }
+
   world.setBlackout(!!mods.alwaysBlackout || plan.modifier === 'blackout');
   audio.waveAlarm(plan.surge || plan.boss);
   if (endless.stacks.length) showHint(`ENDLESS-PLUS \u00b7 ${endless.stacks.join(' / ')}`, 3600);
@@ -2930,8 +2940,11 @@ function stepSimulation(dt) {
         const pack = Math.min(Math.max(0, room), 3 + Math.floor(Math.random() * 4) + Math.floor(game.wave / 8));
         if (pack > 0) {
           for (let i = 0; i < pack; i++) {
-            game.spawnQueue.unshift({ type: rollType(game.plan), delay: 0.14, lead: true, boss: false });
+            game.spawnQueue.unshift({ type: rollType(game.plan), delay: 0.14, gap: 0.14, lead: true, boss: false });
           }
+          // The pack is already here, so it must not wait behind the next
+          // scheduled body: pull the spawn clock forward to deliver it now.
+          game.spawnTimer = Math.min(game.spawnTimer, 0.14);
           showBanner('HORDE INBOUND', `${pack} MORE`, 'They are flanking the relay.', 2400);
           audio.waveAlarm(true);
         }
@@ -2948,7 +2961,7 @@ function stepSimulation(dt) {
         // entry's whole delay compounded the spacing and turned every wave into
         // a one-a-minute trickle after the first few arrivals.
         const next = game.spawnQueue[0];
-        game.spawnTimer = next ? Math.max(0.05, next.delay - entry.delay) : 0.5;
+        game.spawnTimer = next ? Math.max(0.05, next.gap !== undefined ? next.gap : next.delay - entry.delay) : 0.5;
       }
     } else if (aliveCount() === 0 && !game.over) {
       game.intermission = 4.5;

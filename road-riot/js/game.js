@@ -27,11 +27,16 @@ class RoadRiotGame {
       powerPreference: 'high-performance',
       precision: 'highp'
     });
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
+    this.isMobileDevice = typeof window !== 'undefined' && (
+      window.matchMedia('(max-width: 768px)').matches ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+    );
+    const maxDpr = this.isMobileDevice ? 1.35 : 2.0;
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, maxDpr));
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = this.isMobileDevice ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
@@ -399,12 +404,13 @@ class RoadRiotGame {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
-      const newDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.0));
+      const maxDpr = this.isMobileDevice ? 1.35 : 2.0;
+      const newDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, maxDpr));
       this.renderer.setPixelRatio(newDpr);
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Mobile Touch Controls
+    // Mobile Touch Controls with Comprehensive Safety Releases
     document.querySelectorAll('.touch-btn').forEach(btn => {
       const key = btn.dataset.key;
       const onDown = ev => {
@@ -419,6 +425,20 @@ class RoadRiotGame {
       btn.addEventListener('pointerdown', onDown, { passive: false });
       btn.addEventListener('pointerup', onUp, { passive: false });
       btn.addEventListener('pointercancel', onUp, { passive: false });
+      btn.addEventListener('pointerleave', onUp, { passive: false });
+      btn.addEventListener('touchend', onUp, { passive: false });
+      btn.addEventListener('touchcancel', onUp, { passive: false });
+    });
+
+    // Global safety release: Ensure touch keys never stick on finger drag-off, window blur, or multi-touch
+    window.addEventListener('pointerup', () => {
+      ['ArrowLeft', 'ArrowRight', 'ArrowDown', ' '].forEach(k => {
+        if (!this.keyboardDownKeys?.has(k)) this.keys.delete(k);
+      });
+    });
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.keyboardDownKeys?.clear();
     });
 
     // Modal Triggers
@@ -2201,7 +2221,10 @@ class RoadRiotGame {
 
   loop(now) {
     let dt = (now - this.lastTime) / 1000;
-    if (dt > 1 / 60) dt = 1 / 60; // Performance FPS-cap clamp
+    // Allow variable frame rates (20-120 FPS) without running in slow motion on mobile!
+    // Clamp to 0.05s (20 FPS min) only to prevent spiral-of-death on backgrounding/freeze spikes.
+    if (dt > 0.05) dt = 0.05;
+    if (dt < 0.001) dt = 0.001;
     this.lastTime = now;
 
     this.update(dt);

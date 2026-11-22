@@ -541,7 +541,7 @@ export class Scene{
   for(const b of game?.bolts||[])sync(`bolt:${b.id}`,()=>this.projectile(b.kind||'bolt',heroColor,b.enemy),o=>{
    o.position.set(b.x,b.y||.85,b.z);o.rotation.y=Math.atan2(b.vx,b.vz);o.rotation.z=(b.kind==='flask'||b.kind==='volatile')?clock*8:0;
   });
-  for(const l of game?.loot||[])sync(`loot:${l.id}`,()=>{
+  for(const l of(game?.loot||[]))if(Math.hypot(l.x-p.x,l.z-p.z)<=36)sync(`loot:${l.id}`,()=>{
    const o=new T.Group(),kind=l.kind,color=kind==='xp'?0x4ade80:kind==='potion'?0xef4444:kind==='bosscore'?0xffd700:kind==='mote'?0xff5511:kind==='spark'?0x38bdf8:kind==='aegis'?0x34d399:kind==='toxic'?0x84cc16:kind==='crest'?0xffd700:0xf59e0b;
    if(kind==='chest'){
     this.mesh(o,this.geo.box,0x5c3d26,[.75,.45,.55],[0,0,0],'wood');

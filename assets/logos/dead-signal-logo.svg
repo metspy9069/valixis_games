@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 260" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Toxic & Signal Gradients -->
+    <linearGradient id="ds-toxic-text" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#c8f79b"/>
+      <stop offset="70%" stop-color="#7dfa34"/>
+      <stop offset="100%" stop-color="#1dbf38"/>
+    </linearGradient>
+    <linearGradient id="ds-accent-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#39ff14"/>
+    </linearGradient>
+    <linearGradient id="ds-tower-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b6f78a"/>
+      <stop offset="50%" stop-color="#4e992b"/>
+      <stop offset="100%" stop-color="#143315"/>
+    </linearGradient>
+    <radialGradient id="ds-radio-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7dfa34" stop-opacity="0.4"/>
+      <stop offset="55%" stop-color="#00e5ff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#051208" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Filters -->
+    <filter id="ds-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="ds-drop-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000000" flood-opacity="0.95"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient Glow Behind Radar Spire -->
+  <circle cx="130" cy="130" r="115" fill="url(#ds-radio-glow)"/>
+
+  <!-- ICON SECTION: TRANSMISSION TOWER & SIGNAL PULSE -->
+  <g id="ds-icon" transform="translate(10, 0)" filter="url(#ds-drop-shadow)">
+    <!-- Radar Signal Waves (Left & Right Spreading Arcs) -->
+    <path d="M 64,130 A 66,66 0 0,1 120,64" stroke="#7dfa34" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="14 10" opacity="0.65" filter="url(#ds-glow)"/>
+    <path d="M 120,64 A 66,66 0 0,1 176,130" stroke="#7dfa34" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
+    <path d="M 44,130 A 86,86 0 0,1 120,44" stroke="url(#ds-accent-cyan)" stroke-width="2" stroke-linecap="round" opacity="0.75" filter="url(#ds-glow)"/>
+    <path d="M 120,44 A 86,86 0 0,1 196,130" stroke="url(#ds-accent-cyan)" stroke-width="2" stroke-linecap="round" stroke-dasharray="25 15" opacity="0.5"/>
+    <path d="M 24,130 A 106,106 0 0,1 120,24" stroke="#7dfa34" stroke-width="1.5" stroke-dasharray="6 8" opacity="0.4"/>
+    <path d="M 120,24 A 106,106 0 0,1 216,130" stroke="#7dfa34" stroke-width="1.5" stroke-dasharray="12 12" opacity="0.4"/>
+
+    <!-- Radar Sweep Coordinate Crosshairs -->
+    <line x1="120" y1="20" x2="120" y2="240" stroke="rgba(125, 250, 52, 0.25)" stroke-width="1" stroke-dasharray="4 4"/>
+    <line x1="20" y1="130" x2="220" y2="130" stroke="rgba(125, 250, 52, 0.25)" stroke-width="1" stroke-dasharray="4 4"/>
+
+    <!-- Signal Tower Lattice Spire Structure -->
+    <!-- Tower Legs -->
+    <polygon points="120,40 102,230 138,230" fill="none" stroke="url(#ds-tower-metal)" stroke-width="3" stroke-linejoin="round"/>
+    <!-- Cross Braces -->
+    <line x1="116" y1="80" x2="124" y2="80" stroke="#7dfa34" stroke-width="2"/>
+    <line x1="113" y1="110" x2="127" y2="110" stroke="#7dfa34" stroke-width="2.2"/>
+    <line x1="109" y1="145" x2="131" y2="145" stroke="#7dfa34" stroke-width="2.4"/>
+    <line x1="106" y1="185" x2="134" y2="185" stroke="#7dfa34" stroke-width="2.6"/>
+    <!-- Diagonal Lattice X's -->
+    <line x1="113" y1="110" x2="131" y2="145" stroke="rgba(125, 250, 52, 0.6)" stroke-width="1.5"/>
+    <line x1="127" y1="110" x2="109" y2="145" stroke="rgba(125, 250, 52, 0.6)" stroke-width="1.5"/>
+    <line x1="109" y1="145" x2="134" y2="185" stroke="rgba(125, 250, 52, 0.6)" stroke-width="1.5"/>
+    <line x1="131" y1="145" x2="106" y2="185" stroke="rgba(125, 250, 52, 0.6)" stroke-width="1.5"/>
+
+    <!-- Top Spire Transmitter Tip & Beacon -->
+    <line x1="120" y1="15" x2="120" y2="40" stroke="#ffffff" stroke-width="3.5" filter="url(#ds-glow)"/>
+    <circle cx="120" cy="15" r="4.5" fill="#ffffff" filter="url(#ds-glow)"/>
+    <circle cx="120" cy="15" r="8" stroke="#ff3860" stroke-width="1.8" fill="none"/>
+
+    <!-- Central Bio-Hazard / Skull Radar Diamond -->
+    <g transform="translate(120, 130)">
+      <rect x="-18" y="-18" width="36" height="36" transform="rotate(45)" fill="#09140c" stroke="#7dfa34" stroke-width="2" filter="url(#ds-glow)"/>
+      <!-- Crosshair reticle -->
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#7dfa34" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="3.5" fill="#c8f79b"/>
+      <line x1="-12" y1="0" x2="-6" y2="0" stroke="#7dfa34" stroke-width="1.5"/>
+      <line x1="6" y1="0" x2="12" y2="0" stroke="#7dfa34" stroke-width="1.5"/>
+      <line x1="0" y1="-12" x2="0" y2="-6" stroke="#7dfa34" stroke-width="1.5"/>
+      <line x1="0" y1="6" x2="0" y2="12" stroke="#7dfa34" stroke-width="1.5"/>
+    </g>
+
+    <!-- Signal Glitch Blip Dots -->
+    <rect x="52" y="70" width="8" height="3" fill="#00e5ff" opacity="0.9"/>
+    <rect x="180" y="85" width="10" height="3" fill="#7dfa34" opacity="0.8"/>
+    <rect x="36" y="155" width="6" height="2.5" fill="#ff3860" opacity="0.85"/>
+    <rect x="195" y="165" width="12" height="3" fill="#00e5ff" opacity="0.75"/>
+  </g>
+
+  <!-- TYPOGRAPHY SECTION -->
+  <g id="ds-wordmark" transform="translate(255, 0)" filter="url(#ds-drop-shadow)">
+    <!-- Tactical Channel & Frequency Header -->
+    <text x="4" y="52" 
+          font-family="'JetBrains Mono', 'Orbitron', monospace" 
+          font-size="12" 
+          font-weight="800" 
+          letter-spacing="6" 
+          fill="rgba(125, 250, 52, 0.75)">
+      RELAY FREQ 104.9 MHz &bull; FPS SIEGE RUNTIME
+    </text>
+
+    <!-- Main Title: DEAD SIGNAL (Heavy Tactical Stencil) -->
+    <g transform="translate(0, 146)">
+      <!-- Main Text Glow Layer -->
+      <text x="0" y="0" 
+            font-family="'Orbitron', 'Impact', sans-serif" 
+            font-size="88" 
+            font-weight="900" 
+            letter-spacing="4" 
+            fill="url(#ds-toxic-text)">
+        DEAD SIGNAL
+      </text>
+
+      <!-- Glitch Cut Overlay Effect Lines -->
+      <line x1="4" y1="-32" x2="660" y2="-32" stroke="#04070d" stroke-width="2.5"/>
+      <rect x="120" y="-36" width="40" height="4" fill="#00e5ff" opacity="0.8" filter="url(#ds-glow)"/>
+      <rect x="420" y="-34" width="60" height="3" fill="#7dfa34" opacity="0.9" filter="url(#ds-glow)"/>
+    </g>
+
+    <!-- Industrial Hazard Stripe Divider -->
+    <g transform="translate(4, 168)">
+      <line x1="0" y1="0" x2="650" y2="0" stroke="rgba(125, 250, 52, 0.25)" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="260" y2="0" stroke="url(#ds-accent-cyan)" stroke-width="2.5" filter="url(#ds-glow)"/>
+    </g>
+
+    <!-- Subtitle: NIGHT SIEGE Tactical Frame -->
+    <g transform="translate(4, 186)">
+      <!-- Bracket [ ] -->
+      <path d="M 0,26 L 0,6 L 8,6" fill="none" stroke="#7dfa34" stroke-width="2"/>
+      <path d="M 230,26 L 230,6 L 222,6" fill="none" stroke="#7dfa34" stroke-width="2"/>
+      
+      <text x="18" y="22" 
+            font-family="'Orbitron', sans-serif" 
+            font-size="16" 
+            font-weight="900" 
+            letter-spacing="6" 
+            fill="#c8f79b"
+            filter="url(#ds-glow)">
+        NIGHT SIEGE
+      </text>
+
+      <text x="254" y="21" 
+            font-family="'JetBrains Mono', monospace" 
+            font-size="11.5" 
+            font-weight="700" 
+            letter-spacing="3" 
+            fill="rgba(148, 163, 184, 0.85)">
+        SURVIVE THE INFECTED NIGHT
+      </text>
+    </g>
+  </g>
+</svg>

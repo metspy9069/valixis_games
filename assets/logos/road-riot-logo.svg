@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 260" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Racing & Nitro Gradients -->
+    <linearGradient id="rr-speed-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#7df9ff"/>
+      <stop offset="65%" stop-color="#00d9ff"/>
+      <stop offset="100%" stop-color="#1947e5"/>
+    </linearGradient>
+    <linearGradient id="rr-nitro-fire" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffb800"/>
+      <stop offset="50%" stop-color="#ff4500"/>
+      <stop offset="100%" stop-color="#d9006c"/>
+    </linearGradient>
+    <linearGradient id="rr-chrome-body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#90b4d6"/>
+      <stop offset="52%" stop-color="#243b55"/>
+      <stop offset="100%" stop-color="#0b1b2b"/>
+    </linearGradient>
+    <radialGradient id="rr-boost-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.45"/>
+      <stop offset="55%" stop-color="#2563ff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#001026" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Filters -->
+    <filter id="rr-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="rr-drop-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#000000" flood-opacity="0.95"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient Nitro Atmosphere -->
+  <circle cx="130" cy="130" r="115" fill="url(#rr-boost-glow)"/>
+
+  <!-- ICON SECTION: HYPERSONIC COMBAT CAR & NITRO CONE -->
+  <g id="rr-icon" transform="translate(10, 0)" filter="url(#rr-drop-shadow)">
+    <!-- Speed Chevrons (Hypersonic Trail) -->
+    <path d="M 20,85 L 45,130 L 20,175" stroke="#2563ff" stroke-width="3" fill="none" opacity="0.4" stroke-linecap="round"/>
+    <path d="M 40,85 L 65,130 L 40,175" stroke="#00e5ff" stroke-width="3.5" fill="none" opacity="0.65" stroke-linecap="round"/>
+    <path d="M 60,85 L 85,130 L 60,175" stroke="url(#rr-speed-cyan)" stroke-width="4" fill="none" filter="url(#rr-glow)" stroke-linecap="round"/>
+
+    <!-- Tachometer / Overdrive Gauge Arc -->
+    <path d="M 65,195 A 92,92 0 1,1 195,195" stroke="rgba(0, 229, 255, 0.22)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 145,52 A 92,92 0 0,1 195,195" stroke="url(#rr-nitro-fire)" stroke-width="4.5" fill="none" stroke-linecap="round" filter="url(#rr-glow)"/>
+
+    <!-- Dual Twin-Turbo Boost Exhaust Flames -->
+    <!-- Top Exhaust -->
+    <path d="M 80,118 Q 45,118 25,120 Q 55,113 80,115 Z" fill="url(#rr-speed-cyan)" filter="url(#rr-glow)"/>
+    <!-- Bottom Exhaust -->
+    <path d="M 80,142 Q 45,142 25,140 Q 55,147 80,145 Z" fill="url(#rr-speed-cyan)" filter="url(#rr-glow)"/>
+
+    <!-- Aerodynamic Supercar Silhouette Wedge (Facing Right at Hyper-velocity) -->
+    <!-- Lower Body / Splitter / Chassis -->
+    <polygon points="76,146 100,154 186,154 212,142 226,134 220,126 195,120 152,110 114,112 84,124 76,136" 
+             fill="url(#rr-chrome-body)" 
+             stroke="url(#rr-speed-cyan)" 
+             stroke-width="2.2" 
+             stroke-linejoin="round"/>
+
+    <!-- Cockpit Canopy Glass (Electric Cyan Tint) -->
+    <polygon points="120,120 148,114 172,122 135,128" 
+             fill="rgba(0, 229, 255, 0.85)" 
+             filter="url(#rr-glow)"/>
+
+    <!-- Aero Rear Wing Spoiler -->
+    <path d="M 74,120 L 86,108 L 102,108 L 94,120 Z" fill="url(#rr-speed-cyan)" stroke="#ffffff" stroke-width="1.2"/>
+
+    <!-- Aggressive Headlight Beam Slash -->
+    <polygon points="214,136 226,133 248,131 220,139" fill="#00e5ff" filter="url(#rr-glow)"/>
+    <!-- Front High-Speed Splitter Sparks -->
+    <circle cx="230" cy="138" r="2.5" fill="#ffffff" filter="url(#rr-glow)"/>
+    <circle cx="218" cy="148" r="1.8" fill="#ffb800"/>
+    <circle cx="204" cy="154" r="2" fill="#ff4500"/>
+
+    <!-- Wheel Wells & Cyber Alloys -->
+    <!-- Rear Wheel -->
+    <circle cx="106" cy="148" r="11" fill="#060c14" stroke="#00e5ff" stroke-width="2.5"/>
+    <circle cx="106" cy="148" r="4.5" fill="#ffffff"/>
+    <!-- Front Wheel -->
+    <circle cx="186" cy="146" r="11" fill="#060c14" stroke="#00e5ff" stroke-width="2.5"/>
+    <circle cx="186" cy="146" r="4.5" fill="#ffffff"/>
+
+    <!-- Nitro Surge Shockwave Ring -->
+    <ellipse cx="78" cy="130" rx="6" ry="18" fill="none" stroke="#00e5ff" stroke-width="1.8" opacity="0.8" filter="url(#rr-glow)"/>
+  </g>
+
+  <!-- TYPOGRAPHY SECTION -->
+  <g id="rr-wordmark" transform="translate(255, 0)" filter="url(#rr-drop-shadow)">
+    <!-- Racing Series Eyebrow -->
+    <text x="6" y="52" 
+          font-family="'Orbitron', 'JetBrains Mono', monospace" 
+          font-size="12" 
+          font-weight="800" 
+          letter-spacing="6" 
+          fill="rgba(0, 229, 255, 0.8)">
+      320+ KM/H &bull; COMBAT HIGHWAY RACER
+    </text>
+
+    <!-- Main Title: ROAD RIOT (High-Velocity Slanted / Italic Heavy Racing Typography) -->
+    <g transform="skewX(-12)">
+      <text x="24" y="146" 
+            font-family="'Orbitron', 'Arial Black', sans-serif" 
+            font-size="92" 
+            font-style="italic" 
+            font-weight="900" 
+            letter-spacing="2" 
+            fill="url(#rr-speed-cyan)">
+        ROAD
+      </text>
+
+      <text x="350" y="146" 
+            font-family="'Orbitron', 'Arial Black', sans-serif" 
+            font-size="94" 
+            font-style="italic" 
+            font-weight="900" 
+            letter-spacing="3" 
+            fill="url(#rr-nitro-fire)"
+            filter="url(#rr-glow)">
+        RIOT
+      </text>
+
+      <!-- Speed Slash Slit Across Words -->
+      <line x1="20" y1="112" x2="640" y2="112" stroke="#04070d" stroke-width="3"/>
+      <rect x="290" y="110" width="70" height="4" fill="#00e5ff" filter="url(#rr-glow)"/>
+    </g>
+
+    <!-- High-Velocity Speed Rule -->
+    <line x1="4" y1="168" x2="640" y2="168" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1.5"/>
+    <line x1="4" y1="168" x2="280" y2="168" stroke="url(#rr-speed-cyan)" stroke-width="3" filter="url(#rr-glow)"/>
+
+    <!-- Subtitle: 3D // HYPERSPEED Overdrive Badge -->
+    <g transform="translate(4, 186)">
+      <!-- 3D Nitro Badge -->
+      <polygon points="0,28 12,4 120,4 108,28" fill="rgba(0, 229, 255, 0.14)" stroke="url(#rr-speed-cyan)" stroke-width="1.6"/>
+      <text x="26" y="21" 
+            font-family="'Orbitron', sans-serif" 
+            font-size="15" 
+            font-weight="900" 
+            font-style="italic" 
+            letter-spacing="3" 
+            fill="#ffffff">
+        3D
+      </text>
+
+      <!-- HYPERSPEED with Nitro Flame Badge -->
+      <polygon points="128,28 140,4 320,4 308,28" fill="rgba(255, 69, 0, 0.16)" stroke="url(#rr-nitro-fire)" stroke-width="1.6"/>
+      <text x="152" y="21" 
+            font-family="'Orbitron', sans-serif" 
+            font-size="14.5" 
+            font-weight="900" 
+            font-style="italic" 
+            letter-spacing="4" 
+            fill="#ffb800" 
+            filter="url(#rr-glow)">
+        HYPERSPEED
+      </text>
+
+      <text x="340" y="21" 
+            font-family="'JetBrains Mono', monospace" 
+            font-size="11" 
+            font-weight="700" 
+            letter-spacing="3" 
+            fill="rgba(148, 163, 184, 0.85)">
+        TURRET &bull; NITRO OVERDRIVE
+      </text>
+    </g>
+  </g>
+</svg>

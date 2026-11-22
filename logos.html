@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VALIXIS Games &bull; Official Game Title Logos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #04070d;
+      --card: #0b111e;
+      --border: rgba(255, 255, 255, 0.08);
+      --cyan: #00e5ff;
+      --ember: #ff9100;
+      --toxic: #7dfa34;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,58,237,.03) 1px, transparent 1px),
+        radial-gradient(1200px 600px at 50% 0%, rgba(37,99,255,0.12), transparent 70%);
+      background-size: 48px 48px, 48px 48px, auto;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .header {
+      max-width: 1000px;
+      margin: 0 auto 40px;
+      text-align: center;
+    }
+    .kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      background: linear-gradient(120deg, #fff, #90caf9, #d946ef);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .desc {
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .logo-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .logo-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .game-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .meta-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .preview-box {
+      background: #020408;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      margin-bottom: 16px;
+      background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .preview-box img {
+      max-width: 100%;
+      height: auto;
+      max-height: 180px;
+      display: block;
+      filter: drop-shadow(0 4px 20px rgba(0,0,0,0.6));
+    }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+    }
+    .actions a {
+      color: var(--cyan);
+      text-decoration: none;
+      padding: 6px 14px;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .actions a:hover {
+      background: rgba(0, 229, 255, 0.2);
+    }
+    .file-path {
+      color: #64748b;
+    }
+    .nav-back {
+      display: inline-block;
+      margin-bottom: 24px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+    .nav-back:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="index.html" class="nav-back">&larr; Return to Arcade Portal</a>
+    <div class="kicker">VALIXIS Games &bull; Brand Assets</div>
+    <h1>Game Title Logos &amp; Wordmarks</h1>
+    <p class="desc">High-resolution vector SVGs featuring stylized game typography and custom theme iconography with transparent backgrounds.</p>
+  </div>
+
+  <div class="container">
+    <!-- SOUL EMBER -->
+    <div class="logo-card">
+      <div class="card-head">
+        <div class="game-name">Soul Ember: Survivors</div>
+        <span class="meta-tag" style="background: rgba(255, 145, 0, 0.12); color: #ffb74d; border: 1px solid rgba(255, 145, 0, 0.35);">Dark Fantasy Roguelite</span>
+      </div>
+      <div class="preview-box">
+        <img src="assets/logos/soul-ember-logo.svg" alt="Soul Ember: Survivors Logo">
+      </div>
+      <div class="actions">
+        <span class="file-path">assets/logos/soul-ember-logo.svg</span>
+        <a href="assets/logos/soul-ember-logo.svg" download="soul-ember-logo.svg">Download SVG &darr;</a>
+      </div>
+    </div>
+
+    <!-- DEAD SIGNAL -->
+    <div class="logo-card">
+      <div class="card-head">
+        <div class="game-name">Dead Signal: Night Siege</div>
+        <span class="meta-tag" style="background: rgba(125, 250, 52, 0.12); color: #a3ff33; border: 1px solid rgba(125, 250, 52, 0.35);">Tactical Survival Horror</span>
+      </div>
+      <div class="preview-box">
+        <img src="assets/logos/dead-signal-logo.svg" alt="Dead Signal: Night Siege Logo">
+      </div>
+      <div class="actions">
+        <span class="file-path">assets/logos/dead-signal-logo.svg</span>
+        <a href="assets/logos/dead-signal-logo.svg" download="dead-signal-logo.svg">Download SVG &darr;</a>
+      </div>
+    </div>
+
+    <!-- ROAD RIOT -->
+    <div class="logo-card">
+      <div class="card-head">
+        <div class="game-name">Road Riot 3D: Hyperspeed</div>
+        <span class="meta-tag" style="background: rgba(0, 229, 255, 0.12); color: #00e5ff; border: 1px solid rgba(0, 229, 255, 0.35);">Highway Combat Racer</span>
+      </div>
+      <div class="preview-box">
+        <img src="assets/logos/road-riot-logo.svg" alt="Road Riot 3D: Hyperspeed Logo">
+      </div>
+      <div class="actions">
+        <span class="file-path">assets/logos/road-riot-logo.svg</span>
+        <a href="assets/logos/road-riot-logo.svg" download="road-riot-logo.svg">Download SVG &darr;</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -2091,6 +2091,19 @@ html, body {
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  overflow: hidden;
+}
+.garage-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.75));
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.garage-card:hover .garage-card-thumb,
+.garage-card.active .garage-card-thumb {
+  transform: scale(1.08) translateY(-2px);
+  filter: drop-shadow(0 6px 14px rgba(0, 217, 255, 0.45));
 }
 .car-preview-svg {
   width: 100%;

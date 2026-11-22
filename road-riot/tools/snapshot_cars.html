@@ -1,0 +1,268 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Supercar Snapshot Generator</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    body { background: #080c14; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px; margin: 0; }
+    #status { margin: 15px 0; font-size: 18px; color: #00d9ff; font-weight: bold; }
+    #previews-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; max-width: 1100px; }
+    .car-box { background: rgba(12, 24, 45, 0.8); border: 1px solid #00d9ff; border-radius: 8px; padding: 10px; text-align: center; width: 320px; }
+    .car-box img { width: 100%; height: auto; display: block; border-radius: 4px; background: radial-gradient(circle, rgba(0, 217, 255, 0.12) 0%, rgba(5, 12, 22, 0.9) 70%); }
+    .car-box h3 { margin: 8px 0 2px 0; color: #fff; font-size: 16px; }
+    .car-box span { font-size: 12px; color: #ffb800; }
+  </style>
+</head>
+<body>
+  <h1>Rendering 3D Supercar Renders...</h1>
+  <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
+  <div id="status">Initializing Three.js & DRACOLoader...</div>
+  <div id="previews-container"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+    const cars = [
+      { id: 'apex', name: 'Valixis Apex GT', tier: 'GT SPORT', url: '/road-riot/assets/player-ferrari.glb', paint: 0xd71920 },
+      { id: 'venom', name: 'Venom Drift-R', tier: 'DRIFT SPEC', url: '/road-riot/assets/venom.glb', paint: 0x9d4edd },
+      { id: 'phantom', name: 'Phantom GT V8', tier: 'SUPER SEDAN', url: '/road-riot/assets/phantom.glb', paint: 0xffb800 },
+      { id: 'interceptor', name: 'Highway Interceptor', tier: 'PURSUIT SPEC', url: '/road-riot/assets/interceptor.glb', paint: 0x0c121e },
+      { id: 'titan', name: 'Titan Juggernaut', tier: 'HEAVY ARMOR', url: '/road-riot/assets/titan.glb', paint: 0x1e2d3d },
+      { id: 'hyperion', name: 'Valixis Hyperion GTR', tier: 'CYBER HYPERCAR', url: '/road-riot/assets/player-lamborghini.glb', paint: 0x00f0ff }
+    ];
+
+    const canvas = document.getElementById('canvas');
+    const status = document.getElementById('status');
+    const container = document.getElementById('previews-container');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(36, 640 / 360, 0.1, 100);
+    // 3/4 front angle looking at aggressive headlights and front grille
+    camera.position.set(4.3, 1.55, -4.5);
+    camera.lookAt(0, 0.4, 0);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(640, 360);
+    renderer.setPixelRatio(1.0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Studio Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    keyLight.position.set(6, 8, -7);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x00d9ff, 1.3);
+    fillLight.position.set(-6, 3, 4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+    rimLight.position.set(-4, 6, 6);
+    scene.add(rimLight);
+
+    const underLight = new THREE.PointLight(0x00d9ff, 1.8, 6.0);
+    underLight.position.set(0, 0.1, 0);
+    scene.add(underLight);
+
+    // Soft Shadow Contact Ground Plane
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = 512;
+    shadowCanvas.height = 512;
+    const sCtx = shadowCanvas.getContext('2d');
+    const grad = sCtx.createRadialGradient(256, 256, 30, 256, 256, 230);
+    grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    grad.addColorStop(0.45, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(0.8, 'rgba(0,0,0,0.15)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    sCtx.fillStyle = grad;
+    sCtx.beginPath();
+    sCtx.ellipse(256, 256, 175, 230, 0, 0, Math.PI * 2);
+    sCtx.fill();
+
+    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+    const shadowGeo = new THREE.PlaneGeometry(3.6, 5.8);
+    shadowGeo.rotateX(-Math.PI / 2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity: 0.82,
+      depthWrite: false
+    });
+    const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowMesh.position.y = 0.005;
+    scene.add(shadowMesh);
+
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('/road-riot/assets/draco/');
+    loader.setDRACOLoader(dracoLoader);
+
+    async function renderAll() {
+      for (const car of cars) {
+        status.textContent = `Rendering ${car.name}...`;
+        await new Promise((resolve, reject) => {
+          loader.load(car.url, async (gltf) => {
+            const model = gltf.scene;
+
+            model.traverse(node => {
+              if (!node.isMesh) return;
+              node.castShadow = true;
+              node.receiveShadow = true;
+
+              if (node.material) {
+                const mats = Array.isArray(node.material) ? node.material : [node.material];
+                const newMats = mats.map(m => {
+                  const combined = `${node.name || ''} ${m.name || ''}`.toUpperCase();
+                  if (/GLASS|WINDOW/i.test(combined)) {
+                    return new THREE.MeshStandardMaterial({
+                      color: /BLACK/i.test(combined) ? 0x05080e : 0x0a1c2e,
+                      metalness: 0.95,
+                      roughness: 0.05,
+                      transparent: true,
+                      opacity: 0.7,
+                      depthWrite: false
+                    });
+                  }
+                  if (/TYRE|TIRE|RUBBER/i.test(combined)) {
+                    return new THREE.MeshStandardMaterial({
+                      color: 0x131518,
+                      roughness: 0.86,
+                      metalness: 0.05
+                    });
+                  }
+                  if (/WHEEL|RIM|CHROME|ROTOR|BADGE/i.test(combined)) {
+                    return new THREE.MeshStandardMaterial({
+                      color: 0xebf2f8,
+                      metalness: 0.95,
+                      roughness: 0.12
+                    });
+                  }
+                  if (/CARBON/i.test(combined)) {
+                    return new THREE.MeshStandardMaterial({
+                      color: 0x16181d,
+                      roughness: 0.38,
+                      metalness: 0.45
+                    });
+                  }
+                  if (/LIGHT/i.test(combined)) {
+                    const isTail = /TAIL|REAR|BRAKE/i.test(combined);
+                    return new THREE.MeshStandardMaterial({
+                      color: isTail ? 0xff1644 : 0xccf2ff,
+                      emissive: isTail ? 0xff0525 : 0x00d9ff,
+                      emissiveIntensity: 2.8,
+                      roughness: 0.1,
+                      metalness: 0.8
+                    });
+                  }
+                  if (/CHASSIS|BODY|HOOD|DOOR|BOOT|BUMPER/i.test(combined) || car.id === 'apex') {
+                    if (m.map) {
+                      const cloned = m.clone();
+                      cloned.map.colorSpace = THREE.SRGBColorSpace;
+                      cloned.roughness = 0.28;
+                      cloned.metalness = 0.65;
+                      return cloned;
+                    }
+                    return new THREE.MeshStandardMaterial({
+                      color: car.paint,
+                      metalness: 0.88,
+                      roughness: 0.18
+                    });
+                  }
+                  const cloned = m.clone();
+                  if (cloned.map) cloned.map.colorSpace = THREE.SRGBColorSpace;
+                  return cloned;
+                });
+                node.material = Array.isArray(node.material) ? newMats : newMats[0];
+              }
+            });
+
+            // Scale & Center
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            model.scale.setScalar(5.2 / maxDim);
+
+            const inner = new THREE.Group();
+            inner.add(model);
+            const scaledBox = new THREE.Box3().setFromObject(inner);
+            const center = scaledBox.getCenter(new THREE.Vector3());
+            model.position.x = -center.x;
+            model.position.y = -scaledBox.min.y;
+            model.position.z = -center.z;
+            inner.rotation.y = Math.PI;
+
+            const wrapper = new THREE.Group();
+            wrapper.add(inner);
+            scene.add(wrapper);
+
+            // Render
+            renderer.render(scene, camera);
+
+            // Extract PNG data URL
+            const dataUrl = canvas.toDataURL('image/png');
+
+            // Add preview card to UI
+            const boxEl = document.createElement('div');
+            boxEl.className = 'car-box';
+            boxEl.innerHTML = `
+              <img src="${dataUrl}" alt="${car.name}" />
+              <h3>${car.name}</h3>
+              <span>${car.tier}</span>
+            `;
+            container.appendChild(boxEl);
+
+            // Send to save endpoint
+            try {
+              await fetch('/save_snapshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ carId: car.id, data: dataUrl })
+              });
+            } catch (err) {
+              console.log('Save endpoint unreachable, displayed in UI:', err);
+            }
+
+            scene.remove(wrapper);
+            resolve();
+          }, undefined, reject);
+        });
+      }
+
+      status.textContent = 'All 6 supercar snapshots generated!';
+      try {
+        await fetch('/done', { method: 'POST' });
+      } catch (e) {}
+    }
+
+    renderAll().catch(e => {
+      console.error(e);
+      status.textContent = 'Error: ' + e.message;
+    });
+  </script>
+</body>
+</html>

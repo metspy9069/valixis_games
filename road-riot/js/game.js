@@ -13,7 +13,6 @@ import { shop } from './shop.js';
 import { NPCCar } from './npcCar.js';
 import { PedestrianManager } from './pedestrians.js';
 import { loadJSON } from './utils/loadJSON.js';
-import { getCarPreviewSvg } from './car-previews.js';
 
 class RoadRiotGame {
   constructor() {
@@ -1133,11 +1132,6 @@ class RoadRiotGame {
 
     if (this.ui.menuStatArmor) this.ui.menuStatArmor.style.width = `${armorPct}%`;
     if (this.ui.menuValArmor) this.ui.menuValArmor.textContent = `${curArmor} HP`;
-
-    const slot = document.querySelector('#menu-car-preview-slot');
-    if (slot) {
-      slot.innerHTML = getCarPreviewSvg(carId);
-    }
   }
 
   renderGarageCarousel() {
@@ -1206,7 +1200,7 @@ class RoadRiotGame {
               <span class="garage-card-status ${statusClass}">${statusText}</span>
             </div>
             <div class="garage-card-img-zone">
-              ${getCarPreviewSvg(cId)}
+              <img src="./assets/previews/${cId}.png" class="garage-card-thumb" alt="${cData.name}" loading="lazy" />
             </div>
             <div class="garage-card-bottom">
               <span class="garage-card-name" title="${cData.name}">${cData.name}</span>

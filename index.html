@@ -473,18 +473,6 @@
       margin-bottom: 18px;
     }
 
-    .portal-return { display: grid; grid-template-columns: 1.35fr .65fr; gap: 18px; margin: -12px 0 44px; }
-    .return-card, .portal-stats { border: 1px solid rgba(0,229,255,.2); border-radius: 16px; background: linear-gradient(145deg, rgba(20,29,47,.9), rgba(8,13,24,.9)); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-    .return-card { padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-    .return-card h2 { font: 800 clamp(1rem, 2vw, 1.35rem)/1.2 'Orbitron', sans-serif; margin: 7px 0; }
-    .return-card p { color: var(--text-muted); font-size: .9rem; line-height: 1.5; }
-    .return-label { color: var(--accent-glow); font: 700 .68rem 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; }
-    .return-action { flex: 0 0 auto; color: #fff; background: linear-gradient(110deg, var(--accent-cyan), var(--accent-purple)); padding: 11px 15px; border-radius: 10px; text-decoration: none; font: 800 .72rem 'Orbitron', sans-serif; letter-spacing: .04em; }
-    .portal-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; overflow: hidden; }
-    .portal-stat { padding: 18px; background: rgba(4,7,13,.34); }
-    .portal-stat strong { display: block; color: #fff; font: 800 1.35rem 'Orbitron', sans-serif; }
-    .portal-stat span { color: var(--text-muted); font: 600 .66rem 'JetBrains Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
-    .portal-kicker { color: var(--accent-glow); font: 700 .7rem 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; }
     .section-heading { position: relative; }
     .section-heading::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(0,229,255,.35), transparent); }
     @keyframes portal-orbit { to { transform: translateX(-50%) rotate(4deg) scale(1.04); opacity: .7; } }
@@ -519,12 +507,9 @@
       .features-list {
         grid-template-columns: 1fr;
       }
-      .portal-return { grid-template-columns: 1fr; }
       .hero-banner::after { width: 86vw; }
     }
     @media (max-width: 560px) {
-      .return-card { align-items: flex-start; flex-direction: column; }
-      .return-action { width: 100%; text-align: center; }
       .top-nav { gap: 8px; padding-inline: 12px; }
       .arcade-badge { display: none; }
       .brand-logo { height: 27px; }
@@ -577,9 +562,7 @@
     .game-art-road { box-shadow: inset 0 0 30px rgba(0,229,255,.19); }
     .game-art-dev { background: repeating-linear-gradient(0deg,transparent 0 8px,rgba(217,70,239,.06) 9px),radial-gradient(circle at 50% 45%,#322150,#090b18 70%); }
     .game-art-dev img { width: 118px; height: 118px; margin: 18px auto; object-fit: contain; filter: drop-shadow(0 0 22px rgba(217,70,239,.45)); }
-    .portal-return { margin: 0 0 25px; }
-    .return-card, .portal-stats { background: linear-gradient(120deg,rgba(14,26,43,.88),rgba(22,14,39,.88)); }
-    .game-mini-card:focus-visible, .quick-launch a:focus-visible, .return-action:focus-visible, .play-btn-main:focus-visible { outline: 2px solid #00e5ff; outline-offset: 4px; }
+    .game-mini-card:focus-visible, .quick-launch a:focus-visible, .play-btn-main:focus-visible { outline: 2px solid #00e5ff; outline-offset: 4px; }
     @media (max-width:900px) { .featured-card { grid-template-columns: minmax(0,1fr); } .featured-art { min-height: 280px; aspect-ratio: 16/9; order: -1; } }
     @media (max-width:560px) { .container { padding: 26px 16px; } .hero-title { font-size: clamp(2.1rem,9vw,3rem); } .quick-launch { display: grid; grid-template-columns: 1fr 1fr; } .quick-launch a { font-size: .55rem; justify-content: space-between; gap: 4px; padding-inline: 10px; } .featured-card { padding: 20px; } .featured-art { min-height: 230px; } .features-list { grid-template-columns: 1fr 1fr; } .games-grid { grid-template-columns: 1fr; } .game-art { height: 165px; } .soul-art-top,.soul-art-bottom { font-size: .43rem; letter-spacing: .08em; left: 12px; right: 12px; } .soul-art-mark { width: 95px; } .soul-art-wordmark { font-size: 1.45rem; } }
     @media (prefers-reduced-motion: reduce) { .featured-art img, .game-art img, .quick-launch a { transition: none; } .featured-card:hover .featured-art img, .game-mini-card:hover .game-art img, .quick-launch a:hover { transform: none; } .soul-art-orbit,.soul-art-mark { animation: none; } }
@@ -677,21 +660,6 @@
         <span class="soul-art-bottom">SOME LIGHTS REFUSE TO DIE <span>01 / THE LAST LIGHT</span></span>
       </div>
     </article>
-
-    <section class="portal-return" aria-label="Your arcade status">
-      <div class="return-card">
-        <div>
-          <span class="return-label">Daily portal drop</span>
-          <h2 id="dailyDropTitle">Choose your next run.</h2>
-          <p id="dailyDropCopy">A fresh reason to play is waiting in the arcade.</p>
-        </div>
-        <a id="dailyDropAction" class="return-action" href="soul-ember/index.html?v=16" data-game-id="soul-ember">PLAY NOW &rarr;</a>
-      </div>
-      <div class="portal-stats" aria-label="Arcade activity">
-        <div class="portal-stat"><strong id="portalStreak">0</strong><span>day streak</span></div>
-        <div class="portal-stat"><strong id="recentCount">0</strong><span>recent runs</span></div>
-      </div>
-    </section>
 
     <section class="games-grid portal-reveal" aria-label="New releases" style="margin-bottom: 40px;">
       <a class="game-mini-card" href="dead-signal/index.html" data-game-id="dead-signal" style="text-decoration: none; color: inherit; border-color: rgba(157, 255, 77, 0.35); background: linear-gradient(145deg, rgba(16, 30, 18, 0.92), rgba(8, 14, 10, 0.95));">
@@ -809,47 +777,13 @@
   </footer>
 
   <script>
-    // Portal-only retention loop: local browser state, no account or database required.
     (() => {
-      const STORAGE_KEY = 'valixis:arcade:v1';
-      const missions = [
-        { title: 'Light the Soul Ember.', copy: 'Try a fresh hero build in today’s featured run.', href: 'soul-ember/index.html?v=16', game: 'soul-ember' },
-        { title: 'Hold the night.', copy: 'See how far you can push the next Dead Signal wave.', href: 'dead-signal/index.html', game: 'dead-signal' },
-        { title: 'Find top speed.', copy: 'Take Road Riot back onto the highway and chase a cleaner run.', href: 'road-riot/index.html', game: 'road-riot' },
-      ];
-      const today = new Date().toISOString().slice(0, 10);
-      let state = { lastVisit: '', streak: 0, recent: [] };
-      try { state = { ...state, ...(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')) }; } catch (_) {}
-      if (state.lastVisit !== today) {
-        const previous = new Date();
-        previous.setDate(previous.getDate() - 1);
-        const yesterday = previous.toISOString().slice(0, 10);
-        state.streak = state.lastVisit === yesterday ? state.streak + 1 : 1;
-        state.lastVisit = today;
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
-      }
-
-      const mission = missions[Math.floor(Date.now() / 86400000) % missions.length];
-      const title = document.getElementById('dailyDropTitle');
-      const copy = document.getElementById('dailyDropCopy');
-      const action = document.getElementById('dailyDropAction');
-      const streak = document.getElementById('portalStreak');
-      const recent = document.getElementById('recentCount');
-      if (title) title.textContent = mission.title;
-      if (copy) copy.textContent = mission.copy;
-      if (action) { action.href = mission.href; action.dataset.gameId = mission.game; }
-      if (streak) streak.textContent = state.streak;
-      if (recent) recent.textContent = state.recent.length;
-
       document.querySelectorAll('[data-game-id]').forEach((link) => {
         link.addEventListener('click', () => {
           const id = link.dataset.gameId;
-          state.recent = [id, ...(state.recent || []).filter((item) => item !== id)].slice(0, 4);
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
           if (typeof window.gtag === 'function') window.gtag('event', 'game_launch', { game_id: id, event_category: 'arcade' });
         });
       });
-      if (typeof window.gtag === 'function') window.gtag('event', 'arcade_visit', { event_category: 'arcade', streak: state.streak });
 
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       document.body.classList.add('portal-motion-ready');

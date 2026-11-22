@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 260" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Ember Gradients -->
+    <linearGradient id="se-gold-text" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#ffe6b0"/>
+      <stop offset="70%" stop-color="#e8a55b"/>
+      <stop offset="100%" stop-color="#b85f28"/>
+    </linearGradient>
+    <linearGradient id="se-fire-text" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff2cc"/>
+      <stop offset="40%" stop-color="#ff9d3b"/>
+      <stop offset="75%" stop-color="#ea4335"/>
+      <stop offset="100%" stop-color="#9c27b0"/>
+    </linearGradient>
+    <linearGradient id="se-flame-core" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#ffe082"/>
+      <stop offset="60%" stop-color="#ff9100"/>
+      <stop offset="85%" stop-color="#dd2c00"/>
+      <stop offset="100%" stop-color="#7b1fa2"/>
+    </linearGradient>
+    <linearGradient id="se-relic-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe57f" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#ff9800" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#9c27b0" stop-opacity="0.2"/>
+    </linearGradient>
+    <radialGradient id="se-flame-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff9800" stop-opacity="0.45"/>
+      <stop offset="50%" stop-color="#e91e63" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ff9800" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Filters -->
+    <filter id="se-heavy-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="se-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="se-drop-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient Glow Behind Icon -->
+  <circle cx="130" cy="130" r="110" fill="url(#se-flame-glow)"/>
+
+  <!-- ICON SECTION -->
+  <g id="se-icon" transform="translate(10, 0)" filter="url(#se-drop-shadow)">
+    <!-- Outer Celestial Orbit Rings -->
+    <circle cx="120" cy="130" r="92" stroke="url(#se-relic-ring)" stroke-width="1.8" stroke-dasharray="8 6 20 6" opacity="0.75"/>
+    <circle cx="120" cy="130" r="76" stroke="rgba(255, 230, 176, 0.25)" stroke-width="1.2" stroke-dasharray="140 15 30 15"/>
+    
+    <!-- Relic Diamond Points (North, South, East, West) -->
+    <polygon points="120,24 124,38 120,44 116,38" fill="#ffe6b0"/>
+    <polygon points="120,236 124,222 120,216 116,222" fill="#ffe6b0" opacity="0.6"/>
+    <polygon points="14,130 28,126 34,130 28,134" fill="#ffe6b0" opacity="0.6"/>
+    <polygon points="226,130 212,126 206,130 212,134" fill="#ffe6b0" opacity="0.6"/>
+
+    <!-- Crescent Relic Horns -->
+    <path d="M 64,88 C 48,124 52,166 84,196 C 92,204 104,210 116,213 C 102,202 92,185 90,165 C 86,135 98,107 118,92 C 94,88 76,86 64,88 Z" fill="url(#se-relic-ring)"/>
+    <path d="M 176,88 C 192,124 188,166 156,196 C 148,204 136,210 124,213 C 138,202 148,185 150,165 C 154,135 142,107 122,92 C 146,88 164,86 176,88 Z" fill="url(#se-relic-ring)"/>
+
+    <!-- Outer Flame Boundary with Glow -->
+    <path d="M120,38 C112,85 68,108 68,156 C68,170 72,182 79,193 C76,157 105,146 112,120 C121,146 152,162 152,196 C170,182 179,163 178,141 C215,182 220,217 203,250 C186,285 155,303 123,303 C74,303 35,268 35,221 C35,181 59,145 120,38 Z" 
+          transform="matrix(0.55 0 0 0.55 54 28)" 
+          fill="none" 
+          stroke="url(#se-gold-text)" 
+          stroke-width="4.5" 
+          filter="url(#se-soft-glow)"/>
+
+    <!-- Core Flame -->
+    <path d="M120,60 C114,94 78,114 78,154 C78,182 96,206 120,206 C145,206 164,184 164,156 C164,127 146,110 135,96 C136,118 126,132 117,136 C119,109 110,91 120,60 Z" 
+          transform="matrix(0.65 0 0 0.65 42 28)" 
+          fill="url(#se-flame-core)" 
+          filter="url(#se-soft-glow)"/>
+
+    <!-- Pure Core Spark -->
+    <ellipse cx="120" cy="144" rx="9" ry="16" fill="#ffffff" filter="url(#se-soft-glow)"/>
+
+    <!-- Floating Embers Sparks -->
+    <circle cx="152" cy="74" r="2.8" fill="#ffe082" filter="url(#se-soft-glow)"/>
+    <circle cx="82" cy="98" r="2" fill="#ffb74d"/>
+    <circle cx="166" cy="168" r="2.5" fill="#ff7043"/>
+    <circle cx="70" cy="172" r="1.8" fill="#ffab40"/>
+    <circle cx="120" cy="38" r="2.2" fill="#ffffff" filter="url(#se-soft-glow)"/>
+  </g>
+
+  <!-- TYPOGRAPHY SECTION -->
+  <g id="se-wordmark" transform="translate(255, 0)" filter="url(#se-drop-shadow)">
+    <!-- Studio Header Eyebrow -->
+    <text x="6" y="52" 
+          font-family="'Cinzel', 'Trajan Pro', 'Georgia', serif" 
+          font-size="13" 
+          font-weight="700" 
+          letter-spacing="9" 
+          fill="rgba(255, 230, 176, 0.75)">
+      VALIXIS ARCADE &bull; ORIGINAL WORLD 001
+    </text>
+
+    <!-- Main Title: SOUL EMBER -->
+    <text x="0" y="146" 
+          font-family="'Cinzel', 'Trajan Pro', 'Cinzel Decorative', 'Georgia', serif" 
+          font-size="94" 
+          font-weight="900" 
+          letter-spacing="5" 
+          fill="url(#se-gold-text)">
+      SOUL
+    </text>
+
+    <text x="318" y="146" 
+          font-family="'Cinzel Decorative', 'Cinzel', 'Georgia', serif" 
+          font-size="96" 
+          font-style="italic" 
+          font-weight="900" 
+          letter-spacing="4" 
+          fill="url(#se-fire-text)" 
+          filter="url(#se-soft-glow)">
+      EMBER
+    </text>
+
+    <!-- Divider Bar with Rune Accents -->
+    <line x1="4" y1="172" x2="620" y2="172" stroke="rgba(255, 230, 176, 0.2)" stroke-width="1.2"/>
+    <line x1="4" y1="172" x2="220" y2="172" stroke="url(#se-gold-text)" stroke-width="1.8"/>
+    <polygon points="220,172 225,168 230,172 225,176" fill="#ffe6b0"/>
+
+    <!-- Subtitle: SURVIVORS / THE LAST LIGHT -->
+    <g transform="translate(4, 188)">
+      <!-- Badge Outline -->
+      <rect x="0" y="6" width="180" height="26" rx="4" fill="rgba(255, 157, 59, 0.12)" stroke="rgba(255, 157, 59, 0.45)" stroke-width="1.2"/>
+      <text x="14" y="24" 
+            font-family="'JetBrains Mono', 'Courier New', monospace" 
+            font-size="12" 
+            font-weight="800" 
+            letter-spacing="5" 
+            fill="#ffb74d">
+        SURVIVORS
+      </text>
+
+      <text x="206" y="24" 
+            font-family="'Cinzel', 'Georgia', serif" 
+            font-size="13" 
+            font-weight="600" 
+            letter-spacing="3.5" 
+            fill="#e0c7a8">
+        SOME LIGHTS REFUSE TO DIE
+      </text>
+    </g>
+  </g>
+</svg>

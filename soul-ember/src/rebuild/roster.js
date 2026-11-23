@@ -9,7 +9,7 @@ const heroRows = [
  ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',32,.7,115,7.2,['Virulence','Glass Garden','Antidote']],
  ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',39,.85,125,6.8,['Resonance','Echo Chamber','Sanctuary']],
 ];
-export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[15,80,15,15,48,80,48,80][index],soulYield:id==='plague'?1.25:1}]));
+export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[75,90,75,80,85,90,85,90][index],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];
 const rows=[
  ['thrall','Ash Thrall','chase',42,2.7,2],['shield','Shieldbearer','guard',105,1.85,4],['censer','Censer Acolyte','ranged',65,2.25,4],['ringer','Bell Ringer','pulse',90,2.2,5],['hound','Ember Hound','charge',48,4.45,3],['gargoyle','Gargoyle','ambush',140,2.55,6],

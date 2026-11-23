@@ -10,11 +10,11 @@ export const ACTIVE_SKILLS={
 };
 
 export const ARMORY={
- vitality:{name:'Tempered Vessel',desc:'+6 maximum vitality per rank.',max:5},
- footwork:{name:'Pilgrim Footwork',desc:'+3% movement and +4% stamina recovery per rank.',max:5},
- magnetism:{name:'Soul Lodestone',desc:'+0.5 pickup radius per rank.',max:5},
- focus:{name:'Runic Focus',desc:'+4% active-skill recovery per rank.',max:5},
- fortune:{name:'Gilded Ember',desc:'+6% gold-drop chance per rank.',max:5},
+ vitality:{name:'Tempered Vessel',desc:'+10 maximum vitality per rank.',max:5},
+ footwork:{name:'Pilgrim Footwork',desc:'+4% movement and +6% stamina recovery per rank.',max:5},
+ magnetism:{name:'Soul Lodestone',desc:'+0.6 pickup radius per rank.',max:5},
+ focus:{name:'Runic Focus',desc:'+5% active-skill recovery per rank.',max:5},
+ fortune:{name:'Gilded Ember',desc:'+8% gold-drop chance per rank.',max:5},
 };
 export const ARMORY_COSTS=[75,150,300,500,800];
 export const MASTERY_COSTS=[250,500,900];

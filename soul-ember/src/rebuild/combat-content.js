@@ -39,6 +39,53 @@ export const BOSS_ATTACKS={
  },
 };
 
+export const TELEGRAPHS={
+ 'thrall-combo':{shape:'cone',radius:2.2,anchor:'self',spread:Math.PI/4},
+ 'shield-bash':{shape:'cone',radius:2.6,anchor:'self',spread:Math.PI/4},
+ 'shield-rush':{shape:'charge',radius:7,anchor:'self',width:.85},
+ 'censer-lob':{shape:'ring',radius:2.2,anchor:'target'},
+ 'bell-ring':{shape:'ring',radius:3.2,anchor:'self'},
+ 'hound-charge':{shape:'charge',radius:9,anchor:'self',width:.9},
+ 'gargoyle-dive':{shape:'dive',radius:2.5,anchor:'self',spread:Math.PI/4},
+ 'husk-grab':{shape:'cone',radius:2.2,anchor:'self',spread:Math.PI/4},
+ 'husk-sweep':{shape:'cone',radius:3.7,anchor:'self',spread:Math.PI/3},
+ 'archer-lead':{shape:'charge',radius:12,anchor:'self',width:.4},
+ 'archer-volley':{shape:'cone',radius:12,anchor:'self',spread:Math.PI/4},
+ 'leech-drain':{shape:'ring',radius:3.3,anchor:'self'},
+ 'mimic-ambush':{shape:'charge',radius:7,anchor:'self',width:.85},
+ 'spitter-shot':{shape:'charge',radius:11,anchor:'self',width:.45},
+ 'spitter-pool':{shape:'ring',radius:2.5,anchor:'target'},
+ 'wraith-phase':{shape:'cone',radius:5.0,anchor:'self',spread:Math.PI/4},
+ 'thorn-leap':{shape:'charge',radius:6,anchor:'self',width:.8},
+ 'root-slam':{shape:'ring',radius:4.0,anchor:'self'},
+ 'root-line':{shape:'cone',radius:10,anchor:'self',spread:Math.PI/4},
+ 'stalker-flank':{shape:'charge',radius:8,anchor:'self',width:.8},
+ 'brood-eggs':{shape:'ring',radius:3.2,anchor:'target'},
+ 'brood-web':{shape:'ring',radius:3.4,anchor:'target'},
+ 'hex-beams':{shape:'ring',radius:4.5,anchor:'self'},
+ 'hex-mark':{shape:'ring',radius:2.1,anchor:'target'},
+ 'sentinel-counter':{shape:'cone',radius:2.5,anchor:'self',spread:Math.PI/4},
+ 'sentinel-sweep':{shape:'cone',radius:4.7,anchor:'self',spread:Math.PI/3},
+ 'abbot-rings':{shape:'ring',radius:5.5,anchor:'self'},
+ 'abbot-censers':{shape:'ring',radius:3.8,anchor:'target'},
+ 'abbot-flame-wall':{shape:'cone',radius:5.1,anchor:'target',spread:Math.PI/3},
+ 'abbot-summon':{shape:'ring',radius:3.5,anchor:'self'},
+ 'warden-sweep':{shape:'cone',radius:5.2,anchor:'self',spread:Math.PI/3},
+ 'warden-tides':{shape:'cone',radius:10,anchor:'self',spread:Math.PI/3},
+ 'warden-chain':{shape:'charge',radius:12,anchor:'self',width:.6},
+ 'warden-whirlpool':{shape:'ring',radius:3.6,anchor:'target'},
+ 'warden-charge':{shape:'charge',radius:13,anchor:'self',width:1.4},
+ 'regent-root-lines':{shape:'cone',radius:10,anchor:'self',spread:Math.PI/3},
+ 'regent-seeds':{shape:'ring',radius:4.4,anchor:'target'},
+ 'regent-maze':{shape:'ring',radius:5.0,anchor:'target'},
+ 'regent-brood':{shape:'ring',radius:3.5,anchor:'self'},
+ 'regent-collapse':{shape:'ring',radius:5.0,anchor:'target'}
+};
+
+export function telegraphFor(atk){
+ return TELEGRAPHS[atk.id]||{shape:'ring',radius:Math.max(1.2,Math.min(4,(atk.range||4)*.25)),anchor:'target'};
+}
+
 export function attacksFor(enemy){
  if(enemy.boss)return BOSS_ATTACKS[enemy.type]?.[enemy.phase]||[];
  return ENEMY_ATTACKS[enemy.type]||[];

@@ -6,7 +6,7 @@ import {readProgress,saveProgress,buyArmory,buyMastery,KEY,LEGACY_KEY} from '../
 import {solid,clearLine,collide,Navigation} from '../src/rebuild/dungeon.js';
 import {HERO_MODELS,MONSTER_MODELS,modelFor,actorPhase} from '../src/rebuild/model-catalog.js';
 import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS} from '../src/rebuild/content.js';
-import {ENEMY_ATTACKS,BOSS_ATTACKS,attacksFor} from '../src/rebuild/combat-content.js';
+import {ENEMY_ATTACKS,BOSS_ATTACKS,attacksFor,TELEGRAPHS,telegraphFor} from '../src/rebuild/combat-content.js';
 const tick=(g,n=1)=>{for(let i=0;i<n;i++)g.update(1/60);};
 test('complete roster contains eight heroes, eighteen monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,18);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
 test('every roster entry owns a real 3D model specification',()=>{assert.deepEqual(Object.keys(HERO_MODELS).sort(),Object.keys(HEROES).sort());assert.deepEqual(Object.keys(MONSTER_MODELS).sort(),Object.keys(MONSTERS).sort());for(const id of [...Object.keys(HEROES),...Object.keys(MONSTERS)]){const model=modelFor(id);assert(model,id);assert(['humanoid','winged','hound','swarm','mimic','spitter','wraith','spider'].includes(model.kind),id);assert(Number.isFinite(model.primary),id);assert(Number.isFinite(model.secondary),id);assert(model.scale>0,id);}});
@@ -172,6 +172,52 @@ test('hurt events contain position coordinates for directional feedback',()=>{
   assert.equal(hurtEv.z,8.2);
   assert.equal(hurtEv.amount,12);
 });
+
+test('all 18 enemy and 3 boss attacks emit accurate shape-matched telegraph warnings',()=>{
+  for(const [type,list] of Object.entries(ENEMY_ATTACKS)){
+    for(const atk of list){
+      const spec=TELEGRAPHS[atk.id];
+      assert(spec,`Missing TELEGRAPHS entry for ${atk.id}`);
+      const g=new Game({seed:42});
+      g.spawnTimer=999;
+      const e=g.spawn(type,{x:0,z:3});
+      g.beginEnemyAttack(e,atk);
+      const warn=g.effects.find(f=>f.kind==='warning'&&f.ownerId===e.id);
+      assert(warn,`Missing warning effect for ${atk.id}`);
+      assert.equal(warn.radius,spec.radius,`${atk.id} radius mismatch`);
+      assert(['ring','cone','charge','dive'].includes(warn.shape),`${atk.id} invalid shape ${warn.shape}`);
+      assert.equal(warn.life,atk.windup);
+    }
+  }
+  for(const [bossType,phases] of Object.entries(BOSS_ATTACKS)){
+    for(const phaseList of Object.values(phases)){
+      for(const atk of phaseList){
+        const spec=TELEGRAPHS[atk.id];
+        assert(spec,`Missing boss TELEGRAPHS entry for ${bossType}:${atk.id}`);
+        assert.equal(telegraphFor(atk).radius,spec.radius);
+      }
+    }
+  }
+});
+
+test('orphaned warning decals are immediately purged when enemy dies during windup',()=>{
+  const g=new Game({seed:12});
+  g.spawnTimer=999;
+  const e1=g.spawn('root',{x:0,z:3});
+  const e2=g.spawn('hound',{x:3,z:0});
+  g.beginEnemyAttack(e1,ENEMY_ATTACKS.root[0]);
+  g.beginEnemyAttack(e2,ENEMY_ATTACKS.hound[0]);
+  assert.equal(g.effects.filter(f=>f.kind==='warning').length,2);
+  // Slay e1 directly via damage
+  g.damage(e1,99999,'finisher');
+  assert(!g.effects.some(f=>f.kind==='warning'&&f.ownerId===e1.id),'Slain enemy warning purged via damage()');
+  assert(g.effects.some(f=>f.kind==='warning'&&f.ownerId===e2.id),'Surviving enemy warning kept');
+  // Slay e2 by HP depletion before update loop
+  e2.hp=0;
+  g.update(1/60);
+  assert(!g.effects.some(f=>f.kind==='warning'&&f.ownerId===e2.id),'Slain enemy warning purged via update()');
+});
+
 
 
 

@@ -29,7 +29,14 @@ export class Scene{
    torus:new T.TorusGeometry(.5,.12,8,24),
    spike:new T.ConeGeometry(.15,.75,8),
    prism:new T.CylinderGeometry(0,.28,.8,4),
-   disk:new T.CylinderGeometry(.5,.5,.1,16)
+   disk:new T.CylinderGeometry(.5,.5,.1,16),
+   decalRing:new T.RingGeometry(.86,1,36).rotateX(-Math.PI/2),
+   decalInnerGlyph:new T.RingGeometry(.64,.72,8).rotateX(-Math.PI/2),
+   decalDisk:new T.CircleGeometry(1,32).rotateX(-Math.PI/2),
+   decalCone:new T.CircleGeometry(1,20,-Math.PI/2-Math.PI/8,Math.PI/4).rotateX(-Math.PI/2),
+   decalConeArc:new T.RingGeometry(.88,1,20,1,-Math.PI/2-Math.PI/8,Math.PI/4).rotateX(-Math.PI/2),
+   decalChevron:new T.RingGeometry(.28,.55,3,1,-Math.PI/2,Math.PI*2).rotateX(-Math.PI/2),
+   decalLane:new T.PlaneGeometry(1,1).rotateX(-Math.PI/2).translate(0,0,.5)
   };
   this.texture=surfaceTexture();this.materials=new Map();this.objects=new Map();this.batches=new Map();this.props=new T.Group();this.temp=new T.Object3D();this.cameraFocus=new T.Vector2();this.dungeon=new DungeonView(this.scene);this.lastBiome=-1;this.hero=null;
   this.light=new T.PointLight(0xffa34e,26,24,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.cameraImpulse=new T.Vector2();this.camLookVx=0;this.camLookVz=0;this.resize();window.addEventListener('resize',()=>this.resize());
@@ -47,13 +54,33 @@ export class Scene{
   const key=`${color}/${style}/${glow}`;
   if(!this.materials.has(key)){
    const values={cloth:[.88,.04],leather:[.72,.1],metal:[.28,.85],bone:[.65,.08],stone:[.85,.05],glass:[.12,.25],wood:[.75,.05],gold:[.15,.98]}[style]||[.8,.1];
-   this.materials.set(key,new T.MeshStandardMaterial({
+   const m=new T.MeshStandardMaterial({
     color,roughness:values[0],metalness:values[1],map:glow?null:this.texture,
     emissive:glow?color:0,emissiveIntensity:glow?2.2:0,
     transparent:style==='glass',opacity:style==='glass'?.78:1,depthWrite:style!=='glass'
-   }));
+   });
+   m.userData.shared=true;
+   this.materials.set(key,m);
   }
   return this.materials.get(key);
+ }
+ decalMat(color,opacity=.45){
+  const key=`decal/${color}/${opacity}`;
+  if(!this.materials.has(key)){
+   const m=new T.MeshBasicMaterial({
+    color,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
+    polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4
+   });
+   m.userData.shared=true;
+   this.materials.set(key,m);
+  }
+  return this.materials.get(key);
+ }
+ decalMesh(group,geometry,color,opacity=.45){
+  const m=new T.Mesh(geometry,this.decalMat(color,opacity));
+  m.castShadow=false;m.receiveShadow=false;
+  group.add(m);
+  return m;
  }
  mesh(group,geometry,color,scale,pos,style='cloth',glow=false){
   const m=new T.Mesh(geometry,this.mat(color,style,glow));
@@ -640,21 +667,94 @@ export class Scene{
    o.scale.setScalar(z.radius*(1+(reduced?0:pulse)));
   });
   for(const f of game?.effects||[]){
-   const life=f.maxLife||.7,t=1-f.life/life;
+   const life=f.maxLife||.7,t=Math.max(0,Math.min(1,1-f.life/life));
    sync(`effect:${f.id}`,()=>{
     if(f.kind==='warning'){
-     const group=new T.Group();
-     for(let i=0;i<4;i++){
-      const a=i*Math.PI/2,marker=this.mesh(group,this.geo.gem,f.color,[.38,.28,.38],[Math.sin(a)*f.radius*.72,.08,Math.cos(a)*f.radius*.72],'glass',true);
-      marker.rotation.y=a;
+     const group=new T.Group(),shape=f.shape||'ring',col=f.color||0xe0583c,accent=0xffd97a;
+     if(shape==='charge'){
+      const lane=this.decalMesh(group,this.geo.decalLane,col,.3);
+      const railL=this.decalMesh(group,this.geo.decalLane,accent,.86);
+      const railR=this.decalMesh(group,this.geo.decalLane,accent,.86);
+      const chevrons=[0,1,2].map(()=>this.decalMesh(group,this.geo.decalChevron,accent,.94));
+      group.userData.tel={shape,lane,railL,railR,chevrons};
+     }else if(shape==='cone'){
+      const arc=this.decalMesh(group,this.geo.decalConeArc,col,.9);
+      const fill=this.decalMesh(group,this.geo.decalCone,col,.34);
+      const edgeL=this.decalMesh(group,this.geo.decalLane,accent,.86);
+      const edgeR=this.decalMesh(group,this.geo.decalLane,accent,.86);
+      group.userData.tel={shape,arc,fill,edgeL,edgeR};
+     }else if(shape==='dive'){
+      const arc=this.decalMesh(group,this.geo.decalConeArc,col,.78);
+      const fill=this.decalMesh(group,this.geo.decalCone,col,.24);
+      const impactGroup=new T.Group();
+      const outer=this.decalMesh(impactGroup,this.geo.decalRing,col,.88);
+      const inner=this.decalMesh(impactGroup,this.geo.decalInnerGlyph,accent,.92);
+      const disk=this.decalMesh(impactGroup,this.geo.decalDisk,col,.3);
+      group.add(impactGroup);
+      group.userData.tel={shape,arc,fill,impactGroup,outer,inner,disk};
+     }else{
+      const outer=this.decalMesh(group,this.geo.decalRing,col,.88);
+      const inner=this.decalMesh(group,this.geo.decalInnerGlyph,accent,.9);
+      const disk=this.decalMesh(group,this.geo.decalDisk,col,.28);
+      const pips=[0,1,2,3].map(()=>this.decalMesh(group,this.geo.decalChevron,accent,.88));
+      group.userData.tel={shape:'ring',outer,inner,disk,pips};
      }
      return group;
     }
     return new T.Mesh(this.geo.gem,this.mat(f.color,'glass',true));
    },o=>{
+    if(f.kind==='warning'){
+     const td=o.userData.tel,r=Math.max(.5,f.radius||1.5),pulse=1+Math.sin(clock*15+f.id)*.04;
+     const nearDais=Math.hypot(f.x,f.z)<5.6+r&&(Math.hypot(f.x,f.z)<5.8||Math.hypot(f.targetX??f.x,f.targetZ??f.z)<5.8||td.shape==='ring');
+     const overDais=Math.hypot(f.x,f.z)<5.8||(Math.hypot(f.targetX??f.x,f.targetZ??f.z)<5.8&&nearDais);
+     o.position.set(f.x,overDais?.215:.035,f.z);
+     o.scale.setScalar(1);
+     if(td.shape==='charge'){
+      o.rotation.y=f.angle||0;
+      const w=f.width||.85;
+      td.lane.scale.set(w,1,r);
+      td.railL.scale.set(.07,1,r);td.railL.position.set(-w*.5,0,0);
+      td.railR.scale.set(.07,1,r);td.railR.position.set(w*.5,0,0);
+      td.chevrons.forEach((c,i)=>{
+       const prog=((i/3+t*1.15)%1);
+       c.position.set(0,.002,prog*r);
+       c.scale.setScalar(Math.min(1.15,w*.9)*(.9+Math.sin(clock*18+i)*.14));
+      });
+     }else if(td.shape==='cone'){
+      o.rotation.y=f.angle||0;
+      const sm=f.spread?(f.spread/(Math.PI/4)):1,ang=(Math.PI/8)*sm;
+      td.arc.scale.set(r*sm,1,r);
+      td.fill.scale.set((.1+t*.9)*r*sm,1,(.1+t*.9)*r);
+      td.edgeL.scale.set(.06,1,r);td.edgeL.rotation.y=ang;
+      td.edgeR.scale.set(.06,1,r);td.edgeR.rotation.y=-ang;
+     }else if(td.shape==='dive'){
+      o.rotation.y=f.angle||0;
+      const dDist=Math.max(1.5,Math.hypot((f.targetX??f.x)-f.x,(f.targetZ??f.z)-f.z));
+      td.arc.scale.set(dDist,1,dDist);
+      td.fill.scale.set((.1+t*.9)*dDist,1,(.1+t*.9)*dDist);
+      td.impactGroup.position.set(0,.002,dDist);
+      td.outer.scale.setScalar(r*pulse);
+      td.inner.scale.setScalar(r*Math.max(.14,1-t*.86));
+      td.inner.rotation.y=t*Math.PI*.8+clock;
+      td.disk.scale.setScalar(r*(.08+t*.92));
+     }else{
+      o.rotation.y=0;
+      td.outer.scale.setScalar(r*pulse);
+      td.inner.scale.setScalar(r*Math.max(.12,1-t*.88));
+      td.inner.rotation.y=t*Math.PI*.8+clock*.8;
+      td.disk.scale.setScalar(r*(.08+t*.92));
+      td.pips.forEach((pip,i)=>{
+       const a=i*Math.PI/2+clock*.35;
+       pip.position.set(Math.sin(a)*r*.94,.002,Math.cos(a)*r*.94);
+       pip.rotation.y=a+Math.PI;
+       pip.scale.setScalar(Math.min(.75,r*.28));
+      });
+     }
+     return;
+    }
     o.position.set(f.x,f.kind==='pickup'?.45+t*1.1:.16,f.z);
-    const scale=f.kind==='warning'?.85+Math.sin(clock*12+f.id)*.08:(f.kind==='impact'?1-t:Math.sin(t*Math.PI))*Math.max(.35,Math.min(2.2,f.radius));
-    o.scale.setScalar(Math.max(.08,scale));o.rotation.y=clock*(f.kind==='warning'?.15:2.4);
+    const scale=(f.kind==='impact'?1-t:Math.sin(t*Math.PI))*Math.max(.35,Math.min(2.2,f.radius));
+    o.scale.setScalar(Math.max(.08,scale));o.rotation.y=clock*2.4;
    });
    if(!low&&f.kind!=='warning')for(let i=0;i<(f.kind==='ultimate'?10:5);i++){
     const a=i*2.399+f.id;
@@ -665,7 +765,7 @@ export class Scene{
    }
   }
   for(const[id,o]of this.objects)if(!seen.has(id)){
-   this.objects.delete(id);if(o.material?.transparent)o.material.dispose();
+   this.objects.delete(id);if(o.material?.transparent&&!o.material.userData?.shared)o.material.dispose();
   }
   this.batch();
   this.renderer.render(this.scene,this.camera);

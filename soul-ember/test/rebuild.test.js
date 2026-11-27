@@ -218,6 +218,54 @@ test('orphaned warning decals are immediately purged when enemy dies during wind
   assert(!g.effects.some(f=>f.kind==='warning'&&f.ownerId===e2.id),'Slain enemy warning purged via update()');
 });
 
+test('30 enemies fan out with soft-separation and encirclement arcs without clipping walls or stacking',()=>{
+  const g=new Game({seed:77});
+  g.spawnTimer=999;
+  g.player.invuln=999;
+  g.player.fire=999;
+  // Spawn 30 enemies all initially stacked tightly on the east side
+  for(let i=0;i<30;i++){
+    const e=g.spawn('thrall',{x:5.5+(i%3)*0.1,z:-0.2+(Math.floor(i/10))*0.1});
+    e.cool=99; // focus purely on locomotion & flocking
+  }
+  tick(g,240); // 4 seconds of active swarming
+  assert.equal(g.enemies.length,30);
+  // 1. Check no enemy overlapped onto the exact same center (pair distances kept separate)
+  let overlappingPairs=0;
+  for(let i=0;i<g.enemies.length;i++){
+    const a=g.enemies[i];
+    assert(!solid(a.x,a.z,a.radius*.85),`Enemy ${i} clipped inside solid geometry at (${a.x},${a.z})`);
+    for(let j=i+1;j<g.enemies.length;j++){
+      const b=g.enemies[j];
+      if(Math.hypot(a.x-b.x,a.z-b.z)<0.65)overlappingPairs++;
+    }
+  }
+  assert.equal(overlappingPairs,0,'Zero overlapping stacked pairs allowed after separation settles');
+  // 2. Check dynamic surrounding encirclement across octants around player (0,0)
+  const octants=new Set(g.enemies.map(e=>((Math.round(Math.atan2(e.x,e.z)/(Math.PI/4))%8)+8)%8));
+  assert(octants.size>=6,`Expected enemies to encircle across >=6 octants, got ${octants.size}`);
+});
+
+test('dense pack flocking separation cannot force enemies through thin walls or chamber doorways',()=>{
+  const g=new Game({seed:88});
+  g.spawnTimer=999;
+  g.player.invuln=999;
+  g.player.fire=999;
+  g.player.x=10.8;
+  g.player.z=6.2;
+  // Pack 20 enemies directly against the thin x=12 East wall
+  for(let i=0;i<20;i++){
+    const e=g.spawn('shield',{x:10.2-(i%4)*0.35,z:5.0+Math.floor(i/4)*0.4});
+    e.cool=99;
+  }
+  tick(g,180);
+  for(const e of g.enemies){
+    assert(e.x<12.0,`Enemy tunneled through East wall! x=${e.x}`);
+    assert(!solid(e.x,e.z,e.radius*.85),'Enemy trapped inside wall geometry');
+  }
+});
+
+
 
 
 

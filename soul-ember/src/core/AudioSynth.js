@@ -23,7 +23,11 @@ class SoulAudio{
   else if(event==='guardBreak'){this.tone(880,.2,{type:'sawtooth',gain:.25,slide:1.5,pan});this.tone(1760,.15,{type:'triangle',gain:.2,slide:.6,pan});this.noise(.12,{gain:.18,frequency:800,pan});}
   else if(event==='motePickup'){const f=params.kind==='crest'?1320:params.kind==='spark'?1180:params.kind==='aegis'?940:840;this.tone(f,.25,{type:'triangle',gain:.2,slide:1.4,pan});}
   else if(event==='enemyCue'){const boss=params.boss,base=boss?62:params.attack?.includes('ring')?280:params.attack?.includes('charge')?95:170;this.tone(base,(boss ? .65 : .24),{type:boss?'sawtooth':'triangle',gain:(boss ? .3 : .12),slide:(boss ? .55 : 1.4),pan});}
-  else if(event==='bossPhase'){[82,123,164].forEach((f,i)=>this.tone(f,.9,{type:'sawtooth',gain:.25,delay:i*.1,slide:.55}));}
+  else if(event==='bossPhase'){
+   [73.4,98,130.8,164.8,220].forEach((f,i)=>this.tone(f,1.1,{type:'sawtooth',gain:.28,delay:i*.06,slide:.62}));
+   [261.6,329.6,392].forEach((f,i)=>this.tone(f,.9,{type:'triangle',gain:.18,delay:.1+i*.05,slide:1.05}));
+   this.noise(.4,{gain:.2,frequency:650});
+  }
   else if(event==='victory')for(const [i,f] of [220,330,440,554,660].entries())this.tone(f,1,{gain:.2,delay:i*.12,bus:this.musicGain});
   else if(event==='defeat'){this.tone(146,1.4,{type:'sawtooth',gain:.22,slide:.3,bus:this.musicGain});}
    else if(event==='comboRank'){
@@ -34,8 +38,16 @@ class SoulAudio{
     else if(r==='SS'||r==='SSS'){[659,987,1318,1760].forEach((f,i)=>this.tone(f,.28,{type:'sine',gain:.25,delay:i*.06,slide:1.2}));this.noise(.15,{gain:.08,frequency:3200});}
    }
    else if(event==='bossAwaken'){
-    [55,82.4,110].forEach((f,i)=>this.tone(f,1.2,{type:'sawtooth',gain:.3,delay:i*.08,slide:.7}));
-    this.noise(.6,{gain:.22,frequency:380});
+    // Procedural Cathedral Organ + Low Brass Entrance Chord Progression
+    [36.7,55,73.4,110].forEach((f,i)=>this.tone(f,1.4,{type:'sawtooth',gain:.32,delay:i*.04,slide:.75}));
+    [146.8,174.6,220,293.7].forEach((f,i)=>this.tone(f,1.2,{type:'triangle',gain:.16,delay:.06+i*.03,slide:.98}));
+    this.noise(.85,{gain:.25,frequency:280});
+    this.tone(45,1.0,{type:'sine',gain:.38,slide:.65});
+    setTimeout(()=>{
+     if(!this.ctx)return;
+     [58.3,87.3,116.5,174.6,233].forEach((f,i)=>this.tone(f,1.3,{type:i%2?'triangle':'sawtooth',gain:.26,delay:i*.035,slide:.85}));
+     this.noise(.5,{gain:.18,frequency:450});
+    },480);
    }
  }
  startDrone(){if(!this.ctx||this.drone)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain(),filter=this.ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=55;filter.type='lowpass';filter.frequency.value=180;g.gain.value=.025;o.connect(filter);filter.connect(g);g.connect(this.ambienceGain);o.start();this.drone=o;}

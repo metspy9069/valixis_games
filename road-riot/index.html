@@ -92,6 +92,10 @@
       </div>
 
       <div class="hud-stats-group">
+        <div id="hud-gamepad-badge" class="glass-panel hud-stat-box hidden" title="Gamepad Connected" style="border-color: rgba(0, 217, 255, 0.55); background: rgba(0, 217, 255, 0.12); min-width: 74px;">
+          <div class="hud-stat-label">CONTROLLER</div>
+          <div class="hud-stat-value" style="font-size: 13px; color: #00f0ff;">🎮 PAD</div>
+        </div>
         <div id="hud-race-pos-box" class="glass-panel hud-stat-box race-pos-badge hidden" style="border-color: rgba(255, 184, 0, 0.45); background: rgba(255, 184, 0, 0.1);">
           <div class="hud-stat-label">🏁 POSITION</div>
           <div class="hud-stat-value" style="color:#ffea00"><span id="hud-race-pos">1ST</span><span class="hud-stat-unit" style="color:#8fa0b5">/4</span></div>
@@ -264,14 +268,20 @@
     <div id="controls-hint">A / D or &larr; / &rarr;: STEER &bull; S or &darr;: BRAKE &amp; DRIFT &bull; SPACE / SHIFT: NITRO &bull; E / F: KINETIC EMP</div>
   </div>
 
-  <!-- Mobile Touch Controls -->
-  <div id="mobile-controls">
-    <div class="touch-cluster">
+  <!-- Mobile Touch Controls (Dynamic Floating Joystick + Multi-Touch Safe Buttons) -->
+  <div id="mobile-controls" class="joystick-mode">
+    <div id="touch-joystick-zone" class="touch-joystick-zone" aria-label="Virtual Steering Joystick">
+      <div id="virtual-joystick-base" class="virtual-joystick-base idle">
+        <div class="virtual-joystick-crosshair"></div>
+        <div id="virtual-joystick-knob" class="virtual-joystick-knob"></div>
+      </div>
+    </div>
+    <div id="touch-buttons-cluster" class="touch-cluster touch-steer-buttons">
       <button class="touch-btn" data-key="ArrowLeft" aria-label="Steer Left">&lsaquo;</button>
       <button class="touch-btn" data-key="ArrowRight" aria-label="Steer Right">&rsaquo;</button>
-      <button class="touch-btn brake-btn" data-key="ArrowDown" aria-label="Brake and Drift">BRAKE</button>
     </div>
-    <div class="touch-cluster">
+    <div id="touch-action-cluster" class="touch-cluster">
+      <button class="touch-btn brake-btn" data-key="ArrowDown" aria-label="Brake and Drift">BRAKE</button>
       <button class="touch-btn emp-touch-btn" data-key="KeyE" aria-label="Kinetic EMP">⚡ EMP</button>
       <button class="touch-btn boost-btn" data-key=" " aria-label="Boost">NITRO</button>
     </div>
@@ -366,6 +376,11 @@
               <h2 id="menu-equipped-car" class="menu-supercar-name">VALIXIS APEX GT</h2>
             </div>
             <button id="menu-next-car-btn" class="menu-car-nav-arrow" title="Next Supercar">&rsaquo;</button>
+          </div>
+
+          <!-- Real 3D Studio Supercar Render Preview -->
+          <div class="menu-car-preview-slot">
+            <img id="menu-car-thumb" src="./assets/previews/apex.png" class="menu-car-thumb" alt="Valixis Apex GT" />
           </div>
 
           <!-- Performance Telemetry Bars -->
@@ -599,6 +614,14 @@
             <input id="slider-sensitivity" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="setting-slider">
           </div>
           <div class="setting-row">
+            <span class="setting-label">MOBILE TOUCH LAYOUT</span>
+            <button id="toggle-touch-mode" class="setting-toggle active">JOYSTICK</button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">MOBILE HAPTIC FEEDBACK</span>
+            <button id="toggle-haptics" class="setting-toggle active">ON</button>
+          </div>
+          <div class="setting-row">
             <span class="setting-label">MOUSE POINTER STEERING</span>
             <button id="toggle-mouse-steer" class="setting-toggle">OFF</button>
           </div>
@@ -742,10 +765,10 @@
         <div class="arcade-games-grid">
           <!-- Soul Ember -->
           <a href="../soul-ember/index.html" class="arcade-game-card" style="border-color:rgba(255,106,0,0.35);">
-            <div class="arcade-game-badge" style="color:#ff6a00;">SURVIVORS ROGUELIKE</div>
-            <div class="arcade-game-title">Soul Ember</div>
+            <div class="arcade-game-badge" style="color:#ff6a00;">ACTION ROGUELITE</div>
+            <div class="arcade-game-title">Soul Ember: Survivors</div>
             <div class="arcade-game-desc">
-              Fast-paced survivor combat across 3 biomes with 8 unique heroes, 18 enemies, and epic guardian boss encounters.
+              Fast-paced survivor combat across 5 realms with 8 unique heroes, 18 enemies, and epic guardian boss encounters.
             </div>
             <div class="arcade-game-action" style="color:#ff8533;">PLAY SOUL EMBER &rarr;</div>
           </a>
@@ -753,21 +776,21 @@
           <!-- Dead Signal -->
           <a href="../dead-signal/index.html" class="arcade-game-card" style="border-color:rgba(157,255,77,0.35);">
             <div class="arcade-game-badge" style="color:#9dff4d;">FIRST-PERSON SHOOTER</div>
-            <div class="arcade-game-title">Dead Signal</div>
+            <div class="arcade-game-title">Dead Signal: Night Siege</div>
             <div class="arcade-game-desc">
               Atmospheric zombie survival shooter. Defend the relay station through waves of infected with precision firearms and flashlight.
             </div>
             <div class="arcade-game-action" style="color:#9dff4d;">PLAY DEAD SIGNAL &rarr;</div>
           </a>
 
-          <!-- Dev Tycoon -->
-          <a href="../dev-tycoon/index.html" class="arcade-game-card" style="border-color:rgba(0,217,255,0.35);">
-            <div class="arcade-game-badge" style="color:#00d9ff;">STUDIO SIMULATION</div>
-            <div class="arcade-game-title">Dev Tycoon</div>
+          <!-- Bit By Bit -->
+          <a href="../index.html" class="arcade-game-card" style="border-color:rgba(0,229,255,0.35);">
+            <div class="arcade-game-badge" style="color:#00e5ff;">CYBER ROGUELITE</div>
+            <div class="arcade-game-title">Bit By Bit: Cyber Protocol</div>
             <div class="arcade-game-desc">
-              Build and scale your tech startup empire from a garage to global software powerhouse in Flutter Web.
+              Top-down tactical roguelite with procedural room generation, drone companions, and dynamic neon lighting.
             </div>
-            <div class="arcade-game-action" style="color:#00d9ff;">PLAY DEV TYCOON &rarr;</div>
+            <div class="arcade-game-action" style="color:#00e5ff;">VIEW ARCADE &rarr;</div>
           </a>
         </div>
       </div>

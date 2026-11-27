@@ -67,6 +67,38 @@ export class DungeonView{
    const flame=new T.Mesh(new T.ConeGeometry(.28,1.1,6),flameMat);flame.position.y=1.65;bGroup.add(flame);
    this.braziers.push({group:bGroup,flame,mat:flameMat});
   }
+  // Abbot Flame Vents: 4 inner dais grates that periodically erupt in Phase 2/3
+  this.flameVents=[];
+  for(const [vx,vz] of [[-2.4,-2.4],[2.4,-2.4],[-2.4,2.4],[2.4,2.4]]){
+   const vGroup=new T.Group();vGroup.position.set(vx,0.19,vz);this.bossArena.add(vGroup);
+   const grate=new T.Mesh(new T.CylinderGeometry(.42,.48,.06,8),this.iron);grate.position.y=.03;vGroup.add(grate);
+   const ventMat=new T.MeshBasicMaterial({color:0xff7722,transparent:true,opacity:.88});
+   const ventFlame=new T.Mesh(new T.ConeGeometry(.24,1.3,6),ventMat);ventFlame.position.y=.68;ventFlame.visible=false;vGroup.add(ventFlame);
+   this.flameVents.push({group:vGroup,flame:ventFlame,mat:ventMat,x:vx,z:vz});
+  }
+  // Drowned Warden Flooded Shallow Water & Whirlpool Currents (Biome 1)
+  this.wardenWaterMat=new T.MeshStandardMaterial({color:0x2e6b75,roughness:.18,metalness:.45,transparent:true,opacity:.28,depthWrite:false});
+  this.wardenWater=new T.Mesh(new T.CircleGeometry(15.5,48),this.wardenWaterMat);
+  this.wardenWater.rotation.x=-Math.PI/2;this.wardenWater.position.set(0,.026,0);this.bossArena.add(this.wardenWater);
+  this.whirlpoolRings=[];
+  for(let i=0;i<3;i++){
+   const wMat=new T.MeshBasicMaterial({color:0x7be2ed,transparent:true,opacity:.35,depthWrite:false});
+   const ring=new T.Mesh(new T.RingGeometry(2.0+i*2.2,2.3+i*2.2,32),wMat);
+   ring.rotation.x=-Math.PI/2;ring.position.set(0,.032+i*.002,0);ring.visible=false;this.bossArena.add(ring);
+   this.whirlpoolRings.push({ring,mat:wMat,radius:2.0+i*2.2});
+  }
+  // Thornbound Regent Perimeter Briar Barrier (Biome 2)
+  this.regentRoots=[];
+  const rootWoodMat=new T.MeshStandardMaterial({color:0x3d3022,roughness:.9});
+  const rootThornMat=new T.MeshStandardMaterial({color:0x5a7a28,roughness:.6});
+  for(let i=0;i<24;i++){
+   const angle=(i/24)*Math.PI*2,r=11.2,rx=Math.sin(angle)*r,rz=Math.cos(angle)*r;
+   const rGroup=new T.Group();rGroup.position.set(rx,-1.8,rz);rGroup.rotation.y=angle+Math.PI/2;this.bossArena.add(rGroup);
+   const trunk=new T.Mesh(new T.CylinderGeometry(.22,.38,1.8,6),rootWoodMat);trunk.position.y=.9;trunk.rotation.z=Math.sin(i*1.5)*.25;rGroup.add(trunk);
+   const thorn=new T.Mesh(new T.ConeGeometry(.14,.65,5),rootThornMat);thorn.position.set(-.2,1.4,0);thorn.rotation.z=1.1;rGroup.add(thorn);
+   const thorn2=new T.Mesh(new T.ConeGeometry(.12,.55,5),rootThornMat);thorn2.position.set(.18,.9,0);thorn2.rotation.z=-1.2;rGroup.add(thorn2);
+   this.regentRoots.push({group:rGroup,angle,rx,rz});
+  }
   for(const f of FLOORS){const mesh=new T.Mesh(new T.BoxGeometry(f.w,.5,f.d),this.floorMaterial);mesh.position.set(f.x,-.26,f.z);mesh.receiveShadow=true;this.root.add(mesh);}
   this.regionProps=[];
   for(let region=0;region<3;region++){
@@ -82,7 +114,9 @@ export class DungeonView{
  }
  update(player,time,biome,reduced,bossActive=false,bossPhase=1){
   this.regionProps.forEach((g,i)=>g.visible=i===biome);this.cloth.color.setHex([0x62302d,0x345957,0x515737][biome]);
-  const tones=[0xffaf62,0x99c9c3,0xb4c38a],bossTones=[0xff4411,0x22eedd,0x55ff44];
+  const abbotTones=[0xff4411,0x2288ff,0xaa22ff];
+  const tones=[0xffaf62,0x99c9c3,0xb4c38a];
+  const bossTones=[abbotTones[Math.min(2,Math.max(0,bossPhase-1))],bossPhase>=3?0x0feeee:0x22eedd,bossPhase>=3?0x77ff33:0x55ff44];
   const activeColor=bossActive?bossTones[biome]:tones[biome];
   this.arches.forEach(({arch,x,z})=>arch.visible=!(Math.abs(player.x-x)<6&&player.z<z+1&&player.z>z-8));
   this.rooms.forEach(({group,room})=>group.visible=Math.hypot(player.x-room.x,player.z-room.z)<45);
@@ -99,8 +133,59 @@ export class DungeonView{
   }
   if(this.braziers)this.braziers.forEach((b,i)=>{
    b.mat.color.setHex(activeColor);
-   b.flame.scale.set(bossActive?1.4:1,bossActive?(1.6+Math.sin(time*12+i)*.4):1,bossActive?1.4:1);
+   const flareMult=bossActive?(1+(bossPhase-1)*0.35):1;
+   b.flame.scale.set((bossActive?1.4:1)*flareMult,(bossActive?(1.6+Math.sin(time*12+i)*.4):1)*flareMult,(bossActive?1.4:1)*flareMult);
   });
+  // Abbot Inner Sanctuary Periodic Flame Vents
+  if(this.flameVents){
+   const ventsActive=bossActive&&biome===0&&bossPhase>=2;
+   this.flameVents.forEach((v,i)=>{
+    v.flame.visible=ventsActive;
+    if(ventsActive){
+     v.mat.color.setHex(activeColor);
+     const ventBurst=Math.max(0.12,Math.sin(time*6+i*1.57));
+     v.flame.scale.set(1.15,(0.7+ventBurst*1.25)*(bossPhase===3?1.55:1.0),1.15);
+    }
+   });
+  }
+  // Drowned Warden Flooded Shallow Water & Whirlpool Ripples
+  if(this.wardenWater){
+   this.wardenWater.visible=biome===1;
+   if(biome===1){
+    const baseOpacity=bossActive?(0.45+(bossPhase-1)*0.18):0.25;
+    this.wardenWaterMat.opacity=baseOpacity;
+    this.wardenWater.position.y=0.024+(bossActive?Math.sin(time*(5+bossPhase*2))*0.008:0);
+   }
+  }
+  if(this.whirlpoolRings){
+   const ringsActive=bossActive&&biome===1&&bossPhase>=2;
+   this.whirlpoolRings.forEach((w,i)=>{
+    w.ring.visible=ringsActive;
+    if(ringsActive){
+     w.ring.rotation.z=time*(1.6+i*0.7+bossPhase*0.5);
+     const rScale=1.0+Math.sin(time*3+i)*0.08;
+     w.ring.scale.set(rScale,rScale,1);
+     w.mat.opacity=0.28+(bossPhase===3?0.25:0.1)+Math.sin(time*4+i)*0.08;
+    }
+   });
+  }
+  // Thornbound Regent Inward Briar Root Barrier
+  if(this.regentRoots){
+   const rootsVisible=biome===2;
+   this.regentRoots.forEach((r,i)=>{
+    r.group.visible=rootsVisible;
+    if(rootsVisible){
+     let targetY=-1.8,scaleY=0.01;
+     if(bossActive){
+      if(bossPhase===1){targetY=-0.3;scaleY=0.45;}
+      else if(bossPhase===2){targetY=0.4+Math.sin(time*2.5+i)*0.06;scaleY=1.05;}
+      else{targetY=0.95+Math.sin(time*3.2+i)*0.08;scaleY=1.6;}
+     }
+     r.group.position.y+=(targetY-r.group.position.y)*(reduced?1.0:0.18);
+     r.group.scale.y+=(scaleY-r.group.scale.y)*(reduced?1.0:0.18);
+    }
+   });
+  }
   this.dust.material.color.setHex(bossActive?activeColor:0xe3b878);
   this.dust.position.set(player.x,reduced?0:(time*(bossActive?.35:.12))%1,player.z);
  }

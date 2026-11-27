@@ -54,7 +54,7 @@ const rows = waveTable(30);
 console.log('wave  body  boss  surge  modifier   health   body   all-head  arrive  die   verdict');
 console.log('                                       clear    clear     (s)    (s)');
 
-const HEADSHOT = 2.6; // damage multiplier in game.js
+const HEADSHOT = 3.0; // damage multiplier in game.js / ballistics.js
 let flagged = 0;
 for (const plan of rows) {
   const hp = waveHealth(plan, plan.mix);

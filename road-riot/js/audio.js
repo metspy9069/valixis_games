@@ -45,6 +45,8 @@ class RoadAudioEngine {
     this.lastSpeed = 0;
     this.isShifting = false;
     this.shiftTimer = 0;
+    this.shiftCooldown = 0;
+    this.revMatchTimer = 0;
     this.lastBoosting = false;
     this.lastBraking = false;
     this.isEngineRunning = false;
@@ -217,8 +219,20 @@ class RoadAudioEngine {
     this.targetRpm = 1200;
     this.isShifting = false;
     this.shiftTimer = 0;
+    this.shiftCooldown = 0;
+    this.revMatchTimer = 0;
     this.lastSpeed = 0;
     this.lastBoosting = false;
+  }
+
+  getTransmissionTelemetry() {
+    return {
+      gear: this.gear,
+      rpm: Math.round(this.rpm),
+      isShifting: this.isShifting,
+      shiftTimer: Math.max(0, this.shiftTimer),
+      revMatchTimer: Math.max(0, this.revMatchTimer)
+    };
   }
 
   // --- AUTHENTIC SUPERCAR ENGINE & 6-SPEED DUAL-CLUTCH TRANSMISSION ---
@@ -470,48 +484,54 @@ class RoadAudioEngine {
       this.startEngineSample();
     }
 
-    // 6-Speed Dual-Clutch Supercar Transmission Ratios
-    let targetGear = 1;
+    // 6-Speed Dual-Clutch Supercar Transmission Ratios with Shift Hysteresis & Anti-Flutter
+    let targetGear = this.gear;
+    const currentGear = this.gear;
+    if (currentGear === 1 && speedKmh > 68) targetGear = 2;
+    else if (currentGear === 2) {
+      if (speedKmh > 125) targetGear = 3;
+      else if (speedKmh < 52) targetGear = 1;
+    } else if (currentGear === 3) {
+      if (speedKmh > 180) targetGear = 4;
+      else if (speedKmh < 110) targetGear = 2;
+    } else if (currentGear === 4) {
+      if (speedKmh > 235) targetGear = 5;
+      else if (speedKmh < 165) targetGear = 3;
+    } else if (currentGear === 5) {
+      if (speedKmh > 290) targetGear = 6;
+      else if (speedKmh < 218) targetGear = 4;
+    } else if (currentGear === 6) {
+      if (speedKmh < 272) targetGear = 5;
+    }
+    if (speedKmh <= 4) targetGear = 1;
+
     let gearMinSpeed = 0;
     let gearMaxSpeed = 65;
+    if (this.gear === 1) { gearMinSpeed = 0; gearMaxSpeed = 68; }
+    else if (this.gear === 2) { gearMinSpeed = 52; gearMaxSpeed = 125; }
+    else if (this.gear === 3) { gearMinSpeed = 110; gearMaxSpeed = 180; }
+    else if (this.gear === 4) { gearMinSpeed = 165; gearMaxSpeed = 235; }
+    else if (this.gear === 5) { gearMinSpeed = 218; gearMaxSpeed = 290; }
+    else if (this.gear === 6) { gearMinSpeed = 272; gearMaxSpeed = 380; }
 
-    if (speedKmh <= 6) {
-      targetGear = 1;
-      gearMinSpeed = 0;
-      gearMaxSpeed = 65;
-      if (speedKmh === 0) this.gear = 1;
-    } else if (speedKmh > 285) {
-      targetGear = 6;
-      gearMinSpeed = 285;
-      gearMaxSpeed = 380;
-    } else if (speedKmh > 230) {
-      targetGear = 5;
-      gearMinSpeed = 230;
-      gearMaxSpeed = 285;
-    } else if (speedKmh > 175) {
-      targetGear = 4;
-      gearMinSpeed = 175;
-      gearMaxSpeed = 230;
-    } else if (speedKmh > 120) {
-      targetGear = 3;
-      gearMinSpeed = 120;
-      gearMaxSpeed = 175;
-    } else if (speedKmh > 65) {
-      targetGear = 2;
-      gearMinSpeed = 65;
-      gearMaxSpeed = 120;
+    if (this.shiftCooldown > 0) {
+      this.shiftCooldown -= 0.016;
     }
 
-    // Upshift & Downshift Detection -> Exhaust Crackle & Dual-Clutch Pop!
-    if (targetGear > this.gear && !this.isShifting) {
+    // Upshift Detection: 45ms Dual-Clutch Shift Cut & Exhaust Pop
+    if (targetGear > this.gear && !this.isShifting && this.shiftCooldown <= 0) {
       this.gear = targetGear;
       this.isShifting = true;
-      this.shiftTimer = 0.12; // 120ms dual-clutch shift
+      this.shiftTimer = 0.045; // 45ms dual-clutch shift dip
+      this.shiftCooldown = 0.12;
       this.play('gear_shift');
-    } else if (targetGear < this.gear) {
-      // Downshift: Aggressive Throttle Blip & Exhaust Overrun Backfire!
+      this.synthBackfire(now, 1);
+    } else if (targetGear < this.gear && this.shiftCooldown <= 0) {
+      // Downshift: Automated Throttle Blip Rev-Matching & Crackles!
       this.gear = targetGear;
-      this.synthBackfire(now, Math.floor(Math.random() * 3) + 2);
+      this.shiftCooldown = 0.12;
+      this.revMatchTimer = 0.12; // 120ms throttle blip
+      this.synthBackfire(now, Math.floor(Math.random() * 2) + 2);
     }
 
     // Deceleration lift-off backfire
@@ -526,6 +546,10 @@ class RoadAudioEngine {
       if (this.shiftTimer <= 0) this.isShifting = false;
     }
 
+    if (this.revMatchTimer > 0) {
+      this.revMatchTimer -= 0.016;
+    }
+
     // Turbo blow-off valve detection on boost release
     if (this.lastBoosting && !isBoosting) {
       this.play('blowoff');
@@ -537,12 +561,15 @@ class RoadAudioEngine {
     const gearProgress = Math.max(0, Math.min(1, (speedKmh - gearMinSpeed) / gearSpan));
     let baseRpm = 1400 + gearProgress * 5800; // 1400 to 7200 RPM
     if (this.isShifting) {
-      baseRpm *= 0.65; // RPM drop during shift
+      baseRpm *= 0.65; // 45ms shift torque dip
+    }
+    if (this.revMatchTimer > 0) {
+      baseRpm = Math.min(7800, baseRpm + 1800 * (this.revMatchTimer / 0.12)); // downshift rev blip
     }
     if (isBoosting) {
       baseRpm = Math.min(8400, baseRpm + 1050);
     }
-    if (isBraking) {
+    if (isBraking && this.revMatchTimer <= 0) {
       baseRpm = Math.max(1200, baseRpm * 0.72); // deceleration drop
     }
 

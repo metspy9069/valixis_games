@@ -60,6 +60,8 @@ export class ProgressionManager {
         steeringSensitivity: 1.0,
         counterSteerAssist: 1.0,
         mouseSteerEnabled: false,
+        touchControlMode: 'joystick',
+        hapticFeedbackEnabled: true,
         gamepadRumbleEnabled: true,
         graphicsQuality: 'high' // 'high', 'med', 'low'
       },

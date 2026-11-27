@@ -13,6 +13,26 @@ import { recordRun, noteContractClear, loadCareer, activeStreak } from './career
 import { ladderFor, recordLadder, seedForKey } from './ladder.js';
 import { endlessEffects } from './endless.js';
 import { AudioEngine } from './audio.js';
+import { computeSpatialAudio } from './audio-dsp.js';
+import {
+  sampleCircularSpread,
+  rayWorldAll,
+  resolveZombieRayHits,
+  resolveBallisticPath,
+} from './ballistics.js';
+import {
+  RELOAD_STAGE,
+  totalLoaded,
+  consumeRound,
+  beginReloadState,
+  tickReloadState,
+  interruptReloadState,
+} from './reload.js';
+import {
+  nextMeleeCombo,
+  isTargetInMeleeArc,
+  applyMeleeWear,
+} from './melee.js';
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -301,6 +321,8 @@ const recoil = { pitch: 0, yaw: 0 };
 
 const ammo = {
   mag: WEAPONS.map((w) => w.magSize),
+  chambered: WEAPONS.map(() => true),
+  reloadStage: WEAPONS.map(() => RELOAD_STAGE.READY),
   reserve: WEAPONS.map((w) => (w.reserveMax === Infinity ? Infinity : Math.round(w.reserveMax * 0.7))),
   weapon: 0,
   // The AR-style rifle is standard issue; the heavy LMG has to be recovered
@@ -308,10 +330,19 @@ const ammo = {
   unlocked: WEAPONS.map((w) => !w.locked),
   meleeCooldown: 0,
   meleeUses: 0,
+  comboStep: 0,
+  lastSwingAt: -99,
+  shoveCooldown: 0,
   reloading: false,
   reloadTimer: 0,
+  reloadTotal: 0,
+  reloadIsPartial: false,
+  reloadWeapon: 0,
+  autoReloadTimer: 0,
+  autoReloadWeapon: -1,
   lastShot: 0,
   triggerHeld: false,
+  dryFireLatched: false,
   // Alt-fire state: a burst queue, the two timed stances, the cooldown and the
   // one found attachment per gun.
   altCooldown: 0,
@@ -449,10 +480,13 @@ const pickupProbe = new THREE.Vector3();
 
 // ---------------------------------------------------------------- particles
 const bloodMat = new THREE.MeshBasicMaterial({ color: 0x8e1119 });
+const bloodMistMat = new THREE.MeshBasicMaterial({ color: 0xb81a24, transparent: true, opacity: 0.78 });
 const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffd08a });
+const concreteMat = new THREE.MeshBasicMaterial({ color: 0x9aa0a6 });
+const woodMat = new THREE.MeshBasicMaterial({ color: 0xb0824f });
 const particleGeo = new THREE.BoxGeometry(0.055, 0.055, 0.055);
 const particles = [];
-for (let i = 0; i < 220; i++) {
+for (let i = 0; i < 240; i++) {
   const mesh = new THREE.Mesh(particleGeo, bloodMat);
   mesh.visible = false;
   mesh.frustumCulled = false;
@@ -461,17 +495,122 @@ for (let i = 0; i < 220; i++) {
 }
 let particleCursor = 0;
 
-function spawnParticles(point, count, kind, power = 1) {
+function spawnParticles(point, count, kind, power = 1, normal = null) {
+  const mat = kind === 'blood' ? bloodMat
+    : kind === 'bloodMist' ? bloodMistMat
+      : kind === 'acid' ? acidParticleMat
+        : kind === 'concrete' ? concreteMat
+          : kind === 'wood' ? woodMat
+            : sparkMat;
   for (let i = 0; i < count; i++) {
     const p = particles[particleCursor];
     particleCursor = (particleCursor + 1) % particles.length;
-    p.mesh.material = kind === 'blood' ? bloodMat : kind === 'acid' ? acidParticleMat : sparkMat;
-    p.mesh.position.copy(point);
-    p.mesh.scale.setScalar(0.6 + Math.random() * 0.9);
+    p.mesh.material = mat;
+    p.mesh.position.set(point.x, point.y, point.z);
+    const baseScale = kind === 'bloodMist' ? 1.15 : kind === 'wood' ? 0.8 : 0.55;
+    p.mesh.scale.set(
+      baseScale + Math.random() * 0.75,
+      (kind === 'wood' ? 0.35 : baseScale) + Math.random() * 0.6,
+      baseScale + Math.random() * 0.75,
+    );
     p.mesh.visible = true;
-    p.vel.set((Math.random() - 0.5) * 6 * power, Math.random() * 4.4 * power, (Math.random() - 0.5) * 6 * power);
-    p.life = p.max = 0.35 + Math.random() * 0.45;
-    p.gravity = kind === 'blood' ? 14 : 9;
+    const nx = normal ? normal.x * 3.8 * power : 0;
+    const ny = normal ? normal.y * 3.8 * power : 0;
+    const nz = normal ? normal.z * 3.8 * power : 0;
+    p.vel.set(
+      nx + (Math.random() - 0.5) * 5.6 * power,
+      ny + Math.random() * 4.2 * power,
+      nz + (Math.random() - 0.5) * 5.6 * power,
+    );
+    p.life = p.max = (kind === 'bloodMist' ? 0.45 : 0.3) + Math.random() * 0.42;
+    p.gravity = kind === 'bloodMist' ? 4.5 : kind === 'blood' ? 14 : kind === 'spark' ? 15 : 11;
+  }
+}
+
+// ---------------------------------------------------------------- impact decals
+function makeDecalTexture(kind) {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 64, 64);
+
+  if (kind === 'metal') {
+    const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 28);
+    grad.addColorStop(0, 'rgba(18, 20, 24, 0.96)');
+    grad.addColorStop(0.28, 'rgba(210, 220, 230, 0.85)');
+    grad.addColorStop(0.55, 'rgba(255, 165, 70, 0.32)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+  } else if (kind === 'wood') {
+    ctx.fillStyle = 'rgba(26, 16, 8, 0.92)';
+    ctx.beginPath();
+    ctx.arc(32, 32, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(195, 150, 95, 0.75)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      ctx.beginPath();
+      ctx.moveTo(32 + Math.cos(a) * 8, 32 + Math.sin(a) * 8);
+      ctx.lineTo(32 + Math.cos(a) * 24, 32 + Math.sin(a) * 24);
+      ctx.stroke();
+    }
+  } else {
+    const grad = ctx.createRadialGradient(32, 32, 4, 32, 32, 28);
+    grad.addColorStop(0, 'rgba(14, 15, 16, 0.95)');
+    grad.addColorStop(0.38, 'rgba(72, 75, 78, 0.82)');
+    grad.addColorStop(0.75, 'rgba(155, 158, 160, 0.32)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const decalGeo = new THREE.PlaneGeometry(0.16, 0.16);
+const decalMats = {
+  concrete: new THREE.MeshBasicMaterial({ map: makeDecalTexture('concrete'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+  metal: new THREE.MeshBasicMaterial({ map: makeDecalTexture('metal'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+  wood: new THREE.MeshBasicMaterial({ map: makeDecalTexture('wood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+};
+const decals = [];
+for (let i = 0; i < 96; i++) {
+  const mesh = new THREE.Mesh(decalGeo, decalMats.concrete);
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  decals.push({ mesh, life: 0 });
+}
+let decalCursor = 0;
+const tmpDecalTarget = new THREE.Vector3();
+
+function spawnDecal(point, normal, material = 'concrete') {
+  const d = decals[decalCursor];
+  decalCursor = (decalCursor + 1) % decals.length;
+  d.mesh.material = decalMats[material] || decalMats.concrete;
+  const nx = normal ? normal.x : 0;
+  const ny = normal ? normal.y : 1;
+  const nz = normal ? normal.z : 0;
+  d.mesh.position.set(point.x + nx * 0.014, point.y + ny * 0.014, point.z + nz * 0.014);
+  tmpDecalTarget.set(d.mesh.position.x + nx, d.mesh.position.y + ny, d.mesh.position.z + nz);
+  d.mesh.lookAt(tmpDecalTarget);
+  d.mesh.rotateZ(Math.random() * Math.PI * 2);
+  const s = material === 'metal' ? 0.72 + Math.random() * 0.25 : 0.9 + Math.random() * 0.45;
+  d.mesh.scale.setScalar(s);
+  d.mesh.visible = true;
+  d.life = 16;
+}
+
+function updateDecals(dt) {
+  for (const d of decals) {
+    if (d.life <= 0) continue;
+    d.life -= dt;
+    if (d.life <= 0) d.mesh.visible = false;
   }
 }
 
@@ -522,6 +661,98 @@ function updateTracers(dt) {
     if (t.life <= 0) continue;
     t.life -= dt;
     if (t.life <= 0) t.line.visible = false;
+  }
+}
+
+// ---------------------------------------------------------------- shell casings
+const brassGeo = new THREE.CylinderGeometry(0.0085, 0.0085, 0.032, 6);
+const brassMat = new THREE.MeshStandardMaterial({ color: 0xe3bd54, roughness: 0.28, metalness: 0.85 });
+const shellGeo = new THREE.CylinderGeometry(0.013, 0.013, 0.052, 8);
+const shellMat = new THREE.MeshStandardMaterial({ color: 0xb82424, roughness: 0.55, metalness: 0.2 });
+const casings = [];
+for (let i = 0; i < 48; i++) {
+  const mesh = new THREE.Mesh(brassGeo, brassMat);
+  mesh.visible = false;
+  mesh.frustumCulled = false;
+  scene.add(mesh);
+  casings.push({
+    mesh,
+    vel: new THREE.Vector3(),
+    spin: new THREE.Vector3(),
+    life: 0,
+    bounces: 0,
+    kind: 'brass',
+  });
+}
+let casingCursor = 0;
+const tmpCasingRight = new THREE.Vector3();
+const tmpCasingUp = new THREE.Vector3();
+
+function spawnCasing(weaponId, muzzlePos, aimDir) {
+  const c = casings[casingCursor];
+  casingCursor = (casingCursor + 1) % casings.length;
+  const isShell = weaponId === 'shotgun';
+  c.kind = isShell ? 'shell' : 'brass';
+  c.mesh.geometry = isShell ? shellGeo : brassGeo;
+  c.mesh.material = isShell ? shellMat : brassMat;
+
+  tmpCasingRight.crossVectors(aimDir, camera.up);
+  if (tmpCasingRight.lengthSq() < 1e-5) tmpCasingRight.set(1, 0, 0);
+  tmpCasingRight.normalize();
+  tmpCasingUp.crossVectors(tmpCasingRight, aimDir).normalize();
+
+  c.mesh.position.copy(muzzlePos)
+    .addScaledVector(tmpCasingRight, 0.14)
+    .addScaledVector(aimDir, -0.18)
+    .addScaledVector(tmpCasingUp, 0.03);
+  c.mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+  c.mesh.visible = true;
+
+  const sideSpeed = (isShell ? 2.1 : 2.6) + Math.random() * 1.1;
+  const upSpeed = (isShell ? 1.7 : 2.1) + Math.random() * 0.85;
+  c.vel.set(
+    player.vel.x * 0.35 + tmpCasingRight.x * sideSpeed - aimDir.x * 0.45,
+    upSpeed,
+    player.vel.z * 0.35 + tmpCasingRight.z * sideSpeed - aimDir.z * 0.45,
+  );
+  c.spin.set((Math.random() - 0.5) * 28, (Math.random() - 0.5) * 24, (Math.random() - 0.5) * 28);
+  c.bounces = 0;
+  c.life = 4.2;
+}
+
+function updateCasings(dt) {
+  for (const c of casings) {
+    if (c.life <= 0) continue;
+    c.life -= dt;
+    if (c.life <= 0) {
+      c.mesh.visible = false;
+      continue;
+    }
+    c.vel.y -= 16 * dt;
+    c.mesh.position.addScaledVector(c.vel, dt);
+    c.mesh.rotation.x += c.spin.x * dt;
+    c.mesh.rotation.y += c.spin.y * dt;
+    c.mesh.rotation.z += c.spin.z * dt;
+
+    if (c.mesh.position.y <= 0.016) {
+      c.mesh.position.y = 0.016;
+      if (Math.abs(c.vel.y) > 0.65 && c.bounces < 3) {
+        if (c.bounces < 2) {
+          audio.casingPing(c.kind, panFor(c.mesh.position), c.bounces === 0 ? 1 : 0.45);
+        }
+        c.vel.y = Math.abs(c.vel.y) * 0.46;
+        c.vel.x *= 0.68;
+        c.vel.z *= 0.68;
+        c.spin.multiplyScalar(0.55);
+        c.bounces++;
+      } else {
+        c.vel.y = 0;
+        c.vel.x *= Math.max(0, 1 - 6 * dt);
+        c.vel.z *= Math.max(0, 1 - 6 * dt);
+        c.spin.set(0, c.spin.y * 0.85, 0);
+        c.mesh.rotation.x = Math.PI / 2;
+      }
+    }
   }
 }
 
@@ -751,10 +982,16 @@ canvas.addEventListener('mousedown', (e) => {
   // Firing must never depend on pointer lock succeeding.
   if (!mouseLocked) requestLock();
   if (e.button === 0) { ammo.triggerHeld = true; tryFire(); }
-  if (e.button === 2) player.ads = true;
+  if (e.button === 2) {
+    if (keys['Space']) defensiveShove();
+    else player.ads = true;
+  }
 });
 window.addEventListener('mouseup', (e) => {
-  if (e.button === 0) ammo.triggerHeld = false;
+  if (e.button === 0) {
+    ammo.triggerHeld = false;
+    ammo.dryFireLatched = false;
+  }
   if (e.button === 2) player.ads = false;
 });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -848,7 +1085,10 @@ if (isTouch) {
     ammo.triggerHeld = true;
     tryFire();
   }, { passive: false });
-  fireBtn.addEventListener('touchend', () => { ammo.triggerHeld = false; });
+  fireBtn.addEventListener('touchend', () => {
+    ammo.triggerHeld = false;
+    ammo.dryFireLatched = false;
+  });
   el('reloadBtn').addEventListener('click', () => startReload());
   el('swapBtn').addEventListener('click', () => selectWeapon(ammo.weapon + 1));
   el('meleeBtn').addEventListener('touchstart', (e) => {
@@ -940,12 +1180,15 @@ function selectWeapon(index, strict = false) {
     }
   }
   if (!weaponAvailable(next) || next === ammo.weapon) return;
+  // Interrupt any active reload cleanly while keeping each gun's reload checkpoint
+  interruptReloadState(ammo);
+  ammo.autoReloadTimer = 0;
+  ammo.autoReloadWeapon = -1;
+  ammo.dryFireLatched = false;
   ammo.weapon = next;
   // Recoil bloom belongs to the gun that was being fired; a fresh weapon
   // starts on its own cone instead of inheriting the last one's spread.
   spreadBloom = 0;
-  ammo.reloading = false;
-  ammo.reloadTimer = 0;
   ammo.altCooldown = 0;
   ammo.burstLeft = 0;
   ammo.burstTimer = 0;
@@ -959,35 +1202,17 @@ function selectWeapon(index, strict = false) {
 
 function startReload() {
   const def = weaponDef();
-  if (ammo.reloading) return;
-  if (ammo.mag[ammo.weapon] >= magSizeFor(def)) return;
-  if (ammo.reserve[ammo.weapon] <= 0 && def.reserveMax !== Infinity) return;
-  const time = reloadTimeFor(def);
-  ammo.reloading = true;
-  ammo.reloadTimer = time;
+  const started = beginReloadState(ammo, def, magSizeFor(def), reloadTimeFor(def));
+  if (!started) return;
   ammo.altCooldown = 0;
   ammo.burstLeft = 0;
   ammo.burstTimer = 0;
   ammo.burstOpts = null;
   ammo.steadyTimer = 0;
   ammo.bipodTimer = 0;
-  audio.reloadStart();
-  setTimeout(() => { if (ammo.reloading) audio.reloadStep(); }, time * 400);
-  setTimeout(() => { if (ammo.reloading) audio.reloadEnd(); }, time * 850);
-}
-
-function finishReload() {
-  const def = weaponDef();
-  const size = magSizeFor(def);
-  const need = size - ammo.mag[ammo.weapon];
-  if (def.reserveMax === Infinity) {
-    ammo.mag[ammo.weapon] = size;
-  } else {
-    const take = Math.min(need, ammo.reserve[ammo.weapon]);
-    ammo.mag[ammo.weapon] += take;
-    ammo.reserve[ammo.weapon] -= take;
-  }
-  ammo.reloading = false;
+  ammo.autoReloadTimer = 0;
+  if (started.stage === RELOAD_STAGE.READY) audio.reloadStart();
+  else audio.reloadStep();
   updateAmmoHud();
 }
 
@@ -999,11 +1224,15 @@ function tryFire() {
   const now = performance.now() / 1000;
   if (ammo.reloading) return;
   if (now - ammo.lastShot < 60 / def.rpm) return;
-  if (ammo.mag[ammo.weapon] <= 0) {
-    audio.dryFire();
+  if (totalLoaded(ammo, ammo.weapon) <= 0) {
+    if (!ammo.dryFireLatched) {
+      ammo.dryFireLatched = true;
+      audio.dryFire();
+    }
     if (!ammo.reloading) startReload();
     return;
   }
+  ammo.dryFireLatched = false;
   ammo.lastShot = now;
   fireRound();
 }
@@ -1014,13 +1243,12 @@ function tryFire() {
  */
 function fireRound(opts = {}) {
   const def = weaponDef();
-  if (ammo.mag[ammo.weapon] <= 0) return false;
+  if (!consumeRound(ammo, ammo.weapon)) return false;
   const slug = !!opts.slug;
   const damageMul = opts.damageMul || 1;
   const spreadMul = opts.spreadMul || 1;
   const pellets = opts.pellets || def.pellets;
 
-  ammo.mag[ammo.weapon] -= 1;
   game.shots += 1;
   updateAmmoHud();
 
@@ -1059,6 +1287,7 @@ function fireRound(opts = {}) {
   const muzzle = new THREE.Vector3();
   viewModel.muzzleWorld(muzzle, camera);
   muzzleLight.position.copy(muzzle);
+  spawnCasing(def.id, muzzle, aimDir);
 
   const baseSpread = (player.ads ? def.adsSpread : def.spread) * weaponSpreadMul() * spreadMul;
   const spread = baseSpread + spreadBloom * (player.ads ? 0.3 : 1) * weaponSpreadMul() * spreadMul;
@@ -1068,35 +1297,57 @@ function fireRound(opts = {}) {
   const aimDistance = Math.max(1, muzzle.distanceTo(aimPoint));
 
   let anyMiss = false;
+  const lastShotEvents = [];
+  const penPower = slug ? 1.85 : (def.penPower || 0.72);
+  const maxTargets = slug ? 4 : (def.maxTargets || 1);
+
   for (let p = 0; p < pellets; p++) {
-    const point = jitterPoint(aimPoint, aimDir, Math.tan(spread) * aimDistance, p);
+    const point = jitterPoint(aimPoint, aimDir, Math.tan(spread) * aimDistance, p, pellets);
     const shotDir = point.sub(muzzle).normalize();
 
-    const wallHit = rayWorld(muzzle, shotDir, 160);
-    const zombieHit = rayZombies(muzzle, shotDir, wallHit ? wallHit.distance : 160);
+    const worldHits = rayWorldAll(muzzle, shotDir, world.colliders, 160);
+    const solidWall = worldHits.find((h) => !h.penetrable);
+    const maxTraceDist = solidWall ? solidWall.distance : 160;
+    const zombieHits = rayZombiesAll(muzzle, shotDir, maxTraceDist);
+    const events = resolveBallisticPath(zombieHits, worldHits, { penPower, maxTargets });
 
-    if (zombieHit) {
-      const { zombie, mesh, point: hitPoint, distance } = zombieHit;
-      const head = mesh.userData.part === 'head';
-      const falloff = damageFalloff(def, distance);
-      const mods = game.mods || {};
-      const dmg = def.damage * damageMul * falloff * (head ? 2.6 : 1) * weaponDamageMul()
-        * (head ? 1 : (mods.headshotOnly ? 0.34 : 1));
-      game.hits += 1;
-      const killed = zombie.takeDamage(dmg, head ? 'head' : 'body', makeContext());
-      spawnParticles(hitPoint, head ? 12 : 7, 'blood', head ? 1.35 : 1);
-      spawnDamageNumber(hitPoint, dmg, head);
-      spawnTracer(muzzle, hitPoint);
-      flashCrosshair(killed ? 'kill' : 'hit');
-      // Kill bookkeeping happens in onDeath -> onZombieKilled (no double count).
-    } else if (wallHit) {
-      spawnParticles(wallHit.point, 4, 'spark', 0.7);
-      spawnTracer(muzzle, wallHit.point);
+    let traceEnd = null;
+    for (const ev of events) {
+      if (ev.kind === 'zombie') {
+        const { zombie, point: hitPoint, distance, part, zone, damageScale } = ev;
+        const head = zone.crit;
+        const falloff = damageFalloff(def, distance);
+        const mods = game.mods || {};
+        const dmg = def.damage * damageMul * falloff * zone.multiplier * damageScale * weaponDamageMul()
+          * (head ? 1 : (mods.headshotOnly ? 0.34 : 1));
+        game.hits += 1;
+        const killed = zombie.takeDamage(dmg, part, makeContext());
+        if (killed) hitMeshesDirty = true;
+        spawnParticles(hitPoint, head ? 14 : 7, 'blood', head ? 1.45 : 1);
+        if (head || ev.penetrated) {
+          spawnParticles(hitPoint, head ? 7 : 4, 'bloodMist', 0.65, shotDir);
+        }
+        spawnDamageNumber(hitPoint, dmg, head);
+        flashCrosshair(killed ? 'kill' : 'hit');
+        traceEnd = hitPoint;
+        lastShotEvents.push({ kind: 'zombie', part, multiplier: zone.multiplier, dmg, killed, penetrated: ev.penetrated });
+      } else if (ev.kind === 'world') {
+        spawnDecal(ev.point, ev.normal, ev.material);
+        const pKind = ev.material === 'metal' ? 'spark' : ev.material === 'wood' ? 'wood' : 'concrete';
+        spawnParticles(ev.point, ev.material === 'metal' ? 6 : 5, pKind, ev.material === 'metal' ? 0.95 : 0.65, ev.normal);
+        traceEnd = ev.point;
+        lastShotEvents.push({ kind: 'world', material: ev.material, penetrated: ev.penetrated });
+      }
+    }
+
+    if (traceEnd) {
+      spawnTracer(muzzle, traceEnd);
     } else {
       spawnTracer(muzzle, muzzle.clone().addScaledVector(shotDir, 60));
       anyMiss = true;
     }
   }
+  window.__lastShotEvents = lastShotEvents;
   // Bloom is caused by this shot and paid for by the next one, so the round
   // the player just aimed always uses the cone they were shown.
   spreadBloom = Math.min(0.05, spreadBloom + def.spread * 0.5);
@@ -1105,10 +1356,13 @@ function fireRound(opts = {}) {
     setTimeout(() => hud.crossMiss.classList.remove('show'), 70);
   }
 
-  if (ammo.mag[ammo.weapon] <= 0) {
-    // The last round just left the gun. Queue a reload so the player is never
-    // left in an empty-mag gap that still allows input timing tricks.
-    if (!ammo.reloading) setTimeout(startReload, 120);
+  if (totalLoaded(ammo, ammo.weapon) <= 0) {
+    // Queue deterministic auto-reload bound to the current weapon slot so
+    // rapid weapon swapping never triggers a ghost reload on the next gun.
+    if (!ammo.reloading) {
+      ammo.autoReloadTimer = 0.12;
+      ammo.autoReloadWeapon = ammo.weapon;
+    }
   }
 }
 
@@ -1126,12 +1380,13 @@ function altFire() {
     showHint(`${alt.name} \u00b7 ${ammo.altCooldown.toFixed(1)}S`, 900);
     return;
   }
-  if (ammo.mag[ammo.weapon] <= 0) { audio.dryFire(); startReload(); return; }
+  if (totalLoaded(ammo, ammo.weapon) <= 0) { audio.dryFire(); startReload(); return; }
 
   if (def.id === 'pistol' || def.id === 'smg') {
+    const loaded = totalLoaded(ammo, ammo.weapon);
     const need = def.id === 'pistol' ? 2 : 4;
-    if (ammo.mag[ammo.weapon] < need) { audio.dryFire(); startReload(); return; }
-    ammo.burstLeft = def.id === 'pistol' ? 2 : ammo.mag[ammo.weapon];
+    if (loaded < need) { audio.dryFire(); startReload(); return; }
+    ammo.burstLeft = def.id === 'pistol' ? 2 : loaded;
     ammo.burstInterval = def.id === 'pistol' ? 0.075 : 0.052;
     ammo.burstTimer = 0;
     ammo.burstOpts = { spreadMul: def.id === 'pistol' ? 0.4 : 0.8 };
@@ -1172,60 +1427,111 @@ let wornMeleeHintUntil = 0;
 function swingMelee() {
   if (!game.running || game.paused || game.over) return;
   if (ammo.meleeCooldown > 0) return;
+  if (interruptReloadState(ammo)) updateAmmoHud();
+
   const melee = MELEE_TIERS[game.meleeTier] || MELEE_TIERS[0];
-  ammo.meleeCooldown = melee.cooldown;
+  const combo = nextMeleeCombo(ammo, game.elapsed);
+  ammo.meleeCooldown = melee.cooldown * combo.cooldownMul;
 
-  // Consume durability on every swing.
-  ammo.meleeUses++;
-  let justReplaced = false;
-  if (melee.maxUses && ammo.meleeUses >= melee.maxUses) {
-    ammo.meleeUses = 0;
-    viewModel.setMelee(game.meleeTier);
-    justReplaced = true;
-    if (performance.now() > wornMeleeHintUntil) {
-      showHint(`${melee.name} BLADE WORN \u2014 REPLACED`, 1400);
-      wornMeleeHintUntil = performance.now() + 1500;
-    }
-  }
-
-  viewModel.swing();
+  viewModel.swing(combo.step);
   audio.melee();
-  updateAmmoHud();
 
   const eye = new THREE.Vector3();
   const dir = new THREE.Vector3();
   camera.getWorldPosition(eye);
   camera.getWorldDirection(dir);
-  dir.y *= 0.35;
-  dir.normalize();
 
   let hits = 0;
+  let guardBroken = false;
   for (const z of zombies) {
     if (!z.alive) continue;
-    const to = new THREE.Vector3(z.group.position.x - player.pos.x, 0, z.group.position.z - player.pos.z);
-    const dist = to.length();
-    if (dist > melee.range + z.radius) continue;
-    if (dist > 1e-3) to.divideScalar(dist);
-    if (to.dot(dir) < Math.cos(melee.halfAngle)) continue;
+    const arc = isTargetInMeleeArc(player.pos, dir, z.group.position, z.radius, melee.range, melee.halfAngle);
+    if (!arc.hit) continue;
 
-    // Blades scale gently with the wave so a brute never walks through five
-    // swings, while a walker still dies to one from wave 1 to wave 40.
-    const dmg = melee.damage * (1 + Math.min(1.2, game.wave * 0.03));
+    // Solid concrete/metal cover blocks swings through walls
+    const wall = rayWorld(eye, new THREE.Vector3(arc.dirX, 0, arc.dirZ), arc.dist);
+    if (wall && !wall.penetrable && wall.distance < arc.dist - 0.1) continue;
+
+    // Blades scale gently with the wave, plus 3-hit combo multiplier (1.0x -> 1.15x -> 1.75x cleave).
+    const dmg = melee.damage * combo.damageMul * (1 + Math.min(1.2, game.wave * 0.03));
     const at = z.group.position.clone();
     at.y = 0.95;
-    z.takeDamage(dmg, 'body', makeContext());
-    z.group.position.addScaledVector(to, MELEE_KNOCKBACK);
-    z.flinch = 1;
-    spawnParticles(at, 10, 'blood', 1.25);
-    spawnDamageNumber(at, dmg, false);
+    z.takeDamage(dmg, combo.step === 2 ? 'head' : 'body', makeContext());
+    z.group.position.x += arc.dirX * MELEE_KNOCKBACK * combo.knockbackMul;
+    z.group.position.z += arc.dirZ * MELEE_KNOCKBACK * combo.knockbackMul;
+    resolveCircle(world.colliders, z.group.position, z.radius);
+    z.flinch = Math.max(z.flinch, combo.step === 2 ? 1.4 : 1.0);
+    z.staggerTimer = Math.max(z.staggerTimer || 0, combo.staggerSec);
+
+    if (combo.breaksGuard && (z.isBoss || z.type === 'brute')) {
+      z.abilityWindup = 0;
+      z.attackTimer = Math.max(z.attackTimer || 0, 0.9);
+      guardBroken = true;
+    }
+
+    spawnParticles(at, combo.step === 2 ? 14 : 10, 'blood', combo.step === 2 ? 1.45 : 1.25);
+    spawnDamageNumber(at, dmg, combo.step === 2);
     hits++;
   }
 
-  if (hits) {
-    player.shake = Math.min(0.7, player.shake + 0.16);
-    flashCrosshair('kill');
-    audio.meleeHit();
+  // Consume durability ONLY when a swing actually connects (no drain on missed swings).
+  const wear = applyMeleeWear(ammo.meleeUses, melee.maxUses, hits);
+  ammo.meleeUses = wear.uses;
+  if (wear.replaced) {
+    viewModel.setMelee(game.meleeTier);
+    viewModel.setMeleeWear(0);
+    if (performance.now() > wornMeleeHintUntil) {
+      showHint(`${melee.name} BLADE WORN \u2014 REPLACED`, 1400);
+      wornMeleeHintUntil = performance.now() + 1500;
+    }
+  } else {
+    viewModel.setMeleeWear(wear.wearRatio);
   }
+  updateAmmoHud();
+
+  if (hits) {
+    player.shake = Math.min(0.7, player.shake + (combo.step === 2 ? 0.24 : 0.16));
+    flashCrosshair('kill');
+    audio.meleeHit(combo.step === 2);
+    if (guardBroken) showHint('CLEAVE \u2014 GUARD BROKEN!', 1000);
+  }
+  window.__lastMeleeResult = { step: combo.step, name: combo.name, hits, wearRatio: wear.wearRatio, guardBroken };
+}
+
+/** Defensive shove / kick (`Space + Right Click`): pushes back closing zombies. */
+function defensiveShove() {
+  if (!game.running || game.paused || game.over) return;
+  if (ammo.shoveCooldown > 0 || player.stamina < 12) return;
+  if (interruptReloadState(ammo)) updateAmmoHud();
+
+  ammo.shoveCooldown = 0.95;
+  player.stamina = Math.max(0, player.stamina - 18);
+  viewModel.shove();
+  audio.shove();
+  player.shake = Math.min(0.45, player.shake + 0.1);
+
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+
+  let pushed = 0;
+  for (const z of zombies) {
+    if (!z.alive) continue;
+    const arc = isTargetInMeleeArc(player.pos, dir, z.group.position, z.radius, 2.35, 0.72);
+    if (!arc.hit) continue;
+
+    const pushDist = z.isBoss ? 1.1 : 2.3;
+    z.group.position.x += arc.dirX * pushDist;
+    z.group.position.z += arc.dirZ * pushDist;
+    resolveCircle(world.colliders, z.group.position, z.radius);
+    z.takeDamage(18, 'body', makeContext());
+    z.flinch = Math.max(z.flinch, 1.35);
+    z.staggerTimer = Math.max(z.staggerTimer || 0, 0.85);
+    z.attackTimer = Math.max(z.attackTimer || 0, 0.75);
+    pushed++;
+  }
+  if (pushed) flashCrosshair('hit');
+  window.__lastShoveResult = { pushed };
+  return pushed;
 }
 
 // ---------------------------------------------------------------- acid
@@ -1329,7 +1635,7 @@ function throwGrenade() {
 }
 
 function explodeGrenade(at) {
-  audio.explosion();
+  audio.explosion(panFor(at), player.pos.distanceTo(at));
   player.shake = Math.min(1.5, player.shake + 0.85);
   muzzleLight.position.copy(at);
   muzzleLight.intensity = 120;
@@ -1387,21 +1693,22 @@ function updateGrenades(dt) {
 
 const tmpRight = new THREE.Vector3();
 const tmpUp = new THREE.Vector3();
+const tmpWallDir = new THREE.Vector3();
+const tmpUpFallback = new THREE.Vector3(1, 0, 0);
 /**
- * Nudges an aim point sideways by up to `radius` in world units. Working on
- * the target plane (rather than bending the direction) keeps every pellet
- * converging where the crosshair is, whether it leaves the barrel or not.
+ * Nudges an aim point sideways using circular Gaussian / Golden-Angle sampling.
+ * Working on the target plane keeps every pellet converging where the crosshair
+ * points, while avoiding rectangular clamping and vertical-aim NaNs.
  */
-function jitterPoint(point, dir, radius, pelletIndex) {
+function jitterPoint(point, dir, radius, pelletIndex, totalPellets = 1) {
   if (radius <= 1e-5) return point.clone();
-  tmpRight.crossVectors(dir, camera.up).normalize();
+  const refUp = Math.abs(dir.y) > 0.98 ? tmpUpFallback : camera.up;
+  tmpRight.crossVectors(dir, refUp).normalize();
   tmpUp.crossVectors(tmpRight, dir).normalize();
-  // Shotgun pellets get a fixed ring pattern plus jitter, so they read as a cone.
-  const angle = Math.random() * Math.PI * 2 + pelletIndex * 0.7;
-  const r = Math.sqrt(Math.random()) * radius;
+  const { dx, dy } = sampleCircularSpread(radius, pelletIndex, totalPellets);
   return point.clone()
-    .addScaledVector(tmpRight, Math.cos(angle) * r)
-    .addScaledVector(tmpUp, Math.sin(angle) * r);
+    .addScaledVector(tmpRight, dx)
+    .addScaledVector(tmpUp, dy);
 }
 
 // True when a point sits inside a solid volume (building, wreck, wall).
@@ -1422,9 +1729,9 @@ function refreshHitMeshes() {
   hitMeshesDirty = false;
 }
 
-function rayZombies(origin, dir, maxDist) {
+function rayZombiesAll(origin, dir, maxDist) {
   if (hitMeshesDirty) refreshHitMeshes();
-  if (!hitMeshCache.length) return null;
+  if (!hitMeshCache.length) return [];
   // Raycasting needs current world matrices; in normal play the renderer has
   // just written them, but a shot fired in the same frame as a spawn has not.
   for (const z of zombies) {
@@ -1433,57 +1740,17 @@ function rayZombies(origin, dir, maxDist) {
   raycaster.set(origin, dir);
   raycaster.far = maxDist;
   const hits = raycaster.intersectObjects(hitMeshCache, false);
-  // A body stays hittable for a few seconds after it dies, and its meshes stay
-  // in the cache until the body is removed. Take the first LIVE hit instead of
-  // letting a corpse swallow the round aimed past it.
-  for (const hit of hits) {
-    const zombie = hit.object.userData.zombie;
-    if (!zombie || !zombie.alive) continue;
-    return { zombie, mesh: hit.object, point: hit.point, distance: hit.distance };
-  }
-  return null;
+  return resolveZombieRayHits(hits);
+}
+
+function rayZombies(origin, dir, maxDist) {
+  const hits = rayZombiesAll(origin, dir, maxDist);
+  return hits.length ? hits[0] : null;
 }
 
 function rayWorld(origin, dir, maxDist) {
-  let best = null;
-
-  // Ground plane first, so shooting the road does not shoot through it.
-  if (dir.y < -0.0001) {
-    const tGround = -origin.y / dir.y;
-    if (tGround > 0.05 && tGround < maxDist) {
-      best = { distance: tGround, point: origin.clone().addScaledVector(dir, tGround) };
-    }
-  }
-
-  const invX = 1 / (dir.x || 1e-9);
-  const invY = 1 / (dir.y || 1e-9);
-  const invZ = 1 / (dir.z || 1e-9);
-
-  for (const c of world.colliders) {
-    const h = c.height === undefined ? 4 : c.height;
-    let t1 = (c.minX - origin.x) * invX;
-    let t2 = (c.maxX - origin.x) * invX;
-    let tmin = Math.min(t1, t2);
-    let tmax = Math.max(t1, t2);
-
-    t1 = 0 - origin.y * invY;
-    t2 = h - origin.y * invY;
-    tmin = Math.max(tmin, Math.min(t1, t2));
-    tmax = Math.min(tmax, Math.max(t1, t2));
-
-    t1 = (c.minZ - origin.z) * invZ;
-    t2 = (c.maxZ - origin.z) * invZ;
-    tmin = Math.max(tmin, Math.min(t1, t2));
-    tmax = Math.min(tmax, Math.max(t1, t2));
-
-    if (tmax < Math.max(0, tmin)) continue;
-    const t = tmin > 0.05 ? tmin : (tmax > 0.05 ? tmax : -1);
-    if (t < 0 || t > maxDist) continue;
-    if (!best || t < best.distance) {
-      best = { distance: t, point: origin.clone().addScaledVector(dir, t) };
-    }
-  }
-  return best;
+  const hits = rayWorldAll(origin, dir, world.colliders, maxDist);
+  return hits.length ? hits[0] : null;
 }
 
 function flashCrosshair(kind) {
@@ -1701,12 +1968,7 @@ function aliveCount() {
 
 // Stereo position of a world point relative to where the player is looking.
 function panFor(worldPos) {
-  const dx = worldPos.x - player.pos.x;
-  const dz = worldPos.z - player.pos.z;
-  const len = Math.hypot(dx, dz) || 1;
-  const rightX = Math.cos(player.yaw);
-  const rightZ = -Math.sin(player.yaw);
-  return Math.max(-1, Math.min(1, (dx * rightX + dz * rightZ) / len));
+  return computeSpatialAudio(player.pos, player.yaw, worldPos).pan;
 }
 
 // Contract score multiplier. It was declared on every challenge but nothing
@@ -1920,6 +2182,7 @@ function updatePickups(dt) {
           game.meleeTier = nextTier;
           ammo.meleeUses = 0;
           viewModel.setMelee(nextTier);
+          viewModel.setMeleeWear(0);
           const tier = MELEE_TIERS[nextTier];
           showBanner('BLADE RECOVERED', tier.name, `${tier.damage} damage per swing. Press V.`, 2800);
         } else {
@@ -1932,7 +2195,9 @@ function updatePickups(dt) {
         const lockedIndex = WEAPONS.findIndex((w, i) => w.locked && !ammo.unlocked[i]);
         if (lockedIndex >= 0) {
           ammo.unlocked[lockedIndex] = true;
-          ammo.mag[lockedIndex] = magSizeFor(WEAPONS[lockedIndex]);
+          ammo.mag[lockedIndex] = Math.max(0, magSizeFor(WEAPONS[lockedIndex]) - 1);
+          ammo.chambered[lockedIndex] = true;
+          ammo.reloadStage[lockedIndex] = RELOAD_STAGE.READY;
           ammo.reserve[lockedIndex] = WEAPONS[lockedIndex].reserveMax;
           if (weaponAvailable(lockedIndex)) selectWeapon(lockedIndex);
           showBanner('WEAPON CACHE', WEAPONS[lockedIndex].name,
@@ -2066,6 +2331,7 @@ function updatePlayer(dt) {
 
   const wantsSprint = (keys['ShiftLeft'] || keys['ShiftRight']) && iz > 0.1 && player.stamina > 1 && !player.ads;
   player.sprinting = wantsSprint;
+  if (wantsSprint && interruptReloadState(ammo)) updateAmmoHud();
 
   const baseSpeed = player.ads ? 2.6 : 4.6;
   const speed = wantsSprint ? 7.3 : baseSpeed;
@@ -2141,10 +2407,16 @@ function updatePlayer(dt) {
     player.health = Math.min(player.maxHealth, player.health + 4.2 * dt);
   }
 
-  // ADS FOV blend.
-  const wantFov = player.ads ? settings.fov * 0.74 : settings.fov;
-  camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 10);
+  // ADS FOV blend with exponential decay (smooth on 60/120/144/240Hz).
+  // Sniper rifle (slot 4, index 3) gets 2.2x optical magnification zoom.
+  const isSniper = ammo.weapon === 3;
+  const wantFov = player.ads ? (isSniper ? settings.fov * 0.44 : settings.fov * 0.74) : settings.fov;
+  camera.fov += (wantFov - camera.fov) * (1 - Math.exp(-14 * dt));
   camera.updateProjectionMatrix();
+
+  // Synchronize ADS HUD / body classes
+  document.body.classList.toggle('ads-active', !!player.ads);
+  document.body.classList.toggle('scoped', !!(player.ads && isSniper));
 
   updateCamera(dt, planarSpeed);
 }
@@ -2198,7 +2470,7 @@ function updateVitalsHud() {
 function updateAmmoHud() {
   const def = weaponDef();
   hud.weaponName.textContent = def.name;
-  hud.ammoMag.textContent = String(ammo.mag[ammo.weapon]);
+  hud.ammoMag.textContent = String(totalLoaded(ammo, ammo.weapon));
   hud.ammoReserve.textContent = def.reserveMax === Infinity ? '\u221e' : String(ammo.reserve[ammo.weapon]);
   hud.ammoPanel.classList.toggle('reloading', ammo.reloading);
   if (hud.grenadeCount) hud.grenadeCount.textContent = String(player.grenades);
@@ -2294,7 +2566,9 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   for (const p of pickups) { scene.remove(p.mesh); scene.remove(p.light); }
   pickups.length = 0;
   for (const p of particles) { p.life = 0; p.mesh.visible = false; }
+  for (const d of decals) { d.life = 0; d.mesh.visible = false; }
   for (const t of tracers) { t.life = 0; t.line.visible = false; }
+  for (const c of casings) { c.life = 0; c.mesh.visible = false; }
   // Grenades and acid in flight belong to the old run; without this a live
   // grenade from a run you just lost detonates in the new one.
   for (const s of acidShots) { s.life = 0; s.mesh.visible = false; }
@@ -2327,7 +2601,9 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   // Attachments are found during the run, never inherited from the last one,
   // and they must be cleared before the magazines are sized.
   ammo.attachment = WEAPONS.map(() => null);
-  ammo.mag = WEAPONS.map((w) => magSizeFor(w));
+  ammo.mag = WEAPONS.map((w) => Math.max(0, magSizeFor(w) - 1));
+  ammo.chambered = WEAPONS.map(() => true);
+  ammo.reloadStage = WEAPONS.map(() => RELOAD_STAGE.READY);
   ammo.reserve = WEAPONS.map((w) => (w.reserveMax === Infinity ? Infinity : Math.round(w.reserveMax * 0.7)));
   ammo.unlocked = WEAPONS.map((w) => !w.locked);
   // A contract that pins a weapon also puts it in your hands to begin with.
@@ -2339,12 +2615,20 @@ function startRun(atWave = 0, mods = null, challenge = null) {
     : mods && mods.weaponLock !== undefined ? mods.weaponLock : 0;
   ammo.meleeCooldown = 0;
   ammo.meleeUses = 0;
+  ammo.comboStep = 0;
+  ammo.lastSwingAt = -99;
+  ammo.shoveCooldown = 0;
   game.meleeTier = 0;
   viewModel.setMelee(0);
+  viewModel.setMeleeWear(0);
   ammo.reloading = false;
   ammo.reloadTimer = 0;
+  ammo.reloadTotal = 0;
+  ammo.autoReloadTimer = 0;
+  ammo.autoReloadWeapon = -1;
   ammo.lastShot = 0;
   ammo.triggerHeld = false;
+  ammo.dryFireLatched = false;
   ammo.altCooldown = 0;
   ammo.burstLeft = 0;
   ammo.burstTimer = 0;
@@ -2714,7 +2998,9 @@ function buyItem(item) {
     case 'ripper': {
       const idx = item.weaponIndex;
       ammo.unlocked[idx] = true;
-      ammo.mag[idx] = magSizeFor(WEAPONS[idx]);
+      ammo.mag[idx] = Math.max(0, magSizeFor(WEAPONS[idx]) - 1);
+      ammo.chambered[idx] = true;
+      ammo.reloadStage[idx] = RELOAD_STAGE.READY;
       ammo.reserve[idx] = WEAPONS[idx].reserveMax;
       selectWeapon(idx);
       break;
@@ -2892,13 +3178,30 @@ function stepSimulation(dt) {
 
   updatePlayer(dt);
 
-  // Weapon state.
+  // Weapon state: staged chambered reloads & deterministic auto-reload queue.
+  if (ammo.autoReloadTimer > 0) {
+    ammo.autoReloadTimer -= dt;
+    if (ammo.autoReloadTimer <= 0) {
+      const queuedFor = ammo.autoReloadWeapon;
+      ammo.autoReloadTimer = 0;
+      ammo.autoReloadWeapon = -1;
+      if (queuedFor === ammo.weapon && !ammo.reloading) startReload();
+    }
+  }
   if (ammo.reloading) {
-    ammo.reloadTimer -= dt;
-    if (ammo.reloadTimer <= 0) finishReload();
+    const def = weaponDef();
+    const reloadEvents = tickReloadState(ammo, def, magSizeFor(def), dt);
+    if (reloadEvents) {
+      for (const ev of reloadEvents) {
+        if (ev === 'drop' || ev === 'insert') audio.reloadStep();
+        if (ev === 'chamber' || ev === 'complete') audio.reloadEnd();
+      }
+      updateAmmoHud();
+    }
   }
   if (ammo.triggerHeld && weaponDef().auto && !photo.active) tryFire();
   ammo.meleeCooldown = Math.max(0, ammo.meleeCooldown - dt);
+  ammo.shoveCooldown = Math.max(0, ammo.shoveCooldown - dt);
   ammo.altCooldown = Math.max(0, ammo.altCooldown - dt);
   ammo.steadyTimer = Math.max(0, ammo.steadyTimer - dt);
   ammo.bipodTimer = Math.max(0, ammo.bipodTimer - dt);
@@ -2983,7 +3286,9 @@ function stepSimulation(dt) {
   }
 
   updateParticles(dt);
+  updateDecals(dt);
   updateTracers(dt);
+  updateCasings(dt);
   updateAcid(dt);
   updateGrenades(dt);
   updatePickups(dt);
@@ -3016,6 +3321,11 @@ function stepSimulation(dt) {
   const spreadPx = 6 + (spreadBloom / 0.05) * 12 + Math.min(10, Math.hypot(player.vel.x, player.vel.z) * 0.9);
   hud.cross.style.setProperty('--gap', `${spreadPx.toFixed(1)}px`);
 
+  // Forward wall proximity check for anti-clipping tactical weapon tuck
+  camera.getWorldDirection(tmpWallDir);
+  const wallCheckRay = rayWorld(camera.position, tmpWallDir, 1.2);
+  const wallDist = wallCheckRay ? wallCheckRay.distance : 99;
+
   viewModel.update(dt, {
     moving: Math.min(1, Math.hypot(player.vel.x, player.vel.z) / 5),
     sprinting: player.sprinting,
@@ -3025,6 +3335,9 @@ function stepSimulation(dt) {
     mouseDX: lookDx,
     mouseDY: lookDy,
     grounded: player.grounded,
+    wallDist: wallDist,
+    staminaRatio: player.maxStamina > 0 ? player.stamina / player.maxStamina : 1,
+    strafe: player.vel.x,
   });
   lookDx = 0; lookDy = 0;
 
@@ -3081,11 +3394,12 @@ function render() {
     return;
   }
 
-  // Health feeds the grade: the frame tightens and bleeds as you go down.
+  // Health and ADS optical focus feed the grade: the frame tightens and bleeds as you go down.
   const hurt = Math.max(0, 1 - player.health / player.maxHealth);
+  const adsFactor = viewModel.adsBlend || 0;
   gradeMat.uniforms.uTime.value = performance.now() * 0.001;
-  gradeMat.uniforms.uVignette.value = 1.02 + hurt * 0.4;
-  gradeMat.uniforms.uAberration.value = 0.0035 + hurt * 0.006;
+  gradeMat.uniforms.uVignette.value = 1.02 + hurt * 0.4 + adsFactor * 0.32;
+  gradeMat.uniforms.uAberration.value = 0.0035 + hurt * 0.006 + adsFactor * 0.002;
 
   if (QUALITY_TIERS[qualityTier].grade) {
     renderer.setRenderTarget(gradeTarget);
@@ -3403,4 +3717,25 @@ applyAudioVolumes();
 applyQuality();
 if (params.get('stats') === '1') hud.perf.classList.add('show');
 if (launchWave > 0) startRun(launchWave);
+
+// Expose internal references for debug & automation harnesses
+window.__game = game;
+window.__viewModel = viewModel;
+window.__player = player;
+window.__ammo = ammo;
+window.__selectWeapon = selectWeapon;
+window.__startRun = startRun;
+window.__camera = camera;
+window.__world = world;
+window.__zombies = zombies;
+window.__fireRound = fireRound;
+window.__decals = decals;
+window.__spawnAt = spawnAt;
+window.__casings = casings;
+window.__startReload = startReload;
+window.__tryFire = tryFire;
+window.__audio = audio;
+window.__swingMelee = swingMelee;
+window.__defensiveShove = defensiveShove;
+
 requestAnimationFrame(frame);

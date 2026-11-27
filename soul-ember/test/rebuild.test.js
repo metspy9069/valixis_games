@@ -265,6 +265,88 @@ test('dense pack flocking separation cannot force enemies through thin walls or 
   }
 });
 
+test('boss phase shift immediately purges all enemy hazard zones, enemy bolts, and active warning telegraphs',()=>{
+  const g=new Game({seed:42});
+  g.spawnTimer=999;
+  const boss=g.spawn('abbot',{x:0,z:4});
+  // Populate arena with enemy hazard zones (censer burns, flames, webs, seeds) and enemy bolts
+  g.enemyZone(-2,2,2.5,5,0,'flame');
+  g.enemyZone(2,-2,3.0,5,0,'whirlpool');
+  g.enemyZone(0,0,2.0,5,0,'web');
+  g.player.fire=999;
+  // Hero zone should not be purged
+  g.zones.push({id:++g.id,x:0,z:1,life:5,warn:0,radius:2,enemy:false,kind:'burn'});
+  g.shoot(0,10,10,1,true,boss,{kind:'enemy'});
+  g.shoot(0,10,10,1,false,g.player,{kind:'spirit'});
+  g.effect(0,0,0xe0583c,2,'warning',1,{shape:'ring'});
+  assert.equal(g.zones.filter(z=>z.enemy).length,3);
+  assert.equal(g.bolts.filter(b=>b.enemy).length,1);
+  assert.equal(g.effects.filter(f=>f.kind==='warning').length,1);
+
+  // Trigger phase 2 transition
+  boss.hp=boss.maxHp*0.55;
+  tick(g);
+  assert.equal(boss.phase,2);
+  assert.equal(g.zones.filter(z=>z.enemy).length,0,'All enemy hazard zones must be purged on phase transition');
+  assert.equal(g.zones.filter(z=>!z.enemy).length,1,'Player ground zones must remain intact');
+  assert.equal(g.bolts.filter(b=>b.enemy).length,0,'All enemy bolts must be purged on phase transition');
+  assert.equal(g.bolts.filter(b=>!b.enemy).length,1,'Player projectiles must remain intact');
+  assert.equal(g.effects.filter(f=>f.kind==='warning').length,0,'All warning telegraphs must be purged');
+  assert(g.events.some(e=>e.type==='bossPhase'&&e.phase===2));
+});
+
+test('Abbot of Ash phase 2/3 activates periodic inner sanctuary flame vents',()=>{
+  const g=new Game({seed:101});
+  g.biome=0;
+  g.spawnTimer=999;
+  const boss=g.spawn('abbot',{x:0,z:4});
+  boss.hp=boss.maxHp*0.5; // Phase 2
+  tick(g);
+  assert.equal(boss.phase,2);
+  g.ventTimer=0; // trigger vent
+  tick(g);
+  const ventZones=g.zones.filter(z=>z.enemy&&z.kind==='flame');
+  assert.equal(ventZones.length,2,'Abbot phase 2 must spawn 2 dais flame vents');
+  assert(ventZones.every(z=>Math.abs(Math.abs(z.x)-2.4)<0.01&&Math.abs(Math.abs(z.z)-2.4)<0.01));
+});
+
+test('Drowned Warden phase 2/3 applies ambient whirlpool current drag in flooded cathedral',()=>{
+  const g=new Game({seed:102});
+  g.biome=1;
+  g.spawnTimer=999;
+  const boss=g.spawn('warden',{x:0,z:5});
+  boss.hp=boss.maxHp*0.5; // Phase 2
+  tick(g);
+  assert.equal(boss.phase,2);
+  g.player.x=3.5;
+  g.player.z=3.5;
+  g.player.vx=0;
+  g.player.vz=0;
+  tick(g);
+  // Current must apply gentle inward pull (-x, -z) and rotational spin
+  assert(g.player.vx!==0||g.player.vz!==0,'Whirlpool currents must apply physical velocity drag to player');
+  assert(g.player.vx<0,'Player pulled inward along x toward center');
+  assert(g.player.vz<0,'Player pulled inward along z toward center');
+});
+
+test('Thornbound Regent phase 2/3 constricts perimeter combat arena with briar root barrier',()=>{
+  const g=new Game({seed:103});
+  g.biome=2;
+  g.spawnTimer=999;
+  const boss=g.spawn('regent',{x:0,z:3});
+  boss.hp=boss.maxHp*0.25; // Phase 3
+  tick(g);
+  assert.equal(boss.phase,3);
+  // Try placing player beyond the Phase 3 barrier radius (r > 9.8m)
+  g.player.x=11.0;
+  g.player.z=0;
+  g.player.vx=5.0;
+  const prevHp=g.player.hp;
+  tick(g);
+  assert(g.player.x<=9.85,`Player constricted by briar barrier! x=${g.player.x}`);
+  assert(g.player.hp<prevHp,'Stepping against briar root barrier inflicts perimeter thorn damage');
+});
+
 
 
 

@@ -127,6 +127,32 @@
   body.shopping #hint { opacity: 0 !important; }
   body.shopping #dmgLayer { opacity: 0 !important; }
 
+  /* ADS peripheral focus & sniper scope overlay */
+  #adsVignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 17; opacity: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(3, 8, 5, 0.72) 100%);
+    transition: opacity 0.16s ease-out;
+  }
+  body.ads-active #adsVignette { opacity: 1; }
+  body.ads-active #cross { opacity: 0 !important; }
+  #scopeOverlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 18; opacity: 0;
+    transition: opacity 0.14s ease-out;
+    background: radial-gradient(circle at center, transparent 30vmin, rgba(0,0,0,0.97) 31vmin);
+    display: flex; align-items: center; justify-content: center;
+  }
+  body.ads-active.scoped #scopeOverlay { opacity: 1; }
+  .scope-reticle {
+    width: 60vmin; height: 60vmin; border: 1.5px solid rgba(255,255,255,0.45); border-radius: 50%;
+    position: relative;
+  }
+  .scope-reticle::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,0.55);
+  }
+  .scope-reticle::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,0.55);
+  }
+
   /* bottom left vitals */
   .hud-bottom { position: absolute; left: 14px; bottom: 14px; right: 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
   .vitals { width: min(300px, 42vw); }
@@ -537,6 +563,8 @@
 <div id="blood"></div>
 <div id="hurtFlash"></div>
 <div id="dmgLayer"></div>
+<div id="adsVignette"></div>
+<div id="scopeOverlay"><div class="scope-reticle"></div></div>
 
 <div id="cross">
   <i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i><i class="dot"></i>
@@ -795,6 +823,11 @@
       "three/addons/loaders/GLTFLoader.js": "./vendor/three/GLTFLoader.js"
     }
   }
+</script>
+<script>
+window.__errors = [];
+window.addEventListener('error', (e) => window.__errors.push(e.message || String(e)));
+window.addEventListener('unhandledrejection', (e) => window.__errors.push(e.reason ? (e.reason.message || String(e.reason)) : 'Unhandled rejection'));
 </script>
 <script type="module" src="./js/game.js"></script>
 </body>

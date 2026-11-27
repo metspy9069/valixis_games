@@ -313,8 +313,17 @@ export function buildWorld(scene) {
   }
 
   // ---------- colliders ----------
-  function addCollider(x, z, w, d, h) {
-    colliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, height: h });
+  function addCollider(x, z, w, d, h, opts = {}) {
+    colliders.push({
+      minX: x - w / 2,
+      maxX: x + w / 2,
+      minZ: z - d / 2,
+      maxZ: z + d / 2,
+      height: h,
+      material: opts.material || 'concrete',
+      penetrable: !!opts.penetrable,
+      penCost: opts.penCost !== undefined ? opts.penCost : (opts.penetrable ? 0.35 : 99),
+    });
   }
 
   // ---------- building facades by district ----------
@@ -654,7 +663,7 @@ export function buildWorld(scene) {
   apc.position.set(0, 0, 0);
   apc.rotation.y = 0.42;
   scene.add(apc);
-  addCollider(0, 0, 3.6, 6.8, 2.6);
+  addCollider(0, 0, 3.6, 6.8, 2.6, { material: 'metal', penetrable: false });
 
   // ---------- street lamps ----------
   const lampLights = [];
@@ -664,7 +673,7 @@ export function buildWorld(scene) {
       const lamp = buildLamp(side * -1);
       lamp.position.set(side * (ROAD_HALF_X + 1.2), 0, z);
       scene.add(lamp);
-      addCollider(lamp.position.x, z, 0.4, 0.4, 6.4);
+      addCollider(lamp.position.x, z, 0.4, 0.4, 6.4, { material: 'metal', penetrable: false });
       if (lampCount < 6) {
         const light = new THREE.PointLight(0xffb068, 22, 26, 2);
         light.position.set(lamp.position.x + side * -1.3, 6.1, z);
@@ -680,7 +689,7 @@ export function buildWorld(scene) {
       lamp.position.set(x, 0, z + 7.5);
       lamp.rotation.y = Math.PI / 2;
       scene.add(lamp);
-      addCollider(x, z + 7.5, 0.4, 0.4, 6.4);
+      addCollider(x, z + 7.5, 0.4, 0.4, 6.4, { material: 'metal', penetrable: false });
     }
   }
 
@@ -698,11 +707,12 @@ export function buildWorld(scene) {
     car.rotation.y = rot;
     scene.add(car);
     const along = Math.abs(Math.sin(rot)) > 0.5;
-    addCollider(x, z, along ? 2.1 : 4.6, along ? 4.6 : 2.1, 1.6);
+    // Cars have thin sheet-metal panels & cabin glass that high-calibre rifles/LMGs can punch through
+    addCollider(x, z, along ? 2.1 : 4.6, along ? 4.6 : 2.1, 1.6, { material: 'metal', penetrable: true, penCost: 0.62 });
   }
 
   // ---------- instanced props for high performance (60 FPS) ----------
-  function makeInstanced(geo, mat, list, isCircle = false) {
+  function makeInstanced(geo, mat, list, isCircle = false, colliderOpts = {}) {
     if (!list.length) return;
     const mesh = new THREE.InstancedMesh(geo, mat, list.length);
     mesh.castShadow = !isCircle;
@@ -724,7 +734,7 @@ export function buildWorld(scene) {
       m.compose(v, q, sc);
       mesh.setMatrixAt(i, m);
       if (w && d && h) {
-        addCollider(x, z, w, d, h);
+        addCollider(x, z, w, d, h, colliderOpts);
       }
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -784,8 +794,8 @@ export function buildWorld(scene) {
       milCrateSpots.push([x, 0.35 * s, z, s, s, s, propRng() * Math.PI, 1.3 * s, 0.85 * s, 0.65 * s]);
     }
   }
-  makeInstanced(PROP_GEO.crate, PROP_MAT.crate, crateSpots);
-  makeInstanced(PROP_GEO.milCrate, PROP_MAT.milCrate, milCrateSpots);
+  makeInstanced(PROP_GEO.crate, PROP_MAT.crate, crateSpots, false, { material: 'wood', penetrable: true, penCost: 0.32 });
+  makeInstanced(PROP_GEO.milCrate, PROP_MAT.milCrate, milCrateSpots, false, { material: 'metal', penetrable: false });
 
   // 5. Fuel & Biohazard Barrels
   const barrelSpots = [];
@@ -806,8 +816,8 @@ export function buildWorld(scene) {
       bioSpots.push([x, 0.58 * s, z, s, s, s, propRng() * Math.PI, 0.84 * s, 0.84 * s, 1.15 * s]);
     }
   }
-  makeInstanced(PROP_GEO.barrel, PROP_MAT.barrel, barrelSpots);
-  makeInstanced(PROP_GEO.biohazardBarrel, PROP_MAT.biohazardBarrel, bioSpots);
+  makeInstanced(PROP_GEO.barrel, PROP_MAT.barrel, barrelSpots, false, { material: 'metal', penetrable: false });
+  makeInstanced(PROP_GEO.biohazardBarrel, PROP_MAT.biohazardBarrel, bioSpots, false, { material: 'metal', penetrable: false });
 
   // 6. Dumpsters
   for (const [x, z] of [
@@ -819,7 +829,7 @@ export function buildWorld(scene) {
     d.position.set(x, CURB, z);
     d.rotation.y = rng() * 0.4;
     scene.add(d);
-    addCollider(x, z, 2.4, 1.5, 1.5);
+    addCollider(x, z, 2.4, 1.5, 1.5, { material: 'metal', penetrable: false });
   }
 
   // 7. Trees along sidewalks
@@ -832,7 +842,7 @@ export function buildWorld(scene) {
     const tree = buildTree(rng);
     tree.position.set(x, CURB, z);
     scene.add(tree);
-    addCollider(x, z, 0.9, 0.9, 4);
+    addCollider(x, z, 0.9, 0.9, 4, { material: 'wood', penetrable: true, penCost: 0.42 });
   }
 
   // ---------- animated sewer steam vents ----------

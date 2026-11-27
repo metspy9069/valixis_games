@@ -1,6 +1,154 @@
 // Road Riot 3D - Intelligent Traffic, Chemical Tankers, Police Spike Strips & High-Speed Highway AI
 import * as THREE from 'three';
 
+/**
+ * Select spawn lanes respecting heavy convoy discipline:
+ * Trucks & tankers prefer right (+6) and center (0) lanes, keeping left (-6) open for overtakes.
+ */
+export function selectConvoyAwareLanes(availableLanes, isHeavyConvoy = false) {
+  if (!availableLanes || availableLanes.length === 0) return [];
+  if (!isHeavyConvoy) return [...availableLanes];
+  const convoyPreferred = availableLanes.filter(l => l >= 0); // 0 (center) and 6 (right)
+  if (convoyPreferred.length > 0) {
+    // Prefer right lane (6) first, then center (0)
+    return convoyPreferred.sort((a, b) => b - a);
+  }
+  return [...availableLanes];
+}
+
+/**
+ * Guarantee at least one viable escape lane or ramp gap exists in the [zMin, zMax] corridor
+ * ahead of the player (default 60m corridor: -65m to -5m) without 3-wide clump deadlocks.
+ */
+export function hasViableEscapeCorridor(vehicles = [], obstacles = [], jumpRamps = [], zMin = -65, zMax = -5) {
+  const lanes = [-6, 0, 6];
+  const blockerZByLane = new Map([[-6, []], [0, []], [6, []]]);
+
+  const getZ = (item) => (item.mesh ? item.mesh.position.z : (item.z ?? 0));
+  const getLane = (item) => (item.targetLane !== undefined ? item.targetLane : item.lane);
+
+  for (const v of vehicles) {
+    const z = getZ(v);
+    if (z >= zMin && z <= zMax) {
+      const lane = lanes.reduce((best, l) => (Math.abs(l - getLane(v)) < Math.abs(best - getLane(v)) ? l : best), 0);
+      blockerZByLane.get(lane).push(z);
+    }
+  }
+  for (const o of obstacles) {
+    const z = getZ(o);
+    if (z >= zMin && z <= zMax) {
+      const lane = lanes.reduce((best, l) => (Math.abs(l - (o.lane ?? 0)) < Math.abs(best - (o.lane ?? 0)) ? l : best), 0);
+      blockerZByLane.get(lane).push(z);
+    }
+  }
+
+  // If any lane has zero blockers in the entire corridor, escape is guaranteed
+  if (lanes.some(l => blockerZByLane.get(l).length === 0)) return true;
+
+  // Otherwise check if all 3 lanes overlap within a tight 14m longitudinal wall
+  for (const zLeft of blockerZByLane.get(-6)) {
+    const midOverlap = blockerZByLane.get(0).some(zm => Math.abs(zm - zLeft) < 14);
+    const rightOverlap = blockerZByLane.get(6).some(zr => Math.abs(zr - zLeft) < 14);
+    if (midOverlap && rightOverlap) {
+      // Check if a jump ramp offers a vertical escape over one of those blocked spots
+      const hasRampEscape = (jumpRamps || []).some(r => {
+        const rz = r.parent ? (r.parent.position.z + r.mesh.position.z) : (r.z ?? 0);
+        return Math.abs(rz - zLeft) < 10;
+      });
+      if (!hasRampEscape) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Dynamically stagger speeds of mobile vehicles whenever longitudinal speed differences
+ * threaten to form a 3-wide clump deadlock across [-125, -5] ahead of the player.
+ */
+export function preventClumpDeadlocks(vehicles = [], obstacles = [], jumpRamps = [], dt = 0.016) {
+  const getZ = (item) => (item.mesh ? item.mesh.position.z : (item.z ?? 0));
+  const setZ = (item, z) => {
+    if (item.mesh) item.mesh.position.z = z;
+    else item.z = z;
+  };
+  const getLane = (item) => (item.targetLane !== undefined ? item.targetLane : item.lane);
+  const lanes = [-6, 0, 6];
+  const byLane = new Map([[-6, []], [0, []], [6, []]]);
+
+  for (const v of vehicles) {
+    const z = getZ(v);
+    if (z >= -145 && z <= -5) {
+      const lane = lanes.reduce((best, l) => (Math.abs(l - getLane(v)) < Math.abs(best - getLane(v)) ? l : best), 0);
+      byLane.get(lane).push({ item: v, z, isVehicle: true });
+    }
+  }
+  for (const o of obstacles) {
+    const z = getZ(o);
+    if (z >= -145 && z <= -5) {
+      const lane = lanes.reduce((best, l) => (Math.abs(l - (o.lane ?? 0)) < Math.abs(best - (o.lane ?? 0)) ? l : best), 0);
+      byLane.get(lane).push({ item: o, z, isVehicle: false });
+    }
+  }
+
+  let adjusted = false;
+  for (const leftEntry of byLane.get(-6)) {
+    const midMatches = byLane.get(0).filter(m => Math.abs(m.z - leftEntry.z) < 22);
+    const rightMatches = byLane.get(6).filter(r => Math.abs(r.z - leftEntry.z) < 22);
+    if (midMatches.length === 0 || rightMatches.length === 0) continue;
+
+    const hasRamp = (jumpRamps || []).some(r => {
+      const rz = r.parent ? (r.parent.position.z + r.mesh.position.z) : (r.z ?? 0);
+      return Math.abs(rz - leftEntry.z) < 10;
+    });
+    if (hasRamp) continue;
+
+    for (const midEntry of midMatches) {
+      for (const rightEntry of rightMatches) {
+        if (Math.abs(midEntry.z - leftEntry.z) < 14 && Math.abs(rightEntry.z - leftEntry.z) < 14) {
+          const cluster = [leftEntry, midEntry, rightEntry];
+          const clusterVehicles = cluster.filter(e => e.isVehicle);
+          if (clusterVehicles.length > 0) {
+            clusterVehicles.sort((a, b) => a.z - b.z);
+            const lead = clusterVehicles[clusterVehicles.length - 1].item;
+            const trail = clusterVehicles[0].item;
+            lead.speed = Math.min(36, (lead.speed || 22) + 35 * dt);
+            if (trail !== lead) {
+              trail.speed = Math.max(6, (trail.speed || 18) - 35 * dt);
+            }
+
+            // Stagger the cluster so the 3-wide deadlock is broken immediately
+            const zVals = cluster.map(c => c.z);
+            const minZ = Math.min(...zVals);
+            const maxZ = Math.max(...zVals);
+            const targetZ = minZ - 16.5;
+            if (targetZ >= -145) {
+              setZ(trail, targetZ);
+              clusterVehicles[0].z = targetZ;
+            } else {
+              setZ(lead, maxZ + 16.5);
+              clusterVehicles[clusterVehicles.length - 1].z = maxZ + 16.5;
+            }
+            adjusted = true;
+          }
+        }
+      }
+    }
+  }
+  return adjusted;
+}
+
+/**
+ * Schedule an autonomous lane change with a mandatory 1.2s pre-change turn signal warning.
+ */
+export function planLaneChangeWithSignal(vehicle, desiredLane, signalLeadTime = 1.2) {
+  if (!vehicle || desiredLane === undefined || desiredLane === vehicle.lane) return false;
+  if (vehicle.pendingTargetLane === desiredLane && vehicle.signalTimer > 0) return false;
+  vehicle.pendingTargetLane = desiredLane;
+  vehicle.signalDir = Math.sign(desiredLane - (vehicle.mesh ? vehicle.mesh.position.x : vehicle.lane));
+  vehicle.signalTimer = signalLeadTime;
+  return true;
+}
+
 const SHARED_DEBRIS_GEO = new THREE.BoxGeometry(0.24, 0.24, 0.24);
 const SHARED_SPARK_GEO = new THREE.BoxGeometry(0.12, 0.12, 0.35);
 
@@ -51,24 +199,31 @@ export class TrafficManager {
   spawnTraffic(currentDistance) {
     const lanes = [-6, 0, 6];
     const occupiedLanes = new Set([
-      ...this.vehicles.filter(v => v.mesh.position.z < -120).map(v => v.lane),
-      ...this.obstacles.filter(o => o.mesh.position.z < -120).map(o => o.lane)
+      ...this.vehicles.filter(v => v.mesh.position.z < -118).map(v => v.targetLane ?? v.lane),
+      ...this.obstacles.filter(o => o.mesh.position.z < -118).map(o => o.lane)
     ]);
     if (this.jumpRamps) {
       for (const ramp of this.jumpRamps) {
         const rz = ramp.parent.position.z + ramp.mesh.position.z;
-        if (Math.abs(rz - (-145)) < 16) {
+        if (Math.abs(rz - (-145)) < 18) {
           occupiedLanes.add(ramp.lane);
         }
       }
     }
     const availableLanes = lanes.filter(l => !occupiedLanes.has(l));
+    // Always preserve at least 1 open escape lane in the spawn window (never spawn a 3-wide wall)
+    if (availableLanes.length <= 1 && occupiedLanes.size >= 2) return;
     if (!availableLanes.length) return;
 
-    const spawnCount = currentDistance > 2500 ? (Math.random() < 0.4 ? 2 : 1) : 1;
-    const chosenLanes = availableLanes.sort(() => Math.random() - 0.5).slice(0, spawnCount);
+    const maxSafeSpawn = Math.max(1, availableLanes.length - 1);
+    const desiredCount = currentDistance > 2500 ? (Math.random() < 0.4 ? 2 : 1) : 1;
+    const spawnCount = Math.min(maxSafeSpawn, desiredCount);
 
-    chosenLanes.forEach(lane => {
+    // Pre-roll vehicle classes so heavy trucks/tankers can respect right/center convoy lane discipline
+    for (let s = 0; s < spawnCount; s++) {
+      const remainingLanes = lanes.filter(l => !occupiedLanes.has(l));
+      if (remainingLanes.length <= 1) break;
+
       const roll = Math.random();
       let type = 'sports';
       let speed = 21 + Math.random() * 4;
@@ -77,7 +232,6 @@ export class TrafficManager {
       let isTruck = false;
       let isTanker = false;
 
-      // Rebalanced speeds for 80-120 km/h stock cruising and 150-160 km/h boost
       if (currentDistance > 1800 && Math.random() < 0.18) {
         type = 'tanker';
         speed = 16 + Math.random() * 3; // ~60 km/h
@@ -114,6 +268,13 @@ export class TrafficManager {
         speed = 18 + Math.random() * 4; // ~70 km/h
       }
 
+      const candidateLanes = selectConvoyAwareLanes(remainingLanes, isTruck || isTanker);
+      const lane = (isTruck || isTanker)
+        ? candidateLanes[0]
+        : candidateLanes[Math.floor(Math.random() * candidateLanes.length)];
+
+      occupiedLanes.add(lane);
+
       const mesh = this.buildVehicleMesh(type, isRival, isPolice, isTruck, isTanker);
       mesh.position.set(lane, 0, -145);
       this.scene.add(mesh);
@@ -122,6 +283,9 @@ export class TrafficManager {
         mesh,
         lane,
         targetLane: lane,
+        pendingTargetLane: lane,
+        signalDir: 0,
+        signalTimer: 0,
         speed,
         baseSpeed: speed,
         length: isTanker ? 9.2 : (isTruck ? 8.5 : 4.6),
@@ -134,7 +298,7 @@ export class TrafficManager {
         hit: false,
         laneChangeTimer: isRival ? 3 + Math.random() * 4 : 0
       });
-    });
+    }
   }
 
   buildVehicleMesh(type, isRival, isPolice, isTruck, isTanker) {
@@ -396,6 +560,28 @@ export class TrafficManager {
     const shadow = new THREE.Mesh(shadowGeo, shadowMat);
     shadow.position.y = 0.02;
     parentGroup.add(shadow);
+
+    // 8. Amber LED Turn Signal Indicators (1.2s pre-lane-change warning)
+    this.attachTurnSignals(parentGroup, 0.92, 0.56, 2.24);
+  }
+
+  attachTurnSignals(group, halfW = 0.92, y = 0.56, rearZ = 2.25) {
+    const leftMat = new THREE.MeshBasicMaterial({ color: 0xff9500, transparent: true, opacity: 0.15 });
+    const rightMat = new THREE.MeshBasicMaterial({ color: 0xff9500, transparent: true, opacity: 0.15 });
+    const sigGeo = new THREE.BoxGeometry(0.18, 0.12, 0.10);
+
+    const leftSig = new THREE.Mesh(sigGeo, leftMat);
+    leftSig.position.set(-halfW, y, rearZ);
+    leftSig.visible = false;
+    group.add(leftSig);
+
+    const rightSig = new THREE.Mesh(sigGeo, rightMat);
+    rightSig.position.set(halfW, y, rearZ);
+    rightSig.visible = false;
+    group.add(rightSig);
+
+    group.userData.leftSignalMesh = leftSig;
+    group.userData.rightSignalMesh = rightSig;
   }
 
   buildChemicalTanker() {
@@ -457,6 +643,7 @@ export class TrafficManager {
     });
 
     this.attachContactShadow(group, 3.2, 11.5);
+    this.attachTurnSignals(group, 1.15, 0.65, 4.86);
 
     return group;
   }
@@ -555,6 +742,7 @@ export class TrafficManager {
     });
 
     this.attachContactShadow(group, 3.2, 10.5);
+    this.attachTurnSignals(group, 1.15, 0.62, 4.84);
 
     return group;
   }
@@ -604,24 +792,27 @@ export class TrafficManager {
 
     this.attachTrafficLamps(group, type, isPolice, isRival);
     this.attachContactShadow(group, 2.6, 5.0);
+    this.attachTurnSignals(group, 0.94, 0.56, 2.25);
 
     return group;
   }
 
   spawnObstacle() {
     const occupiedLanes = new Set([
-      ...this.vehicles.filter(v => v.mesh.position.z < -120).map(v => v.lane),
-      ...this.obstacles.filter(o => o.mesh.position.z < -120).map(o => o.lane)
+      ...this.vehicles.filter(v => v.mesh.position.z < -118).map(v => v.targetLane ?? v.lane),
+      ...this.obstacles.filter(o => o.mesh.position.z < -118).map(o => o.lane)
     ]);
     if (this.jumpRamps) {
       for (const ramp of this.jumpRamps) {
         const rz = ramp.parent.position.z + ramp.mesh.position.z;
-        if (Math.abs(rz - (-145)) < 16) {
+        if (Math.abs(rz - (-145)) < 18) {
           occupiedLanes.add(ramp.lane);
         }
       }
     }
     const availableLanes = this.lanes.filter(l => !occupiedLanes.has(l));
+    // Guarantee escape lane: never drop an obstacle if it would seal the final open lane
+    if (availableLanes.length <= 1 && occupiedLanes.size >= 2) return;
     if (!availableLanes.length) return;
     const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
     const roll = Math.random();
@@ -1023,6 +1214,9 @@ export class TrafficManager {
       this.collectibleTimer = 2.0 + Math.random() * 2.5;
     }
 
+    // Prevent 3-wide longitudinal convergence clump deadlocks ahead of player
+    preventClumpDeadlocks(this.vehicles, this.obstacles, callbacks.jumpRamps || this.jumpRamps, dt);
+
     // 2. Update Traffic Vehicles
     for (let i = this.vehicles.length - 1; i >= 0; i--) {
       const v = this.vehicles[i];
@@ -1050,18 +1244,25 @@ export class TrafficManager {
         const followSpeed = Math.min(v.baseSpeed, leadVehicle.speed * 0.94);
         v.speed += (followSpeed - v.speed) * Math.min(1, dt * 5.0);
 
-        // Attempt autonomous lane change if blocked
-        if (minAheadDist < 12.0 && v.laneChangeTimer <= 0) {
-          v.laneChangeTimer = 3.0 + Math.random() * 3.0;
+        // Attempt autonomous lane change if blocked (with 1.2s turn signal warning)
+        if (minAheadDist < 14.0 && v.laneChangeTimer <= 0 && (v.signalTimer || 0) <= 0) {
+          v.laneChangeTimer = 3.2 + Math.random() * 2.8;
           const occupied = new Set();
           this.vehicles.forEach(ov => {
-            if (Math.abs(ov.mesh.position.z - v.mesh.position.z) < 18) {
-              occupied.add(ov.targetLane || ov.lane);
+            if (ov !== v && Math.abs(ov.mesh.position.z - v.mesh.position.z) < 20) {
+              occupied.add(ov.targetLane ?? ov.lane);
+              if (ov.pendingTargetLane !== undefined) occupied.add(ov.pendingTargetLane);
             }
           });
-          const freeLanes = this.lanes.filter(l => !occupied.has(l));
+          this.obstacles.forEach(o => {
+            if (Math.abs(o.mesh.position.z - v.mesh.position.z) < 24) occupied.add(o.lane);
+          });
+          let freeLanes = this.lanes.filter(l => !occupied.has(l) && l !== v.lane);
+          if (v.isTruck || v.isTanker) {
+            freeLanes = selectConvoyAwareLanes(freeLanes, true);
+          }
           if (freeLanes.length > 0) {
-            v.targetLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+            planLaneChangeWithSignal(v, freeLanes[0], 1.2);
           }
         }
       } else {
@@ -1069,23 +1270,27 @@ export class TrafficManager {
         v.speed += (v.baseSpeed - v.speed) * Math.min(1, dt * 2.5);
       }
 
-      // Stationary Obstacle Detection & Autonomous Hazard Avoidance
+      // Stationary Obstacle & Repair-Zone Detection: Early Signaled Evasion or Safe Stop (Zero Clipping)
       for (const o of this.obstacles) {
         const dx = Math.abs(v.mesh.position.x - o.mesh.position.x);
         const dz = v.mesh.position.z - o.mesh.position.z; // obstacle is ahead when dz > 0
-        if (dx < 2.0 && dz > 0 && dz < 20.0) {
-          v.speed = Math.max(10, v.speed * 0.95);
-          if (dz < 14.0 && v.laneChangeTimer <= 0) {
-            v.laneChangeTimer = 2.5 + Math.random() * 2.5;
+        if (dx < 2.25 && dz > 0 && dz < 28.0) {
+          // Progressive braking as vehicle approaches stationary obstacle
+          const brakeUrgency = dz < 10.0 ? 0.55 : 0.85;
+          v.speed = Math.max(0, v.speed * Math.pow(brakeUrgency, dt * 10));
+          if (dz < 24.0 && (v.signalTimer || 0) <= 0 && v.targetLane === v.lane) {
+            v.laneChangeTimer = 2.5 + Math.random() * 2.0;
             const occupied = new Set();
             this.vehicles.forEach(ov => {
-              if (Math.abs(ov.mesh.position.z - v.mesh.position.z) < 18) {
-                occupied.add(ov.targetLane || ov.lane);
+              if (ov !== v && Math.abs(ov.mesh.position.z - v.mesh.position.z) < 18) {
+                occupied.add(ov.targetLane ?? ov.lane);
               }
             });
             const freeLanes = this.lanes.filter(l => !occupied.has(l) && Math.abs(l - o.lane) > 1.5);
             if (freeLanes.length > 0) {
-              v.targetLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+              // Emergency close obstacle uses faster 0.35s signal; distant obstacle gives full 1.2s warning
+              const leadTime = dz < 11.0 ? 0.35 : 1.2;
+              planLaneChangeWithSignal(v, freeLanes[0], leadTime);
             }
           }
         }
@@ -1148,17 +1353,45 @@ export class TrafficManager {
       const relativeSpeed = playerSpeed - v.speed;
       v.mesh.position.z += relativeSpeed * dt;
 
-      if (v.isRival || v.targetLane !== v.lane) {
-        v.laneChangeTimer -= dt;
-        if (v.isRival && v.laneChangeTimer <= 0) {
-          v.laneChangeTimer = 3.5 + Math.random() * 3;
-          const otherLanes = this.lanes.filter(l => l !== v.lane);
-          v.targetLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+      // 1.2s Pre-Change Turn Signal Countdown & Amber Flasher Animation
+      if ((v.signalTimer || 0) > 0) {
+        v.signalTimer = Math.max(0, v.signalTimer - dt);
+        if (v.signalTimer <= 0 && v.pendingTargetLane !== undefined) {
+          v.targetLane = v.pendingTargetLane;
         }
+      }
+
+      if (v.isRival && v.laneChangeTimer <= 0 && (v.signalTimer || 0) <= 0 && v.targetLane === v.lane) {
+        v.laneChangeTimer = 3.5 + Math.random() * 3;
+        const otherLanes = this.lanes.filter(l => l !== v.lane);
+        planLaneChangeWithSignal(v, otherLanes[Math.floor(Math.random() * otherLanes.length)], 1.2);
+      }
+
+      if (v.laneChangeTimer > 0) {
+        v.laneChangeTimer = Math.max(0, v.laneChangeTimer - dt);
+      }
+
+      if (v.targetLane !== v.lane) {
         v.mesh.position.x += (v.targetLane - v.mesh.position.x) * Math.min(1, dt * 3.5);
         if (Math.abs(v.targetLane - v.mesh.position.x) < 0.2) {
           v.lane = v.targetLane;
+          v.pendingTargetLane = v.lane;
+          v.signalDir = 0;
         }
+      }
+
+      // Flash amber turn signal LEDs when signaling or mid-lane transition
+      const blinkOn = Math.sin(performance.now() * 0.025) > 0;
+      const isSignaling = (v.signalTimer || 0) > 0 || v.targetLane !== v.lane;
+      const leftSig = v.mesh.userData?.leftSignalMesh;
+      const rightSig = v.mesh.userData?.rightSignalMesh;
+      if (leftSig) {
+        leftSig.visible = isSignaling && v.signalDir < 0;
+        leftSig.material.opacity = blinkOn ? 1.0 : 0.15;
+      }
+      if (rightSig) {
+        rightSig.visible = isSignaling && v.signalDir > 0;
+        rightSig.material.opacity = blinkOn ? 1.0 : 0.15;
       }
 
       if (v.isPolice) {
@@ -1243,8 +1476,8 @@ export class TrafficManager {
     for (const v of this.vehicles) {
       if (v.hit) continue;
       for (const o of this.obstacles) {
-        const obsHalfW = 1.35;
-        const obsHalfL = 1.5;
+        const obsHalfW = 1.45;
+        const obsHalfL = 1.65;
         const halfW = (v.width * 0.5 || 1.1) + obsHalfW;
         const halfL = (v.length * 0.5 || 2.2) + obsHalfL;
         const dx = v.mesh.position.x - o.mesh.position.x;
@@ -1253,11 +1486,22 @@ export class TrafficManager {
         const absZ = Math.abs(dz);
 
         if (absX < halfW && absZ < halfL) {
-          // SOLID IMPASSE: Deflect traffic vehicle away from obstacle (No Phasing!)
-          const bounce = dx >= 0 ? 1 : -1;
-          v.mesh.position.x = THREE.MathUtils.clamp(o.mesh.position.x + bounce * (halfW + 0.15), -8.2, 8.2);
-          v.targetLane = v.lane;
-          v.speed = Math.max(0, v.speed * 0.65);
+          // SOLID IMPASSE: Separate along minimum penetration axis (rear bumper stop OR clean lateral deflect)
+          const overlapX = halfW - absX;
+          const overlapZ = halfL - absZ;
+          if (overlapZ <= overlapX && dz > 0) {
+            // Vehicle approached from behind obstacle: halt cleanly behind obstacle bumper (Zero Clipping)
+            v.mesh.position.z = o.mesh.position.z + halfL + 0.15;
+            v.speed = 0;
+          } else {
+            const bounce = dx >= 0 ? 1 : -1;
+            v.mesh.position.x = THREE.MathUtils.clamp(o.mesh.position.x + bounce * (halfW + 0.15), -7.5, 7.5);
+            v.targetLane = v.lane;
+            v.pendingTargetLane = v.lane;
+            v.signalDir = 0;
+            v.signalTimer = 0;
+            v.speed = Math.max(0, v.speed * 0.55);
+          }
           if (Math.abs(v.mesh.position.z - playerZ) < 45) {
             this.spawnExplosion(
               new THREE.Vector3((v.mesh.position.x + o.mesh.position.x) * 0.5, 0.4, (v.mesh.position.z + o.mesh.position.z) * 0.5),
@@ -1314,5 +1558,24 @@ export class TrafficManager {
         this.particles.splice(i, 1);
       }
     }
+  }
+
+  getTrafficTelemetry() {
+    const signalingVehicles = this.vehicles.filter(v => (v.signalTimer || 0) > 0 || v.targetLane !== v.lane);
+    const heavyConvoys = this.vehicles.filter(v => v.isTruck || v.isTanker);
+    return {
+      activeVehicles: this.vehicles.length,
+      activeObstacles: this.obstacles.length,
+      signalingCount: signalingVehicles.length,
+      signalingDetails: signalingVehicles.map(v => ({
+        lane: v.lane,
+        pendingTargetLane: v.pendingTargetLane,
+        targetLane: v.targetLane,
+        signalDir: v.signalDir,
+        signalTimer: parseFloat((v.signalTimer || 0).toFixed(3))
+      })),
+      heavyConvoyLanes: heavyConvoys.map(v => v.lane),
+      hasEscapeCorridor: hasViableEscapeCorridor(this.vehicles, this.obstacles, this.jumpRamps)
+    };
   }
 }

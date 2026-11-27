@@ -389,7 +389,8 @@ export function buildZombieModel(typeKey, def) {
   const neck = new THREE.Group();
   neck.position.set(0, 0.63, 0);
   hips.add(neck);
-  neck.add(part(g.neck, skinMat, 0, 0.03, 0));
+  const neckMesh = part(g.neck, skinMat, 0, 0.03, 0);
+  neck.add(neckMesh);
 
   const head = part(g.head, skinMat, 0, 0.18, 0.01, { castShadow: true });
   neck.add(head);
@@ -440,7 +441,7 @@ export function buildZombieModel(typeKey, def) {
     const sac = part(g.sac, M.acid, 0, 0.34, -0.15);
     sac.scale.set(bloater ? 1.85 : 1.05, bloater ? 1.6 : 0.92, bloater ? 1.3 : 0.8);
     hips.add(sac);
-    sac.userData.part = 'body';
+    sac.userData.part = 'lowerTorso';
     extraHits.push(sac);
     const sacGlow = glowSprite(0x9dff3d, bloater ? 1.7 : 0.85, bloater ? 0.62 : 0.5);
     sacGlow.position.set(0, 0.36, -0.22);
@@ -450,7 +451,7 @@ export function buildZombieModel(typeKey, def) {
       for (const s of [-1, 1]) {
         const side = part(g.sac, M.acid, s * 0.21, 0.18, -0.01);
         side.scale.set(0.85, 1.25, 0.85);
-        side.userData.part = 'body';
+        side.userData.part = 'lowerTorso';
         hips.add(side);
         extraHits.push(side);
       }
@@ -512,21 +513,20 @@ export function buildZombieModel(typeKey, def) {
   const legL = leg(-1);
   const legR = leg(1);
 
-  // Headshot plus two body volumes, exactly as the original rig exposed them.
+  // Locational anatomical hitboxes: loose outer `shirt` is kept cosmetic so
+  // overlapping jacket/torso geometry never produces phantom duplicate hits.
   if (typeKey !== 'lurker') {
     head.userData.part = 'head';
-    chest.userData.part = 'body';
-    belly.userData.part = 'body';
-    shirt.userData.part = 'body';
+    neckMesh.userData.part = 'upperTorso';
+    chest.userData.part = 'upperTorso';
+    belly.userData.part = 'lowerTorso';
+    pelvis.userData.part = 'lowerTorso';
   }
-  // Limbs and the loose shirt were not hit volumes, so a round that hit an arm
-  // or a leg passed through the zombie and struck the wall behind it.
   const limbHits = [
-    shirt,
     armL.upper, armL.fore, armR.upper, armR.fore,
     legL.thigh, legL.shin, legR.thigh, legR.shin,
   ];
-  for (const limb of limbHits) limb.userData.part = 'body';
+  for (const limb of limbHits) limb.userData.part = 'limb';
 
   // Small facial and hand detail is skipped with distance: at forty bodies it
   // is the difference between a few hundred draw calls and a thousand.
@@ -543,7 +543,7 @@ export function buildZombieModel(typeKey, def) {
       legL: { hip: legL.hip, knee: legL.knee, foot: legL.foot },
       legR: { hip: legR.hip, knee: legR.knee, foot: legR.foot },
     },
-    hitMeshes: [head, chest, belly, ...limbHits, ...extraHits],
+    hitMeshes: [head, neckMesh, chest, belly, pelvis, ...limbHits, ...extraHits],
     detail: [brow, nose, jaw, socketL, socketR, ...detail, armL.hand, armR.hand],
   };
 }
@@ -1284,8 +1284,7 @@ function buildLurkerModel(def) {
   const scale = def.scale || 0.86;
   g.scale.setScalar(scale);
 
-  // Lurkers keep a small head target and a single body target so they stay cheap
-  // to hit and easy to read, even with the hunched shape.
+  // Lurkers keep head, torso, and limb hit volumes cleanly separated.
   const head = g.children.find((c) => c.position.y > 0.7 && c.geometry && c.geometry.type === 'SphereGeometry');
   const body = g.children.find((c) => c.geometry && c.geometry.type === 'CapsuleGeometry' && c.position.y < 0.6);
   const hitMeshes = [];
@@ -1294,8 +1293,18 @@ function buildLurkerModel(def) {
     hitMeshes.push(head);
   }
   if (body) {
-    body.userData.part = 'body';
+    body.userData.part = 'upperTorso';
     hitMeshes.push(body);
+  }
+  const rig = g.userData.rig || {};
+  for (const limbRoot of [rig.armL?.shoulder, rig.armR?.shoulder, rig.legL?.hip, rig.legR?.hip]) {
+    if (!limbRoot) continue;
+    limbRoot.traverse((child) => {
+      if (child.isMesh) {
+        child.userData.part = 'limb';
+        hitMeshes.push(child);
+      }
+    });
   }
 
   // Minimal rig so the animator can still read a neck and hips from the lurker.
@@ -1403,6 +1412,10 @@ export function buildMelee(kind = 'machete') {
   for (let i = 0; i < 5; i++) {
     g.add(cyl(0.019, 0.019, 0.006, M.dark, 0, 0, -0.02 + i * 0.024, Math.PI / 2, 0, 0, 10));
   }
+  const wearMeshes = [];
+  const bloodEdgeMat = new THREE.MeshStandardMaterial({ color: 0x6e0b10, roughness: 0.35, transparent: true, opacity: 0.0 });
+  const scuffMat = new THREE.MeshStandardMaterial({ color: 0x202428, roughness: 0.9, transparent: true, opacity: 0.0 });
+
   if (kind === 'knife') {
     // Short, thin, taped: visibly a worse tool than the machete.
     g.add(bx(0.05, 0.014, 0.012, M.dark, 0, 0, -0.04));
@@ -1413,6 +1426,10 @@ export function buildMelee(kind = 'machete') {
     tip.scale.set(0.4, 1, 1);
     g.add(tip);
     g.add(bx(0.015, 0.015, 0.06, M.polymer, 0, 0.018, -0.07));
+    const blood = bx(0.011, 0.02, 0.22, bloodEdgeMat, 0, -0.01, -0.17);
+    const scuff = bx(0.012, 0.008, 0.14, scuffMat, 0, 0.006, -0.18);
+    g.add(blood, scuff);
+    wearMeshes.push(blood, scuff);
   } else if (kind === 'bat') {
     // Aluminium bat: thick barrel, taped grip, dented end cap.
     g.add(cyl(0.026, 0.038, 0.52, M.steel, 0, 0, -0.29, Math.PI / 2, 0, 0, 14));
@@ -1420,6 +1437,10 @@ export function buildMelee(kind = 'machete') {
     for (let i = 0; i < 3; i++) {
       g.add(cyl(0.03, 0.03, 0.018, M.polymer, 0, 0, -0.09 - i * 0.03, Math.PI / 2, 0, 0, 12));
     }
+    const blood = cyl(0.039, 0.039, 0.18, bloodEdgeMat, 0, 0, -0.44, Math.PI / 2, 0, 0, 12);
+    const scuff = cyl(0.0395, 0.0395, 0.06, scuffMat, 0, 0, -0.38, Math.PI / 2, 0, 0, 10);
+    g.add(blood, scuff);
+    wearMeshes.push(blood, scuff);
   } else {
     // Machete: guard, wide spine, tapered point.
     g.add(bx(0.075, 0.016, 0.014, M.steel, 0, 0, -0.045));
@@ -1430,10 +1451,18 @@ export function buildMelee(kind = 'machete') {
     tip.position.set(0, -0.004, -0.51);
     tip.scale.set(0.4, 1, 1);
     g.add(tip);
-    // Old blood down the edge and a taped-up spine.
-    g.add(bx(0.004, 0.02, 0.3, new THREE.MeshStandardMaterial({ color: 0x3f090b, roughness: 0.5 }), 0.007, -0.014, -0.22));
+    // Blood build-up and blunt wear scratches reflect blade durability.
+    const blood = bx(0.014, 0.026, 0.34, bloodEdgeMat, 0, -0.018, -0.24);
+    const scuff = bx(0.015, 0.01, 0.2, scuffMat, 0, 0.01, -0.26);
+    g.add(blood, scuff);
+    wearMeshes.push(blood, scuff);
     g.add(bx(0.016, 0.016, 0.1, M.polymer, 0, 0.026, -0.11));
   }
+  g.userData.updateWear = (ratio = 0) => {
+    const r = Math.max(0, Math.min(1, ratio));
+    bloodEdgeMat.opacity = r * 0.92;
+    scuffMat.opacity = r > 0.25 ? ((r - 0.25) / 0.75) * 0.85 : 0;
+  };
 
   return g;
 }

@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 
 import { ProgressionManager, ACHIEVEMENTS } from '../js/progression.js';
 import { VEHICLE_ROSTER } from '../js/player.js';
+import {
+  computeVirtualJoystickOutput,
+  TouchInputTracker,
+  normalizeGamepadState,
+  HapticController
+} from '../js/input.js';
+import {
+  selectConvoyAwareLanes,
+  hasViableEscapeCorridor,
+  planLaneChangeWithSignal,
+  preventClumpDeadlocks
+} from '../js/traffic.js';
 
 test('vehicle roster contains 8 distinct supercars with complete base stats', () => {
   const keys = Object.keys(VEHICLE_ROSTER);
@@ -878,4 +890,432 @@ test('anti-snapback drift recovery progressively interpolates damping and aligns
   assert.ok(steps[0].damping < steps[steps.length - 1].damping, 'Damping progressively stiffens towards full grip');
   assert.ok(Math.abs(steps[steps.length - 1].vx) < Math.abs(steps[0].vx), 'Lateral velocity is critically damped');
   assert.ok(Math.abs(steps[steps.length - 1].yaw) < 0.10, 'Yaw angle smoothly returns to forward alignment without overshoot');
+});
+
+test('dual-clutch transmission shifts with 45ms torque dip cut and instantaneous gear engagement', () => {
+  const dct = {
+    gear: 1,
+    isDctCut: false,
+    dctShiftTimer: 0,
+    shiftCooldown: 0,
+    speed: 7.0, // ~63 km/h
+    targetSpeed: 35.0,
+    update(speedKmh, dt = 0.016) {
+      if (this.shiftCooldown > 0) this.shiftCooldown -= dt;
+      if (speedKmh > 68 && this.gear === 1 && this.shiftCooldown <= 0) {
+        this.gear = 2;
+        this.isDctCut = true;
+        this.dctShiftTimer = 0.045; // 45ms torque dip
+        this.shiftCooldown = 0.12;
+      }
+      if (this.isDctCut) {
+        this.dctShiftTimer -= dt;
+        if (this.dctShiftTimer <= 0) this.isDctCut = false;
+      }
+      const torqueFactor = this.isDctCut ? 0.40 : 1.0;
+      this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * 3.5 * torqueFactor);
+    }
+  };
+
+  // Pre-shift
+  dct.update(65);
+  assert.equal(dct.gear, 1, 'In Gear 1 below 68 km/h shift point');
+  assert.equal(dct.isDctCut, false, 'Full engine torque delivery prior to shift');
+
+  // Trigger upshift at 72 km/h
+  dct.update(72);
+  assert.equal(dct.gear, 2, 'Instantaneous gear change to Gear 2');
+  assert.equal(dct.isDctCut, true, 'Dual-clutch cut active during 45ms transition');
+  assert.ok(dct.dctShiftTimer > 0 && dct.dctShiftTimer <= 0.045, 'Shift timer matches 45ms specification');
+
+  // After 45ms expires:
+  dct.update(73, 0.05);
+  assert.equal(dct.isDctCut, false, 'Torque restored to 100% after 45ms DCT clutch handover');
+});
+
+test('automated downshift rev-matching blips throttle to intermediate ratio RPM', () => {
+  const powertrain = {
+    gear: 3,
+    rpm: 4200,
+    revMatchTimer: 0,
+    shiftCooldown: 0,
+    downshift(newGear) {
+      this.gear = newGear;
+      this.revMatchTimer = 0.12; // 120ms throttle blip
+      this.shiftCooldown = 0.12;
+    },
+    updateRpm(speedKmh, dt = 0.016) {
+      if (this.revMatchTimer > 0) this.revMatchTimer = Math.max(0, this.revMatchTimer - dt);
+      const gearMin = [0, 0, 52, 110, 165, 218, 272][this.gear] || 0;
+      const gearMax = [0, 68, 125, 180, 235, 290, 380][this.gear] || 68;
+      const progress = Math.max(0, Math.min(1, (speedKmh - gearMin) / (gearMax - gearMin)));
+      let baseRpm = 1400 + progress * 5800;
+      if (this.revMatchTimer > 0) {
+        baseRpm = Math.min(7800, baseRpm + 1800 * (this.revMatchTimer / 0.12));
+      }
+      this.rpm += (baseRpm - this.rpm) * Math.min(1, dt * 14.0);
+      return Math.round(this.rpm);
+    }
+  };
+
+  // Hard brake from Gear 3 (130 km/h) down to Gear 2 (95 km/h)
+  powertrain.downshift(2);
+  assert.equal(powertrain.gear, 2, 'Downshifted to Gear 2');
+  assert.ok(powertrain.revMatchTimer > 0, 'Automated throttle blip timer armed');
+
+  const blippedRpm = powertrain.updateRpm(95, 0.016);
+  assert.ok(blippedRpm > 4500, `Rev-matching blips engine RPM upward (${blippedRpm} RPM)`);
+
+  // After 120ms blip completes:
+  powertrain.updateRpm(95, 0.15);
+  assert.equal(powertrain.revMatchTimer, 0, 'Blip timer successfully expired');
+});
+
+test('transmission gear hysteresis prevents rapid gear flutter around shift boundaries', () => {
+  const getGear = (currentGear, speedKmh) => {
+    let target = currentGear;
+    if (currentGear === 1 && speedKmh > 68) target = 2;
+    else if (currentGear === 2) {
+      if (speedKmh > 125) target = 3;
+      else if (speedKmh < 52) target = 1;
+    } else if (currentGear === 3) {
+      if (speedKmh > 180) target = 4;
+      else if (speedKmh < 110) target = 2;
+    }
+    return target;
+  };
+
+  let gear = 1;
+  gear = getGear(gear, 69); // upshift to 2
+  assert.equal(gear, 2, 'Upshifts to Gear 2 when passing 68 km/h');
+
+  // Throttle flutter at 65 km/h (below upshift, but above downshift threshold 52 km/h)
+  gear = getGear(gear, 65);
+  assert.equal(gear, 2, 'Hysteresis keeps Gear 2 engaged when fluctuating around 65 km/h');
+
+  gear = getGear(gear, 67);
+  assert.equal(gear, 2, 'Maintains Gear 2 without hunting back to Gear 1');
+
+  // True downshift threshold
+  gear = getGear(gear, 50);
+  assert.equal(gear, 1, 'Downshifts to Gear 1 only when dipping below 52 km/h hysteresis limit');
+});
+
+test('ceramic brake rotor thermal buildup causes proportional fade and recovers via airflow cooling', () => {
+  const brakes = {
+    temp: 45, // ambient 45°C
+    fadeFactor: 1.0,
+    applyBrake(speedKmh, dt = 1.0) {
+      const speedUnits = speedKmh / 9.0;
+      const heatRate = (speedUnits / 24.0) * 85.0;
+      this.temp = Math.min(950, this.temp + heatRate * dt);
+      if (this.temp > 600) {
+        const fade = (this.temp - 600) / 350;
+        this.fadeFactor = Math.max(0.80, 1.0 - fade * 0.20);
+      } else {
+        this.fadeFactor = 1.0;
+      }
+    },
+    cool(speedKmh, dt = 1.0) {
+      const speedUnits = speedKmh / 9.0;
+      const coolRate = 12.0 + (speedUnits / 28.0) * 36.0;
+      this.temp = Math.max(45, this.temp - coolRate * dt);
+      if (this.temp > 600) {
+        const fade = (this.temp - 600) / 350;
+        this.fadeFactor = Math.max(0.80, 1.0 - fade * 0.20);
+      } else {
+        this.fadeFactor = 1.0;
+      }
+    }
+  };
+
+  // Normal moderate braking (3 seconds at 180 km/h)
+  brakes.applyBrake(180, 3.0);
+  assert.ok(brakes.temp > 200 && brakes.temp < 600, `Operating temperature within optimal range (${brakes.temp.toFixed(0)}°C)`);
+  assert.equal(brakes.fadeFactor, 1.0, 'No fade within optimal ceramic range (<= 600°C)');
+
+  // Sustained thermal abuse (8 seconds at 250 km/h)
+  brakes.applyBrake(250, 8.0);
+  assert.ok(brakes.temp > 750, `Rotors heat up significantly under continuous braking (${brakes.temp.toFixed(0)}°C)`);
+  assert.ok(brakes.fadeFactor < 1.0 && brakes.fadeFactor >= 0.80, `Thermal fade reduces braking effectiveness (${(brakes.fadeFactor * 100).toFixed(0)}%)`);
+
+  // High-speed cruising cooling (10 seconds at 200 km/h)
+  const hotTemp = brakes.temp;
+  brakes.cool(200, 10.0);
+  assert.ok(brakes.temp < hotTemp, `Airflow at speed dissipates rotor heat (${hotTemp.toFixed(0)}°C -> ${brakes.temp.toFixed(0)}°C)`);
+  assert.ok(brakes.fadeFactor > 0.85, 'Brake effectiveness recovers as rotors cool');
+});
+
+test('virtual floating joystick clamps throw radius, enforces deadzone, and outputs smooth analog steer', () => {
+  const insideDeadzone = computeVirtualJoystickOutput(5, -3, 56, 0.14);
+  assert.equal(insideDeadzone.steer, 0, 'Micro jitter inside 14% deadzone outputs exact zero steer');
+
+  const halfRight = computeVirtualJoystickOutput(35, 0, 56, 0.14);
+  assert.ok(halfRight.steer > 0.35 && halfRight.steer < 0.75, `Half drag produces smooth progressive analog steer (${halfRight.steer})`);
+
+  const fullLeft = computeVirtualJoystickOutput(-140, 80, 56, 0.14);
+  const clampedDist = Math.hypot(fullLeft.clampedDx, fullLeft.clampedDy);
+  assert.ok(Math.abs(clampedDist - 56) < 0.01, `Visual thumbstick knob clamps cleanly to 56px radius (${clampedDist.toFixed(2)})`);
+  assert.ok(fullLeft.steer < -0.7, 'Far-left drag delivers strong negative steer despite diagonal offset');
+});
+
+test('multi-touch tracker isolates per-pointer lifecycles without touchcancel or multi-finger release leaks', () => {
+  const tracker = new TouchInputTracker();
+
+  // Finger 1 holds Left steer via virtual joystick, Finger 2 holds NITRO (' '), Finger 3 holds BRAKE ('ArrowDown')
+  tracker.startJoystick(101, 100, 500);
+  const joyOut = tracker.moveJoystick(101, 145, 500);
+  assert.ok(joyOut.steer > 0.5, 'Joystick pointer actively steers');
+
+  tracker.pressButton(102, ' ');
+  tracker.pressButton(103, 'ArrowDown');
+  assert.equal(tracker.hasActiveKey(' '), true);
+  assert.equal(tracker.hasActiveKey('ArrowDown'), true);
+
+  // Release NITRO finger (pointer 102): Joystick steer & BRAKE finger MUST remain intact!
+  const relNitro = tracker.releasePointer(102);
+  assert.equal(relNitro.releasedKey, ' ');
+  assert.equal(relNitro.releasedJoystick, false);
+  assert.equal(tracker.hasActiveKey(' '), false);
+  assert.equal(tracker.hasActiveKey('ArrowDown'), true, 'Releasing one touch pointer never cancels another held button');
+  assert.equal(tracker.joystick.active, true, 'Joystick stays active when action button is released');
+
+  // Simulate pointercancel / drag-off on joystick (pointer 101)
+  const relJoy = tracker.releasePointer(101);
+  assert.equal(relJoy.releasedJoystick, true);
+  assert.equal(tracker.joystick.active, false);
+  assert.equal(tracker.joystick.steer, 0, 'Joystick steer snaps cleanly to zero on pointercancel');
+
+  // Simulate blur/visibility reset clearing remaining stuck pointers
+  tracker.resetAll();
+  assert.equal(tracker.activePointers.size, 0);
+  assert.equal(tracker.hasActiveKey('ArrowDown'), false);
+});
+
+test('gamepad API normalizer handles analog stick curve, RT/LT progressive triggers, and edge-triggered pause', () => {
+  const mockPad = {
+    connected: true,
+    id: 'Xbox Wireless Controller (STANDARD GAMEPAD)',
+    axes: [-0.62, 0.0, 0.0, 0.0],
+    buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }))
+  };
+  mockPad.buttons[7] = { pressed: true, value: 0.72 }; // RT partial throttle
+  mockPad.buttons[6] = { pressed: true, value: 0.53 }; // LT progressive brake
+  mockPad.buttons[9] = { pressed: true, value: 1.0 };  // Start pressed
+
+  const frame1 = normalizeGamepadState(mockPad, { pause: false, emp: false });
+  assert.equal(frame1.connected, true);
+  assert.ok(frame1.steer < -0.35 && frame1.steer > -0.7, `Analog left stick produces smooth steer (${frame1.steer})`);
+  assert.equal(frame1.hasAnalogThrottle, true);
+  assert.ok(frame1.throttle > 0.75 && frame1.throttle < 0.9, `RT maps progressive throttle (${frame1.throttle})`);
+  assert.ok(frame1.brakeIntensity > 0.45 && frame1.brakeIntensity < 0.6, `LT maps progressive braking (${frame1.brakeIntensity})`);
+  assert.equal(frame1.drift, true, 'LT brake + stick steer initiates progressive drift');
+  assert.equal(frame1.pausePressed, true, 'First frame Start press triggers pause edge');
+
+  // Holding Start on frame 2 must NOT re-trigger togglePause
+  const frame2 = normalizeGamepadState(mockPad, frame1.nextPrevButtons);
+  assert.equal(frame2.pausePressed, false, 'Held Pause button does not spam-toggle across frames');
+
+  // Idle controller at rest (RT=0, stick inside deadzone) must NOT slow keyboard/touch auto-throttle
+  const idlePad = {
+    connected: true,
+    id: 'Idle Pad',
+    axes: [0.05, 0, 0, 0],
+    buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 }))
+  };
+  const idleState = normalizeGamepadState(idlePad);
+  assert.equal(idleState.steer, 0);
+  assert.equal(idleState.hasAnalogThrottle, false);
+  assert.equal(idleState.throttle, 1.0);
+});
+
+test('haptic controller throttles continuous curb scuffs and drives navigator.vibrate + dual-rumble actuators', () => {
+  const haptics = new HapticController();
+  const vibrateCalls = [];
+  const rumbleCalls = [];
+
+  const env = (now) => ({
+    now,
+    hapticEnabled: true,
+    gamepadRumbleEnabled: true,
+    vibrateFn: (pat) => vibrateCalls.push(pat),
+    getGamepadsFn: () => [{
+      connected: true,
+      vibrationActuator: {
+        playEffect: (type, opts) => rumbleCalls.push({ type, ...opts })
+      }
+    }]
+  });
+
+  // First curb scuff fires immediately
+  const hit1 = haptics.trigger('curb_scuff', { vibratePattern: 28, weakMagnitude: 0.5, strongMagnitude: 0.4, durationMs: 55, cooldownMs: 110 }, env(1000));
+  // Rapid next-frame call inside 110ms cooldown is throttled cleanly
+  const hit2 = haptics.trigger('curb_scuff', { vibratePattern: 28, cooldownMs: 110 }, env(1016));
+  // Different channel ('gear_shift') is independent and fires immediately
+  const hit3 = haptics.trigger('gear_shift', { vibratePattern: 14, weakMagnitude: 0.3, strongMagnitude: 0.55, durationMs: 35, cooldownMs: 90 }, env(1030));
+  // Curb scuff after cooldown expires fires again
+  const hit4 = haptics.trigger('curb_scuff', { vibratePattern: 28, cooldownMs: 110 }, env(1130));
+
+  assert.equal(hit1, true);
+  assert.equal(hit2, false, 'Continuous curb scuffs are throttled cleanly inside 110ms window');
+  assert.equal(hit3, true, 'Independent haptic channel triggers without being blocked by curb cooldown');
+  assert.equal(hit4, true, 'Curb scuff fires again once cooldown expires');
+  assert.equal(vibrateCalls.length, 3);
+  assert.equal(rumbleCalls.length, 3);
+  assert.equal(rumbleCalls[0].type, 'dual-rumble');
+});
+
+test('turn signal indicator flashes 1.2s before civilian traffic initiates lateral lane transition', () => {
+  const car = {
+    lane: 0,
+    targetLane: 0,
+    pendingTargetLane: 0,
+    signalDir: 0,
+    signalTimer: 0,
+    mesh: { position: { x: 0, z: -60 } }
+  };
+
+  const scheduled = planLaneChangeWithSignal(car, -6, 1.2);
+  assert.equal(scheduled, true);
+  assert.equal(car.signalTimer, 1.2, 'Turn signal activates for 1.2s prior to lane transition');
+  assert.equal(car.signalDir, -1, 'Left turn signal activates when shifting toward left lane (-6)');
+  assert.equal(car.targetLane, 0, 'Car holds current lane during 1.2s pre-change flash');
+
+  // Simulate 0.8s elapsed (still signaling before moving)
+  car.signalTimer = Math.max(0, car.signalTimer - 0.8);
+  assert.ok(car.signalTimer > 0 && car.targetLane === 0, 'Car still flashes before 1.2s lead expires');
+
+  // Simulate remaining 0.45s elapsed -> transition commits
+  car.signalTimer = Math.max(0, car.signalTimer - 0.45);
+  if (car.signalTimer <= 0) car.targetLane = car.pendingTargetLane;
+  assert.equal(car.targetLane, -6, 'Target lane engages only after 1.2s signal warning completes');
+});
+
+test('convoy pacing assigns heavy trucks and tankers to right/center lanes leaving left lane clear for overtakes', () => {
+  const allThree = selectConvoyAwareLanes([-6, 0, 6], true);
+  assert.deepEqual(allThree, [6, 0], 'Heavy convoy selects right (6) first, then center (0), excluding left (-6)');
+
+  const leftAndCenter = selectConvoyAwareLanes([-6, 0], true);
+  assert.deepEqual(leftAndCenter, [0], 'When right lane is busy, heavy convoy stays in center (0) rather than fast left (-6)');
+
+  const onlyLeft = selectConvoyAwareLanes([-6], true);
+  assert.deepEqual(onlyLeft, [-6], 'Falls back to left lane only when no right/center lane exists');
+});
+
+test('10,000m continuous traffic flow simulation has zero overlapping spawns and guarantees escape corridor', () => {
+  const lanes = [-6, 0, 6];
+  const vehicles = [];
+  const obstacles = [];
+  let distance = 0;
+  let totalSpawns = 0;
+  let overlappingSpawns = 0;
+  let deadlockCount = 0;
+
+  const dt = 0.1; // 10 Hz flow simulation over ~10,000m
+  const playerSpeed = 30; // ~270 km/h
+  let spawnTimer = 0.8;
+  let obsTimer = 2.5;
+
+  while (distance < 10000) {
+    distance += playerSpeed * dt;
+    spawnTimer -= dt;
+    obsTimer -= dt;
+
+    // Move existing entities
+    for (let i = vehicles.length - 1; i >= 0; i--) {
+      vehicles[i].z += (playerSpeed - vehicles[i].speed) * dt;
+      if (vehicles[i].z > 24) vehicles.splice(i, 1);
+    }
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      obstacles[i].z += playerSpeed * dt;
+      if (obstacles[i].z > 24) obstacles.splice(i, 1);
+    }
+    preventClumpDeadlocks(vehicles, obstacles, [], dt);
+
+    if (spawnTimer <= 0) {
+      const occupied = new Set([
+        ...vehicles.filter(v => v.z < -118).map(v => v.lane),
+        ...obstacles.filter(o => o.z < -118).map(o => o.lane)
+      ]);
+      const avail = lanes.filter(l => !occupied.has(l));
+      if (avail.length > 1) {
+        const isHeavy = (totalSpawns % 5) === 0;
+        const candidateLanes = selectConvoyAwareLanes(avail, isHeavy);
+        for (const picked of candidateLanes) {
+          const candidate = { lane: picked, targetLane: picked, z: -145, speed: isHeavy ? 17 : 22 };
+          if (hasViableEscapeCorridor([...vehicles, candidate], obstacles, [], -145, -5)) {
+            if (occupied.has(picked)) overlappingSpawns++;
+            vehicles.push(candidate);
+            totalSpawns++;
+            break;
+          }
+        }
+      }
+      spawnTimer = Math.max(0.45, 1.4 - distance / 6000);
+    }
+
+    if (obsTimer <= 0) {
+      const occupied = new Set([
+        ...vehicles.filter(v => v.z < -118).map(v => v.lane),
+        ...obstacles.filter(o => o.z < -118).map(o => o.lane)
+      ]);
+      const avail = lanes.filter(l => !occupied.has(l));
+      if (avail.length > 1) {
+        for (let i = 0; i < avail.length; i++) {
+          const picked = avail[(totalSpawns + i) % avail.length];
+          const candidate = { lane: picked, z: -145 };
+          if (hasViableEscapeCorridor(vehicles, [...obstacles, candidate], [], -145, -5)) {
+            if (occupied.has(picked)) overlappingSpawns++;
+            obstacles.push(candidate);
+            break;
+          }
+        }
+      }
+      obsTimer = 2.4;
+    }
+
+    preventClumpDeadlocks(vehicles, obstacles, [], dt);
+
+    if (!hasViableEscapeCorridor(vehicles, obstacles, [], -65, -5)) {
+      deadlockCount++;
+    }
+  }
+
+  assert.ok(totalSpawns >= 80, `Simulated ${totalSpawns} traffic spawns over 10,000m`);
+  assert.equal(overlappingSpawns, 0, 'Zero overlapping spawns occurred across 10,000m');
+  assert.equal(deadlockCount, 0, 'Zero 3-wide clump deadlocks occurred within 60m escape corridor');
+});
+
+test('civilian traffic solid impasse prevents clipping through stationary obstacles', () => {
+  const vehicle = {
+    lane: 0,
+    targetLane: 0,
+    width: 2.2,
+    length: 4.6,
+    speed: 22,
+    mesh: { position: { x: 0, z: -42.5 } }
+  };
+  const obstacle = {
+    lane: 0,
+    mesh: { position: { x: 0, z: -45 } }
+  };
+
+  const obsHalfW = 1.45;
+  const obsHalfL = 1.65;
+  const halfW = (vehicle.width * 0.5) + obsHalfW; // 2.55
+  const halfL = (vehicle.length * 0.5) + obsHalfL; // 3.95
+  const dx = vehicle.mesh.position.x - obstacle.mesh.position.x;
+  const dz = vehicle.mesh.position.z - obstacle.mesh.position.z; // +2.5 < 3.95 -> intersecting from behind
+
+  const overlapX = halfW - Math.abs(dx);
+  const overlapZ = halfL - Math.abs(dz);
+  if (Math.abs(dx) < halfW && Math.abs(dz) < halfL) {
+    if (overlapZ <= overlapX && dz > 0) {
+      vehicle.mesh.position.z = obstacle.mesh.position.z + halfL + 0.15;
+      vehicle.speed = 0;
+    }
+  }
+
+  assert.ok(vehicle.mesh.position.z >= obstacle.mesh.position.z + halfL, 'Vehicle is cleanly stopped behind obstacle without clipping');
+  assert.equal(vehicle.speed, 0, 'Vehicle halts cleanly on rear-bumper impasse');
 });

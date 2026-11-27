@@ -153,7 +153,10 @@ export class PlayerCar {
     this.isBoosting = false;
     this.boostPadTimer = 0;
     this.isBraking = false;
+    this.brakeIntensity = 1.0;
+    this.throttleInput = 1.0;
     this.isBrakingToHalt = false;
+    this.lastShiftType = null;
     this.isDrifting = false;
     this.driftScore = 0;
     this.steerInput = 0;
@@ -178,6 +181,19 @@ export class PlayerCar {
     this.counterSteerAssist = 1.0;
     this.prevVx = 0;
     this.prevSpeed = 0;
+
+    // Dual-Clutch Transmission & Powertrain Simulation
+    this.gear = 1;
+    this.rpm = 1200;
+    this.isDctCut = false;
+    this.dctShiftTimer = 0;
+    this.revMatchTimer = 0;
+    this.shiftCooldown = 0;
+
+    // Ceramic Brake Rotor Thermals & Fade
+    this.brakeRotorTemp = 45; // Ambient 45°C
+    this.brakeFadeFactor = 1.0;
+    this.brakeGlow = 0;
 
     // Airtime & Stunt Jumps
     this.isAirborne = false;
@@ -363,7 +379,10 @@ export class PlayerCar {
     this.isBoosting = false;
     this.boostPadTimer = 0;
     this.isBraking = false;
+    this.brakeIntensity = 1.0;
+    this.throttleInput = 1.0;
     this.isBrakingToHalt = false;
+    this.lastShiftType = null;
     this.isDrifting = false;
     this.driftScore = 0;
     this.steerInput = 0;
@@ -383,6 +402,19 @@ export class PlayerCar {
     this.counterSteerAssist = 1.0;
     this.prevVx = 0;
     this.prevSpeed = 0;
+
+    // Dual-Clutch Transmission & Powertrain Simulation
+    this.gear = 1;
+    this.rpm = 1200;
+    this.isDctCut = false;
+    this.dctShiftTimer = 0;
+    this.revMatchTimer = 0;
+    this.shiftCooldown = 0;
+
+    // Ceramic Brake Rotor Thermals & Fade
+    this.brakeRotorTemp = 45; // Ambient 45°C
+    this.brakeFadeFactor = 1.0;
+    this.brakeGlow = 0;
     this.isAirborne = false;
     this.verticalY = 0;
     this.verticalVel = 0;
@@ -956,8 +988,13 @@ export class PlayerCar {
     this.isDrifting = isNowDrifting;
   }
 
-  setBraking(braking) {
-    this.isBraking = Boolean(braking);
+  setBraking(braking, intensity = 1.0) {
+    this.isBraking = Boolean(braking) && intensity > 0.01;
+    this.brakeIntensity = this.isBraking ? Math.max(0.05, Math.min(1.0, intensity)) : 0;
+  }
+
+  setThrottle(throttle = 1.0) {
+    this.throttleInput = Math.max(0.25, Math.min(1.0, throttle));
   }
 
   setRampElevation(elevation, pitch = -0.24) {
@@ -1036,6 +1073,20 @@ export class PlayerCar {
     this.nitro = Math.min(this.maxNitro, this.nitro + amount);
   }
 
+  getPowertrainTelemetry() {
+    return {
+      gear: this.gear,
+      rpm: Math.round(this.rpm),
+      speedKmh: Math.round(this.speed * 9.0),
+      isDctCut: this.isDctCut,
+      dctShiftTimer: Math.max(0, this.dctShiftTimer),
+      revMatchTimer: Math.max(0, this.revMatchTimer),
+      brakeRotorTemp: Math.round(this.brakeRotorTemp),
+      brakeFadeFactor: parseFloat(this.brakeFadeFactor.toFixed(3)),
+      brakeGlow: parseFloat(this.brakeGlow.toFixed(3))
+    };
+  }
+
   spawnSkidMark(x, z) {
     if (this.skidMarks.length >= 30) {
       const old = this.skidMarks.shift();
@@ -1073,17 +1124,98 @@ export class PlayerCar {
     this.prevZ = this.mesh.position.z;
 
     // 1. Acceleration & Nitro Dynamics (Calibrated: 80-120 Stock, 150-160 Boost)
+    // Ceramic brake rotor thermal simulation & fade
+    if (this.isBraking) {
+      const heatRate = (this.speed / 24.0) * 85.0 * (this.brakeIntensity ?? 1.0);
+      this.brakeRotorTemp = Math.min(950, this.brakeRotorTemp + heatRate * dt);
+    } else {
+      const coolRate = 12.0 + (this.speed / 28.0) * 36.0;
+      this.brakeRotorTemp = Math.max(45, this.brakeRotorTemp - coolRate * dt);
+    }
+
+    if (this.brakeRotorTemp > 600) {
+      const fadeProgress = (this.brakeRotorTemp - 600) / 350;
+      this.brakeFadeFactor = Math.max(0.80, 1.0 - fadeProgress * 0.20);
+    } else {
+      this.brakeFadeFactor = 1.0;
+    }
+    this.brakeGlow = Math.max(0, (this.brakeRotorTemp - 550) / 400);
+
+    // 6-Speed Dual-Clutch Transmission Simulation with Hysteresis
+    const speedKmh = Math.round(this.speed * 9.0);
+    let targetGear = this.gear;
+    const currentGear = this.gear;
+    if (currentGear === 1 && speedKmh > 68) targetGear = 2;
+    else if (currentGear === 2) {
+      if (speedKmh > 125) targetGear = 3;
+      else if (speedKmh < 52) targetGear = 1;
+    } else if (currentGear === 3) {
+      if (speedKmh > 180) targetGear = 4;
+      else if (speedKmh < 110) targetGear = 2;
+    } else if (currentGear === 4) {
+      if (speedKmh > 235) targetGear = 5;
+      else if (speedKmh < 165) targetGear = 3;
+    } else if (currentGear === 5) {
+      if (speedKmh > 290) targetGear = 6;
+      else if (speedKmh < 218) targetGear = 4;
+    } else if (currentGear === 6) {
+      if (speedKmh < 272) targetGear = 5;
+    }
+    if (speedKmh <= 4) targetGear = 1;
+
+    if (this.shiftCooldown > 0) {
+      this.shiftCooldown = Math.max(0, this.shiftCooldown - dt);
+    }
+
+    if (targetGear > this.gear && this.shiftCooldown <= 0) {
+      this.gear = targetGear;
+      this.isDctCut = true;
+      this.dctShiftTimer = 0.045; // 45ms torque dip
+      this.shiftCooldown = 0.12;
+      this.lastShiftType = 'up';
+    } else if (targetGear < this.gear && this.shiftCooldown <= 0) {
+      this.gear = targetGear;
+      this.revMatchTimer = 0.12; // 120ms throttle blip rev match
+      this.shiftCooldown = 0.12;
+      this.lastShiftType = 'down';
+    }
+
+    if (this.isDctCut) {
+      this.dctShiftTimer -= dt;
+      if (this.dctShiftTimer <= 0) {
+        this.isDctCut = false;
+      }
+    }
+
+    if (this.revMatchTimer > 0) {
+      this.revMatchTimer = Math.max(0, this.revMatchTimer - dt);
+    }
+
+    // RPM model inside gear
+    const gearMinSpeed = [0, 0, 52, 110, 165, 218, 272][this.gear] || 0;
+    const gearMaxSpeed = [0, 68, 125, 180, 235, 290, 380][this.gear] || 68;
+    const gearSpan = Math.max(20, gearMaxSpeed - gearMinSpeed);
+    const gearProgress = Math.max(0, Math.min(1, (speedKmh - gearMinSpeed) / gearSpan));
+    let baseRpm = 1400 + gearProgress * 5800;
+    if (this.isDctCut) baseRpm *= 0.65;
+    if (this.revMatchTimer > 0) baseRpm = Math.min(7800, baseRpm + 1800 * (this.revMatchTimer / 0.12));
+    if (this.isBoosting) baseRpm = Math.min(8400, baseRpm + 1050);
+    if (this.isBraking && this.revMatchTimer <= 0) baseRpm = Math.max(1200, baseRpm * 0.72);
+    this.rpm += (baseRpm - this.rpm) * Math.min(1, dt * 14.0);
+
     if (this.isBrakingToHalt) {
       this.targetSpeed = 0;
       this.isBoosting = false;
       this.speed = Math.max(0, this.speed - dt * 42);
       this.suspensionPitch = 0.12; // Forward brake dive
     } else if (this.isBraking) {
-      // ACTIVE CERAMIC BRAKING: High-performance braking with forward nose dive
-      this.targetSpeed = Math.min(this.speed, this.topSpeed * 0.28);
+      // ACTIVE CERAMIC BRAKING: Progressive LT/brake intensity + thermal fade factor
+      const bForce = this.brakeIntensity ?? 1.0;
+      this.targetSpeed = Math.min(this.speed, this.topSpeed * (1.0 - 0.72 * bForce));
       this.isBoosting = false;
-      this.speed = Math.max(6.0, this.speed - dt * 36);
-      this.suspensionPitch = 0.10; // Forward brake dive
+      const effectiveDecel = 36.0 * bForce * this.brakeFadeFactor;
+      this.speed = Math.max(6.0, this.speed - dt * effectiveDecel);
+      this.suspensionPitch = 0.10 * bForce * this.brakeFadeFactor; // Forward brake dive
     } else if (this.boostPadTimer > 0) {
       this.boostPadTimer -= dt;
       this.isBoosting = true;
@@ -1102,13 +1234,15 @@ export class PlayerCar {
       this.targetSpeed = this.topSpeed * 0.88;
       this.suspensionPitch = 0.03; // slight nose dip
     } else {
-      this.targetSpeed = this.topSpeed;
+      const tInput = this.throttleInput ?? 1.0;
+      this.targetSpeed = this.topSpeed * tInput;
       this.suspensionPitch *= 0.9;
     }
 
     // Smooth ground speed acceleration (only when not braking or halting)
     if (!this.isBrakingToHalt && !this.isBraking) {
-      this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2));
+      const torqueFactor = this.isDctCut ? 0.40 : 1.0;
+      this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2) * torqueFactor);
     }
 
     // 2. Wheel Spinning Animation

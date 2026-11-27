@@ -8,7 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>VALIXIS Games &mdash; Browser-Native Interactive Gaming Studio</title>
-  <meta name="description" content="Official browser-native gaming portal and interactive 3D simulations by VALIXIS Technologies. Zero dependencies, pure web performance.">
+  <meta name="description" content="Official browser-native AAA gaming portal and interactive 3D simulations by VALIXIS Technologies. Zero dependencies, pure web performance.">
   <link rel="canonical" href="https://games.valixis.tech/">
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 
@@ -27,12 +27,12 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="VALIXIS Games">
   <meta property="og:title" content="VALIXIS Games — Browser-Native Interactive Arcade">
-  <meta property="og:description" content="Play Soul Ember: Survivors and explore next-generation browser games by VALIXIS Technologies.">
+  <meta property="og:description" content="Play Soul Ember: Survivors, Dead Signal, Road Riot 3D, and explore next-generation browser gaming by VALIXIS Technologies.">
   <meta property="og:url" content="https://games.valixis.tech/">
   <meta property="og:image" content="https://games.valixis.tech/icon-512.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="VALIXIS Games — Browser-Native Interactive Arcade">
-  <meta name="twitter:description" content="Play Soul Ember: Survivors and explore next-generation browser games by VALIXIS Technologies.">
+  <meta name="twitter:description" content="Play Soul Ember: Survivors, Dead Signal, Road Riot 3D, and explore next-generation browser gaming by VALIXIS Technologies.">
 
   <!-- Favicons -->
   <link rel="shortcut icon" href="favicon.ico">
@@ -44,20 +44,38 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
 
   <style>
+    /* ==========================================================================
+       VALIXIS QUAD-CHROMA DESIGN TOKENS & SYSTEM VARIABLES
+       ========================================================================== */
     :root {
-      --bg: #04070d;
-      --card-bg: rgba(11, 16, 26, 0.88);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --card-highlight: rgba(255, 255, 255, 0.12);
-      --accent-ember: #D946EF;
-      --accent-glow: #00E5FF;
-      --accent-cyan: #2563FF;
-      --accent-purple: #7C3AED;
+      --bg-void: #03060c;
+      --bg-surface: rgba(10, 16, 28, 0.88);
+      --bg-surface-elevated: rgba(15, 23, 42, 0.95);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(0, 229, 255, 0.45);
+
+      /* VALIXIS Corporate Identity Spectrum */
+      --valixis-cyan: #00e5ff;
+      --valixis-blue: #2563ff;
+      --valixis-violet: #7c3aed;
+      --valixis-magenta: #d946ef;
+      --valixis-gradient: linear-gradient(135deg, #00e5ff 0%, #2563ff 38%, #7c3aed 72%, #d946ef 100%);
+      --valixis-aurora: linear-gradient(90deg, #00e5ff, #2563ff, #7c3aed, #d946ef, #00e5ff);
+
+      /* Game-Specific Thematic Accents */
+      --ember-gold: #ff9d42;
+      --ember-glow: rgba(255, 145, 0, 0.4);
+      --dead-toxic: #7dfa34;
+      --dead-glow: rgba(125, 250, 52, 0.35);
+      --road-cyan: #00e5ff;
+      --road-glow: rgba(0, 229, 255, 0.4);
+
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --text-dim: #64748b;
     }
 
     * {
@@ -66,49 +84,363 @@
       padding: 0;
     }
 
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-void);
+    }
+
     body {
-      background-color: var(--bg);
-      background-image:
-        linear-gradient(rgba(0,229,255,.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(124,58,237,.035) 1px, transparent 1px),
-        radial-gradient(1100px 600px at 50% -100px, rgba(124, 58, 237, 0.2), transparent 70%),
-        radial-gradient(900px 500px at 88% 25%, rgba(0, 229, 255, 0.1), transparent 65%),
-        radial-gradient(1000px 600px at 12% 80%, rgba(217, 70, 239, 0.09), transparent 60%);
-      background-size: 64px 64px, 64px 64px, auto, auto, auto;
+      background-color: var(--bg-void);
       color: var(--text-main);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow-x: hidden;
     }
 
-    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: -1; background: linear-gradient(180deg, transparent 0%, rgba(0,229,255,.025) 50%, transparent 100%); background-size: 100% 9px; opacity: .45; animation: scan-drift 12s linear infinite; }
-    body::after { content: ''; position: fixed; width: 52vw; height: 52vw; max-width: 720px; max-height: 720px; left: 50%; top: 30%; transform: translate(-50%, -50%); border: 1px solid rgba(124,58,237,.1); border-radius: 50%; box-shadow: 0 0 130px rgba(0,229,255,.06), inset 0 0 120px rgba(217,70,239,.04); pointer-events: none; z-index: -1; animation: core-pulse 9s ease-in-out infinite; }
+    /* 3D WebGL Background Canvas */
+    #arcade-3d-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.85;
+      transition: opacity 1.2s ease;
+    }
 
-    /* Tactile Fine Film Grain Texture Overlay (Human-Crafted Depth) */
+    /* Tactile Fine Film Grain Texture Overlay */
     .film-grain-overlay {
       position: fixed;
       inset: 0;
       width: 100%;
       height: 100%;
       pointer-events: none;
-      z-index: 9999;
-      opacity: 0.032;
+      z-index: 90;
+      opacity: 0.035;
       mix-blend-mode: overlay;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     }
 
-    /* Universal Navbar */
-    .top-nav {
-      padding: 18px 32px;
+    /* Ambient Cyber Horizon Glows */
+    .ambient-glow-top {
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1100px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(37, 99, 255, 0.15) 0%, rgba(124, 58, 237, 0.12) 40%, transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(60px);
+    }
+
+    .ambient-glow-side {
+      position: fixed;
+      bottom: 10%;
+      right: -100px;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(217, 70, 239, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(80px);
+    }
+
+    /* ==========================================================================
+       CINEMATIC "ENTERING THE GAMING WORLD" PRELOADER
+       ========================================================================== */
+    .portal-loader {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #020408;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+      transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), filter 0.85s ease;
+      will-change: transform, opacity, filter;
+    }
+
+    .portal-loader.warp-exit {
+      opacity: 0;
+      transform: scale(2.6);
+      filter: blur(28px) brightness(1.8);
+      pointer-events: none;
+    }
+
+    .loader-bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 58, 237, 0.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+      pointer-events: none;
+      animation: loaderGridDrift 20s linear infinite;
+    }
+
+    @keyframes loaderGridDrift {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(48px); }
+    }
+
+    .loader-center {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 520px;
+      width: 90%;
+      text-align: center;
+    }
+
+    /* Holographic Dual Concentric Rings */
+    .cyber-rings-container {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cyber-ring {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .ring-outer {
+      animation: ringSpinClockwise 12s linear infinite;
+    }
+
+    .ring-inner {
+      width: 72%;
+      height: 72%;
+      top: 14%;
+      left: 14%;
+      animation: ringSpinCounter 8s linear infinite;
+    }
+
+    .ring-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-width: 1.5;
+    }
+
+    .ring-dash {
+      fill: none;
+      stroke: url(#cyan-blue-grad);
+      stroke-width: 2.5;
+      stroke-dasharray: 80 40 20 50;
+      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.7));
+    }
+
+    .ring-dots {
+      fill: none;
+      stroke: var(--valixis-magenta);
+      stroke-width: 2;
+      stroke-dasharray: 4 28;
+      opacity: 0.6;
+    }
+
+    .ring-dash-inner {
+      fill: none;
+      stroke: url(#magenta-violet-grad);
+      stroke-width: 2;
+      stroke-dasharray: 50 30 15 35;
+      filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.6));
+    }
+
+    .ring-pulse {
+      fill: none;
+      stroke: rgba(0, 229, 255, 0.3);
+      stroke-width: 1;
+      stroke-dasharray: 6 12;
+    }
+
+    @keyframes ringSpinClockwise {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes ringSpinCounter {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .loader-core {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .core-pulse-glow {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.4) 0%, rgba(124, 58, 237, 0.25) 50%, transparent 70%);
+      animation: coreBreathe 2.4s ease-in-out infinite;
+    }
+
+    @keyframes coreBreathe {
+      0%, 100% { transform: scale(0.9); opacity: 0.6; }
+      50% { transform: scale(1.35); opacity: 1; filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.9)); }
+    }
+
+    .loader-v-mark {
+      width: 44px;
+      height: 44px;
+      z-index: 2;
+      filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.8));
+    }
+
+    /* Diagnostic Telemetry Terminal */
+    .loader-terminal {
+      width: 100%;
+      background: rgba(10, 16, 28, 0.9);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 12px;
+      padding: 18px 22px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+    }
+
+    .terminal-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 2px;
+      color: var(--valixis-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    .terminal-blink {
+      color: #10b981;
+      font-size: 0.8rem;
+      animation: blinkDot 1s infinite;
+    }
+
+    @keyframes blinkDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    .terminal-progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .terminal-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00e5ff, #2563ff 50%, #d946ef 100%);
+      border-radius: 999px;
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.8);
+      transition: width 0.15s ease-out;
+    }
+
+    .terminal-status-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      background: rgba(4, 7, 13, 0.78);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      margin-bottom: 14px;
+    }
+
+    #loader-status-text {
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    #loader-pct {
+      font-weight: 800;
+      color: var(--valixis-cyan);
+      letter-spacing: 1px;
+    }
+
+    .terminal-telemetry-tags {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .terminal-telemetry-tags span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    .loader-skip-btn {
+      margin-top: 18px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+
+    .loader-skip-btn:hover {
+      color: #fff;
+      border-color: var(--valixis-cyan);
+      background: rgba(0, 229, 255, 0.08);
+    }
+
+    /* ==========================================================================
+       UNIVERSAL TOP NAVBAR & LIVE TELEMETRY BAR
+       ========================================================================== */
+    .top-nav {
+      padding: 14px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(3, 6, 12, 0.82);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -124,143 +456,323 @@
     .brand-logo {
       height: 32px;
       width: auto;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
     }
 
     .arcade-badge {
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       letter-spacing: 2px;
-      color: var(--accent-ember);
-      background: rgba(255, 106, 0, 0.12);
-      border: 1px solid rgba(255, 106, 0, 0.35);
+      color: var(--valixis-cyan);
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.35);
       padding: 4px 10px;
       border-radius: 6px;
       font-weight: 800;
       text-transform: uppercase;
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
     }
 
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
     .nav-btn {
       color: var(--text-muted);
       text-decoration: none;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
+      font-size: 0.80rem;
       font-weight: 600;
       padding: 6px 14px;
       border-radius: 6px;
-      border: 1px solid transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
       transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .nav-btn:hover {
       color: #fff;
-      border-color: rgba(255, 255, 255, 0.15);
-      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(0, 229, 255, 0.4);
+      background: rgba(0, 229, 255, 0.08);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
     }
 
-    .nav-btn-portal {
-      color: var(--accent-cyan);
-      border-color: rgba(0, 217, 255, 0.3);
-      background: rgba(0, 217, 255, 0.08);
+    .nav-btn-company {
+      color: #e2e8f0;
+      border-color: rgba(37, 99, 255, 0.4);
+      background: rgba(37, 99, 255, 0.1);
     }
 
-    .nav-btn-portal:hover {
-      background: rgba(0, 217, 255, 0.18);
-      box-shadow: 0 0 15px rgba(0, 217, 255, 0.25);
+    .nav-btn-company:hover {
+      border-color: #2563ff;
+      background: rgba(37, 99, 255, 0.22);
+      box-shadow: 0 0 16px rgba(37, 99, 255, 0.3);
     }
 
-    /* Main Container */
-    .container {
-      max-width: 1200px;
+    .nav-btn-sfx {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      padding: 6px 10px;
+    }
+
+    /* Live Telemetry Bar under Nav */
+    .live-telemetry-bar {
+      position: sticky;
+      top: 61px;
+      z-index: 95;
+      background: rgba(5, 8, 16, 0.85);
+      border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 6px 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .live-telemetry-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .telemetry-inner {
+      max-width: 1320px;
       margin: 0 auto;
-      padding: 48px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.70rem;
+    }
+
+    .telemetry-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-dim);
+    }
+
+    .telemetry-dot.live {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulseGreen 1.8s ease-in-out infinite;
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+
+    .telemetry-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .telemetry-val {
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+
+    .telemetry-val.highlight {
+      color: var(--valixis-cyan);
+    }
+
+    /* ==========================================================================
+       MAIN CONTAINER & HERO BANNER
+       ========================================================================== */
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 36px 24px 60px;
       flex: 1;
       width: 100%;
     }
 
     .hero-banner {
       text-align: center;
-      margin-bottom: 50px;
+      margin-bottom: 30px;
       position: relative;
     }
-
-    .hero-banner::after { content: ''; position: absolute; width: 460px; height: 180px; left: 50%; top: -30px; transform: translateX(-50%); border: 1px solid rgba(0,229,255,.1); border-radius: 50%; box-shadow: 0 0 70px rgba(124,58,237,.13); pointer-events: none; animation: portal-orbit 9s ease-in-out infinite alternate; }
 
     .hero-eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      letter-spacing: 2px;
+      font-size: 0.76rem;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      color: var(--accent-ember);
-      margin-bottom: 14px;
+      color: var(--valixis-cyan);
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
     }
 
     .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--accent-ember);
+      width: 7px;
+      height: 7px;
+      background: var(--valixis-cyan);
       border-radius: 50%;
-      box-shadow: 0 0 12px var(--accent-ember);
+      box-shadow: 0 0 10px var(--valixis-cyan);
     }
 
     .hero-title {
       font-family: 'Orbitron', sans-serif;
-      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-size: clamp(2.4rem, 5.8vw, 4.8rem);
       font-weight: 900;
-      letter-spacing: -0.5px;
-      line-height: 1.15;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
       margin-bottom: 14px;
-      background: linear-gradient(135deg, #ffffff 40%, #ff8533 100%);
+      background: linear-gradient(100deg, #ffffff 15%, #00e5ff 40%, #2563ff 65%, #d946ef 92%);
+      background-size: 200% 200%;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      animation: auroraFlow 8s ease infinite;
+    }
+
+    @keyframes auroraFlow {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
     }
 
     .hero-desc {
-      font-size: 1.05rem;
-      color: var(--text-muted);
-      max-width: 650px;
-      margin: 0 auto;
+      font-size: 1.08rem;
+      color: #cbd5e1;
+      max-width: 620px;
+      margin: 0 auto 24px;
       line-height: 1.6;
     }
 
-    /* Featured Game Showcase */
+    .quick-launch {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 auto;
+    }
+
+    .quick-launch a {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 999px;
+      background: rgba(10, 16, 28, 0.85);
+      color: #dcebf8;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .quick-launch a:hover {
+      border-color: var(--valixis-cyan);
+      color: #fff;
+      background: rgba(0, 229, 255, 0.15);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.25);
+    }
+
+    .quick-launch a span {
+      color: var(--valixis-cyan);
+      font-size: 0.95rem;
+    }
+
+    /* ==========================================================================
+       AD CONTAINERS (RESPONSIVE & CLEANED OF BRAND LABELS)
+       ========================================================================== */
+    .ad-leaderboard-container {
+      margin: 24px auto 32px;
+      display: flex;
+      justify-content: center;
+      position: relative;
+      z-index: 10;
+      max-width: 100%;
+    }
+
+    .ad-scroll-frame {
+      max-width: 100%;
+      min-height: 92px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      border: 1px solid rgba(0, 229, 255, 0.22);
+      border-radius: 12px;
+      background: rgba(6, 10, 18, 0.8);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      padding: 6px 10px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ad-scroll-frame::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ==========================================================================
+       FEATURED FLAGSHIP GAME: SOUL EMBER: SURVIVORS
+       ========================================================================== */
     .featured-card {
-      background: linear-gradient(145deg, rgba(22, 29, 42, 0.95), rgba(12, 16, 24, 0.98));
-      border: 1px solid rgba(255, 106, 0, 0.35);
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 106, 0, 0.12);
+      background: linear-gradient(135deg, rgba(14, 22, 38, 0.92) 0%, rgba(10, 14, 24, 0.96) 60%, rgba(24, 16, 32, 0.92) 100%);
+      border: 1px solid rgba(255, 157, 66, 0.35);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 145, 0, 0.12);
       border-radius: 20px;
       padding: 36px;
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 1fr 1.05fr;
       gap: 36px;
       align-items: center;
-      margin-bottom: 60px;
+      margin-bottom: 48px;
       position: relative;
       overflow: hidden;
       transform-style: preserve-3d;
-      transition: transform .5s cubic-bezier(.16,1,.3,1), border-color .35s ease, box-shadow .35s ease;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
     }
 
-    .featured-card::after { content: ''; position: absolute; inset: -30%; background: linear-gradient(115deg, transparent 40%, rgba(0,229,255,.1) 50%, transparent 60%); transform: translateX(-60%) rotate(8deg); pointer-events: none; transition: transform 1s ease; }
-    .featured-card:hover::after { transform: translateX(60%) rotate(8deg); }
+    .featured-card:hover {
+      border-color: rgba(255, 157, 66, 0.65);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 45px rgba(255, 145, 0, 0.25);
+    }
 
+    /* Electric Spark Border Accent */
     .featured-card::before {
       content: '';
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle at 20% 20%, rgba(255, 106, 0, 0.08), transparent 40%);
+      inset: -1px;
+      border-radius: 20px;
+      padding: 1.5px;
+      background: linear-gradient(90deg, transparent 20%, rgba(255, 157, 66, 0.6) 50%, transparent 80%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
       pointer-events: none;
+      animation: borderSweep 6s linear infinite;
+    }
+
+    @keyframes borderSweep {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     .tag-row {
@@ -272,7 +784,7 @@
 
     .game-tag {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       text-transform: uppercase;
       padding: 4px 10px;
       border-radius: 6px;
@@ -281,26 +793,26 @@
     }
 
     .tag-featured {
-      background: rgba(255, 106, 0, 0.15);
-      border: 1px solid rgba(255, 106, 0, 0.4);
-      color: var(--accent-glow);
+      background: rgba(255, 145, 0, 0.14);
+      border: 1px solid rgba(255, 145, 0, 0.4);
+      color: #ffb74d;
     }
 
     .tag-engine {
-      background: rgba(0, 217, 255, 0.1);
-      border: 1px solid rgba(0, 217, 255, 0.3);
-      color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      color: var(--valixis-cyan);
     }
 
     .game-title {
-      font-family: 'Cinzel', 'Orbitron', Georgia, serif;
-      font-size: clamp(2rem, 3.2vw, 2.7rem);
+      font-family: 'Cinzel', 'Orbitron', serif;
+      font-size: clamp(2rem, 3.4vw, 2.9rem);
       font-weight: 900;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       color: #fff;
       margin-bottom: 12px;
-      line-height: 1.2;
-      text-shadow: 0 4px 20px rgba(255, 106, 0, 0.25);
+      line-height: 1.15;
+      text-shadow: 0 4px 24px rgba(255, 145, 0, 0.25);
     }
 
     .game-summary {
@@ -314,265 +826,601 @@
       list-style: none;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 10px 16px;
+      gap: 12px 18px;
       margin-bottom: 28px;
     }
 
     .features-list li {
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      line-height: 1.45;
     }
 
     .features-list li span {
-      color: var(--accent-ember);
-      font-weight: bold;
+      color: #ffb74d;
+      font-weight: 800;
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
     }
 
     .play-btn-main {
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      background: linear-gradient(135deg, #ff6a00, #ee0979);
+      background: linear-gradient(135deg, #00e5ff 0%, #2563ff 50%, #7c3aed 100%);
       color: #fff;
       text-decoration: none;
       padding: 16px 36px;
       border-radius: 12px;
-      font-family: 'Cinzel', 'Orbitron', serif;
-      font-size: 1rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.95rem;
       font-weight: 800;
       letter-spacing: 1.5px;
       text-transform: uppercase;
       transition: all 0.25s ease;
-      box-shadow: 0 8px 30px rgba(255, 106, 0, 0.4);
+      box-shadow: 0 8px 30px rgba(37, 99, 255, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .play-btn-main:hover {
       transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 12px 40px rgba(255, 106, 0, 0.65);
+      box-shadow: 0 12px 40px rgba(0, 229, 255, 0.5);
+      border-color: #00e5ff;
     }
 
-    /* Game Preview Graphic Panel */
-    .preview-panel {
-      background: rgba(6, 9, 14, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .featured-art-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 380px;
       border-radius: 14px;
-      padding: 24px;
-      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .hero-roster-preview {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-
-    .roster-chip {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      padding: 8px 6px;
-      text-align: center;
-      font-size: 0.72rem;
-    }
-
-    .roster-chip .icon {
-      font-size: 1.4rem;
-      margin-bottom: 4px;
-      display: block;
-    }
-
-    .roster-chip .name {
-      color: #e2e8f0;
-      font-weight: 600;
-      font-size: 0.70rem;
-    }
-
-    .telemetry-preview {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      background: rgba(0, 0, 0, 0.4);
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      line-height: 1.6;
-    }
-
-    .telemetry-preview .highlight {
-      color: #10b981;
-    }
-
-    /* Grid of upcoming games */
-    .section-heading {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 800;
-      margin-bottom: 24px;
-      color: #fff;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(255, 157, 66, 0.35);
+      box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.8), 0 8px 32px rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
     }
 
+    .featured-art-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 6px 30px rgba(0, 0, 0, 0.9));
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .featured-card:hover .featured-art-frame img {
+      transform: scale(1.035);
+    }
+
+    /* ==========================================================================
+       GAMES GRID (DEAD SIGNAL & ROAD RIOT) - 100% UNCLIPPED 3D ART
+       ========================================================================== */
     .games-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 24px;
-      margin-bottom: 60px;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 28px;
+      margin-bottom: 48px;
     }
 
     .game-mini-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
       padding: 24px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: all 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       position: relative;
       overflow: hidden;
       transform-style: preserve-3d;
-      will-change: transform;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 
-    .game-mini-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(260px circle at var(--card-x, 50%) var(--card-y, 0%), rgba(0,229,255,.16), transparent 60%); transition: opacity .35s ease; }
-    .game-mini-card:hover::before { opacity: 1; }
-    .game-mini-card > * { position: relative; z-index: 1; }
+    .game-mini-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      background: radial-gradient(320px circle at var(--card-x, 50%) var(--card-y, 0%), rgba(0, 229, 255, 0.14), transparent 60%);
+      transition: opacity 0.35s ease;
+    }
+
+    .game-mini-card:hover::before {
+      opacity: 1;
+    }
 
     .game-mini-card:hover {
-      border-color: rgba(0, 229, 255, 0.55);
       transform: translateY(-6px);
-      box-shadow: 0 18px 55px rgba(0,0,0,.3), 0 0 22px rgba(0,229,255,.08);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 229, 255, 0.12);
     }
 
-    .mini-status {
+    /* Game Art Presentation: 16/9, Object-Fit Contain, ZERO Clipping */
+    .game-art-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 230px;
+      margin-bottom: 18px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.8);
+    }
+
+    .game-art-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s ease;
+      filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.9));
+    }
+
+    .game-mini-card:hover .game-art-container img {
+      transform: scale(1.04);
+      filter: saturate(1.15) drop-shadow(0 6px 24px rgba(0, 0, 0, 1));
+    }
+
+    /* Dedicated HUD Eyebrow Tagline (Outside art so title art is clean!) */
+    .art-hud-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.70rem;
+      font-size: 0.68rem;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      margin-bottom: 10px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--accent-cyan);
-      margin-bottom: 8px;
     }
 
-    .mini-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.25rem;
+    /* Dead Signal Specific Card Styling */
+    .card-dead {
+      border-color: rgba(125, 250, 52, 0.3);
+      background: linear-gradient(145deg, rgba(14, 26, 16, 0.92), rgba(6, 12, 8, 0.96));
+    }
+
+    .card-dead:hover {
+      border-color: rgba(125, 250, 52, 0.65);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(125, 250, 52, 0.2);
+    }
+
+    .title-dead {
+      font-family: 'Bebas Neue', 'Orbitron', sans-serif;
+      font-size: 1.75rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
       color: #fff;
       margin-bottom: 8px;
+      line-height: 1.1;
+      text-shadow: 0 0 15px rgba(125, 250, 52, 0.3);
     }
 
-    .mini-desc {
-      font-size: 0.90rem;
+    /* Road Riot Specific Card Styling */
+    .card-road {
+      border-color: rgba(0, 229, 255, 0.3);
+      background: linear-gradient(145deg, rgba(12, 22, 36, 0.92), rgba(6, 12, 22, 0.96));
+    }
+
+    .card-road:hover {
+      border-color: rgba(0, 229, 255, 0.65);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(0, 229, 255, 0.2);
+    }
+
+    .title-road {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.35rem;
+      font-style: italic;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #fff;
+      margin-bottom: 8px;
+      line-height: 1.15;
+      text-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+    }
+
+    .card-desc {
       color: var(--text-muted);
-      line-height: 1.55;
-      margin-bottom: 18px;
+      font-size: 0.90rem;
+      line-height: 1.6;
+      margin-bottom: 20px;
     }
 
-    .section-heading { position: relative; }
-    .section-heading::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, rgba(0,229,255,.35), transparent); }
-    @keyframes portal-orbit { to { transform: translateX(-50%) rotate(4deg) scale(1.04); opacity: .7; } }
-    @keyframes scan-drift { to { background-position-y: 100%; } }
-    @keyframes core-pulse { 50% { transform: translate(-50%, -50%) scale(1.08); opacity: .72; } }
-    .portal-motion-ready .portal-reveal { opacity: 0; transform: translateY(24px); transition: opacity .75s ease, transform .75s cubic-bezier(.16,1,.3,1); }
-    .portal-motion-ready .portal-reveal.is-visible { opacity: 1; transform: none; }
-    @media (prefers-reduced-motion: reduce) { body::before, body::after, .hero-banner::after { animation: none; } .game-mini-card:hover, .featured-card:hover { transform: none !important; } .portal-motion-ready .portal-reveal, .portal-motion-ready .portal-reveal.is-visible { opacity: 1; transform: none; transition: none; } }
+    .card-footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
 
-    /* Footer */
-    footer {
+    .card-status-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .card-action-link {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ==========================================================================
+       PRODUCTION PIPELINE SECTION (REDUCED SIZE, CLEAN & COMPACT)
+       ========================================================================== */
+    .pipeline-wrapper {
+      max-width: 1100px;
+      margin: 0 auto 40px;
+    }
+
+    .section-heading {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 18px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    .section-heading::after {
+      content: '';
+      height: 1px;
+      flex: 1;
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.35), transparent);
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .pipeline-compact-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 175px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .pipeline-compact-card:hover {
+      border-color: rgba(0, 229, 255, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .pipeline-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .pipeline-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .pipeline-desc {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .pipeline-status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
-      padding: 32px 24px;
+    }
+
+    .pipeline-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Ad Container Card in Pipeline: Strictly Sized, NO Sponsor/Adsterra text */
+    .pipeline-ad-card {
+      background: rgba(6, 10, 18, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 250px;
+      overflow: hidden;
+    }
+
+    .pipeline-ad-inner {
+      width: 300px;
+      height: 250px;
+      max-width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Responsive Bottom Ad Container */
+    .adsense-bottom-container {
+      max-width: 1000px;
+      margin: 30px auto 20px;
+      padding: 12px 16px;
+      text-align: center;
+      background: rgba(10, 16, 28, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ==========================================================================
+       FOOTER & UTILITIES
+       ========================================================================== */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 36px 24px;
       text-align: center;
       color: var(--text-muted);
       font-size: 0.85rem;
-      background: rgba(6, 9, 14, 0.8);
+      background: rgba(3, 6, 12, 0.88);
+      backdrop-filter: blur(16px);
+      position: relative;
+      z-index: 10;
     }
 
-    footer a {
-      color: var(--accent-cyan);
+    .footer-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .footer-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 6px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .footer-links a, .footer-btn {
+      color: var(--valixis-cyan);
       text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.80rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s;
     }
 
+    .footer-links a:hover, .footer-btn:hover {
+      color: #fff;
+      text-decoration: underline;
+    }
+
+    /* Motion reveals */
+    .portal-motion-ready .portal-reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.75s ease, transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .portal-motion-ready .portal-reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Responsive adjustments */
     @media (max-width: 900px) {
       .featured-card {
         grid-template-columns: 1fr;
+        padding: 24px;
+      }
+      .featured-art-frame {
+        max-height: 280px;
+        order: -1;
       }
       .top-nav {
-        padding: 14px 18px;
+        padding: 12px 18px;
       }
       .features-list {
         grid-template-columns: 1fr;
       }
-      .hero-banner::after { width: 86vw; }
     }
+
     @media (max-width: 560px) {
-      .top-nav { gap: 8px; padding-inline: 12px; }
-      .arcade-badge { display: none; }
-      .brand-logo { height: 27px; }
-      .nav-links { flex: 0 0 auto; }
-      .nav-btn { padding: 6px 8px; font-size: .68rem; white-space: nowrap; }
+      .top-nav {
+        padding-inline: 12px;
+      }
+      .arcade-badge {
+        display: none;
+      }
+      .brand-logo {
+        height: 26px;
+      }
+      .nav-btn {
+        padding: 5px 8px;
+        font-size: 0.70rem;
+      }
+      .live-telemetry-bar {
+        top: 57px;
+        padding: 4px 12px;
+      }
+      .hero-title {
+        font-size: clamp(2rem, 8.5vw, 2.8rem);
+      }
+      .quick-launch {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+      }
+      .quick-launch a {
+        justify-content: space-between;
+      }
+      .games-grid {
+        grid-template-columns: 1fr;
+      }
+      .game-art-container {
+        max-height: 190px;
+      }
+      .pipeline-grid {
+        grid-template-columns: 1fr;
+      }
     }
-    /* Arcade art direction */
-    .container { max-width: 1320px; padding-top: 34px; }
-    .hero-banner { margin-bottom: 26px; }
-    .hero-title { font-size: clamp(2.5rem, 5.6vw, 5rem); line-height: 1.04; letter-spacing: -.045em; background: linear-gradient(100deg,#f5f7fa 16%,#00e5ff 44%,#2563ff 66%,#d946ef 91%); -webkit-background-clip: text; background-clip: text; }
-    .hero-desc { max-width: 590px; color: #b8c9dd; }
-    .quick-launch { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 22px auto 0; }
-    .quick-launch a { display: inline-flex; align-items: center; gap: 15px; min-height: 42px; padding: 0 14px; border: 1px solid rgba(0,229,255,.23); border-radius: 999px; background: rgba(9,17,30,.76); color: #dcebf8; text-decoration: none; font: 700 .68rem 'JetBrains Mono',monospace; letter-spacing: .07em; transition: color .25s, border-color .25s, transform .25s, background .25s; }
-    .quick-launch a:hover { border-color: #00e5ff; color: #fff; background: rgba(0,229,255,.13); transform: translateY(-3px); }
-    .quick-launch span { color: #00e5ff; font-size: 1rem; }
-    .featured-card { margin-bottom: 36px; grid-template-columns: .88fr 1.12fr; min-height: 470px; border-color: rgba(230,163,101,.32); background: linear-gradient(115deg,#111b2b 4%,#11121d 55%,#241628); }
-    .featured-card > div:first-child { position: relative; z-index: 2; }
-    .featured-art { position: relative; z-index: 1; width: 100%; min-width: 0; height: 100%; min-height: 370px; overflow: hidden; border: 1px solid rgba(232,165,91,.33); border-radius: 14px; background: #11110f; }
-    .featured-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform 1s cubic-bezier(.16,1,.3,1); }
-    .featured-card:hover .featured-art img { transform: scale(1.045); }
-    .soul-key-art { display: flex; flex-direction: column; align-items: center; justify-content: center; isolation: isolate; background: radial-gradient(circle at 50% 46%,rgba(229,133,68,.22),transparent 30%),radial-gradient(circle at 78% 78%,rgba(217,70,239,.16),transparent 45%),linear-gradient(145deg,#141a1a,#131015 68%,#1e1422); }
-    .soul-key-art::before { content: ''; position: absolute; inset: 0; opacity: .3; background-image: linear-gradient(rgba(232,165,91,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(232,165,91,.1) 1px,transparent 1px); background-size: 36px 36px; mask-image: radial-gradient(circle,black,transparent 78%); pointer-events: none; }
-    .soul-key-art::after { content: ''; position: absolute; inset: 12%; border: 1px solid rgba(232,165,91,.17); clip-path: polygon(50% 0,100% 35%,100% 65%,50% 100%,0 65%,0 35%); transform: rotate(12deg); pointer-events: none; }
-    .soul-art-top,.soul-art-bottom { position: absolute; z-index: 2; left: 20px; right: 20px; display: flex; justify-content: space-between; gap: 12px; color: #eac29d; font: 700 .65rem 'JetBrains Mono',monospace; letter-spacing: .17em; }
-    .soul-art-top { top: 20px; } .soul-art-top span:last-child { color: #e8a55b; }
-    .soul-art-bottom { bottom: 20px; color: #c3ad95; }
-    .soul-art-orbit { position: absolute; z-index: 0; width: 64%; aspect-ratio: 1; border: 1px solid rgba(235,157,86,.24); border-radius: 50%; box-shadow: 0 0 60px rgba(216,109,64,.08),inset 0 0 60px rgba(216,109,64,.06); animation: soul-orbit 18s linear infinite; }
-    .soul-art-orbit-one::before { content: '✦'; position: absolute; top: 11%; left: 11%; color: #e8a55b; font-size: 1.1rem; }
-    .soul-art-orbit-two { width: 80%; aspect-ratio: 1.5; transform: rotate(-24deg); border-color: rgba(217,70,239,.2); animation: soul-orbit-two 22s linear infinite; }
-    .soul-art-mark { position: relative; z-index: 1; width: clamp(105px,27%,190px); max-height: 48%; overflow: visible; filter: drop-shadow(0 0 28px rgba(245,157,81,.54)); animation: soul-breathe 5s ease-in-out infinite; }
-    .soul-art-wordmark { position: relative; z-index: 2; margin-top: -10px; color: #f5eee3; text-align: center; font: 700 clamp(1.7rem,3.2vw,3rem)/1 Georgia,serif; letter-spacing: .13em; text-shadow: 0 5px 24px rgba(0,0,0,.75); }
-    .soul-art-wordmark em { color: #e7aa75; font-style: normal; }
-    @keyframes soul-orbit { to { transform: rotate(360deg); } }
-    @keyframes soul-orbit-two { to { transform: rotate(336deg); } }
-    @keyframes soul-breathe { 50% { transform: translateY(-8px) scale(1.025); filter: drop-shadow(0 0 40px rgba(245,157,81,.7)); } }
-    .featured-art::after, .game-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg,transparent 45%,rgba(4,7,13,.78)); pointer-events: none; }
-    .art-caption { position: absolute; z-index: 1; bottom: 15px; left: 17px; color: #f5f7fa; font: 700 .7rem 'JetBrains Mono',monospace; letter-spacing: .17em; }
-    .game-title { font-size: clamp(1.7rem,3vw,2.7rem); }
-    .game-summary { max-width: 48ch; }
-    .features-list { grid-template-columns: 1fr 1fr; }
-    .features-list li { display: block; font-size: .78rem; line-height: 1.45; }
-    .features-list li span { color: #00e5ff; display: block; }
-    .play-btn-main { background: linear-gradient(110deg,#00e5ff,#2563ff 52%,#7c3aed); box-shadow: 0 12px 36px rgba(37,99,255,.25); }
-    .play-btn-main:hover { box-shadow: 0 16px 42px rgba(0,229,255,.32); }
-    .game-art { position: relative; height: 180px; margin-bottom: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: #090f18; }
-    .game-art img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.16,1,.3,1), filter .7s; }
-    .game-mini-card:hover .game-art img { transform: scale(1.075); filter: saturate(1.2); }
-    .game-art span { position: absolute; z-index: 1; left: 14px; bottom: 13px; color: #fff; font: 800 .65rem 'Orbitron',sans-serif; letter-spacing: .08em; }
-    .game-art-dead { box-shadow: inset 0 0 30px rgba(162,255,93,.14); }
-    .game-art-road { box-shadow: inset 0 0 30px rgba(0,229,255,.19); }
-    .game-art-dev { background: repeating-linear-gradient(0deg,transparent 0 8px,rgba(217,70,239,.06) 9px),radial-gradient(circle at 50% 45%,#322150,#090b18 70%); }
-    .game-art-dev img { width: 118px; height: 118px; margin: 18px auto; object-fit: contain; filter: drop-shadow(0 0 22px rgba(217,70,239,.45)); }
-    .game-mini-card:focus-visible, .quick-launch a:focus-visible, .play-btn-main:focus-visible { outline: 2px solid #00e5ff; outline-offset: 4px; }
-    @media (max-width:900px) { .featured-card { grid-template-columns: minmax(0,1fr); } .featured-art { min-height: 280px; aspect-ratio: 16/9; order: -1; } }
-    @media (max-width:560px) { .container { padding: 26px 16px; } .hero-title { font-size: clamp(2.1rem,9vw,3rem); } .quick-launch { display: grid; grid-template-columns: 1fr 1fr; } .quick-launch a { font-size: .55rem; justify-content: space-between; gap: 4px; padding-inline: 10px; } .featured-card { padding: 20px; } .featured-art { min-height: 230px; } .features-list { grid-template-columns: 1fr 1fr; } .games-grid { grid-template-columns: 1fr; } .game-art { height: 165px; } .soul-art-top,.soul-art-bottom { font-size: .43rem; letter-spacing: .08em; left: 12px; right: 12px; } .soul-art-mark { width: 95px; } .soul-art-wordmark { font-size: 1.45rem; } }
-    @media (prefers-reduced-motion: reduce) { .featured-art img, .game-art img, .quick-launch a { transition: none; } .featured-card:hover .featured-art img, .game-mini-card:hover .game-art img, .quick-launch a:hover { transform: none; } .soul-art-orbit,.soul-art-mark { animation: none; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .portal-loader, .hero-title, .ring-outer, .ring-inner, .core-pulse-glow, .featured-card::before {
+        animation: none !important;
+      }
+      .game-mini-card:hover, .featured-card:hover {
+        transform: none !important;
+      }
+      .portal-motion-ready .portal-reveal {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Film Grain Overlay for Tactile Depth -->
+
+  <!-- ========================================================================
+       CINEMATIC "ENTERING THE GAMING WORLD" PRELOADER
+       ======================================================================== -->
+  <div id="portal-loader" class="portal-loader" aria-label="Portal Boot Sequence">
+    <div class="loader-bg-grid"></div>
+    <div class="loader-center">
+      <!-- Dual Concentric Holographic Cyber Rings -->
+      <div class="cyber-rings-container">
+        <svg class="cyber-ring ring-outer" viewBox="0 0 280 280">
+          <defs>
+            <linearGradient id="cyan-blue-grad" x1="0" y1="0" x2="280" y2="280" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#00e5ff"/>
+              <stop offset="100%" stop-color="#2563ff"/>
+            </linearGradient>
+            <linearGradient id="magenta-violet-grad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#d946ef"/>
+              <stop offset="100%" stop-color="#7c3aed"/>
+            </linearGradient>
+          </defs>
+          <circle cx="140" cy="140" r="130" class="ring-track" />
+          <circle cx="140" cy="140" r="130" class="ring-dash" />
+          <circle cx="140" cy="140" r="115" class="ring-dots" />
+        </svg>
+
+        <svg class="cyber-ring ring-inner" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" class="ring-dash-inner" />
+          <circle cx="100" cy="100" r="76" class="ring-pulse" />
+        </svg>
+
+        <!-- Center Hologram Node with VALIXIS Mark -->
+        <div class="loader-core">
+          <div class="core-pulse-glow"></div>
+          <svg class="loader-v-mark" viewBox="0 0 40 40" fill="none">
+            <path d="M7 9 L20 31 L33 9" stroke="url(#core-grad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="core-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00e5ff"/>
+                <stop offset="50%" stop-color="#2563ff"/>
+                <stop offset="100%" stop-color="#d946ef"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Live Diagnostics Terminal -->
+      <div class="loader-terminal">
+        <div class="terminal-kicker">
+          <span class="terminal-blink">●</span> VALIXIS QUANTUM RUNTIME // BOOT SEQ v2.4
+        </div>
+        <div class="terminal-progress-track">
+          <div id="loader-bar" class="terminal-progress-fill"></div>
+        </div>
+        <div class="terminal-status-row">
+          <span id="loader-status-text">INITIALIZING QUANTUM CORE...</span>
+          <span id="loader-pct">0%</span>
+        </div>
+        <div class="terminal-telemetry-tags">
+          <span>WEBGL 2.0</span>
+          <span>120HZ UNLOCKED</span>
+          <span>SPATIAL DSP</span>
+          <span>GLOBAL EDGE</span>
+        </div>
+      </div>
+
+      <button id="loader-skip-btn" class="loader-skip-btn" type="button">
+        SKIP INTRO [ESC] &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- 3D Interactive WebGL Canvas -->
+  <canvas id="arcade-3d-bg" aria-hidden="true"></canvas>
+
+  <!-- Fine Film Grain Overlay -->
   <div class="film-grain-overlay" aria-hidden="true"></div>
+  <div class="ambient-glow-top" aria-hidden="true"></div>
+  <div class="ambient-glow-side" aria-hidden="true"></div>
 
   <!-- Universal Top Navigation -->
   <header class="top-nav">
@@ -580,11 +1428,51 @@
       <img src="valixis-horizontal-lockup.png" alt="VALIXIS" class="brand-logo" width="836" height="120" fetchpriority="high">
       <span class="arcade-badge">GAMES ARCADE</span>
     </a>
+
+    <nav class="nav-links" aria-label="Portal Navigation">
+      <a href="https://valixis.tech" class="nav-btn nav-btn-company" target="_blank" rel="noopener">
+        <span>&larr; VALIXIS.TECH</span>
+      </a>
+      <a href="logos.html" class="nav-btn">
+        <span>BRAND ASSETS</span>
+      </a>
+      <button id="audio-toggle-btn" class="nav-btn nav-btn-sfx" type="button" aria-label="Toggle Sound Effects">
+        <span id="audio-icon">🔊</span> <span id="audio-label">SFX ON</span>
+      </button>
+    </nav>
   </header>
+
+  <!-- Live Telemetry Status Ticker Bar -->
+  <div class="live-telemetry-bar">
+    <div class="telemetry-inner">
+      <div class="telemetry-pill">
+        <span class="telemetry-dot live"></span>
+        <span class="telemetry-label">NETWORK:</span>
+        <span class="telemetry-val">VALIXIS EDGE LIVE</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">REGION:</span>
+        <span class="telemetry-val">GLOBAL CLOUD (12ms)</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">RENDER ENGINE:</span>
+        <span class="telemetry-val">THREE.JS WEBGL 2.0</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">ACTIVE RUNNERS:</span>
+        <span id="live-player-counter" class="telemetry-val highlight">1,438</span>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">STATUS:</span>
+        <span class="telemetry-val highlight">100% OPERATIONAL</span>
+      </div>
+    </div>
+  </div>
 
   <!-- Main Arcade Container -->
   <main class="container">
     
+    <!-- Hero Banner -->
     <div class="hero-banner">
       <div class="hero-eyebrow">
         <span class="pulse-dot"></span>
@@ -595,15 +1483,15 @@
         Many worlds. One arcade. Jump straight into a run, a siege, a race, or your next empire.
       </p>
       <nav class="quick-launch" aria-label="Quick launch games">
-        <a href="soul-ember/index.html?v=16" data-game-id="soul-ember">SOUL EMBER <span>↗</span></a>
-        <a href="dead-signal/index.html" data-game-id="dead-signal">DEAD SIGNAL <span>↗</span></a>
-        <a href="road-riot/index.html" data-game-id="road-riot">ROAD RIOT <span>↗</span></a>
+        <a href="soul-ember/index.html?v=16" data-game-id="soul-ember" data-sound="ember">SOUL EMBER <span>↗</span></a>
+        <a href="dead-signal/index.html" data-game-id="dead-signal" data-sound="dead">DEAD SIGNAL <span>↗</span></a>
+        <a href="road-riot/index.html" data-game-id="road-riot" data-sound="road">ROAD RIOT <span>↗</span></a>
       </nav>
     </div>
 
-    <!-- 728x90 Leaderboard -->
-    <div class="adsterra-banner-container adsterra-728x90-wrap" style="margin: 20px auto 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 10;">
-      <div style="max-width: 100%; min-height: 90px; overflow-x: auto; border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 12px; background: rgba(8, 14, 28, 0.85); box-shadow: 0 0 25px rgba(0, 229, 255, 0.1); padding: 8px 12px; box-sizing: border-box; text-align: center; display: flex; align-items: center; justify-content: center;">
+    <!-- 728x90 Leaderboard Container (Responsive & Overflow-Safe) -->
+    <div class="ad-leaderboard-container">
+      <div class="ad-scroll-frame">
         <script>
           atOptions = {
             'key' : '4bd9637e6ea135a266fb14c545f4e6ea',
@@ -618,10 +1506,10 @@
     </div>
 
     <!-- Featured Flagship Game: Soul Ember -->
-    <article class="featured-card">
+    <article class="featured-card portal-reveal" data-aura="ember">
       <div>
         <div class="tag-row">
-          <span class="game-tag tag-featured">FEATURED GAME</span>
+          <span class="game-tag tag-featured">FLAGSHIP RELEASE</span>
           <span class="game-tag tag-engine">ACTION ROGUELITE</span>
           <span class="game-tag" style="background:rgba(255,255,255,0.06); color:#cbd5e1;">PLAY FREE</span>
         </div>
@@ -630,100 +1518,117 @@
         <p class="game-summary">Eight heroes. Five realms. One last light. Survive the abyss, defeat the fallen guardians, and carry your build into endless ascensions.</p>
 
         <ul class="features-list">
-          <li><span>08 HEROES</span>Distinct powers and builds</li>
-          <li><span>05 REALMS</span>Ever-changing encounters</li>
-          <li><span>ENDLESS</span>Ascend beyond victory</li>
-          <li><span>PLAY YOUR WAY</span>Keyboard, touch, or gamepad</li>
+          <li><span>08 HEROES</span>Distinct powers, evolutions, and builds</li>
+          <li><span>05 REALMS</span>Ever-changing encounters &amp; bosses</li>
+          <li><span>ENDLESS RITES</span>Ascend beyond victory with relics</li>
+          <li><span>PLAY YOUR WAY</span>Keyboard, touch, or full gamepad</li>
         </ul>
 
-        <a href="soul-ember/index.html?v=16" class="play-btn-main" data-game-id="soul-ember">
+        <a href="soul-ember/index.html?v=16" class="play-btn-main" data-game-id="soul-ember" data-sound="launch">
           <span>Play Soul Ember Now</span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
         </a>
       </div>
 
-      <div class="featured-art" role="img" aria-label="Soul Ember: Survivors">
-        <img src="assets/logos/soul-ember-title.jpg" alt="Soul Ember: Survivors" width="1376" height="768" style="width:100%; height:100%; object-fit:cover; display:block;">
+      <div class="featured-art-frame" role="img" aria-label="Soul Ember: Survivors AAA Title Logo">
+        <img src="assets/logos/soul-ember-title.jpg" alt="Soul Ember: Survivors" width="1376" height="768" loading="eager">
       </div>
     </article>
 
-    <section class="games-grid portal-reveal" aria-label="New releases" style="margin-bottom: 40px;">
-      <a class="game-mini-card" href="dead-signal/index.html" data-game-id="dead-signal" style="text-decoration: none; color: inherit; border-color: rgba(157, 255, 77, 0.35); background: linear-gradient(145deg, rgba(16, 30, 18, 0.92), rgba(8, 14, 10, 0.95));">
-        <div class="game-art game-art-dead"><img src="assets/logos/dead-signal-title.jpg" alt="Dead Signal: Night Siege" width="1376" height="768" loading="lazy"><span>THE NIGHT IS YOURS TO SURVIVE</span></div>
+    <!-- Games Grid: Dead Signal & Road Riot (Unclipped AAA Art + HUD Eyebrows) -->
+    <section class="games-grid portal-reveal" aria-label="Playable Releases">
+      
+      <!-- Dead Signal -->
+      <a class="game-mini-card card-dead" href="dead-signal/index.html" data-game-id="dead-signal" data-aura="dead" style="text-decoration: none; color: inherit;">
+        <div class="game-art-container">
+          <img src="assets/logos/dead-signal-title.jpg" alt="Dead Signal: Night Siege 3D Logo" width="1376" height="768" loading="lazy">
+        </div>
         <div>
+          <div class="art-hud-eyebrow" style="color: #a3ff33;">
+            <span style="font-size: 0.8rem;">◆</span> THE NIGHT IS YOURS TO SURVIVE
+          </div>
           <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
-            <span class="game-tag" style="background: rgba(157, 255, 77, 0.12); border: 1px solid rgba(157, 255, 77, 0.35); color: #c8f79b;">PLAYABLE FPS RELEASE</span>
+            <span class="game-tag" style="background: rgba(125, 250, 52, 0.12); border: 1px solid rgba(125, 250, 52, 0.35); color: #a3ff33;">PLAYABLE FPS</span>
             <span class="game-tag" style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1;">Three.js WebGL</span>
           </div>
-          <h3 style="font-family: 'Bebas Neue', 'Orbitron', sans-serif; font-size: 1.7rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; margin-bottom: 6px; line-height: 1.1;">Dead Signal: Night Siege</h3>
-          <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 18px;">
+          <h3 class="title-dead">Dead Signal: Night Siege</h3>
+          <p class="card-desc">
             Hold a relay station through an endless night of the infected. Three weapons with real recoil, headshot damage, a working flashlight, breakable hordes of walkers, runners and brutes, and a procedural town that only exists in your browser.
           </p>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #c8f79b; font-weight: 700;">STATUS: LIVE RUNTIME</span>
-            <span style="font-family: 'Bebas Neue', 'Orbitron', sans-serif; font-size: 1.1rem; letter-spacing: 1.5px; font-weight: 400; color: #fff; display: flex; align-items: center; gap: 6px;">PLAY DEAD SIGNAL &rarr;</span>
+          <div class="card-footer-row">
+            <span class="card-status-badge" style="color: #a3ff33;">STATUS: LIVE RUNTIME</span>
+            <span class="card-action-link" style="color: #fff;">PLAY DEAD SIGNAL &rarr;</span>
           </div>
         </div>
       </a>
 
-      <a class="game-mini-card" href="road-riot/index.html" data-game-id="road-riot" style="text-decoration: none; color: inherit; border-color: rgba(0, 217, 255, 0.35); background: linear-gradient(145deg, rgba(14, 24, 38, 0.9), rgba(8, 14, 24, 0.95));">
-        <div class="game-art game-art-road"><img src="assets/logos/road-riot-title.jpg" alt="Road Riot 3D: Hyperspeed" width="1376" height="768" loading="lazy"><span>THE HIGHWAY NEVER ENDS</span></div>
+      <!-- Road Riot -->
+      <a class="game-mini-card card-road" href="road-riot/index.html" data-game-id="road-riot" data-aura="road" style="text-decoration: none; color: inherit;">
+        <div class="game-art-container">
+          <img src="assets/logos/road-riot-title.jpg" alt="Road Riot 3D: Hyperspeed 3D Logo" width="1376" height="768" loading="lazy">
+        </div>
         <div>
-          <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <span class="game-tag" style="background: rgba(0, 217, 255, 0.12); border: 1px solid rgba(0, 217, 255, 0.35); color: var(--accent-cyan);">FLAGSHIP 3D RACER</span>
+          <div class="art-hud-eyebrow" style="color: var(--valixis-cyan);">
+            <span style="font-size: 0.8rem;">◆</span> THE HIGHWAY NEVER ENDS
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+            <span class="game-tag" style="background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.35); color: var(--valixis-cyan);">3D COMBAT RACER</span>
             <span class="game-tag" style="background: rgba(255, 184, 0, 0.12); border: 1px solid rgba(255, 184, 0, 0.35); color: #ffb800;">6 SUPERCARS &bull; COMBAT TURRET</span>
           </div>
-          <h3 style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-style: italic; font-weight: 900; letter-spacing: 0.5px; color: #fff; margin-bottom: 8px;">Road Riot 3D: Hyperspeed</h3>
-          <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 18px;">
+          <h3 class="title-road">Road Riot 3D: Hyperspeed</h3>
+          <p class="card-desc">
             High-octane highway combat racer. 320+ KM/H nitro boost, slipstream drafting, 6 tunable supercars, and milestone battle checkpoints featuring a motorized roof turret defense sequence against drone squadrons, combat jets, and walking assault mechs.
           </p>
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--accent-cyan); font-weight: 700;">STATUS: LIVE RUNTIME</span>
-            <span style="font-family: 'Orbitron', sans-serif; font-size: 0.82rem; font-style: italic; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 6px;">PLAY ROAD RIOT &rarr;</span>
+          <div class="card-footer-row">
+            <span class="card-status-badge" style="color: var(--valixis-cyan);">STATUS: LIVE RUNTIME</span>
+            <span class="card-action-link" style="color: #fff;">PLAY ROAD RIOT &rarr;</span>
           </div>
         </div>
       </a>
     </section>
 
-    <!-- VALIXIS Game Studio Titles & Pipeline -->
-    <div style="max-width: 960px; margin: 0 auto;">
-      <h3 class="section-heading portal-reveal" style="font-size: 1.2rem; margin-bottom: 16px;">
+    <!-- VALIXIS Game Studio Titles & Pipeline (Clean & Compact) -->
+    <div class="pipeline-wrapper">
+      <h3 class="section-heading portal-reveal">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3-2h.01"></path></svg>
         VALIXIS Games &bull; Production Pipeline
       </h3>
 
-      <div class="pipeline-grid portal-reveal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 36px; align-items: stretch;">
-        <div class="game-mini-card" style="padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 12px; min-height: 250px;">
+      <div class="pipeline-grid portal-reveal">
+        
+        <!-- Pipeline Game 1: Bit By Bit -->
+        <div class="pipeline-compact-card">
           <div>
-            <div class="mini-status" style="color: var(--accent-cyan); font-size: 0.65rem; margin-bottom: 4px; letter-spacing: 1px;">In Active Development &bull; Procedural Action</div>
-            <h4 class="mini-title" style="font-size: 1.05rem; margin-bottom: 6px; letter-spacing: 0.5px;">Bit By Bit: Cyber Protocol</h4>
-            <p class="mini-desc" style="font-size: 0.82rem; line-height: 1.45; margin-bottom: 10px; color: #94a3b8;">
+            <div class="pipeline-kicker" style="color: var(--valixis-cyan);">In Active Development &bull; Procedural Action</div>
+            <h4 class="pipeline-title">Bit By Bit: Cyber Protocol</h4>
+            <p class="pipeline-desc">
               Fast-paced top-down cyberpunk tactical roguelite featuring procedural room generation, modular drone companions, and dynamic neon lighting.
             </p>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);">
-            <span style="font-family:'JetBrains Mono',monospace; font-size:0.70rem; color:var(--accent-cyan); font-weight:700;">STATUS: IN DEV</span>
-            <span class="game-tag" style="background:rgba(0,217,255,0.1); border:1px solid rgba(0,217,255,0.3); color:var(--accent-cyan); font-size: 0.65rem; padding: 2px 8px;">COMING SOON</span>
+          <div class="pipeline-status-row">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:0.70rem; color:var(--valixis-cyan); font-weight:700;">STAGE: ALPHA ENGINE</span>
+            <span class="pipeline-tag" style="background:rgba(0,229,255,0.1); border:1px solid rgba(0,229,255,0.3); color:var(--valixis-cyan);">COMING SOON</span>
           </div>
         </div>
 
-        <div class="game-mini-card" style="padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 12px; min-height: 250px;">
+        <!-- Pipeline Game 2: Dev Tycoon -->
+        <div class="pipeline-compact-card">
           <div>
-            <div class="mini-status" style="color: var(--accent-ember); font-size: 0.65rem; margin-bottom: 4px; letter-spacing: 1px;">In Active Development &bull; Idle Sim</div>
-            <h4 class="mini-title" style="font-size: 1.05rem; margin-bottom: 6px; letter-spacing: 0.5px;">Dev Tycoon</h4>
-            <p class="mini-desc" style="font-size: 0.82rem; line-height: 1.45; margin-bottom: 10px; color: #94a3b8;">
-              Idle code empire. Tap the terminal to ship lines of code, hire seven tiers of talent, buy market upgrades, and bank offline earnings.
+            <div class="pipeline-kicker" style="color: var(--valixis-magenta);">In Active Development &bull; Idle Sim</div>
+            <h4 class="pipeline-title">Dev Tycoon</h4>
+            <p class="pipeline-desc">
+              Idle code empire. Tap the terminal to ship lines of code, hire seven tiers of talent, buy market upgrades, and bank offline founder earnings.
             </p>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);">
-            <span style="font-family:'JetBrains Mono',monospace; font-size:0.70rem; color:var(--accent-ember); font-weight:700;">STATUS: IN DEV</span>
-            <span class="game-tag" style="background:rgba(217,70,239,0.12); border:1px solid rgba(217,70,239,0.35); color:var(--accent-ember); font-size: 0.65rem; padding: 2px 8px;">COMING SOON</span>
+          <div class="pipeline-status-row">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:0.70rem; color:var(--valixis-magenta); font-weight:700;">STAGE: PROTOTYPE</span>
+            <span class="pipeline-tag" style="background:rgba(217,70,239,0.12); border:1px solid rgba(217,70,239,0.35); color:var(--valixis-magenta);">COMING SOON</span>
           </div>
         </div>
 
-        <!-- ══ 300x250 Display Ad Unit ══ -->
-        <div class="game-mini-card" style="padding: 0; display: flex; align-items: center; justify-content: center; min-height: 250px; border-radius: 12px; border-color: rgba(255, 255, 255, 0.08); background: rgba(8, 14, 28, 0.6); overflow: hidden;">
-          <div style="width: 300px; height: 250px; max-width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">
+        <!-- 300x250 Display Ad Unit (Clean Frame, No labels) -->
+        <div class="pipeline-ad-card">
+          <div class="pipeline-ad-inner">
             <script>
               atOptions = {
                 'key' : '3273bdeb143c98ed90960b699dc94403',
@@ -736,13 +1641,13 @@
             <script src="https://bauval.org/22/3273bdeb143c98ed90960b699dc94403"></script>
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- ══ Google AdSense Responsive Horizontal Banner (Below Games) ══ -->
-    <div class="adsense-bottom-container" style="max-width: 1000px; margin: 40px auto 20px; padding: 14px 18px; text-align: center; background: rgba(11, 16, 26, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+    <!-- Google AdSense Responsive Horizontal Banner -->
+    <div class="adsense-bottom-container">
       <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6059224677913709" crossorigin="anonymous"></script>
-      <!-- Bottom one -->
       <ins class="adsbygoogle"
            style="display:block"
            data-ad-client="ca-pub-6059224677913709"
@@ -756,57 +1661,555 @@
 
   </main>
 
-  <!-- Footer -->
+  <!-- Universal Footer -->
   <footer>
-    <p>&copy; 2026 VALIXIS Technologies. All rights reserved.</p>
-    <p style="margin-top: 6px; font-size: 0.78rem;">
-      <a href="https://games.valixis.tech">games.valixis.tech</a>
-    </p>
+    <div class="footer-content">
+      <div class="footer-status-pill">
+        <span class="pulse-dot" style="background:#10b981; box-shadow:0 0 10px #10b981;"></span>
+        ALL SYSTEMS OPERATIONAL // ZERO DOWNTIME
+      </div>
+      <p>&copy; 2026 VALIXIS Technologies. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="https://valixis.tech" target="_blank" rel="noopener">valixis.tech &nearr;</a>
+        <a href="logos.html">Official Game Logos &nearr;</a>
+        <button id="replay-intro-btn" class="footer-btn" type="button">↺ Replay Portal Intro</button>
+      </div>
+    </div>
   </footer>
 
-  <script>
-    (() => {
-      document.querySelectorAll('[data-game-id]').forEach((link) => {
-        link.addEventListener('click', () => {
-          const id = link.dataset.gameId;
-          if (typeof window.gtag === 'function') window.gtag('event', 'game_launch', { game_id: id, event_category: 'arcade' });
-        });
-      });
+  <!-- ========================================================================
+       SCRIPTS: AUDIO SYNTH, 3D WEBGL ENGINE & INTERACTIVE PORTAL CONTROLLER
+       ======================================================================== -->
+  <script type="module">
+    import * as THREE from './node_modules/three/build/three.module.js';
 
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* ==========================================================================
+       1. WEB AUDIO PROCEDURAL SYNTHESIZER
+       ========================================================================== */
+    class ValixisAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = localStorage.getItem('valixis_sfx_muted') === 'true';
+        this.updateUI();
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        localStorage.setItem('valixis_sfx_muted', this.muted);
+        this.updateUI();
+        if (!this.muted) {
+          this.init();
+          this.playBlip(660);
+        }
+      }
+
+      updateUI() {
+        const icon = document.getElementById('audio-icon');
+        const label = document.getElementById('audio-label');
+        if (icon && label) {
+          icon.textContent = this.muted ? '🔇' : '🔊';
+          label.textContent = this.muted ? 'SFX OFF' : 'SFX ON';
+        }
+      }
+
+      playBlip(freq = 880) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.08);
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } catch(e) {}
+      }
+
+      playClick() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.05);
+          gain.gain.setValueAtTime(0.06, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        } catch(e) {}
+      }
+
+      playWarp() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(60, now);
+          osc.frequency.exponentialRampToValueAtTime(920, now + 0.8);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(200, now);
+          filter.frequency.exponentialRampToValueAtTime(4500, now + 0.7);
+
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.4);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.85);
+        } catch(e) {}
+      }
+
+      playAuraTone(aura) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          let freq = 523.25; // C5
+          if (aura === 'ember') freq = 440; // A4
+          if (aura === 'dead') freq = 311.13; // Eb4 (tritone tension)
+          if (aura === 'road') freq = 587.33; // D5
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.03, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        } catch(e) {}
+      }
+    }
+
+    const audio = new ValixisAudioEngine();
+    document.getElementById('audio-toggle-btn')?.addEventListener('click', () => {
+      audio.toggleMute();
+    });
+
+    /* ==========================================================================
+       2. THREE.JS 3D SPATIAL BACKGROUND ENGINE
+       ========================================================================== */
+    class Arcade3DBackground {
+      constructor() {
+        this.canvas = document.getElementById('arcade-3d-bg');
+        if (!this.canvas) return;
+
+        this.mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+        this.targetAuraColor = new THREE.Color(0x7c3aed);
+        this.currentAuraColor = new THREE.Color(0x7c3aed);
+
+        this.init();
+      }
+
+      init() {
+        try {
+          this.scene = new THREE.Scene();
+          this.scene.fog = new THREE.FogExp2(0x03060c, 0.018);
+
+          this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+          this.camera.position.set(0, 4, 30);
+
+          this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas,
+            alpha: true,
+            antialias: true,
+            powerPreference: 'high-performance'
+          });
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+
+          // Lights
+          this.ambientLight = new THREE.AmbientLight(0x0b1528, 1.2);
+          this.scene.add(this.ambientLight);
+
+          this.dirLight = new THREE.DirectionalLight(0x00e5ff, 1.0);
+          this.dirLight.position.set(15, 25, 20);
+          this.scene.add(this.dirLight);
+
+          this.auraLight = new THREE.PointLight(0x7c3aed, 2.5, 90);
+          this.auraLight.position.set(0, 10, 10);
+          this.scene.add(this.auraLight);
+
+          // 1. Perspective Cyber Grid
+          this.createCyberGrid();
+
+          // 2. Floating Gaming Monoliths
+          this.createMonoliths();
+
+          // 3. Cyber Dust / Energy Particles
+          this.createDustParticles();
+
+          // Events
+          window.addEventListener('resize', () => this.onResize(), { passive: true });
+          window.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: true });
+
+          this.animate();
+        } catch (err) {
+          console.warn('[VALIXIS WebGL] Fallback active:', err);
+        }
+      }
+
+      createCyberGrid() {
+        const size = 160;
+        const divisions = 40;
+        this.gridHelper = new THREE.GridHelper(size, divisions, 0x00e5ff, 0x1e293b);
+        this.gridHelper.position.y = -10;
+        this.gridHelper.material.opacity = 0.28;
+        this.gridHelper.material.transparent = true;
+        this.scene.add(this.gridHelper);
+      }
+
+      createMonoliths() {
+        this.monoliths = [];
+        const geometries = [
+          new THREE.IcosahedronGeometry(2.2, 0),
+          new THREE.OctahedronGeometry(1.9, 0),
+          new THREE.TorusKnotGeometry(1.4, 0.35, 64, 8),
+          new THREE.DodecahedronGeometry(2.0, 0),
+          new THREE.TetrahedronGeometry(2.2, 0)
+        ];
+
+        const colors = [0x00e5ff, 0xd946ef, 0x7c3aed, 0x2563ff, 0xff9d42];
+        const positions = [
+          [-22, 6, -10],
+          [24, 8, -12],
+          [-18, -4, -8],
+          [20, -5, -6],
+          [0, 16, -20]
+        ];
+
+        geometries.forEach((geo, i) => {
+          const group = new THREE.Group();
+          const wireMat = new THREE.MeshBasicMaterial({
+            color: colors[i],
+            wireframe: true,
+            transparent: true,
+            opacity: 0.35
+          });
+          const wireMesh = new THREE.Mesh(geo, wireMat);
+
+          const coreMat = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            metalness: 0.8,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 0.15
+          });
+          const coreMesh = new THREE.Mesh(geo, coreMat);
+
+          group.add(wireMesh);
+          group.add(coreMesh);
+          group.position.set(...positions[i]);
+
+          group.userData = {
+            rotX: (Math.random() - 0.5) * 0.008,
+            rotY: (Math.random() - 0.5) * 0.008,
+            baseY: positions[i][1],
+            floatOffset: Math.random() * Math.PI * 2
+          };
+
+          this.monoliths.push(group);
+          this.scene.add(group);
+        });
+      }
+
+      createDustParticles() {
+        const count = 180;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+
+        const palette = [
+          new THREE.Color(0x00e5ff),
+          new THREE.Color(0x2563ff),
+          new THREE.Color(0x7c3aed),
+          new THREE.Color(0xd946ef),
+          new THREE.Color(0xffffff)
+        ];
+
+        for (let i = 0; i < count; i++) {
+          positions[i * 3] = (Math.random() - 0.5) * 80;
+          positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
+
+          const col = palette[Math.floor(Math.random() * palette.length)];
+          colors[i * 3] = col.r;
+          colors[i * 3 + 1] = col.g;
+          colors[i * 3 + 2] = col.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+          size: 0.6,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.75,
+          blending: THREE.AdditiveBlending
+        });
+
+        this.particles = new THREE.Points(geometry, material);
+        this.scene.add(this.particles);
+      }
+
+      onPointerMove(e) {
+        this.mouse.targetX = (e.clientX / window.innerWidth - 0.5) * 2;
+        this.mouse.targetY = -(e.clientY / window.innerHeight - 0.5) * 2;
+      }
+
+      setAura(auraName) {
+        if (auraName === 'ember') this.targetAuraColor.setHex(0xff8533);
+        else if (auraName === 'dead') this.targetAuraColor.setHex(0x7dfa34);
+        else if (auraName === 'road') this.targetAuraColor.setHex(0x00e5ff);
+        else this.targetAuraColor.setHex(0x7c3aed);
+      }
+
+      onResize() {
+        if (!this.renderer || !this.camera) return;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        if (document.hidden) return;
+
+        const time = performance.now() * 0.001;
+
+        // Smooth camera parallax
+        this.mouse.x += (this.mouse.targetX - this.mouse.x) * 0.04;
+        this.mouse.y += (this.mouse.targetY - this.mouse.y) * 0.04;
+        this.camera.position.x = this.mouse.x * 3.5;
+        this.camera.position.y = 4 + this.mouse.y * 2.0;
+        this.camera.lookAt(0, 0, 0);
+
+        // Grid rolling animation
+        if (this.gridHelper) {
+          this.gridHelper.position.z = (time * 6) % (160 / 40);
+        }
+
+        // Monoliths floating and tumbling
+        this.monoliths.forEach((m) => {
+          m.rotation.x += m.userData.rotX;
+          m.rotation.y += m.userData.rotY;
+          m.position.y = m.userData.baseY + Math.sin(time * 1.5 + m.userData.floatOffset) * 0.8;
+        });
+
+        // Dust drift
+        if (this.particles) {
+          this.particles.rotation.y = time * 0.02;
+          this.particles.rotation.x = time * 0.01;
+        }
+
+        // Lerp aura lighting color
+        this.currentAuraColor.lerp(this.targetAuraColor, 0.05);
+        this.auraLight.color.copy(this.currentAuraColor);
+
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    const bg3D = new Arcade3DBackground();
+
+    /* ==========================================================================
+       3. PRELOADER CONTROLLER & WARP SEQUENCE
+       ========================================================================== */
+    const loader = document.getElementById('portal-loader');
+    const progressBar = document.getElementById('loader-bar');
+    const statusText = document.getElementById('loader-status-text');
+    const pctText = document.getElementById('loader-pct');
+    const skipBtn = document.getElementById('loader-skip-btn');
+    const replayBtn = document.getElementById('replay-intro-btn');
+
+    const bootSteps = [
+      { pct: 15, msg: 'ESTABLISHING QUANTUM LINK...' },
+      { pct: 38, msg: 'INITIALIZING 3D SPATIAL GRID...' },
+      { pct: 64, msg: 'COMPILING WEBGL 2.0 SHADERS...' },
+      { pct: 85, msg: 'CALIBRATING AUDIO DSP ENGINE...' },
+      { pct: 100, msg: 'WARP DRIVE ENGAGED // ENTERING ARCADE...' }
+    ];
+
+    let currentStepIndex = 0;
+    let loaderDone = false;
+    const hasSeenIntro = sessionStorage.getItem('valixis_portal_booted') === 'true';
+
+    function dismissLoader() {
+      if (loaderDone) return;
+      loaderDone = true;
+      sessionStorage.setItem('valixis_portal_booted', 'true');
+      audio.playWarp();
+      loader.classList.add('warp-exit');
+      setTimeout(() => {
+        loader.style.display = 'none';
+        initPageMotion();
+      }, 850);
+    }
+
+    function runBootSequence(speedMultiplier = 1) {
+      loaderDone = false;
+      loader.style.display = 'flex';
+      loader.classList.remove('warp-exit');
+      currentStepIndex = 0;
+
+      let progress = 0;
+      const interval = setInterval(() => {
+        if (loaderDone) {
+          clearInterval(interval);
+          return;
+        }
+
+        const targetStep = bootSteps[currentStepIndex];
+        if (targetStep) {
+          statusText.textContent = targetStep.msg;
+          if (progress < targetStep.pct) {
+            progress += 2;
+          } else {
+            currentStepIndex++;
+            audio.playBlip(700 + currentStepIndex * 80);
+          }
+        }
+
+        progress = Math.min(progress, 100);
+        progressBar.style.width = progress + '%';
+        pctText.textContent = progress + '%';
+
+        if (progress >= 100) {
+          clearInterval(interval);
+          setTimeout(dismissLoader, 400);
+        }
+      }, 20 * speedMultiplier);
+    }
+
+    // Fast-boot if already visited in same tab session
+    if (hasSeenIntro) {
+      runBootSequence(0.3); // fast 300ms transition
+    } else {
+      runBootSequence(1); // full cinematic intro
+    }
+
+    skipBtn?.addEventListener('click', dismissLoader);
+    replayBtn?.addEventListener('click', () => {
+      sessionStorage.removeItem('valixis_portal_booted');
+      runBootSequence(1);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') dismissLoader();
+    });
+
+    /* ==========================================================================
+       4. INTERACTIVE MOTION, AUDIO REACTIVITY & AURA TRACKING
+       ========================================================================== */
+    function initPageMotion() {
       document.body.classList.add('portal-motion-ready');
       const revealItems = document.querySelectorAll('.portal-reveal');
-      if (reduceMotion || !('IntersectionObserver' in window)) {
-        revealItems.forEach((item) => item.classList.add('is-visible'));
-      } else {
-        const revealObserver = new IntersectionObserver((entries, observer) => {
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries, obs) => {
           entries.forEach((entry) => {
-            if (!entry.isIntersecting) return;
-            entry.target.classList.add('is-visible');
-            observer.unobserve(entry.target);
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+              obs.unobserve(entry.target);
+            }
           });
-        }, { threshold: .12, rootMargin: '0px 0px -35px' });
-        revealItems.forEach((item) => revealObserver.observe(item));
+        }, { threshold: 0.1 });
+        revealItems.forEach((el) => observer.observe(el));
+      } else {
+        revealItems.forEach((el) => el.classList.add('is-visible'));
       }
+    }
 
-      if (!reduceMotion && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-        document.querySelectorAll('.game-mini-card, .featured-card').forEach((card) => {
-          card.addEventListener('pointermove', (event) => {
-            const rect = card.getBoundingClientRect();
-            const x = (event.clientX - rect.left) / rect.width;
-            const y = (event.clientY - rect.top) / rect.height;
-            card.style.setProperty('--card-x', `${Math.round(x * 100)}%`);
-            card.style.setProperty('--card-y', `${Math.round(y * 100)}%`);
-            const tiltX = (y - .5) * -3.2;
-            const tiltY = (x - .5) * 3.2;
-            card.style.transform = `perspective(1100px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) translateY(-4px)`;
-          }, { passive: true });
-          card.addEventListener('pointerleave', () => {
-            card.style.transform = '';
-          });
-        });
-      }
-    })();
+    // 3D Card tilt and dynamic lighting auras
+    document.querySelectorAll('.game-mini-card, .featured-card').forEach((card) => {
+      const aura = card.dataset.aura;
+
+      card.addEventListener('pointerenter', () => {
+        if (bg3D) bg3D.setAura(aura);
+        audio.playAuraTone(aura);
+      });
+
+      card.addEventListener('pointerleave', () => {
+        if (bg3D) bg3D.setAura(null);
+        card.style.transform = '';
+      });
+
+      card.addEventListener('pointermove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        card.style.setProperty('--card-x', `${Math.round(x * 100)}%`);
+        card.style.setProperty('--card-y', `${Math.round(y * 100)}%`);
+
+        const tiltX = (y - 0.5) * -4.0;
+        const tiltY = (x - 0.5) * 4.0;
+        card.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) translateY(-5px)`;
+      }, { passive: true });
+    });
+
+    // Audio clicks on interactive buttons
+    document.querySelectorAll('.play-btn-main, .quick-launch a, .nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => audio.playClick());
+      btn.addEventListener('pointerenter', () => audio.playBlip(950));
+    });
+
+    // Analytics game launch tracking
+    document.querySelectorAll('[data-game-id]').forEach((link) => {
+      link.addEventListener('click', () => {
+        const id = link.dataset.gameId;
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', 'game_launch', { game_id: id, event_category: 'arcade' });
+        }
+      });
+    });
+
+    // Live fluctuating player counter for vibrant living feel
+    const playerCounter = document.getElementById('live-player-counter');
+    if (playerCounter) {
+      let count = 1438;
+      setInterval(() => {
+        const delta = Math.floor(Math.random() * 7) - 3;
+        count += delta;
+        playerCounter.textContent = count.toLocaleString();
+      }, 4500);
+    }
   </script>
 
 </body>

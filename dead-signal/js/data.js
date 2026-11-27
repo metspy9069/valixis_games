@@ -18,6 +18,7 @@ export const WEAPONS = [
     rpm: 300, spread: 0.011, adsSpread: 0.0035, recoil: 1.6,
     pellets: 1, reloadTime: 0.95, auto: false, sound: 'pistol',
     falloffStart: 30, falloffEnd: 65, falloffMin: 0.6,
+    penPower: 0.72, maxTargets: 1,
   },
   {
     id: 'smg', name: 'VECTOR-9', key: '2',
@@ -25,6 +26,7 @@ export const WEAPONS = [
     rpm: 820, spread: 0.03, adsSpread: 0.014, recoil: 0.8,
     pellets: 1, reloadTime: 1.2, auto: true, sound: 'smg',
     falloffStart: 15, falloffEnd: 40, falloffMin: 0.5,
+    penPower: 0.85, maxTargets: 2,
   },
   {
     id: 'shotgun', name: 'BREACHER 12', key: '3',
@@ -32,6 +34,7 @@ export const WEAPONS = [
     rpm: 78, spread: 0.06, adsSpread: 0.04, recoil: 5.6,
     pellets: 12, reloadTime: 1.6, auto: false, sound: 'shotgun',
     falloffStart: 7, falloffEnd: 20, falloffMin: 0.3,
+    penPower: 0.52, maxTargets: 2,
   },
   {
     // Marksman rifle: the answer to a brute at forty metres and to the
@@ -41,6 +44,7 @@ export const WEAPONS = [
     rpm: 165, spread: 0.009, adsSpread: 0.0007, recoil: 3.4,
     pellets: 1, reloadTime: 1.3, auto: false, sound: 'rifle',
     falloffStart: 60, falloffEnd: 120, falloffMin: 0.85,
+    penPower: 2.15, maxTargets: 4,
     locked: true,
   },
   {
@@ -51,6 +55,7 @@ export const WEAPONS = [
     rpm: 880, spread: 0.052, adsSpread: 0.026, recoil: 1.0,
     pellets: 1, reloadTime: 2.4, auto: true, sound: 'lmg',
     falloffStart: 18, falloffEnd: 46, falloffMin: 0.55,
+    penPower: 1.45, maxTargets: 3,
     locked: true,
   },
 ];

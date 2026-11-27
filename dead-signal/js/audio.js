@@ -1,5 +1,6 @@
 // Procedural audio for Dead Signal. There are no sample files: every sound is
 // synthesised from noise buffers and oscillators at runtime.
+import { VoiceBudget, computeConcussionProfile } from './audio-dsp.js';
 //
 // Three ideas carry most of the realism here.
 //
@@ -43,6 +44,9 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export class AudioEngine {
   constructor() {
     this.ctx = null;
+    this.compressor = null;
+    this.limiter = null;
+    this.concussionFilter = null;
     this.master = null;
     this.effects = null;
     this.ambienceBus = null;
@@ -58,6 +62,9 @@ export class AudioEngine {
     this.musicNext = 0;
     this.motifIndex = 0;
     this.pendingIntensity = 0.2;
+    this.voiceBudget = new VoiceBudget(28, 40);
+    this._satCurves = new Map();
+    this.concussionUntil = 0;
   }
 
   init() {
@@ -66,29 +73,44 @@ export class AudioEngine {
     if (!AC) return;
     this.ctx = new AC();
 
-    // A compressor keeps a shotgun blast and forty growls from clipping.
+    // Stage 1: Soft-knee glue compressor; Stage 2: Fast lookahead-style brickwall limiter
+    // preventing digital clipping/crackle even during 40+ voice explosion chains.
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -2.0;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.001;
+    this.limiter.release.value = 0.08;
+    this.limiter.connect(this.ctx.destination);
+
     this.compressor = this.ctx.createDynamicsCompressor();
-    this.compressor.threshold.value = -15;
-    this.compressor.knee.value = 22;
-    this.compressor.ratio.value = 5;
+    this.compressor.threshold.value = -16;
+    this.compressor.knee.value = 24;
+    this.compressor.ratio.value = 4;
     this.compressor.attack.value = 0.004;
-    this.compressor.release.value = 0.22;
-    this.compressor.connect(this.ctx.destination);
+    this.compressor.release.value = 0.2;
+    this.compressor.connect(this.limiter);
 
     this.master = this.ctx.createGain();
-    this.master.gain.value = this.volumes.master;
+    this.master.gain.value = this.muted ? 0 : this.volumes.master;
     this.master.connect(this.compressor);
 
+    // Concussion low-pass filter muffles world & gunfire briefly after nearby blasts.
+    this.concussionFilter = this.ctx.createBiquadFilter();
+    this.concussionFilter.type = 'lowpass';
+    this.concussionFilter.frequency.value = 20000;
+    this.concussionFilter.Q.value = 0.7;
+    this.concussionFilter.connect(this.master);
+
     // Three buses under the master so the score, the world and the gunfire can
-    // be balanced separately: the wind should never have to be as loud as a
-    // shotgun, and the music should not duck the shot that saves your life.
+    // be balanced separately.
     this.effects = this.ctx.createGain();
     this.effects.gain.value = this.volumes.effects;
-    this.effects.connect(this.master);
+    this.effects.connect(this.concussionFilter);
 
     this.ambienceBus = this.ctx.createGain();
     this.ambienceBus.gain.value = this.volumes.ambience;
-    this.ambienceBus.connect(this.master);
+    this.ambienceBus.connect(this.concussionFilter);
 
     this.musicBus = this.ctx.createGain();
     this.musicBus.gain.value = this.volumes.music;
@@ -131,13 +153,17 @@ export class AudioEngine {
     return buffer;
   }
 
-  /** Soft-clip curve. Grit, not a fuzz pedal: only the peaks fold. */
+  /** Soft-clip curve (cached per drive amount so rapid gunfire allocates zero buffers). */
   _saturator(amount = 6) {
-    const n = 1024;
-    const curve = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      const x = (i / (n - 1)) * 2 - 1;
-      curve[i] = Math.tanh(x * amount) / Math.tanh(amount);
+    let curve = this._satCurves.get(amount);
+    if (!curve) {
+      const n = 1024;
+      curve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        curve[i] = Math.tanh(x * amount) / Math.tanh(amount);
+      }
+      this._satCurves.set(amount, curve);
     }
     const node = this.ctx.createWaveShaper();
     node.curve = curve;
@@ -204,10 +230,12 @@ export class AudioEngine {
    */
   _noise({
     dur = 0.2, gain = 0.4, type = 'lowpass', freq = 1200, q = 1, sweepTo = 0,
-    attack = 0.002, pan = null, send = 0, when = 0, rate = 1, drive = 0,
+    attack = 0.002, pan = null, send = 0, when = 0, rate = 1, drive = 0, priority = 1,
   }) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + when;
+    const slot = this.voiceBudget.acquire(t, dur, priority);
+    if (!slot) return;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuffer;
     src.loop = true;
@@ -235,16 +263,19 @@ export class AudioEngine {
       sendGain.gain.value = send;
       g.connect(sendGain).connect(this.reverb);
     }
+    slot.stop = () => { src.stop(); src.disconnect(); g.disconnect(); };
     src.start(t);
     src.stop(t + dur + 0.02);
   }
 
   _tone({
     freq = 220, to = 0, dur = 0.2, gain = 0.25, type = 'sine', attack = 0.004,
-    detune = 0, pan = null, send = 0, when = 0,
+    detune = 0, pan = null, send = 0, when = 0, priority = 1, directMaster = false,
   }) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + when;
+    const slot = this.voiceBudget.acquire(t, dur, priority);
+    if (!slot) return;
     const osc = this.ctx.createOscillator();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
@@ -254,13 +285,14 @@ export class AudioEngine {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    const out = this._panner(pan);
+    const out = directMaster ? this.master : this._panner(pan);
     osc.connect(g).connect(out);
-    if (send > 0 && this.reverb) {
+    if (send > 0 && this.reverb && !directMaster) {
       const sendGain = this.ctx.createGain();
       sendGain.gain.value = send;
       g.connect(sendGain).connect(this.reverb);
     }
+    slot.stop = () => { osc.stop(); osc.disconnect(); g.disconnect(); };
     osc.start(t);
     osc.stop(t + dur + 0.02);
   }
@@ -777,46 +809,52 @@ export class AudioEngine {
       action: 2400, drive: 7,
     };
 
-    // 1. The action, a few milliseconds before the blast: the mechanical tell
-    //    that separates a real gunshot from a firework.
-    this._noise({ dur: 0.012, gain: 0.13, type: 'bandpass', freq: cfg.action, q: 1.6, attack: 0.0008 });
-    this._tone({ freq: cfg.action * 0.5, to: cfg.action * 0.3, dur: 0.02, gain: 0.05, type: 'square' });
+    // Separate procedural weapon synthesis channels: mechanical action, gunpowder thump, and street echo tail.
+    this._layerMechanicalAction(kind, cfg);
+    this._layerDetonationThump(cfg);
+    this._layerEchoTail(cfg);
+  }
 
-    // 2. Muzzle blast: noise through a fast-closing low-pass, saturated.
-    const [bd, bf, bg] = cfg.blast;
-    this._noise({ dur: bd, gain: bg, type: 'lowpass', freq: bf, sweepTo: bf * 0.28, q: 0.9, attack: 0.0015, send: 0.7, drive: cfg.drive });
-    this._noise({ dur: bd * 0.5, gain: bg * 0.4, type: 'bandpass', freq: bf * 1.6, q: 1.1, attack: 0.001, send: 0.4 });
-
-    // 3. Supersonic crack: 20-30 ms of very bright noise, gone instantly.
-    const [cd, cf, cg] = cfg.crack;
-    this._noise({ dur: cd, gain: cg, type: 'highpass', freq: cf, q: 0.7, sweepTo: cf * 0.4, attack: 0.0006, send: 0.3 });
-
-    // 4. Chest thump: the low pressure wave, felt more than heard.
-    const [lf, lt, ld, lg] = cfg.body;
-    this._tone({ freq: lf, to: lt, dur: ld, gain: lg, type: 'sine', attack: 0.0018, send: 0.5 });
-    this._noise({ dur: ld * 0.7, gain: lg * 0.45, type: 'lowpass', freq: 520, sweepTo: 110, q: 1.2 });
-
-    // 5. Midrange bark: the part a phone speaker can still reproduce.
-    const [kd, kf, kg] = cfg.bark;
-    this._noise({ dur: kd, gain: kg, type: 'bandpass', freq: kf, q: 1.4, sweepTo: kf * 0.45, attack: 0.002, send: 0.35 });
-
-    // 6. The street answering back: one long tail into the reverb.
-    const [td, tg, tf] = cfg.tail;
-    this._noise({ dur: td, gain: tg, type: 'lowpass', freq: tf, sweepTo: tf * 0.35, q: 0.6, attack: 0.014, send: 1 });
-
-    // Brass hitting concrete, a moment later. Not on every shot, and quieter
-    // than the report, but it is the detail that sells the reload room.
-    if (Math.random() < 0.55) {
-      const ping = 2400 + Math.random() * 2100;
-      this._tone({ freq: ping, to: ping * 0.72, dur: 0.05, gain: 0.035, type: 'triangle', when: 0.045 + Math.random() * 0.05, send: 0.35 });
-    }
+  _layerMechanicalAction(kind, cfg) {
+    this._noise({ dur: 0.012, gain: 0.13, type: 'bandpass', freq: cfg.action, q: 1.6, attack: 0.0008, priority: 2 });
+    this._tone({ freq: cfg.action * 0.5, to: cfg.action * 0.3, dur: 0.02, gain: 0.05, type: 'square', priority: 2 });
     if (kind === 'shotgun') {
-      // Pump action cycling after the blast.
-      this._noise({ dur: 0.05, gain: 0.1, type: 'bandpass', freq: 1300, q: 2.2, when: 0.22 });
-      this._noise({ dur: 0.045, gain: 0.08, type: 'bandpass', freq: 900, q: 2, when: 0.34 });
+      this._noise({ dur: 0.05, gain: 0.1, type: 'bandpass', freq: 1300, q: 2.2, when: 0.22, priority: 1 });
+      this._noise({ dur: 0.045, gain: 0.08, type: 'bandpass', freq: 900, q: 2, when: 0.34, priority: 1 });
     }
     if (kind === 'rifle' || kind === 'lmg') {
-      this._noise({ dur: 0.04, gain: 0.06, type: 'bandpass', freq: 1800, q: 2.4, when: 0.09 });
+      this._noise({ dur: 0.04, gain: 0.06, type: 'bandpass', freq: 1800, q: 2.4, when: 0.09, priority: 1 });
+    }
+  }
+
+  _layerDetonationThump(cfg) {
+    const [bd, bf, bg] = cfg.blast;
+    this._noise({ dur: bd, gain: bg, type: 'lowpass', freq: bf, sweepTo: bf * 0.28, q: 0.9, attack: 0.0015, send: 0.7, drive: cfg.drive, priority: 2 });
+    this._noise({ dur: bd * 0.5, gain: bg * 0.4, type: 'bandpass', freq: bf * 1.6, q: 1.1, attack: 0.001, send: 0.4, priority: 2 });
+    const [cd, cf, cg] = cfg.crack;
+    this._noise({ dur: cd, gain: cg, type: 'highpass', freq: cf, q: 0.7, sweepTo: cf * 0.4, attack: 0.0006, send: 0.3, priority: 2 });
+    const [lf, lt, ld, lg] = cfg.body;
+    this._tone({ freq: lf, to: lt, dur: ld, gain: lg, type: 'sine', attack: 0.0018, send: 0.5, priority: 2 });
+    this._noise({ dur: ld * 0.7, gain: lg * 0.45, type: 'lowpass', freq: 520, sweepTo: 110, q: 1.2, priority: 2 });
+    const [kd, kf, kg] = cfg.bark;
+    this._noise({ dur: kd, gain: kg, type: 'bandpass', freq: kf, q: 1.4, sweepTo: kf * 0.45, attack: 0.002, send: 0.35, priority: 2 });
+  }
+
+  _layerEchoTail(cfg) {
+    const [td, tg, tf] = cfg.tail;
+    this._noise({ dur: td, gain: tg, type: 'lowpass', freq: tf, sweepTo: tf * 0.35, q: 0.6, attack: 0.014, send: 1, priority: 1 });
+  }
+
+  /** Metallic brass or shotgun hull ping triggered by physical floor bounce. */
+  casingPing(kind = 'brass', pan = 0, gainMul = 1) {
+    if (!this.ready || this.muted) return;
+    if (kind === 'shell') {
+      this._tone({ freq: 920 + Math.random() * 260, to: 520, dur: 0.045, gain: 0.045 * gainMul, type: 'triangle', pan, send: 0.25 });
+      this._tone({ freq: 2150 + Math.random() * 450, to: 1600, dur: 0.035, gain: 0.028 * gainMul, type: 'sine', pan, send: 0.25 });
+    } else {
+      const ping = 3100 + Math.random() * 1700;
+      this._tone({ freq: ping, to: ping * 0.84, dur: 0.065, gain: 0.042 * gainMul, type: 'sine', pan, send: 0.3 });
+      this._tone({ freq: ping * 1.48, to: ping * 1.32, dur: 0.04, gain: 0.018 * gainMul, type: 'triangle', pan, send: 0.25 });
     }
   }
 
@@ -850,22 +888,58 @@ export class AudioEngine {
   }
 
   /** Blade meeting a body: a wet chop, a tear, and a ring on the metal. */
-  meleeHit() {
-    this._noise({ dur: 0.14, gain: 0.38, type: 'lowpass', freq: 1500, sweepTo: 130, q: 1.3, drive: 4 });
-    this._noise({ dur: 0.11, gain: 0.26, type: 'bandpass', freq: 640, q: 1.2, sweepTo: 190 });
-    this._noise({ dur: 0.18, gain: 0.1, type: 'bandpass', freq: 1800, q: 3, sweepTo: 600, when: 0.01, send: 0.4 });
-    this._tone({ freq: 1650, to: 900, dur: 0.17, gain: 0.06, type: 'triangle', send: 0.45 });
-    this._tone({ freq: 96, to: 44, dur: 0.14, gain: 0.2, type: 'sine' });
+  meleeHit(heavy = false) {
+    this._noise({ dur: heavy ? 0.18 : 0.14, gain: heavy ? 0.44 : 0.38, type: 'lowpass', freq: heavy ? 1800 : 1500, sweepTo: 120, q: 1.3, drive: heavy ? 6 : 4, priority: 2 });
+    this._noise({ dur: 0.11, gain: 0.26, type: 'bandpass', freq: 640, q: 1.2, sweepTo: 190, priority: 2 });
+    this._noise({ dur: 0.18, gain: 0.1, type: 'bandpass', freq: 1800, q: 3, sweepTo: 600, when: 0.01, send: 0.4, priority: 1 });
+    this._tone({ freq: heavy ? 1420 : 1650, to: 820, dur: 0.17, gain: 0.06, type: 'triangle', send: 0.45, priority: 1 });
+    this._tone({ freq: heavy ? 74 : 96, to: 38, dur: 0.16, gain: heavy ? 0.26 : 0.2, type: 'sine', priority: 2 });
   }
 
-  /** Grenade detonation: sub, blast, shockwave, falling debris. */
-  explosion() {
-    this._noise({ dur: 1.0, gain: 0.7, type: 'lowpass', freq: 2000, sweepTo: 80, q: 0.9, attack: 0.003, send: 1, drive: 5 });
-    this._tone({ freq: 86, to: 24, dur: 0.85, gain: 0.62, type: 'sine', attack: 0.002, send: 0.6 });
-    this._tone({ freq: 44, to: 18, dur: 1.3, gain: 0.42, type: 'triangle' });
-    this._noise({ dur: 0.32, gain: 0.28, type: 'bandpass', freq: 2400, q: 0.7, sweepTo: 500, attack: 0.002, send: 0.8 });
-    // Debris pattering down after the blast, spread over half a second.
-    for (let i = 0; i < 8; i++) {
+  /** Heavy boot/forearm shove pushback thud. */
+  shove() {
+    this._noise({ dur: 0.12, gain: 0.32, type: 'lowpass', freq: 920, sweepTo: 140, q: 1.1, attack: 0.002, send: 0.35, priority: 2 });
+    this._tone({ freq: 112, to: 42, dur: 0.14, gain: 0.24, type: 'sine', attack: 0.002, priority: 2 });
+  }
+
+  /** Trigger blast concussion low-pass muffle and high-frequency tinnitus ring. */
+  triggerConcussion(distance = 4) {
+    if (!this.ctx || !this.concussionFilter) return;
+    const profile = computeConcussionProfile(distance, 11);
+    if (!profile.active) return;
+
+    const t = this.ctx.currentTime;
+    const f = this.concussionFilter.frequency;
+    f.cancelScheduledValues(t);
+    f.setValueAtTime(Math.min(f.value, 20000), t);
+    f.exponentialRampToValueAtTime(profile.cutoffHz, t + 0.04);
+    f.exponentialRampToValueAtTime(20000, t + profile.recoverSec);
+    this.concussionUntil = t + profile.recoverSec;
+
+    // Subtle pure-tone tinnitus over the muffled battlefield (routed past filter to master)
+    this._tone({
+      freq: 5350 + Math.random() * 280,
+      to: 5150,
+      dur: profile.recoverSec * 0.9,
+      gain: profile.tinnitusGain,
+      type: 'sine',
+      attack: 0.06,
+      priority: 3,
+      directMaster: true,
+    });
+  }
+
+  /** Grenade detonation: sub, blast, shockwave, falling debris, plus concussion DSP. */
+  explosion(pan = 0, distance = 12) {
+    if (!this.ctx) return;
+    this._noise({ dur: 1.0, gain: 0.7, type: 'lowpass', freq: 2000, sweepTo: 80, q: 0.9, attack: 0.003, send: 1, drive: 5, pan, priority: 3 });
+    this._tone({ freq: 86, to: 24, dur: 0.85, gain: 0.62, type: 'sine', attack: 0.002, send: 0.6, pan, priority: 3 });
+    this._tone({ freq: 44, to: 18, dur: 1.3, gain: 0.42, type: 'triangle', pan, priority: 3 });
+    this._noise({ dur: 0.32, gain: 0.28, type: 'bandpass', freq: 2400, q: 0.7, sweepTo: 500, attack: 0.002, send: 0.8, pan, priority: 2 });
+    this.triggerConcussion(distance);
+
+    // Debris pattering down after the blast, capped under heavy chain-explosion loads (priority 0).
+    for (let i = 0; i < 6; i++) {
       this._noise({
         dur: 0.08 + Math.random() * 0.12,
         gain: 0.06 + Math.random() * 0.09,
@@ -873,9 +947,10 @@ export class AudioEngine {
         freq: 700 + Math.random() * 2200,
         q: 3,
         attack: 0.001,
-        send: 0.5,
-        when: 0.08 + Math.random() * 0.6,
-        pan: (Math.random() * 2 - 1) * 0.6,
+        send: 0.45,
+        when: 0.08 + Math.random() * 0.55,
+        pan: clamp(pan + (Math.random() * 2 - 1) * 0.45, -1, 1),
+        priority: 0,
       });
     }
   }

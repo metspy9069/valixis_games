@@ -31,6 +31,7 @@ export class Zombie {
     this.windup = 0;
     this.flinch = 0;
     this.hitTimer = 0;
+    this.staggerTimer = 0;
     this.deadTimer = 0;
     this.wanderDir = new THREE.Vector3(0, 0, 1);
     this.wanderTimer = 0;
@@ -107,8 +108,14 @@ export class Zombie {
       this.die(ctx, part);
       return true;
     }
-    // Stagger on heavy hits.
-    if (amount > 60) this.attackTimer = Math.max(this.attackTimer, 0.25);
+    // Stagger on limb impacts or heavy calibre hits.
+    if (part === 'limb') {
+      this.flinch = Math.max(this.flinch, 1.15);
+      this.attackTimer = Math.max(this.attackTimer, 0.36);
+      this.staggerTimer = Math.max(this.staggerTimer, 0.42);
+    } else if (amount > 60) {
+      this.attackTimer = Math.max(this.attackTimer, 0.25);
+    }
     return false;
   }
 
@@ -159,6 +166,7 @@ export class Zombie {
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.flinch = Math.max(0, this.flinch - dt * 4);
     this.hitTimer = Math.max(0, this.hitTimer - dt);
+    this.staggerTimer = Math.max(0, this.staggerTimer - dt);
 
     // The relay is loud: anything reasonably close homes in on it.
     if (this.state === 'idle' && dist < 38) this.state = 'chase';
@@ -297,6 +305,10 @@ export class Zombie {
         this.struck = false;
         this.windup = 0;
       }
+    }
+
+    if (this.staggerTimer > 0) {
+      targetSpeed *= 0.45;
     }
 
     // Sidestep a wall instead of grinding into it forever.

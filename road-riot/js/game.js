@@ -13,6 +13,7 @@ import { shop } from './shop.js';
 import { NPCCar } from './npcCar.js';
 import { PedestrianManager } from './pedestrians.js';
 import { loadJSON } from './utils/loadJSON.js';
+import { TouchInputTracker, normalizeGamepadState, HapticController } from './input.js';
 
 class RoadRiotGame {
   constructor() {
@@ -124,6 +125,12 @@ class RoadRiotGame {
     this.mouseMenuY = 0;
     this.isDraggingMenuTurntable = false;
     this.lastGear = 1;
+    this.keyboardDownKeys = new Set();
+    this.touchTracker = new TouchInputTracker();
+    this.haptics = new HapticController();
+    this.gamepadPrevButtons = { pause: false, emp: false };
+    this._wasDrifting = false;
+    this._lastGamepadState = null;
 
     // New Mechanisms State: Heat Level, Slipstream Drafting, Apex Flow, Speed Trap
     this.heatLevel = 0;
@@ -201,6 +208,11 @@ class RoadRiotGame {
       speedTrapFlash: document.querySelector('#hud-speed-trap-flash'),
       apexFlowOverlay: document.querySelector('#hud-apex-flow-overlay'),
       empBtn: document.querySelector('#hud-emp-btn'),
+      hudGamepadBadge: document.querySelector('#hud-gamepad-badge'),
+      mobileControls: document.querySelector('#mobile-controls'),
+      touchJoystickZone: document.querySelector('#touch-joystick-zone'),
+      virtualJoystickBase: document.querySelector('#virtual-joystick-base'),
+      virtualJoystickKnob: document.querySelector('#virtual-joystick-knob'),
 
       // Screen Overlays
       overlayDamage: document.querySelector('#overlay-damage'),
@@ -220,6 +232,7 @@ class RoadRiotGame {
       menuPrevCarBtn: document.querySelector('#menu-prev-car-btn'),
       menuNextCarBtn: document.querySelector('#menu-next-car-btn'),
       menuCarTierBadge: document.querySelector('#menu-car-tier-badge'),
+      menuCarThumb: document.querySelector('#menu-car-thumb'),
       menuStatSpeed: document.querySelector('#menu-stat-speed'),
       menuStatAccel: document.querySelector('#menu-stat-accel'),
       menuStatHandling: document.querySelector('#menu-stat-handling'),
@@ -267,6 +280,8 @@ class RoadRiotGame {
       sliderVolSfx: document.querySelector('#slider-vol-sfx'),
       sliderVolMusic: document.querySelector('#slider-vol-music'),
       sliderSensitivity: document.querySelector('#slider-sensitivity'),
+      toggleTouchMode: document.querySelector('#toggle-touch-mode'),
+      toggleHaptics: document.querySelector('#toggle-haptics'),
       toggleMouseSteer: document.querySelector('#toggle-mouse-steer'),
       toggleGamepadRumble: document.querySelector('#toggle-gamepad-rumble'),
       qualityBtns: document.querySelectorAll('.quality-btn'),
@@ -368,6 +383,21 @@ class RoadRiotGame {
     audio.setSfxVolume(s.sfxVolume);
     audio.setMusicVolume(s.musicVolume);
 
+    if (this.ui.toggleTouchMode) {
+      const mode = s.touchControlMode || 'joystick';
+      this.ui.toggleTouchMode.textContent = mode.toUpperCase();
+      this.ui.toggleTouchMode.classList.toggle('active', mode === 'joystick');
+    }
+    if (this.ui.mobileControls) {
+      const mode = s.touchControlMode || 'joystick';
+      this.ui.mobileControls.classList.toggle('joystick-mode', mode === 'joystick');
+      this.ui.mobileControls.classList.toggle('buttons-mode', mode !== 'joystick');
+    }
+    if (this.ui.toggleHaptics) {
+      const enabled = s.hapticFeedbackEnabled !== false;
+      this.ui.toggleHaptics.textContent = enabled ? 'ON' : 'OFF';
+      this.ui.toggleHaptics.classList.toggle('active', enabled);
+    }
     if (this.ui.toggleMouseSteer) {
       this.ui.toggleMouseSteer.textContent = s.mouseSteerEnabled ? 'ON' : 'OFF';
       this.ui.toggleMouseSteer.classList.toggle('active', s.mouseSteerEnabled);
@@ -412,6 +442,7 @@ class RoadRiotGame {
     // Keyboard
     window.addEventListener('keydown', e => {
       this.keys.add(e.key);
+      this.keyboardDownKeys.add(e.key);
       if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
       }
@@ -424,7 +455,10 @@ class RoadRiotGame {
     });
 
     window.addEventListener('keyup', e => {
-      this.keys.delete(e.key);
+      this.keyboardDownKeys.delete(e.key);
+      if (!this.touchTracker.hasActiveKey(e.key)) {
+        this.keys.delete(e.key);
+      }
     });
 
     this.ui.empBtn?.addEventListener('click', () => this.triggerKineticEmp());
@@ -447,35 +481,142 @@ class RoadRiotGame {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Mobile Touch Controls with Comprehensive Safety Releases
+    // Mobile Virtual Floating Steering Joystick
+    const joyZone = this.ui.touchJoystickZone;
+    const joyBase = this.ui.virtualJoystickBase;
+    const joyKnob = this.ui.virtualJoystickKnob;
+    const JOY_RADIUS = 56;
+    const resetJoystickVisual = () => {
+      if (joyBase) {
+        joyBase.classList.remove('active');
+        joyBase.classList.add('idle');
+        joyBase.style.transform = 'translate3d(0, 0, 0)';
+      }
+      if (joyKnob) {
+        joyKnob.style.transform = 'translate3d(0, 0, 0)';
+      }
+    };
+
+    if (joyZone) {
+      joyZone.addEventListener('pointerdown', ev => {
+        ev.preventDefault();
+        if (this.touchTracker.joystick.active) return;
+        try { joyZone.setPointerCapture?.(ev.pointerId); } catch (e) {}
+        this.touchTracker.startJoystick(ev.pointerId, ev.clientX, ev.clientY);
+        if (joyBase) {
+          joyBase.classList.remove('idle');
+          joyBase.classList.add('active');
+          // Dynamically center base smoothly within touch zone bounds
+          const rect = joyZone.getBoundingClientRect();
+          const localX = Math.max(54, Math.min(rect.width - 54, ev.clientX - rect.left));
+          const localY = Math.max(54, Math.min(rect.height - 54, ev.clientY - rect.top));
+          const restLeft = 68;
+          const restTop = rect.height - 68;
+          joyBase.style.transform = `translate3d(${localX - restLeft}px, ${localY - restTop}px, 0)`;
+        }
+        this.triggerHapticChannel('touch_tap', { vibratePattern: 10, durationMs: 12, cooldownMs: 80 });
+      }, { passive: false });
+
+      const onJoyMove = ev => {
+        if (!this.touchTracker.joystick.active || ev.pointerId !== this.touchTracker.joystick.pointerId) return;
+        ev.preventDefault();
+        const out = this.touchTracker.moveJoystick(ev.pointerId, ev.clientX, ev.clientY, JOY_RADIUS, 0.14);
+        if (out && joyKnob) {
+          joyKnob.style.transform = `translate3d(${out.clampedDx}px, ${out.clampedDy}px, 0)`;
+        }
+      };
+
+      const onJoyRelease = ev => {
+        if (ev.pointerId !== this.touchTracker.joystick.pointerId) return;
+        ev.preventDefault();
+        try { joyZone.releasePointerCapture?.(ev.pointerId); } catch (e) {}
+        this.touchTracker.releasePointer(ev.pointerId);
+        resetJoystickVisual();
+      };
+
+      joyZone.addEventListener('pointermove', onJoyMove, { passive: false });
+      joyZone.addEventListener('pointerup', onJoyRelease, { passive: false });
+      joyZone.addEventListener('pointercancel', onJoyRelease, { passive: false });
+      joyZone.addEventListener('lostpointercapture', onJoyRelease, { passive: false });
+      joyZone.addEventListener('touchcancel', () => {
+        this.touchTracker.joystick.active = false;
+        this.touchTracker.joystick.pointerId = null;
+        this.touchTracker.joystick.steer = 0;
+        resetJoystickVisual();
+      }, { passive: false });
+    }
+
+    // Mobile Touch Action & Steer Buttons with Per-Pointer Isolation (Zero Touch-Cancel Leaks)
     document.querySelectorAll('.touch-btn').forEach(btn => {
       const key = btn.dataset.key;
       const onDown = ev => {
         ev.preventDefault();
-        this.vibrate(30);
+        try { btn.setPointerCapture?.(ev.pointerId); } catch (e) {}
+        this.touchTracker.pressButton(ev.pointerId, key);
+        this.triggerHapticChannel('touch_tap', { vibratePattern: 16, durationMs: 18, cooldownMs: 50 });
         this.keys.add(key);
+        btn.classList.add('is-pressed');
       };
-      const onUp = ev => {
+      const onReleasePointer = ev => {
         ev.preventDefault();
-        this.keys.delete(key);
+        const { releasedKey } = this.touchTracker.releasePointer(ev.pointerId);
+        const targetKey = releasedKey || key;
+        if (!this.touchTracker.hasActiveKey(targetKey) && !this.keyboardDownKeys.has(targetKey)) {
+          this.keys.delete(targetKey);
+        }
+        btn.classList.remove('is-pressed');
+      };
+      const onTouchCancel = ev => {
+        ev.preventDefault();
+        if (ev.changedTouches) {
+          for (const t of ev.changedTouches) {
+            this.touchTracker.releasePointer(t.identifier);
+          }
+        }
+        if (!this.touchTracker.hasActiveKey(key) && !this.keyboardDownKeys.has(key)) {
+          this.keys.delete(key);
+        }
+        btn.classList.remove('is-pressed');
       };
       btn.addEventListener('pointerdown', onDown, { passive: false });
-      btn.addEventListener('pointerup', onUp, { passive: false });
-      btn.addEventListener('pointercancel', onUp, { passive: false });
-      btn.addEventListener('pointerleave', onUp, { passive: false });
-      btn.addEventListener('touchend', onUp, { passive: false });
-      btn.addEventListener('touchcancel', onUp, { passive: false });
+      btn.addEventListener('pointerup', onReleasePointer, { passive: false });
+      btn.addEventListener('pointercancel', onReleasePointer, { passive: false });
+      btn.addEventListener('lostpointercapture', onReleasePointer, { passive: false });
+      btn.addEventListener('touchcancel', onTouchCancel, { passive: false });
     });
 
-    // Global safety release: Ensure touch keys never stick on finger drag-off, window blur, or multi-touch
-    window.addEventListener('pointerup', () => {
-      ['ArrowLeft', 'ArrowRight', 'ArrowDown', ' '].forEach(k => {
-        if (!this.keyboardDownKeys?.has(k)) this.keys.delete(k);
-      });
-    });
-    window.addEventListener('blur', () => {
+    // Global safety cleanup ONLY for individual released pointerId, window blur, or backgrounding
+    const releaseStalePointer = ev => {
+      const { releasedKey, releasedJoystick } = this.touchTracker.releasePointer(ev.pointerId);
+      if (releasedKey && !this.touchTracker.hasActiveKey(releasedKey) && !this.keyboardDownKeys.has(releasedKey)) {
+        this.keys.delete(releasedKey);
+      }
+      if (releasedJoystick) resetJoystickVisual();
+    };
+    window.addEventListener('pointerup', releaseStalePointer);
+    window.addEventListener('pointercancel', releaseStalePointer);
+
+    const clearAllInputs = () => {
+      this.touchTracker.resetAll();
       this.keys.clear();
-      this.keyboardDownKeys?.clear();
+      this.keyboardDownKeys.clear();
+      resetJoystickVisual();
+      document.querySelectorAll('.touch-btn.is-pressed').forEach(b => b.classList.remove('is-pressed'));
+    };
+    window.addEventListener('blur', clearAllInputs);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) clearAllInputs();
+    });
+
+    // Gamepad API Connection Listeners
+    window.addEventListener('gamepadconnected', e => {
+      this.ui.hudGamepadBadge?.classList.remove('hidden');
+      this.toast(`GAMEPAD CONNECTED: ${(e.gamepad?.id || 'CONTROLLER').slice(0, 26).toUpperCase()}`, 'cyan');
+    });
+    window.addEventListener('gamepaddisconnected', () => {
+      const hasAny = navigator.getGamepads && Array.from(navigator.getGamepads()).some(g => g && g.connected);
+      if (!hasAny) this.ui.hudGamepadBadge?.classList.add('hidden');
+      this.toast('GAMEPAD DISCONNECTED', 'gold');
     });
 
     // Modal Triggers
@@ -635,6 +776,27 @@ class RoadRiotGame {
 
     this.ui.sliderSensitivity?.addEventListener('input', e => {
       progression.data.settings.steeringSensitivity = parseFloat(e.target.value);
+      progression.save();
+    });
+
+    this.ui.toggleTouchMode?.addEventListener('click', () => {
+      const current = progression.data.settings.touchControlMode || 'joystick';
+      const next = current === 'joystick' ? 'buttons' : 'joystick';
+      progression.data.settings.touchControlMode = next;
+      this.ui.toggleTouchMode.textContent = next.toUpperCase();
+      this.ui.toggleTouchMode.classList.toggle('active', next === 'joystick');
+      if (this.ui.mobileControls) {
+        this.ui.mobileControls.classList.toggle('joystick-mode', next === 'joystick');
+        this.ui.mobileControls.classList.toggle('buttons-mode', next !== 'joystick');
+      }
+      progression.save();
+    });
+
+    this.ui.toggleHaptics?.addEventListener('click', () => {
+      const next = !(progression.data.settings.hapticFeedbackEnabled !== false);
+      progression.data.settings.hapticFeedbackEnabled = next;
+      this.ui.toggleHaptics.textContent = next ? 'ON' : 'OFF';
+      this.ui.toggleHaptics.classList.toggle('active', next);
       progression.save();
     });
 
@@ -1053,28 +1215,21 @@ class RoadRiotGame {
     return;
   }
 
+  triggerHapticChannel(channel, options = {}) {
+    return this.haptics.trigger(channel, options, {
+      hapticEnabled: progression.data.settings.hapticFeedbackEnabled !== false,
+      gamepadRumbleEnabled: Boolean(progression.data.settings.gamepadRumbleEnabled)
+    });
+  }
+
   vibrate(pattern) {
-    // 1. Mobile Navigator Vibrate
-    if (navigator.vibrate) {
-      try { navigator.vibrate(pattern); } catch (e) {}
-    }
-    // 2. Gamepad Dual-Rumble Vibration
-    if (progression.data.settings.gamepadRumbleEnabled && navigator.getGamepads) {
-      try {
-        const gamepads = navigator.getGamepads();
-        for (const gp of gamepads) {
-          if (gp && gp.vibrationActuator && gp.vibrationActuator.playEffect) {
-            const dur = Array.isArray(pattern) ? pattern[0] : pattern;
-            gp.vibrationActuator.playEffect('dual-rumble', {
-              startDelay: 0,
-              duration: dur || 80,
-              weakMagnitude: 0.6,
-              strongMagnitude: 0.8
-            });
-          }
-        }
-      } catch (e) {}
-    }
+    const dur = Array.isArray(pattern) ? pattern[0] : (pattern || 60);
+    this.triggerHapticChannel('impact', {
+      vibratePattern: pattern,
+      weakMagnitude: 0.6,
+      strongMagnitude: 0.8,
+      durationMs: dur
+    });
   }
 
   openGarage() {
@@ -1176,6 +1331,10 @@ class RoadRiotGame {
     }
     if (this.ui.menuCarTierBadge) {
       this.ui.menuCarTierBadge.textContent = car.tier.toUpperCase();
+    }
+    if (this.ui.menuCarThumb) {
+      this.ui.menuCarThumb.src = `./assets/previews/${carId}.png`;
+      this.ui.menuCarThumb.alt = car.name;
     }
 
     const upg = progression.data.upgrades[carId] || { topSpeed: 0, accel: 0, handling: 0, nitro: 0, armor: 0 };
@@ -1439,30 +1598,25 @@ class RoadRiotGame {
 
   // --- GAMEPAD POLLING ---
   pollGamepad() {
-    if (!navigator.getGamepads) return { steer: 0, boost: false, drift: false };
+    if (!navigator.getGamepads) {
+      this._lastGamepadState = normalizeGamepadState(null, this.gamepadPrevButtons);
+      return this._lastGamepadState;
+    }
     const gamepads = navigator.getGamepads();
     for (const gp of gamepads) {
       if (!gp || !gp.connected) continue;
-
-      let steer = 0;
-      if (Math.abs(gp.axes[0]) > 0.15) {
-        steer = gp.axes[0]; // analog stick
-      } else if (gp.buttons[14]?.pressed) {
-        steer = -1; // D-pad left
-      } else if (gp.buttons[15]?.pressed) {
-        steer = 1; // D-pad right
-      }
-
-      const boost = gp.buttons[0]?.pressed || gp.buttons[7]?.value > 0.3; // A button or RT
-      const drift = gp.buttons[1]?.pressed || gp.buttons[6]?.value > 0.3; // B button or LT
-
-      if (gp.buttons[9]?.pressed) {
+      const state = normalizeGamepadState(gp, this.gamepadPrevButtons);
+      this.gamepadPrevButtons = state.nextPrevButtons;
+      this.ui.hudGamepadBadge?.classList.remove('hidden');
+      if (state.pausePressed) {
         this.togglePause();
       }
-
-      return { steer, boost, drift };
+      this._lastGamepadState = state;
+      return state;
     }
-    return { steer: 0, boost: false, drift: false };
+    this.ui.hudGamepadBadge?.classList.add('hidden');
+    this._lastGamepadState = normalizeGamepadState(null, this.gamepadPrevButtons);
+    return this._lastGamepadState;
   }
 
   update(dt) {
@@ -1549,12 +1703,17 @@ class RoadRiotGame {
       }
     }
 
-    // 2. Poll Inputs (Keyboard, Gamepad, Mouse)
+    // 2. Poll Inputs (Keyboard, Virtual Joystick, Gamepad, Mouse)
     const gp = this.pollGamepad();
-    let steerDir = gp.steer;
+    if (gp.empPressed) {
+      this.triggerKineticEmp();
+    }
+
+    let steerDir = gp.steer + (this.touchTracker.joystick.active ? this.touchTracker.joystick.steer : 0);
 
     if (this.keys.has('ArrowLeft') || this.keys.has('a') || this.keys.has('A')) steerDir -= 1;
     if (this.keys.has('ArrowRight') || this.keys.has('d') || this.keys.has('D')) steerDir += 1;
+    steerDir = Math.max(-1, Math.min(1, steerDir));
 
     // Mouse Steer Option
     if (progression.data.settings.mouseSteerEnabled && Math.abs(steerDir) === 0) {
@@ -1563,51 +1722,60 @@ class RoadRiotGame {
     }
 
     const isBoosting = this.keys.has(' ') || this.keys.has('Shift') || gp.boost;
-    const isBrakingKey = this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || gp.brake || gp.drift;
-    const isDrifting = isBrakingKey && Math.abs(steerDir) > 0;
+    const isDigitalBrake = this.keys.has('ArrowDown') || this.keys.has('s') || this.keys.has('S') || gp.drift;
+    const brakeIntensity = isDigitalBrake ? 1.0 : gp.brakeIntensity;
+    const isBrakingKey = brakeIntensity > 0.05;
+    const isDrifting = (isBrakingKey && Math.abs(steerDir) > 0.08) || (gp.drift && Math.abs(steerDir) > 0.08);
     const isBraking = isBrakingKey && !isDrifting;
+    const throttleVal = gp.hasAnalogThrottle ? gp.throttle : 1.0;
+
+    // Drift initiation haptic pulse
+    if (isDrifting && !this._wasDrifting) {
+      this.triggerHapticChannel('drift_start', {
+        vibratePattern: 20,
+        weakMagnitude: 0.45,
+        strongMagnitude: 0.2,
+        durationMs: 45,
+        cooldownMs: 220
+      });
+    }
+    this._wasDrifting = isDrifting;
 
     const sens = progression.data.settings.steeringSensitivity || 1.0;
     const counterAssist = progression.data.settings.counterSteerAssist ?? 1.0;
-    this.player.setBraking(isBrakingKey);
+    this.player.setThrottle(throttleVal);
+    this.player.setBraking(isBrakingKey, brakeIntensity);
     this.player.setBoost(isBoosting);
     this.player.setDrift(isDrifting);
     this.player.steer(steerDir, dt, sens, counterAssist);
 
-    // Outer Highway Armco / Concrete Guardrails with Physical Elastic Deflection (Active barrier boundary: +/- 7.95m, max clamp: +/- 8.25m)
+    // Outer Highway Armco / Concrete Guardrails with Physical Elastic Deflection & Throttled Curb Haptics
     const railBoundary = 7.95;
     const maxClamp = 8.25;
-    if (this.player.x <= -railBoundary) {
-      const penetration = (-railBoundary) - this.player.x;
-      this.player.x = Math.max(-maxClamp, this.player.x);
-      // Elastic spring-damper rebound pushing car away from left wall into roadway
-      const bounceVelocity = 3.2 + penetration * 7.5;
-      this.player.vx = Math.max(this.player.vx || 0, bounceVelocity);
-      // Deflect steer angle away from barrier
-      this.player.steerAngle = Math.min(0.25, Math.max(0.08, this.player.steerAngle + 0.16));
-      // Directional scraping friction drag
+    if (Math.abs(this.player.x) >= railBoundary) {
+      const side = Math.sign(this.player.x); // -1 left, +1 right
+      const penetration = Math.abs(this.player.x) - railBoundary;
+      this.player.x = side * Math.min(maxClamp, Math.abs(this.player.x));
+      const bounceVelocity = -side * (3.2 + penetration * 7.5);
+      this.player.vx = side < 0
+        ? Math.max(this.player.vx || 0, bounceVelocity)
+        : Math.min(this.player.vx || 0, bounceVelocity);
+      const deflect = -side * 0.16;
+      this.player.steerAngle = side < 0
+        ? Math.min(0.25, Math.max(0.08, this.player.steerAngle + deflect))
+        : Math.max(-0.25, Math.min(-0.08, this.player.steerAngle + deflect));
       const scrapeFriction = Math.max(0.82, 1.0 - dt * (2.2 + penetration * 3.5));
       this.player.speed = Math.max(4.0, this.player.speed * scrapeFriction);
       this.camShake = Math.max(this.camShake, 0.15 + penetration * 0.2);
-      this.vibrate(35);
+      this.triggerHapticChannel('curb_scuff', {
+        vibratePattern: 28,
+        weakMagnitude: Math.min(1, 0.4 + penetration * 0.6),
+        strongMagnitude: Math.min(1, 0.35 + penetration * 0.5),
+        durationMs: 55,
+        cooldownMs: 110
+      });
       if (this.traffic.spawnSparks && Math.random() < 0.75) {
-        this.traffic.spawnSparks(new THREE.Vector3(-railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
-      }
-    } else if (this.player.x >= railBoundary) {
-      const penetration = this.player.x - railBoundary;
-      this.player.x = Math.min(maxClamp, this.player.x);
-      // Elastic spring-damper rebound pushing car away from right wall into roadway
-      const bounceVelocity = -(3.2 + penetration * 7.5);
-      this.player.vx = Math.min(this.player.vx || 0, bounceVelocity);
-      // Deflect steer angle away from barrier
-      this.player.steerAngle = Math.max(-0.25, Math.min(-0.08, this.player.steerAngle - 0.16));
-      // Directional scraping friction drag
-      const scrapeFriction = Math.max(0.82, 1.0 - dt * (2.2 + penetration * 3.5));
-      this.player.speed = Math.max(4.0, this.player.speed * scrapeFriction);
-      this.camShake = Math.max(this.camShake, 0.15 + penetration * 0.2);
-      this.vibrate(35);
-      if (this.traffic.spawnSparks && Math.random() < 0.75) {
-        this.traffic.spawnSparks(new THREE.Vector3(railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
+        this.traffic.spawnSparks(new THREE.Vector3(side * railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
       }
     }
     this.player.update(dt, () => {
@@ -1619,6 +1787,19 @@ class RoadRiotGame {
       progression.activeRunStats.rampsJumped++;
       this.spawnScorePopup('+350 STUNT AIRTIME', '#ffea00');
     });
+
+    // DCT Upshift / Downshift Mechanical Haptic Detent
+    if (this.player.lastShiftType) {
+      const isUpshift = this.player.lastShiftType === 'up';
+      this.triggerHapticChannel('gear_shift', {
+        vibratePattern: isUpshift ? 14 : 18,
+        weakMagnitude: isUpshift ? 0.3 : 0.4,
+        strongMagnitude: isUpshift ? 0.55 : 0.25,
+        durationMs: 35,
+        cooldownMs: 90
+      });
+      this.player.lastShiftType = null;
+    }
 
     if (isDrifting) {
       this.score += Math.floor(dt * 90);
@@ -2744,6 +2925,20 @@ class RoadRiotGame {
     this.update(dt);
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this.loop);
+  }
+
+  getInputTelemetry() {
+    return {
+      touchControlMode: progression.data.settings.touchControlMode || 'joystick',
+      hapticFeedbackEnabled: progression.data.settings.hapticFeedbackEnabled !== false,
+      gamepadRumbleEnabled: Boolean(progression.data.settings.gamepadRumbleEnabled),
+      joystick: { ...this.touchTracker.joystick },
+      activeTouchPointerCount: this.touchTracker.activePointers.size,
+      heldTouchKeys: Array.from(this.touchTracker.activePointers.values()),
+      heldKeys: Array.from(this.keys),
+      gamepad: this._lastGamepadState,
+      recentHaptics: this.haptics.history.slice(-10)
+    };
   }
 }
 

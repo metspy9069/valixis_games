@@ -347,6 +347,205 @@ test('Thornbound Regent phase 2/3 constricts perimeter combat arena with briar r
   assert(g.player.hp<prevHp,'Stepping against briar root barrier inflicts perimeter thorn damage');
 });
 
+test('dynamic resolution scaling (DRS) steps down on sluggish frames and recovers on fast frames',async()=>{
+  const {Scene}=await import('../src/rebuild/scene.js');
+  const mockScene={
+    renderer:{pixelRatio:1.5,setPixelRatio(v){this.pixelRatio=v;}},
+    mobile:false,
+    maxDpr:1.5,
+    minDpr:1.0,
+    currentDpr:1.5,
+    slowFrameStreak:0,
+    fastFrameStreak:0,
+    stepDpr:Scene.prototype.stepDpr,
+    getDpr:Scene.prototype.getDpr,
+    updateDrs:Scene.prototype.updateDrs
+  };
+
+  // 1. Initial DPR starts at maxDpr (1.5)
+  assert.equal(mockScene.getDpr(),1.5);
+
+  // 2. Sluggish frame (20ms > 18.5ms threshold) for 2 frames should NOT step down yet
+  mockScene.updateDrs(0.020);
+  assert.equal(mockScene.slowFrameStreak,1);
+  assert.equal(mockScene.getDpr(),1.5);
+  mockScene.updateDrs(0.020);
+  assert.equal(mockScene.slowFrameStreak,2);
+  assert.equal(mockScene.getDpr(),1.5);
+
+  // 3. 3rd consecutive sluggish frame triggers step down (-0.15) to 1.35
+  mockScene.updateDrs(0.020);
+  assert.equal(mockScene.slowFrameStreak,0);
+  assert.equal(mockScene.getDpr(),1.35);
+  assert.equal(mockScene.renderer.pixelRatio,1.35);
+
+  // 4. Continue sluggish frames down to minDpr (1.0)
+  for(let i=0;i<3;i++)mockScene.updateDrs(0.022);
+  assert.equal(mockScene.getDpr(),1.20);
+  for(let i=0;i<3;i++)mockScene.updateDrs(0.022);
+  assert.equal(mockScene.getDpr(),1.05);
+  for(let i=0;i<3;i++)mockScene.updateDrs(0.022);
+  assert.equal(mockScene.getDpr(),1.00);
+
+  // 5. Sluggish frames cannot breach minDpr floor
+  for(let i=0;i<6;i++)mockScene.updateDrs(0.025);
+  assert.equal(mockScene.getDpr(),1.00,'DRS must strictly clamp at minDpr floor');
+
+  // 6. Fast frames (12ms < 14.5ms) for 59 frames should NOT step up yet
+  for(let i=0;i<59;i++)mockScene.updateDrs(0.012);
+  assert.equal(mockScene.fastFrameStreak,59);
+  assert.equal(mockScene.getDpr(),1.00);
+
+  // 7. 60th consecutive fast frame steps resolution back up (+0.10) to 1.10
+  mockScene.updateDrs(0.012);
+  assert.equal(mockScene.fastFrameStreak,0);
+  assert.equal(mockScene.getDpr(),1.10);
+  assert.equal(mockScene.renderer.pixelRatio,1.10);
+
+  // 8. Normal frame (16.6ms) resets recovery streak
+  for(let i=0;i<30;i++)mockScene.updateDrs(0.012);
+  assert.equal(mockScene.fastFrameStreak,30);
+  mockScene.updateDrs(0.0166);
+  assert.equal(mockScene.fastFrameStreak,0);
+  assert.equal(mockScene.slowFrameStreak,0);
+
+  // 9. Mobile floor supports 0.85 minDpr
+  const mobileScene={
+    renderer:{pixelRatio:1.25,setPixelRatio(v){this.pixelRatio=v;}},
+    mobile:true,
+    maxDpr:1.25,
+    minDpr:0.85,
+    currentDpr:1.25,
+    slowFrameStreak:0,
+    fastFrameStreak:0,
+    stepDpr:Scene.prototype.stepDpr,
+    getDpr:Scene.prototype.getDpr,
+    updateDrs:Scene.prototype.updateDrs
+  };
+  for(let i=0;i<12;i++)mobileScene.updateDrs(0.025);
+  assert.equal(mobileScene.getDpr(),0.85,'Mobile DRS must clamp smoothly at 0.85');
+});
+
+test('virtual touch joystick handles deadzones, throw curve, recentering, and multi-touch isolation',async()=>{
+  const {Input}=await import('../src/rebuild/input.js');
+
+  // 1. Pure zero displacement
+  const zero=Input.processStickVector(0,0,48,0.15);
+  assert.equal(zero.magnitude,0);
+  assert.equal(zero.x,0);
+  assert.equal(zero.z,0);
+
+  // 2. Inner deadzone threshold (<= 7.2px on 48px radius)
+  const deadInner=Input.processStickVector(3,4,48,0.15); // hypot = 5px <= 7.2px
+  assert.equal(deadInner.magnitude,0);
+  assert.equal(deadInner.x,0);
+  assert.equal(deadInner.z,0);
+
+  // 3. Active throw with normalized quadratic curve
+  const mid=Input.processStickVector(0,24,48,0.15); // 24px throw along Z
+  assert(mid.magnitude>0&&mid.magnitude<1.0);
+  assert.equal(mid.x,0);
+  assert(mid.z>0);
+
+  // 4. Maximum throw clamping at 48px
+  const full=Input.processStickVector(48,0,48,0.15);
+  assert.equal(full.magnitude,1.0);
+  assert.equal(full.x,1.0);
+  assert.equal(full.z,0);
+  assert.equal(full.clampedDist,48);
+
+  // 5. Over-throw clamping (96px displacement)
+  const over=Input.processStickVector(-80,60,48,0.15); // hypot = 100px
+  assert.equal(over.magnitude,1.0);
+  assert.equal(over.clampedDist,48);
+  assert(Math.abs(Math.hypot(over.x,over.z)-1.0)<0.001);
+
+  // 6. Recenter origin & multi-touch lifecycle isolation
+  const origWindow=globalThis.window,origDoc=globalThis.document;
+  const winEvents=new Map(),docEvents=new Map();
+  const mockPad={
+    style:{left:'',top:'',bottom:'',transform:''},
+    classList:{
+      classes:new Set(),
+      add(c){this.classes.add(c);},
+      remove(c){this.classes.delete(c);},
+      contains(c){return this.classes.has(c);}
+    },
+    firstElementChild:{style:{transform:''}},
+    contains:()=>false,
+    setPointerCapture:()=>{},
+    addEventListener:()=>{}
+  };
+
+  globalThis.window={
+    innerWidth:390,
+    innerHeight:844,
+    addEventListener:(type,fn)=>winEvents.set(type,fn),
+    removeEventListener:()=>{}
+  };
+  globalThis.document={
+    querySelector:(sel)=>sel==='#stick'?mockPad:null,
+    querySelectorAll:()=>[],
+    addEventListener:(type,fn)=>docEvents.set(type,fn)
+  };
+
+  const actionLog=[];
+  const input=new Input((act,val)=>actionLog.push({act,val}));
+  const onPointerDown=winEvents.get('pointerdown');
+  const onPointerMove=winEvents.get('pointermove');
+  const onPointerUp=winEvents.get('pointerup');
+
+  // Simulate left-thumb touch at (100, 600) in mobile viewport
+  onPointerDown({
+    pointerId:1,
+    clientX:100,
+    clientY:600,
+    target:{closest:()=>null}
+  });
+
+  assert.equal(input.stickPointerId,1);
+  assert.deepEqual(input.stickOrigin,{x:100,y:600});
+  assert.equal(mockPad.style.left,'100px');
+  assert.equal(mockPad.style.top,'600px');
+  assert(mockPad.classList.contains('active'));
+
+  // Move thumb 36px upwards (forward locomotion)
+  onPointerMove({
+    pointerId:1,
+    clientX:100,
+    clientY:564
+  });
+  assert(input.touch.z<0,'Moving thumb upward yields negative Z forward motion');
+  assert.equal(input.touch.x,0);
+
+  // Multi-touch isolation: finger 2 taps combat action button (e.g. dash or skill) on right side (clientX = 320)
+  onPointerDown({
+    pointerId:2,
+    clientX:320,
+    clientY:650,
+    target:{closest:(sel)=>sel.includes('button')?{}:null}
+  });
+  // Active joystick pointer MUST remain finger 1!
+  assert.equal(input.stickPointerId,1);
+  assert(input.touch.z<0,'Active joystick vector is preserved during right-hand multi-touch tap');
+
+  // Finger 2 releases: joystick remains uninterrupted
+  onPointerUp({pointerId:2});
+  assert.equal(input.stickPointerId,1);
+  assert(input.touch.z<0);
+
+  // Finger 1 releases: joystick resets cleanly
+  onPointerUp({pointerId:1});
+  assert.equal(input.stickPointerId,null);
+  assert.deepEqual(input.touch,{x:0,z:0});
+  assert(!mockPad.classList.contains('active'));
+  assert.equal(mockPad.style.left,'');
+
+  // Restore globals
+  globalThis.window=origWindow;
+  globalThis.document=origDoc;
+});
+
 
 
 

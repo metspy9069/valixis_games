@@ -143,8 +143,9 @@ p{line-height:1.65}
 .chronicle{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0 24px}
 .chronicle p{margin:0;padding:12px 14px;border:1px solid #414a3b;background:#11181399;color:#777d6e;font-size:11px;letter-spacing:.3px}
 .chronicle p.complete{border-color:#9e8959;color:#e1c98e;background:linear-gradient(90deg,#3d3523aa,#182019aa)}
-#stick{display:none;touch-action:none;width:112px;height:112px;border:1px solid #c3b78b88;border-radius:50%;background:#19251c77;position:fixed;bottom:30px;left:24px;align-items:center;justify-content:center}
-#stick span{width:43px;height:43px;border-radius:50%;background:#b8b59377;border:1px solid #d7d3ae88}
+#stick{display:none;touch-action:none;pointer-events:none;user-select:none;-webkit-user-select:none;width:112px;height:112px;border:1.5px solid rgba(195,183,139,0.45);border-radius:50%;background:radial-gradient(circle,rgba(25,37,28,0.55) 0%,rgba(12,18,14,0.8) 100%);box-shadow:0 0 16px rgba(0,0,0,0.5),inset 0 0 12px rgba(255,190,80,0.12);position:fixed;bottom:30px;left:28px;align-items:center;justify-content:center;z-index:40;transition:opacity 0.2s ease,border-color 0.2s ease}
+#stick.active{display:flex;border-color:rgba(255,200,100,0.7);box-shadow:0 0 20px rgba(255,160,50,0.3),inset 0 0 14px rgba(255,200,80,0.25)}
+#stick span{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,rgba(215,211,174,0.75) 0%,rgba(184,181,147,0.45) 100%);border:1.5px solid rgba(215,211,174,0.75);box-shadow:0 0 10px rgba(255,200,100,0.35);pointer-events:none;will-change:transform}
 
 @media(pointer:coarse){#stick{display:flex}
 .hud-bottom{left:auto;right:18px;width:245px}

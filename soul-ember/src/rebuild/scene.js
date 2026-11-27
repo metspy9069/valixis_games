@@ -11,8 +11,13 @@ function surfaceTexture(){
 
 export class Scene{
  constructor(canvas){
-  this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.mobile=matchMedia('(pointer:coarse)').matches;
-  this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.mobile?1.25:1.5));this.renderer.shadowMap.enabled=!this.mobile;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
+  this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.mobile=(typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches)||false;
+  this.maxDpr=Math.min(typeof window!=='undefined'?(window.devicePixelRatio||1):1,this.mobile?1.25:1.5);
+  this.minDpr=this.mobile?0.85:1.0;
+  this.currentDpr=this.maxDpr;
+  this.slowFrameStreak=0;
+  this.fastFrameStreak=0;
+  this.renderer.setPixelRatio(this.currentDpr);this.renderer.shadowMap.enabled=!this.mobile;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
   this.frameAverage=1/60;this.qualitySamples=0;this.scene=new T.Scene();this.scene.background=new T.Color(0x080b0d);this.scene.fog=new T.FogExp2(0x080b0d,.018);this.camera=new T.OrthographicCamera();
   this.scene.add(new T.HemisphereLight(0xc4d2cf,0x24201e,1.85));this.sun=new T.DirectionalLight(0xd8d4c3,2);this.sun.position.set(-12,28,10);this.sun.castShadow=!this.mobile;this.sun.shadow.mapSize.set(1024,1024);Object.assign(this.sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26});this.scene.add(this.sun,this.sun.target);
   this.geo={
@@ -40,6 +45,36 @@ export class Scene{
   };
   this.texture=surfaceTexture();this.materials=new Map();this.objects=new Map();this.batches=new Map();this.props=new T.Group();this.temp=new T.Object3D();this.cameraFocus=new T.Vector2();this.dungeon=new DungeonView(this.scene);this.lastBiome=-1;this.hero=null;
   this.light=new T.PointLight(0xffa34e,26,24,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.cameraImpulse=new T.Vector2();this.camLookVx=0;this.camLookVz=0;this.resize();window.addEventListener('resize',()=>this.resize());
+ }
+ stepDpr(delta){
+  const target=Math.max(this.minDpr,Math.min(this.maxDpr,Math.round((this.currentDpr+delta)*100)/100));
+  if(Math.abs(target-this.currentDpr)>0.005){
+   this.currentDpr=target;
+   this.renderer.setPixelRatio(this.currentDpr);
+  }
+  return this.currentDpr;
+ }
+ getDpr(){return this.currentDpr;}
+ updateDrs(frame){
+  if(frame>0.0185){
+   this.slowFrameStreak=(this.slowFrameStreak||0)+1;
+   this.fastFrameStreak=0;
+   if(this.slowFrameStreak>=3){
+    this.stepDpr(-0.15);
+    this.slowFrameStreak=0;
+   }
+  }else if(frame<0.0145){
+   this.fastFrameStreak=(this.fastFrameStreak||0)+1;
+   this.slowFrameStreak=0;
+   if(this.fastFrameStreak>=60){
+    this.stepDpr(0.1);
+    this.fastFrameStreak=0;
+   }
+  }else{
+   this.slowFrameStreak=0;
+   this.fastFrameStreak=0;
+  }
+  return this.currentDpr;
  }
  triggerHitstop(duration=.035,ev=null){
   this.hitstop=Math.max(this.hitstop||0,duration);
@@ -517,8 +552,9 @@ export class Scene{
   if(game?.state==='playing'&&this.lastClock){
    const frame=Math.min(.1,clock-this.lastClock);
    this.frameAverage=this.frameAverage*.97+frame*.03;
+   this.updateDrs(frame);
    if(++this.qualitySamples>90&&this.frameAverage>.019&&!this.reducedQuality){
-    this.renderer.setPixelRatio(1);this.renderer.shadowMap.enabled=false;this.reducedQuality=true;
+    this.renderer.shadowMap.enabled=false;this.reducedQuality=true;
    }
   }
   this.lastClock=clock;

@@ -1,4 +1,28 @@
 export class Input {
+  static processStickVector(dx, dz, maxRadius = 48, deadzone = 0.15) {
+    const dist = Math.hypot(dx, dz);
+    const raw = Math.min(1.0, dist / maxRadius);
+    const dirX = dist > 0 ? dx / dist : 0;
+    const dirZ = dist > 0 ? dz / dist : 0;
+    const clampedDist = Math.min(maxRadius, dist);
+    if (raw <= deadzone) {
+      return { x: 0, z: 0, magnitude: 0, clampedDist: 0, dirX, dirZ, clampedX: 0, clampedZ: 0 };
+    }
+    const norm = (raw - deadzone) / (1.0 - deadzone);
+    const curve = norm * (0.85 + 0.15 * norm);
+    const mag = Math.min(1.0, curve);
+    return {
+      x: dirX * mag,
+      z: dirZ * mag,
+      magnitude: mag,
+      clampedDist,
+      dirX,
+      dirZ,
+      clampedX: dirX * clampedDist,
+      clampedZ: dirZ * clampedDist
+    };
+  }
+
   constructor(action) {
     this.keys = new Set();
     this.touch = { x: 0, z: 0 };
@@ -49,39 +73,91 @@ export class Input {
       }
     });
 
-    // Touch controls (virtual joystick)
-    const pad = document.querySelector("#stick");
-    let pointer = null;
-    if (pad) {
-      const move = (e) => {
-        this.isGamepad = false;
-        const b = pad.getBoundingClientRect();
-        this.touch = {
-          x: Math.max(-1, Math.min(1, (e.clientX - b.left - b.width / 2) / 45)),
-          z: Math.max(-1, Math.min(1, (e.clientY - b.top - b.height / 2) / 45)),
-        };
-        if (pad.firstElementChild) {
-          pad.firstElementChild.style.transform = `translate(${this.touch.x * 25}px,${this.touch.z * 25}px)`;
-        }
-      };
+    // Touch controls (dynamic recenter-on-touch virtual joystick with deadzone and multi-touch isolation)
+    let pad = document.querySelector("#stick");
+    this.stickPointerId = null;
+    this.stickOrigin = null;
 
-      pad.addEventListener("pointerdown", (e) => {
-        pointer = e.pointerId;
-        pad.setPointerCapture(pointer);
-        move(e);
-      });
+    const getPad = () => {
+      if (!pad) pad = document.querySelector("#stick");
+      return pad;
+    };
 
-      pad.addEventListener("pointermove", (e) => {
-        if (e.pointerId === pointer) move(e);
-      });
+    const handlePointerDown = (e) => {
+      if (this.stickPointerId !== null) return;
+      if (e.target && typeof e.target.closest === "function" && e.target.closest("button, input, select, textarea, a, #minimap, .hud-top, .modal-card, [data-action], [data-skill]")) return;
+      const w = typeof window !== "undefined" ? window.innerWidth : 800;
+      const h = typeof window !== "undefined" ? window.innerHeight : 600;
+      const isLeftZone = e.clientX < w * 0.48 && e.clientY > h * 0.25;
+      const currentPad = getPad();
+      const isDirectPad = currentPad && (e.target === currentPad || (typeof currentPad.contains === "function" && currentPad.contains(e.target)));
+      if (!isLeftZone && !isDirectPad) return;
 
-      for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
-        pad.addEventListener(name, () => {
-          pointer = null;
-          this.touch = { x: 0, z: 0 };
-          if (pad.firstElementChild) pad.firstElementChild.style.transform = "";
-        });
+      this.stickPointerId = e.pointerId;
+      this.isGamepad = false;
+      this.stickOrigin = { x: e.clientX, y: e.clientY };
+
+      if (currentPad) {
+        currentPad.classList.add("active");
+        currentPad.style.left = `${e.clientX}px`;
+        currentPad.style.top = `${e.clientY}px`;
+        currentPad.style.bottom = "auto";
+        currentPad.style.transform = "translate(-50%, -50%)";
+        try {
+          if (typeof currentPad.setPointerCapture === "function") {
+            currentPad.setPointerCapture(e.pointerId);
+          }
+        } catch (_) {}
       }
+      this.touch = { x: 0, z: 0 };
+    };
+
+    const handlePointerMove = (e) => {
+      if (e.pointerId !== this.stickPointerId || !this.stickOrigin) return;
+      this.isGamepad = false;
+      const dx = e.clientX - this.stickOrigin.x;
+      const dz = e.clientY - this.stickOrigin.y;
+      const res = Input.processStickVector(dx, dz, 48, 0.15);
+      this.touch = { x: res.x, z: res.z };
+      const currentPad = getPad();
+      if (currentPad && currentPad.firstElementChild) {
+        currentPad.firstElementChild.style.transform = `translate(${res.clampedX * 0.62}px, ${res.clampedZ * 0.62}px)`;
+      }
+    };
+
+    const handlePointerUp = (e) => {
+      if (e.pointerId !== this.stickPointerId) return;
+      this.stickPointerId = null;
+      this.stickOrigin = null;
+      this.touch = { x: 0, z: 0 };
+      const currentPad = getPad();
+      if (currentPad) {
+        currentPad.classList.remove("active");
+        currentPad.style.left = "";
+        currentPad.style.top = "";
+        currentPad.style.bottom = "";
+        currentPad.style.transform = "";
+        if (currentPad.firstElementChild) {
+          currentPad.firstElementChild.style.transform = "";
+        }
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("pointerdown", handlePointerDown, { passive: true });
+      window.addEventListener("pointermove", handlePointerMove, { passive: true });
+      window.addEventListener("pointerup", handlePointerUp);
+      window.addEventListener("pointercancel", handlePointerUp);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("pointerdown", handlePointerDown, { passive: true });
+      document.addEventListener("pointermove", handlePointerMove, { passive: true });
+      document.addEventListener("pointerup", handlePointerUp);
+      document.addEventListener("pointercancel", handlePointerUp);
+    }
+    const currentPad = getPad();
+    if (currentPad && typeof currentPad.addEventListener === "function") {
+      currentPad.addEventListener("lostpointercapture", handlePointerUp);
     }
 
     document.querySelectorAll("[data-skill]").forEach((button) =>

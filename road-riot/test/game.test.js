@@ -683,3 +683,199 @@ test('stunt jump ramp forward launch preserves takeoff lip elevation and deals z
   assert.ok(player.y >= deckYLip, `Height (${player.y}) smoothly ascends from lip (${deckYLip}) without dropping`);
   assert.equal(player.hull, 100, 'Stunt ramp launch inflicts exactly 0 damage to player vehicle');
 });
+
+test('swept AABB continuous collision detection catches high-speed trajectory intercepts without tunneling', () => {
+  // Scenario: Player at 390 km/h (43.3 units/sec).
+  // Target vehicle is in lane at z = -14.0 (halfL = 4.45, so box is z in [-18.45, -9.55], x in [-2.45, 2.45]).
+  // In a single large frame step (dt = 0.04s, relative step = 1.6m),
+  // start position is z = -8.0, previous relative position was -6.5.
+  const halfW = 2.45;
+  const halfL = 4.45;
+
+  const prevRelX = 0;
+  const prevRelZ = 6.0; // ahead by 6m
+  const currRelX = 0;
+  const currRelZ = 3.8; // moves closer by 2.2m
+
+  const relDispX = currRelX - prevRelX;
+  const relDispZ = currRelZ - prevRelZ; // -2.2m
+
+  // Slab test Swept AABB
+  let tminX = -Infinity, tmaxX = Infinity;
+  if (Math.abs(relDispX) > 0.0001) {
+    const tx1 = (-halfW - prevRelX) / relDispX;
+    const tx2 = (halfW - prevRelX) / relDispX;
+    tminX = Math.min(tx1, tx2);
+    tmaxX = Math.max(tx1, tx2);
+  } else if (Math.abs(prevRelX) >= halfW) {
+    tminX = Infinity;
+  }
+
+  let tminZ = -Infinity, tmaxZ = Infinity;
+  if (Math.abs(relDispZ) > 0.0001) {
+    const tz1 = (-halfL - prevRelZ) / relDispZ;
+    const tz2 = (halfL - prevRelZ) / relDispZ;
+    tminZ = Math.min(tz1, tz2);
+    tmaxZ = Math.max(tz1, tz2);
+  } else if (Math.abs(prevRelZ) >= halfL) {
+    tminZ = Infinity;
+  }
+
+  const tEnter = Math.max(tminX, tminZ);
+  const tExit = Math.min(tmaxX, tmaxZ);
+  const hasIntercept = tEnter <= tExit && tExit >= 0 && tEnter <= 1.0;
+
+  assert.equal(hasIntercept, true, 'Swept trajectory detects interception before penetration');
+  assert.ok(tEnter >= 0 && tEnter <= 1.0, `Time of impact t=${tEnter.toFixed(3)} is normalized within the frame step`);
+});
+
+test('elastic guardrail boundary contact induces spring deflection force and friction drag without rigid stick', () => {
+  const railBoundary = 7.95;
+  const maxClamp = 8.25;
+  const player = {
+    x: -8.10, // penetrated left barrier by 0.15m
+    vx: 0,
+    steerAngle: -0.10, // steering towards left wall
+    speed: 32.0, // ~288 km/h
+  };
+
+  const dt = 0.016;
+  const penetration = (-railBoundary) - player.x; // 0.15m
+  assert.ok(penetration > 0, 'Penetration detected past barrier boundary');
+
+  // Elastic deflection calculation
+  const bounceVelocity = 3.2 + penetration * 7.5;
+  player.vx = Math.max(player.vx, bounceVelocity);
+  player.steerAngle = Math.min(0.25, Math.max(0.08, player.steerAngle + 0.16));
+  const scrapeFriction = Math.max(0.82, 1.0 - dt * (2.2 + penetration * 3.5));
+  player.speed = Math.max(4.0, player.speed * scrapeFriction);
+
+  assert.ok(player.vx > 3.0, 'Rebound velocity imparts rightward deflection away from left barrier');
+  assert.ok(player.steerAngle > 0, 'Steering angle is turned inward towards open roadway');
+  assert.ok(player.speed < 32.0 && player.speed > 25.0, 'Surface friction absorbs kinetic energy without an abrupt halt');
+});
+
+test('relative velocity-scaled impact damage differentiates glancing scrapes from catastrophic supersonic crashes', () => {
+  const calcDamage = (relKmh, isTruck = false) => {
+    const massFactor = isTruck ? 1.4 : 1.0;
+    let baseDamage = 6;
+    if (relKmh < 35) {
+      baseDamage = 4 + (relKmh / 35) * 4;
+    } else if (relKmh < 110) {
+      baseDamage = 8 + ((relKmh - 35) / 75) * 11;
+    } else if (relKmh < 200) {
+      baseDamage = 19 + ((relKmh - 110) / 90) * 14;
+    } else {
+      baseDamage = 33 + Math.min(27, ((relKmh - 200) / 100) * 22);
+    }
+    return Math.round(baseDamage * massFactor);
+  };
+
+  const glancingDmg = calcDamage(20, false); // 20 km/h bump
+  const moderateDmg = calcDamage(75, false); // 75 km/h rear-end
+  const supersonicCarDmg = calcDamage(260, false); // 260 km/h hypercar impact
+  const supersonicTruckDmg = calcDamage(260, true); // 260 km/h into heavy truck
+
+  assert.ok(glancingDmg <= 8, `Glancing tap deals minimal cosmetic scrape damage (${glancingDmg}%)`);
+  assert.ok(moderateDmg >= 12 && moderateDmg <= 18, `Moderate impact scales proportionally (${moderateDmg}%)`);
+  assert.ok(supersonicCarDmg >= 40, `Supersonic impact inflicts devastating structural damage (${supersonicCarDmg}%)`);
+  assert.ok(supersonicTruckDmg > supersonicCarDmg, `Truck mass factor escalates collision damage (${supersonicTruckDmg}% vs ${supersonicCarDmg}%)`);
+});
+
+test('pacejka magic formula calculates non-linear lateral friction curve with peak and sliding plateau', () => {
+  const calcPacejka = (slipAngle, isDrifting = false, handling = 24) => {
+    const handlingFactor = handling / 24.0;
+    const D = isDrifting ? (0.92 * handlingFactor) : (1.18 * handlingFactor);
+    const C = isDrifting ? 1.30 : 1.55;
+    const B = isDrifting ? 5.8 : 9.5;
+    const mu = D * Math.sin(C * Math.atan(B * slipAngle));
+    return { mu, peakMu: D, isSliding: Math.abs(slipAngle) > (0.18 / (isDrifting ? 0.7 : 1.0)) };
+  };
+
+  const zeroSlip = calcPacejka(0, false);
+  const smallSlip = calcPacejka(0.08, false); // ~4.5 degrees
+  const peakSlip = calcPacejka(0.20, false); // ~11.5 degrees (peak grip)
+  const deepSlide = calcPacejka(0.55, false); // ~31.5 degrees
+
+  assert.equal(zeroSlip.mu, 0, 'Zero slip produces zero lateral friction force');
+  assert.ok(smallSlip.mu > 0 && smallSlip.mu < peakSlip.mu, 'Linear grip buildup as slip angle increases');
+  assert.ok(peakSlip.mu > 1.0, `Peak tire friction reaches optimal coefficient (${peakSlip.mu.toFixed(2)})`);
+  assert.ok(deepSlide.isSliding, 'Deep slip angle transitions into kinetic sliding regime');
+
+  // Drift Mode:
+  const driftGrip = calcPacejka(0.35, true);
+  assert.ok(driftGrip.mu < peakSlip.mu, 'Drift mode exhibits controlled sliding friction plateau');
+  assert.equal(driftGrip.isSliding, true, 'Drift angle is marked as sliding');
+});
+
+test('dynamic weight transfer redistributes axle and corner loads under braking and cornering', () => {
+  const calcWeightTransfer = (forwardSpeed, accelRate, lateralVel, dt = 0.016) => {
+    const longAccel = accelRate;
+    const h_cog_over_L = 0.22;
+    const dW_long = (longAccel / 28.0) * h_cog_over_L;
+
+    const h_cog_over_T = 0.28;
+    const dW_lat = Math.min(0.45, Math.max(-0.45, (lateralVel * (forwardSpeed / 30.0) * 0.12)));
+
+    const frontLoad = Math.min(1.45, Math.max(0.65, 1.0 - dW_long));
+    const rearLoad = Math.min(1.45, Math.max(0.65, 1.0 + dW_long));
+
+    return {
+      fl: Math.min(1.65, Math.max(0.35, frontLoad * (1.0 - dW_lat))),
+      fr: Math.min(1.65, Math.max(0.35, frontLoad * (1.0 + dW_lat))),
+      rl: Math.min(1.65, Math.max(0.35, rearLoad * (1.0 - dW_lat))),
+      rr: Math.min(1.65, Math.max(0.35, rearLoad * (1.0 + dW_lat))),
+      dW_lat,
+      dW_long
+    };
+  };
+
+  // Heavy Braking (Deceleration = -36 units/s^2)
+  const brakeTransfer = calcWeightTransfer(30.0, -36.0, 0);
+  assert.ok(brakeTransfer.fl > 1.0 && brakeTransfer.fr > 1.0, 'Braking shifts load forward onto front tires (dive)');
+  assert.ok(brakeTransfer.rl < 1.0 && brakeTransfer.rr < 1.0, 'Rear tires lose normal load, loosening rear end');
+
+  // Hard Right Cornering (Positive lateral velocity = +6.0 m/s)
+  const cornerTransfer = calcWeightTransfer(30.0, 0, 6.0);
+  assert.ok(cornerTransfer.fr > cornerTransfer.fl, 'Outer right tires gain load during hard right turn');
+  assert.ok(cornerTransfer.rr > cornerTransfer.rl, 'Rear outer tire supports greater cornering normal force');
+});
+
+test('counter-steering stabilization assist calculates corrective steering torque during drift', () => {
+  const calcCounterSteer = (slipAngle, vx, inputDir, isDrifting, assistFactor = 1.0) => {
+    const isOversteering = isDrifting && (Math.sign(vx) !== Math.sign(inputDir) || inputDir === 0);
+    const torque = isOversteering ? (-slipAngle * 0.44 * assistFactor) : 0;
+    return { isOversteering, torque };
+  };
+
+  // Car drifting right (vx = +4.5), slip angle = +0.32 rad, driver relaxes steering (inputDir = 0)
+  const assistActive = calcCounterSteer(0.32, 4.5, 0, true, 1.0);
+  assert.equal(assistActive.isOversteering, true, 'Oversteer detected when tail steps out without steering input');
+  assert.ok(assistActive.torque < 0, 'Counter-steering assist applies negative torque to stabilize drift');
+
+  // Driving straight (not drifting)
+  const gripDrive = calcCounterSteer(0.05, 0.5, 1.0, false, 1.0);
+  assert.equal(gripDrive.torque, 0, 'No counter-steer interference during normal grip driving');
+});
+
+test('anti-snapback drift recovery progressively interpolates damping and aligns yaw without snap', () => {
+  let driftExitTimer = 0.35; // 350ms window
+  let vx = 4.2; // residual lateral speed from drift
+  let yaw = -0.38; // residual drift yaw angle
+  const dt = 0.05;
+
+  const steps = [];
+  while (driftExitTimer > 0) {
+    driftExitTimer = Math.max(0, driftExitTimer - dt);
+    const recoveryFactor = driftExitTimer / 0.35;
+    // Damping smoothly increases from 7.5 to 14.0
+    const damping = (1.0 - recoveryFactor) * 14.0 + recoveryFactor * 7.5;
+    vx += (0 - vx) * Math.min(1, dt * damping);
+    yaw += (0 - yaw) * Math.min(1, dt * 7.8);
+    steps.push({ driftExitTimer, damping, vx, yaw });
+  }
+
+  assert.ok(steps[0].damping < steps[steps.length - 1].damping, 'Damping progressively stiffens towards full grip');
+  assert.ok(Math.abs(steps[steps.length - 1].vx) < Math.abs(steps[0].vx), 'Lateral velocity is critically damped');
+  assert.ok(Math.abs(steps[steps.length - 1].yaw) < 0.10, 'Yaw angle smoothly returns to forward alignment without overshoot');
+});

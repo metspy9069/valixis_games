@@ -1026,6 +1026,8 @@ export class TrafficManager {
     // 2. Update Traffic Vehicles
     for (let i = this.vehicles.length - 1; i >= 0; i--) {
       const v = this.vehicles[i];
+      v.prevX = v.mesh.position.x;
+      v.prevZ = v.mesh.position.z;
 
       // Adaptive Cruise Control & Highway Spacing (Prevents NPC rear-ending)
       const headway = (v.isTruck || v.isTanker) ? 24 : 18;

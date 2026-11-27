@@ -44,4 +44,85 @@ test('unique archetype drops grant buffs on pickup',()=>{const g=new Game();g.sp
 test('guarding enemies take reduced damage until broken by finisher',()=>{const g=new Game({hero:'cinder'});g.spawnTimer=999;const e=g.spawn('shield',{x:0,z:3});e.hp=e.maxHp=500;e.guarding=2;const guardedDmg=g.damage(e,100,'weapon');assert(guardedDmg<60);assert(e.guarding>0);g.damage(e,50,'finisher');assert.equal(e.guarding,0);assert(e.freeze>0);assert(g.events.some(ev=>ev.type==='guardBreak'));});
 test('combo meter advances rank with damage and multiplies xp',()=>{const g=new Game();assert.equal(g.comboRank,'D');assert.equal(g.comboMultiplier(),1);g.comboScore=1300;g.updateComboRank();assert.equal(g.comboRank,'S');assert.equal(g.comboMultiplier(),1.8);g.comboScore=2000;g.updateComboRank();assert.equal(g.comboRank,'SSS');assert.equal(g.comboMultiplier(),2.2);});
 
+test('gamepad input handles deadzones, dpad fallback, right stick aim, and edge-triggered buttons',async()=>{
+  const origWindow=globalThis.window,origDoc=globalThis.document;
+  const navDesc=Object.getOwnPropertyDescriptor(globalThis,'navigator');
+  const events=new Map();
+  globalThis.window={
+    addEventListener:(type,fn)=>events.set(type,fn),
+    removeEventListener:()=>{}
+  };
+  globalThis.document={
+    addEventListener:(type,fn)=>events.set(type,fn),
+    querySelector:()=>null,
+    querySelectorAll:()=>[]
+  };
+  let mockGamepads=[null];
+  Object.defineProperty(globalThis,'navigator',{
+    value:{ getGamepads:()=>mockGamepads },
+    configurable:true,
+    writable:true
+  });
+
+  const {Input}=await import('../src/rebuild/input.js');
+  const actions=[];
+  const input=new Input((act,val)=>actions.push({act,val}));
+
+  // 1. Initial state without gamepad
+  assert.equal(input.isGamepad,false);
+  assert.deepEqual(input.vector(),{x:0,z:0});
+
+  // 2. Analog stick within deadzone (<0.18) should yield 0
+  mockGamepads=[{
+    connected:true,
+    axes:[0.10,0.10,0,0],
+    buttons:Array(16).fill({pressed:false})
+  }];
+  let v=input.vector();
+  assert.equal(v.x,0);
+  assert.equal(v.z,0);
+
+  // 3. Analog stick exceeding deadzone (>0.18) should produce scaled movement
+  mockGamepads=[{
+    connected:true,
+    axes:[0.8,0.0,0,0],
+    buttons:Array(16).fill({pressed:false})
+  }];
+  v=input.vector();
+  assert(v.x>0.7);
+  assert.equal(input.isGamepad,true);
+
+  // 4. Right stick aim vector calculation (>0.22)
+  mockGamepads=[{
+    connected:true,
+    axes:[0,0,0.6,-0.8],
+    buttons:Array(16).fill({pressed:false})
+  }];
+  input.updateGamepad();
+  assert(input.aimVector!==null);
+  assert(Math.abs(input.aimVector.x-0.6)<0.01);
+  assert(Math.abs(input.aimVector.z-(-0.8))<0.01);
+
+  // 5. Edge-triggered button detection: Button 0 (A/Dodge)
+  mockGamepads=[{
+    connected:true,
+    axes:[0,0,0,0],
+    buttons:Array(16).fill(0).map((_,i)=>({pressed:i===0}))
+  }];
+  input.updateGamepad();
+  assert(actions.some(a=>a.act==='dash'));
+  assert(actions.some(a=>a.act==='choice'&&a.val===0));
+
+  // 6. Holding the button next frame should NOT fire again
+  const countBefore=actions.length;
+  input.updateGamepad();
+  assert.equal(actions.length,countBefore);
+
+  // Clean up globals
+  globalThis.window=origWindow;
+  globalThis.document=origDoc;
+  if(navDesc)Object.defineProperty(globalThis,'navigator',navDesc);
+});
+
+
 

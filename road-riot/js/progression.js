@@ -58,6 +58,7 @@ export class ProgressionManager {
         sfxVolume: 0.85,
         musicVolume: 0.50,
         steeringSensitivity: 1.0,
+        counterSteerAssist: 1.0,
         mouseSteerEnabled: false,
         gamepadRumbleEnabled: true,
         graphicsQuality: 'high' // 'high', 'med', 'low'

@@ -1568,27 +1568,46 @@ class RoadRiotGame {
     const isBraking = isBrakingKey && !isDrifting;
 
     const sens = progression.data.settings.steeringSensitivity || 1.0;
+    const counterAssist = progression.data.settings.counterSteerAssist ?? 1.0;
     this.player.setBraking(isBrakingKey);
     this.player.setBoost(isBoosting);
     this.player.setDrift(isDrifting);
-    this.player.steer(steerDir, dt, sens);
+    this.player.steer(steerDir, dt, sens, counterAssist);
 
-    // Outer Highway Solid Concrete Guardrails (X = -8.2 to +8.2)
-    if (this.player.x <= -8.2) {
-      this.player.x = -8.2;
-      this.player.speed *= 0.96;
-      this.player.steerAngle = Math.max(0, this.player.steerAngle);
-      this.camShake = Math.max(this.camShake, 0.12);
-      if (Math.random() < 0.25) {
-        this.traffic.spawnExplosion(new THREE.Vector3(-8.2, 0.3, this.player.mesh.position.z), 0xffaa00, 3);
+    // Outer Highway Armco / Concrete Guardrails with Physical Elastic Deflection (Active barrier boundary: +/- 7.95m, max clamp: +/- 8.25m)
+    const railBoundary = 7.95;
+    const maxClamp = 8.25;
+    if (this.player.x <= -railBoundary) {
+      const penetration = (-railBoundary) - this.player.x;
+      this.player.x = Math.max(-maxClamp, this.player.x);
+      // Elastic spring-damper rebound pushing car away from left wall into roadway
+      const bounceVelocity = 3.2 + penetration * 7.5;
+      this.player.vx = Math.max(this.player.vx || 0, bounceVelocity);
+      // Deflect steer angle away from barrier
+      this.player.steerAngle = Math.min(0.25, Math.max(0.08, this.player.steerAngle + 0.16));
+      // Directional scraping friction drag
+      const scrapeFriction = Math.max(0.82, 1.0 - dt * (2.2 + penetration * 3.5));
+      this.player.speed = Math.max(4.0, this.player.speed * scrapeFriction);
+      this.camShake = Math.max(this.camShake, 0.15 + penetration * 0.2);
+      this.vibrate(35);
+      if (this.traffic.spawnSparks && Math.random() < 0.75) {
+        this.traffic.spawnSparks(new THREE.Vector3(-railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
       }
-    } else if (this.player.x >= 8.2) {
-      this.player.x = 8.2;
-      this.player.speed *= 0.96;
-      this.player.steerAngle = Math.min(0, this.player.steerAngle);
-      this.camShake = Math.max(this.camShake, 0.12);
-      if (Math.random() < 0.25) {
-        this.traffic.spawnExplosion(new THREE.Vector3(8.2, 0.3, this.player.mesh.position.z), 0xffaa00, 3);
+    } else if (this.player.x >= railBoundary) {
+      const penetration = this.player.x - railBoundary;
+      this.player.x = Math.min(maxClamp, this.player.x);
+      // Elastic spring-damper rebound pushing car away from right wall into roadway
+      const bounceVelocity = -(3.2 + penetration * 7.5);
+      this.player.vx = Math.min(this.player.vx || 0, bounceVelocity);
+      // Deflect steer angle away from barrier
+      this.player.steerAngle = Math.max(-0.25, Math.min(-0.08, this.player.steerAngle - 0.16));
+      // Directional scraping friction drag
+      const scrapeFriction = Math.max(0.82, 1.0 - dt * (2.2 + penetration * 3.5));
+      this.player.speed = Math.max(4.0, this.player.speed * scrapeFriction);
+      this.camShake = Math.max(this.camShake, 0.15 + penetration * 0.2);
+      this.vibrate(35);
+      if (this.traffic.spawnSparks && Math.random() < 0.75) {
+        this.traffic.spawnSparks(new THREE.Vector3(railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
       }
     }
     this.player.update(dt, () => {
@@ -1875,7 +1894,7 @@ class RoadRiotGame {
     // 8. Continuous Solid Collisions: Traffic, Trucks, NPCs, Pedestrians, Obstacles
     // (Solid Physical Bounding Impasses — Objects are 100% Solid and Impenetrable)
 
-    // A. Traffic Cars, SUVs, and Heavy Commercial Trucks
+    // A. Traffic Cars, SUVs, and Heavy Commercial Trucks with Continuous Swept AABB CCD & Dynamic Momentum Damage
     for (const v of this.traffic.vehicles) {
       const vLength = v.length || (v.isTruck ? 8.5 : (v.isTanker ? 11.0 : 4.5));
       const vWidth = v.width || (v.isTruck || v.isTanker ? 2.8 : 2.2);
@@ -1896,10 +1915,51 @@ class RoadRiotGame {
       const absZ = Math.abs(dz);
       const absY = Math.abs(dy);
 
-      if (absX < halfW && absZ < halfL && absY < halfH) {
-        // OVERLAPPING! SOLID COLLISION ENFORCEMENT
-        const overlapX = halfW - absX;
-        const overlapZ = halfL - absZ;
+      const isInstantOverlap = (absX < halfW && absZ < halfL && absY < halfH);
+
+      // Swept AABB Continuous Collision Detection (CCD) to prevent supersonic tunneling
+      let isSweptIntersect = false;
+      const prevPlayerX = this.player.prevX ?? this.player.x;
+      const prevPlayerZ = this.player.prevZ ?? this.player.mesh.position.z;
+      const prevTargetX = v.prevX ?? v.mesh.position.x;
+      const prevTargetZ = v.prevZ ?? (v.mesh.position.z - (currentSpeed - v.speed) * dt);
+
+      const relDispX = (this.player.x - prevPlayerX) - (v.mesh.position.x - prevTargetX);
+      const relDispZ = (this.player.mesh.position.z - prevPlayerZ) - (v.mesh.position.z - prevTargetZ);
+
+      if (!isInstantOverlap && absY < halfH) {
+        const startRelX = prevPlayerX - prevTargetX;
+        const startRelZ = prevPlayerZ - prevTargetZ;
+
+        let tminX = -Infinity, tmaxX = Infinity;
+        if (Math.abs(relDispX) > 0.0001) {
+          const tx1 = (-halfW - startRelX) / relDispX;
+          const tx2 = (halfW - startRelX) / relDispX;
+          tminX = Math.min(tx1, tx2);
+          tmaxX = Math.max(tx1, tx2);
+        } else if (Math.abs(startRelX) >= halfW) {
+          tminX = Infinity;
+        }
+
+        let tminZ = -Infinity, tmaxZ = Infinity;
+        if (Math.abs(relDispZ) > 0.0001) {
+          const tz1 = (-halfL - startRelZ) / relDispZ;
+          const tz2 = (halfL - startRelZ) / relDispZ;
+          tminZ = Math.min(tz1, tz2);
+          tmaxZ = Math.max(tz1, tz2);
+        } else if (Math.abs(startRelZ) >= halfL) {
+          tminZ = Infinity;
+        }
+
+        const tEnter = Math.max(tminX, tminZ);
+        const tExit = Math.min(tmaxX, tmaxZ);
+        if (tEnter <= tExit && tExit >= 0 && tEnter <= 1.0) {
+          isSweptIntersect = true;
+        }
+      }
+
+      if (isInstantOverlap || isSweptIntersect) {
+        // OVERLAPPING OR TRAJECTORY INTERCEPT! SOLID COLLISION ENFORCEMENT
         const isOverdrive = this.player.isBoosting && this.multiplier >= 4;
 
         if (isOverdrive) {
@@ -1920,8 +1980,9 @@ class RoadRiotGame {
         } else {
           // PURE SOLID IMPASSE: YOU CANNOT PASS THROUGH!
           const bounceDir = dx >= 0 ? 1 : -1;
+          const relSpeedUnits = Math.abs(currentSpeed - v.speed);
 
-          const isRearEnd = dz > 0 && absX < (vWidth * 0.5 + 0.65);
+          const isRearEnd = (dz > 0 || isSweptIntersect) && absX < (vWidth * 0.5 + 0.65);
           if (isRearEnd) {
             // Rear-end Collision into vehicle ahead:
             // 1. Physically clamp relative motion: player cannot travel through target Z
@@ -1929,38 +1990,73 @@ class RoadRiotGame {
             this.player.targetSpeed = Math.min(this.player.targetSpeed, v.speed);
             // 2. Separate in Z so vehicle stays strictly ahead of player bumper
             v.mesh.position.z = Math.min(v.mesh.position.z, this.player.mesh.position.z - (halfL + 0.15));
-            // 3. Shunt the vehicle forward
-            v.speed = Math.max(v.speed + 6, this.player.speed + 3);
+            // 3. Shunt the vehicle forward with transferred momentum
+            v.speed = Math.max(v.speed + relSpeedUnits * 0.65 + 3.0, currentSpeed * 0.85);
             this.player.suspensionPitch = 0.22;
           } else {
             // Lateral / Side-Swipe Collision:
             // 1. Push player completely outside the vehicle's bounding box
-            this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.18), -8.2, 8.2);
+            this.player.x = THREE.MathUtils.clamp(v.mesh.position.x + bounceDir * (halfW + 0.22), -8.2, 8.2);
             this.player.mesh.position.x = this.player.x;
             // 2. Lateral speed deflection & friction sparks
-            this.player.vx = bounceDir * 3.5;
+            this.player.vx = bounceDir * (3.8 + relSpeedUnits * 0.15);
             this.player.steerAngle += bounceDir * 0.22;
-            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.35, -7.5, 7.5);
-            this.player.speed = Math.max(0, this.player.speed * 0.8);
+            v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.45, -7.5, 7.5);
+            this.player.speed = Math.max(0, this.player.speed * 0.82);
             if (this.traffic.spawnSparks) {
               this.traffic.spawnSparks(new THREE.Vector3(this.player.x + bounceDir * 0.85, 0.45, this.player.mesh.position.z), 12, 0xffd900);
             }
           }
 
-          // Damage and effects triggered on initial contact or cooldown
+          // Dynamic Velocity-Scaled Impact Damage
           if (!v.isColliding) {
             v.isColliding = true;
-            const dmg = this.player.takeDamage(v.isTruck || v.isTanker ? 26 : 18);
-            progression.activeRunStats.damageTaken += dmg;
-            this.camShake = v.isTruck ? 0.75 : 0.55;
+            const relKmh = relSpeedUnits * 9.0;
+            const massFactor = v.isTanker ? 1.6 : (v.isTruck ? 1.4 : (v.isPolice ? 1.15 : 1.0));
+
+            let baseDamage = 6;
+            let severityTag = 'LIGHT BUMPER SCRAPE';
+            let toastColor = 'gold';
+            let shakeIntensity = 0.35;
+
+            if (relKmh < 35) {
+              baseDamage = 4 + (relKmh / 35) * 4; // 4% to 8% damage
+              severityTag = 'GLANCING BUMPER SCRAPE';
+              toastColor = 'gold';
+              shakeIntensity = 0.28;
+            } else if (relKmh < 110) {
+              baseDamage = 8 + ((relKmh - 35) / 75) * 11; // 8% to 19% damage
+              severityTag = 'MODERATE HIGHWAY IMPACT';
+              toastColor = 'cyan';
+              shakeIntensity = 0.52;
+            } else if (relKmh < 200) {
+              baseDamage = 19 + ((relKmh - 110) / 90) * 14; // 19% to 33% damage
+              severityTag = 'HIGH-SPEED CRASH';
+              toastColor = 'magenta';
+              shakeIntensity = 0.76;
+            } else {
+              baseDamage = 33 + Math.min(27, ((relKmh - 200) / 100) * 22); // 33% to 55% damage
+              severityTag = 'SUPERSONIC IMPACT';
+              toastColor = 'magenta';
+              shakeIntensity = 0.98;
+            }
+
+            const rawDamage = Math.round(baseDamage * massFactor);
+            const actualDmg = this.player.takeDamage(rawDamage);
+            progression.activeRunStats.damageTaken += actualDmg;
+            this.camShake = shakeIntensity;
             audio.play('collision');
-            this.vibrate([90, 50, 150]);
-            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff2a44, 25);
+            this.vibrate([Math.round(shakeIntensity * 120), 40, Math.round(shakeIntensity * 180)]);
+
+            const impactLocation = new THREE.Vector3((this.player.x + v.mesh.position.x) * 0.5, 0.5, (this.player.mesh.position.z + v.mesh.position.z) * 0.5);
+            this.traffic.spawnExplosion(impactLocation, 0xff2a44, Math.round(15 + shakeIntensity * 20));
             if (this.traffic.spawnSparks) {
-              this.traffic.spawnSparks(new THREE.Vector3((this.player.x + v.mesh.position.x) * 0.5, 0.5, (this.player.mesh.position.z + v.mesh.position.z) * 0.5), 20, 0xffea00);
+              this.traffic.spawnSparks(impactLocation, Math.round(12 + shakeIntensity * 16), 0xffea00);
             }
             this.showDamageOverlay();
-            this.toast(v.isTruck ? 'CRASHED INTO HEAVY TRUCK! -26% HULL' : 'CAR COLLISION! -18% HULL', 'magenta');
+            const vehicleName = v.isTanker ? 'CHEMICAL TANKER' : (v.isTruck ? 'HEAVY TRUCK' : (v.isPolice ? 'POLICE INTERCEPTOR' : 'TRAFFIC CAR'));
+            this.toast(`${severityTag} (${vehicleName} &bull; ${Math.round(relKmh)} KM/H) &bull; -${actualDmg}% HULL`, toastColor);
+
             if (this.player.hull <= 0) {
               this.gameOver(false, false);
               return;

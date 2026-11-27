@@ -167,6 +167,18 @@ export class PlayerCar {
     this.suspensionRoll = 0;
     this.wheelRotation = 0;
 
+    // Advanced Tire Dynamics & Pacejka Friction
+    this.slipAngle = 0;
+    this.lateralG = 0;
+    this.tireGrip = 1.0;
+    this.pacejkaMu = 1.0;
+    this.weightTransfer = { fl: 1.0, fr: 1.0, rl: 1.0, rr: 1.0, dW_lat: 0, dW_long: 0 };
+    this.driftExitTimer = 0;
+    this.driftAngle = 0;
+    this.counterSteerAssist = 1.0;
+    this.prevVx = 0;
+    this.prevSpeed = 0;
+
     // Airtime & Stunt Jumps
     this.isAirborne = false;
     this.verticalY = 0;
@@ -342,6 +354,8 @@ export class PlayerCar {
 
   reset() {
     this.x = 0;
+    this.prevX = 0;
+    this.prevZ = -8;
     this.speed = 0;
     this.targetSpeed = this.topSpeed;
     this.hull = this.maxHull;
@@ -359,6 +373,16 @@ export class PlayerCar {
     this.targetPitch = 0;
     this.suspensionRoll = 0;
     this.wheelRotation = 0;
+    this.slipAngle = 0;
+    this.lateralG = 0;
+    this.tireGrip = 1.0;
+    this.pacejkaMu = 1.0;
+    this.weightTransfer = { fl: 1.0, fr: 1.0, rl: 1.0, rr: 1.0, dW_lat: 0, dW_long: 0 };
+    this.driftExitTimer = 0;
+    this.driftAngle = 0;
+    this.counterSteerAssist = 1.0;
+    this.prevVx = 0;
+    this.prevSpeed = 0;
     this.isAirborne = false;
     this.verticalY = 0;
     this.verticalVel = 0;
@@ -795,25 +819,112 @@ export class PlayerCar {
     return group;
   }
 
-  steer(inputDir, dt, sensitivity = 1.0) {
-    this.steerInput = inputDir;
+  calculatePacejkaGrip(slipAngle, isDrifting = false) {
+    // Pacejka Magic Formula: mu(s) = D * sin(C * arctan(B * s))
+    // D = Peak friction, C = Shape factor, B = Stiffness factor
+    const handlingFactor = (this.handling || 24) / 24.0;
+    const D = isDrifting ? (0.92 * handlingFactor) : (1.18 * handlingFactor);
+    const C = isDrifting ? 1.30 : 1.55;
+    const B = isDrifting ? 5.8 : 9.5;
 
-    // Progressive lateral steering momentum with smooth damping (eliminates robotic twitch)
+    const mu = D * Math.sin(C * Math.atan(B * slipAngle));
+    return {
+      mu,
+      peakMu: D,
+      isSliding: Math.abs(slipAngle) > (0.18 / (isDrifting ? 0.7 : 1.0))
+    };
+  }
+
+  calculateWeightTransfer(forwardSpeed, accelRate, lateralVel, dt) {
+    // Longitudinal weight transfer: a_x (units/s^2)
+    // Positive accel lifts nose (squat), braking dips nose (dive)
+    const longAccel = accelRate;
+    const h_cog_over_L = 0.22;
+    const dW_long = (longAccel / 28.0) * h_cog_over_L;
+
+    // Lateral weight transfer: a_y based on lateral velocity and forward velocity
+    const h_cog_over_T = 0.28;
+    const dW_lat = THREE.MathUtils.clamp((lateralVel * (forwardSpeed / 30.0) * 0.12), -0.45, 0.45);
+
+    // Front/Rear and Left/Right weight distribution
+    const frontLoad = THREE.MathUtils.clamp(1.0 - dW_long, 0.65, 1.45);
+    const rearLoad = THREE.MathUtils.clamp(1.0 + dW_long, 0.65, 1.45);
+
+    this.weightTransfer = {
+      fl: THREE.MathUtils.clamp(frontLoad * (1.0 - dW_lat), 0.35, 1.65),
+      fr: THREE.MathUtils.clamp(frontLoad * (1.0 + dW_lat), 0.35, 1.65),
+      rl: THREE.MathUtils.clamp(rearLoad * (1.0 - dW_lat), 0.35, 1.65),
+      rr: THREE.MathUtils.clamp(rearLoad * (1.0 + dW_lat), 0.35, 1.65),
+      dW_lat,
+      dW_long
+    };
+
+    // Lateral G estimation
+    this.lateralG = Math.abs(lateralVel) * (forwardSpeed / 32.0) * 0.25;
+    return this.weightTransfer;
+  }
+
+  steer(inputDir, dt, sensitivity = 1.0, counterAssist = 1.0) {
+    this.steerInput = inputDir;
     this.vx = this.vx || 0;
-    const handlingScale = this.isDrifting ? 0.65 : 0.52;
-    const targetVx = inputDir * (this.handling * handlingScale * sensitivity);
-    const damping = this.isDrifting ? (inputDir !== 0 ? 9.0 : 6.5) : (inputDir !== 0 ? 14 : 9.5);
+
+    // 1. Calculate tire slip angle s = arctan(vx / vz) - steerAngle
+    const forwardSpeed = Math.max(4.0, this.speed);
+    const bodySlideAngle = Math.atan2(this.vx, forwardSpeed);
+    this.slipAngle = bodySlideAngle - this.steerAngle;
+
+    // 2. Pacejka Magic Formula lateral tire grip
+    const pacejka = this.calculatePacejkaGrip(this.slipAngle, this.isDrifting);
+    this.pacejkaMu = pacejka.mu;
+    this.tireGrip = pacejka.mu;
+
+    // 3. Counter-Steering Stabilization Assist
+    // When oversteering during drift, natural caster counter-aligns wheels to stabilize slide
+    const assistFactor = THREE.MathUtils.clamp(counterAssist ?? this.counterSteerAssist ?? 1.0, 0, 1.5);
+    const isOversteering = this.isDrifting && (Math.sign(this.vx) !== Math.sign(inputDir) || inputDir === 0);
+    const counterSteerTorque = isOversteering ? (-this.slipAngle * 0.44 * assistFactor) : 0;
+
+    // 4. Progressive Lateral Steering Velocity with Grip & Drift Dynamics
+    const handlingScale = this.isDrifting ? 0.68 : 0.54;
+    const baseTargetVx = inputDir * (this.handling * handlingScale * sensitivity);
+    const targetVx = baseTargetVx + (isOversteering ? counterSteerTorque * 2.5 : 0);
+
+    // Anti-snapback recovery damping when transitioning out of drift
+    if (this.driftExitTimer > 0) {
+      this.driftExitTimer = Math.max(0, this.driftExitTimer - dt);
+    }
+    const recoveryFactor = this.driftExitTimer > 0 ? (this.driftExitTimer / 0.35) : 0;
+
+    let damping;
+    if (this.isDrifting) {
+      damping = inputDir !== 0 ? 9.2 : 6.8;
+    } else if (recoveryFactor > 0) {
+      // Smoothly blend from sliding damping (7.5) to grip damping (14.0) without violent snap-back
+      damping = THREE.MathUtils.lerp(14.0, 7.5, recoveryFactor);
+    } else {
+      damping = inputDir !== 0 ? 14.2 : 9.8;
+    }
+
     this.vx += (targetVx - this.vx) * Math.min(1, dt * damping);
     this.x = THREE.MathUtils.clamp(this.x + this.vx * dt, -8.2, 8.2);
     this.mesh.position.x = this.x;
 
-    // Target Front Wheel Turn Angle (Smooth progressive steering with drift counter-steer)
+    // 5. Dynamic Weight Transfer (Axle & Corner Normal Loads)
+    const accelRate = (this.speed - (this.prevSpeed || this.speed)) / Math.max(0.001, dt);
+    this.prevSpeed = this.speed;
+    this.calculateWeightTransfer(forwardSpeed, accelRate, this.vx, dt);
+
+    // 6. Wheel Steering & Counter-Steer Visuals
     const maxSpeedHandling = Math.max(1, this.handling * handlingScale * sensitivity);
     const normTurn = THREE.MathUtils.clamp(this.vx / maxSpeedHandling, -1, 1);
-    const targetWheelTurn = (this.isDrifting && Math.sign(inputDir) !== Math.sign(normTurn) && inputDir !== 0)
-      ? inputDir * 0.48 // Crisp counter-steer lock
-      : normTurn * 0.42;
-    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 11);
+
+    const targetWheelTurn = this.isDrifting
+      ? (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(normTurn)
+          ? inputDir * 0.50 // crisp active counter-lock
+          : (Math.abs(inputDir) > 0 ? normTurn * 0.42 : -normTurn * 0.35)) // natural caster counter-alignment
+      : normTurn * 0.40;
+
+    this.steerAngle += (targetWheelTurn - this.steerAngle) * Math.min(1, dt * 11.5);
     if (this.wheels.fl && this.wheels.fr) {
       const isInnerRotated = Boolean(this.carModel && this.carModel.children[0]?.rotation.y === Math.PI);
       const steerVal = isInnerRotated ? -this.steerAngle : this.steerAngle;
@@ -821,17 +932,28 @@ export class PlayerCar {
       this.wheels.fr.rotation.y = steerVal;
     }
 
-    // Suspension Body Roll into Turns (Silky smooth weight transfer)
-    const targetRoll = -normTurn * (this.isDrifting ? 0.22 : 0.11);
-    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8.0);
+    // 7. Dynamic Suspension Body Roll (Coupled with Lateral Weight Transfer)
+    // Outward chassis roll with spring damping
+    const rollFromG = this.weightTransfer.dW_lat * 0.18;
+    const targetRoll = -normTurn * (this.isDrifting ? 0.24 : 0.12) - rollFromG;
+    this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8.5);
 
-    // Car Yaw Slide: Fluid arcade rotation
-    const targetYaw = -normTurn * (this.isDrifting ? 0.42 : 0.08);
-    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.5);
+    // 8. Vehicle Yaw Slide with Anti-Snapback Alignment
+    // During drift recovery, targetYaw smoothly straightens back to neutral forward alignment
+    const targetYaw = this.isDrifting
+      ? -normTurn * 0.44
+      : (-normTurn * 0.08 * (1.0 - recoveryFactor));
+    this.driftAngle = this.mesh.rotation.y;
+    this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.8);
   }
 
   setDrift(drifting) {
-    this.isDrifting = drifting;
+    const isNowDrifting = Boolean(drifting);
+    if (this.isDrifting && !isNowDrifting) {
+      // Exiting drift: initiate smooth anti-snapback damping recovery window (350ms)
+      this.driftExitTimer = 0.35;
+    }
+    this.isDrifting = isNowDrifting;
   }
 
   setBraking(braking) {
@@ -897,10 +1019,13 @@ export class PlayerCar {
       if (this.shieldMesh) this.shieldMesh.material.opacity = 0;
       return 0; // completely absorbed!
     }
-    this.hull = Math.max(0, this.hull - amount);
-    // Impact nose dive pitch
-    this.suspensionPitch = 0.25;
-    return amount;
+    // Armor mitigation: armor rating reduces incoming damage up to 35%
+    const armorMitigation = Math.max(0.65, 1.0 - ((this.armor || 100) - 80) * 0.0035);
+    const effectiveDamage = Math.max(1, Math.round(amount * armorMitigation));
+    this.hull = Math.max(0, this.hull - effectiveDamage);
+    // Impact nose dive pitch proportional to damage
+    this.suspensionPitch = Math.min(0.35, 0.15 + (effectiveDamage / 40) * 0.20);
+    return effectiveDamage;
   }
 
   repair(amount) {
@@ -944,6 +1069,9 @@ export class PlayerCar {
   }
 
   update(dt, onLandCallback = null) {
+    this.prevX = this.x;
+    this.prevZ = this.mesh.position.z;
+
     // 1. Acceleration & Nitro Dynamics (Calibrated: 80-120 Stock, 150-160 Boost)
     if (this.isBrakingToHalt) {
       this.targetSpeed = 0;

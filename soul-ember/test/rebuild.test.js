@@ -5,7 +5,7 @@ import {HEROES,MONSTERS,BOSSES,upgradeOffers,branchEffect} from '../src/rebuild/
 import {readProgress,saveProgress,buyArmory,buyMastery,KEY,LEGACY_KEY} from '../src/rebuild/progress.js';
 import {solid,clearLine,collide,Navigation} from '../src/rebuild/dungeon.js';
 import {HERO_MODELS,MONSTER_MODELS,modelFor,actorPhase} from '../src/rebuild/model-catalog.js';
-import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS} from '../src/rebuild/content.js';
+import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS,CHAMPION_AFFIXES,AFFIX_KEYS} from '../src/rebuild/content.js';
 import {ENEMY_ATTACKS,BOSS_ATTACKS,attacksFor,TELEGRAPHS,telegraphFor} from '../src/rebuild/combat-content.js';
 const tick=(g,n=1)=>{for(let i=0;i<n;i++)g.update(1/60);};
 test('complete roster contains eight heroes, eighteen monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,18);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
@@ -544,6 +544,137 @@ test('virtual touch joystick handles deadzones, throw curve, recentering, and mu
   // Restore globals
   globalThis.window=origWindow;
   globalThis.document=origDoc;
+});
+
+test('champion affixes registry defines all 5 affixes with distinct color identifiers',()=>{
+  assert.equal(AFFIX_KEYS.length,5);
+  for(const key of ['molten','vortex','frostbound','shielded','avenger']){
+    const affix=CHAMPION_AFFIXES[key];
+    assert(affix,`Affix ${key} must exist`);
+    assert.equal(affix.id,key);
+    assert(affix.name&&affix.name.length>0);
+    assert(Number.isFinite(affix.color));
+    assert(affix.desc&&affix.desc.length>0);
+  }
+});
+
+test('molten elite champion drops burning flame zones along its movement path',()=>{
+  const g=new Game({seed:201});
+  g.spawnTimer=999;
+  const elite=g.spawn('thrall',{x:0,z:5},{elite:true,affix:'molten'});
+  assert.equal(elite.affix,'molten');
+  assert.equal(elite.elite,true);
+  elite.vx=1.5;
+  elite.vz=0;
+  tick(g,30); // 0.5s movement
+  const flameZones=g.zones.filter(z=>z.enemy&&z.kind==='flame');
+  assert(flameZones.length>=1,'Molten elite must deposit burning flame zones while moving');
+});
+
+test('vortex elite champion pulls player with gravity pulses and respects dash invulnerability',()=>{
+  const g=new Game({seed:202});
+  g.spawnTimer=999;
+  const elite=g.spawn('thrall',{x:0,z:4},{elite:true,affix:'vortex'});
+  assert.equal(elite.affix,'vortex');
+  g.player.x=0;g.player.z=0;
+  g.player.vx=0;g.player.vz=0;
+
+  // Advance to vortex pulse trigger (3.5s = 210 ticks)
+  elite.affixTimer=3.48;
+  tick(g,2);
+  assert(g.player.vz>0,'Player must be pulled inward along +Z toward vortex champion');
+  assert(g.events.some(e=>e.type==='vortexPulse'));
+
+  // When player is dashing (invulnerable), vortex pull MUST be ignored
+  elite.x=4;elite.z=0;
+  g.player.x=0;g.player.z=0;
+  g.player.dx=0;g.player.dz=1;
+  g.player.vx=0;g.player.vz=0;
+  g.player.dash=0.25;
+  g.player.invuln=0.25;
+  elite.affixTimer=3.48;
+  tick(g,2);
+  assert.equal(g.player.vx,0,'Dash invulnerability prevents vortex gravity pull X');
+});
+
+test('frostbound elite champion casts telegraphed nova that damages and chills player unless dodging',()=>{
+  const g=new Game({seed:203});
+  g.spawnTimer=999;
+  const elite=g.spawn('thrall',{x:0,z:2.5},{elite:true,affix:'frostbound'});
+  g.player.x=0;g.player.z=0;
+
+  // Advance to warning telegraph (3.2s)
+  elite.affixTimer=3.18;
+  tick(g,2);
+  assert(g.effects.some(f=>f.kind==='warning'&&f.attackId==='frost-nova'),'Frostbound must emit warning telegraph before burst');
+
+  // Advance to burst (4.0s)
+  elite.affixTimer=3.98;
+  const prevHp=g.player.hp;
+  tick(g,2);
+  assert(g.player.hp<prevHp,'Frostbound nova damages unshielded player within 4.2m');
+  assert(g.player.chill>0,'Frostbound nova inflicts chill status on player');
+  assert(g.events.some(e=>e.type==='frostNova'));
+
+  // Test player dodging evades damage and chill
+  g.player.chill=0;
+  const hpBeforeDodge=g.player.hp;
+  g.player.dash=0.25;
+  g.player.invuln=0.25;
+  elite.affixTimer=3.98;
+  tick(g,2);
+  assert.equal(g.player.hp,hpBeforeDodge,'Player in active dash evades frost nova damage');
+  assert.equal(g.player.chill,0,'Player in active dash evades frost nova chill');
+});
+
+test('shielded elite champion deflects frontal attacks with rotating barrier but takes full flanked damage',()=>{
+  const g=new Game({seed:204});
+  g.spawnTimer=999;
+  // Place shielded champion at (0, 4) with barrierAngle = 0 (facing +Z toward positive axis)
+  const elite=g.spawn('shield',{x:0,z:4},{elite:true,affix:'shielded'});
+  elite.hp=elite.maxHp=1000;
+  elite.barrierAngle=0; // barrier faces +Z (from (0,4) towards (0,>4))
+
+  // 1. Frontal strike: Player is at (0, 8), looking down towards champion at (0, 4) -> incoming angle from +Z
+  g.player.x=0;
+  g.player.z=8;
+  const frontalDmg=g.damage(elite,100,'weapon');
+  assert(frontalDmg<20,`Frontal strike must be heavily deflected! actual=${frontalDmg}`);
+  assert(g.events.some(e=>e.type==='shieldDeflect'),'Frontal strike must trigger shieldDeflect event');
+
+  // 2. Flanked strike from behind: Player is at (0, 0), attacking from -Z opposite barrier angle
+  g.player.x=0;
+  g.player.z=0;
+  const flankedDmg=g.damage(elite,100,'weapon');
+  assert(flankedDmg>50,`Flanked attack from behind barrier must deal full damage! actual=${flankedDmg}`);
+});
+
+test('avenger elite champion enrages on nearby minion deaths gaining stacking speed, damage, and CDR',()=>{
+  const g=new Game({seed:205});
+  g.spawnTimer=999;
+  const avenger=g.spawn('thrall',{x:0,z:0},{elite:true,affix:'avenger'});
+  assert.equal(avenger.affixStacks,0);
+  const baseSpeed=avenger.speed;
+
+  // Spawn nearby minion within 8m and kill it
+  const minion1=g.spawn('thrall',{x:2,z:2});
+  minion1.hp=0;
+  tick(g);
+  assert.equal(avenger.affixStacks,1,'Avenger gains 1 stack on nearby minion death');
+  assert(g.events.some(e=>e.type==='avengerEnrage'&&e.stacks===1));
+
+  // Spawn and kill two more minions to hit cap (3 stacks)
+  const minion2=g.spawn('thrall',{x:-2,z:1});
+  const minion3=g.spawn('thrall',{x:1,z:-2});
+  minion2.hp=0;minion3.hp=0;
+  tick(g);
+  assert.equal(avenger.affixStacks,3,'Avenger caps at 3 stacks');
+
+  // Spawn distant minion beyond 8.5m and kill it
+  const distantMinion=g.spawn('thrall',{x:15,z:15});
+  distantMinion.hp=0;
+  tick(g);
+  assert.equal(avenger.affixStacks,3,'Distant minion death does not exceed stack cap or trigger outside radius');
 });
 
 

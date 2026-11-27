@@ -48,5 +48,14 @@ export const ASCENSIONS={
  hunted:{name:'The Hunted',desc:'Swift elites track the ember through every room.',speed:1.08,recovery:.93,hp:1.12,spawn:.88,elite:.14,reward:1.25},
 };
 
+export const CHAMPION_AFFIXES={
+ molten:{id:'molten',name:'Molten',color:0xff4411,desc:'Leaves a scorching fire trail while tracking.'},
+ vortex:{id:'vortex',name:'Vortex',color:0xa855f7,desc:'Periodically pulses an intense gravitational well.'},
+ frostbound:{id:'frostbound',name:'Frostbound',color:0x38bdf8,desc:'Pulses chilling frost novas that slow speed and recovery.'},
+ shielded:{id:'shielded',name:'Shielded',color:0xfacc15,desc:'Protected by a rotating kinetic barrier that deflects frontal strikes.'},
+ avenger:{id:'avenger',name:'Avenger',color:0xef4444,desc:'Enrages upon minion deaths, gaining stacking speed and attack power.'}
+};
+export const AFFIX_KEYS=['molten','vortex','frostbound','shielded','avenger'];
+
 export function blankArmory(){return Object.fromEntries(Object.keys(ARMORY).map(id=>[id,0]));}
 export function blankMastery(heroIds=[]){return Object.fromEntries(heroIds.map(id=>[id,0]));}

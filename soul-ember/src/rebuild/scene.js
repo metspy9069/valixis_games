@@ -641,6 +641,36 @@ export class Scene{
   for(const e of game?.enemies||[]){
    if(Math.hypot(e.x-p.x,e.z-p.z)>36)continue;
    sync(e.id,()=>this.character(e.type),o=>this.animate(o,e,clock,low));
+   if(e.elite&&e.affix){
+    const affixCol={molten:0xff4411,vortex:0xa855f7,frostbound:0x38bdf8,shielded:0xfacc15,avenger:0xef4444}[e.affix]||0xffd700;
+    sync(`affix:${e.id}`,()=>{
+     const g=new T.Group();
+     g.name='championCorona';
+     const ring=new T.Mesh(this.geo.decalRing,this.mat(affixCol,'glass',true));
+     ring.name='ring';ring.scale.setScalar(0.48);g.add(ring);
+     const glyph=new T.Mesh(this.geo.decalInnerGlyph,this.mat(affixCol,'glass',true));
+     glyph.name='glyph';glyph.scale.setScalar(0.48);g.add(glyph);
+     const shieldArc=new T.Mesh(this.geo.decalConeArc,this.mat(0xfacc15,'glass',true));
+     shieldArc.name='shieldArc';shieldArc.visible=false;g.add(shieldArc);
+     return g;
+    },o=>{
+     const stackScale=e.affix==='avenger'?(1+(e.affixStacks||0)*.3):1;
+     const bob=Math.sin(clock*4+e.id)*.06;
+     o.position.set(e.x,1.85+bob,e.z);
+     o.rotation.y=clock*2.2;
+     const ring=o.getObjectByName('ring'),glyph=o.getObjectByName('glyph'),shieldArc=o.getObjectByName('shieldArc');
+     if(ring)ring.scale.setScalar(0.52*stackScale);
+     if(glyph){glyph.scale.setScalar(0.38*stackScale);glyph.rotation.y=-clock*3.5;}
+     if(shieldArc){
+      if(e.affix==='shielded'){
+       shieldArc.visible=true;
+       shieldArc.position.set(0,-0.9,0);
+       shieldArc.rotation.y=(e.barrierAngle||0);
+       shieldArc.scale.set(0.9,1,0.9);
+      }else shieldArc.visible=false;
+     }
+    });
+   }
   }
   for(const e of game?.corpses||[])sync(e.id,()=>this.character(e.type),o=>this.animate(o,e,clock,low,{dead:true}));
   for(const b of game?.bolts||[])sync(`bolt:${b.id}`,()=>this.projectile(b.kind||'bolt',heroColor,b.enemy),o=>{

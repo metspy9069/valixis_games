@@ -32,7 +32,16 @@ export class Scene{
    disk:new T.CylinderGeometry(.5,.5,.1,16)
   };
   this.texture=surfaceTexture();this.materials=new Map();this.objects=new Map();this.batches=new Map();this.props=new T.Group();this.temp=new T.Object3D();this.cameraFocus=new T.Vector2();this.dungeon=new DungeonView(this.scene);this.lastBiome=-1;this.hero=null;
-  this.light=new T.PointLight(0xffa34e,26,24,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.resize();window.addEventListener('resize',()=>this.resize());
+  this.light=new T.PointLight(0xffa34e,26,24,2);this.scene.add(this.light);this.hitstop=0;this.currentFrustum=11.5;this.cameraImpulse=new T.Vector2();this.camLookVx=0;this.camLookVz=0;this.resize();window.addEventListener('resize',()=>this.resize());
+ }
+ triggerHitstop(duration=.035,ev=null){
+  this.hitstop=Math.max(this.hitstop||0,duration);
+  if(ev&&ev.x!==undefined&&this.lastHeroPos){
+   const p=this.lastHeroPos,dx=ev.x-p.x,dz=(ev.z!==undefined?ev.z:p.z)-p.z,d=Math.hypot(dx,dz)||1;
+   if(!this.cameraImpulse)this.cameraImpulse=new T.Vector2();
+   this.cameraImpulse.x+=(dx/d)*0.16;
+   this.cameraImpulse.y+=(dz/d)*0.16;
+  }
  }
  mat(color,style='cloth',glow=false){
   const key=`${color}/${style}/${glow}`;
@@ -486,12 +495,22 @@ export class Scene{
    }
   }
   this.lastClock=clock;
+  if(!this.cameraImpulse)this.cameraImpulse=new T.Vector2();
+  const low=reduced||this.reducedQuality,p=game?.player||{id:'hero',x:0,z:0,dx:0,dz:1,vx:0,vz:0,moving:false};
+  this.lastHeroPos={x:p.x,z:p.z};
   if(game){
-   for(const ev of game.events)if((ev.type==='damage'&&ev.crit)||ev.type==='guardBreak'||ev.type==='perfectDodge')this.hitstop=.035;
+   for(const ev of game.events){
+    if((ev.type==='damage'&&ev.crit)||ev.type==='guardBreak'||ev.type==='perfectDodge'){
+     this.hitstop=.035;
+     if(ev.x!==undefined){
+      const dx=ev.x-p.x,dz=(ev.z!==undefined?ev.z:p.z)-p.z,d=Math.hypot(dx,dz)||1;
+      this.cameraImpulse.x+=(dx/d)*0.16;
+      this.cameraImpulse.y+=(dz/d)*0.16;
+     }
+    }
+   }
   }
   if(this.hitstop>0){this.hitstop-=1/60;return;}
-
-  const low=reduced||this.reducedQuality,p=game?.player||{id:'hero',x:0,z:0,dx:0,dz:1,vx:0,vz:0,moving:false};
   const biome=game?.biome||0,active=game?.hero||hero,spec=modelFor(active);
   const activeBoss=game?.enemies?.find(e=>e.boss&&e.hp>0);
   const bossActive=!!activeBoss;
@@ -523,14 +542,18 @@ export class Scene{
   }
 
   if(game){
-   let targetX=p.x+(p.vx||0)*0.06;
-   let targetZ=p.z+(p.vz||0)*0.06;
+   this.cameraImpulse.x*=0.84;
+   this.cameraImpulse.y*=0.84;
+   this.camLookVx=(this.camLookVx||0)+(p.vx-(this.camLookVx||0))*0.12;
+   this.camLookVz=(this.camLookVz||0)+(p.vz-(this.camLookVz||0))*0.12;
+   let targetX=p.x+this.camLookVx*0.055+this.cameraImpulse.x;
+   let targetZ=p.z+this.camLookVz*0.055+this.cameraImpulse.y;
    if(activeBoss){
-    targetX=p.x*0.82+activeBoss.x*0.18;
-    targetZ=p.z*0.82+activeBoss.z*0.18;
+    targetX=p.x*0.82+activeBoss.x*0.18+this.cameraImpulse.x;
+    targetZ=p.z*0.82+activeBoss.z*0.18+this.cameraImpulse.y;
    }
-   this.cameraFocus.x+=(targetX-this.cameraFocus.x)*0.065;
-   this.cameraFocus.y+=(targetZ-this.cameraFocus.y)*0.065;
+   this.cameraFocus.x+=(targetX-this.cameraFocus.x)*0.07;
+   this.cameraFocus.y+=(targetZ-this.cameraFocus.y)*0.07;
   }else this.cameraFocus.set(-2.5,0);
 
   const trauma=game?.trauma||0,t=trauma*trauma;

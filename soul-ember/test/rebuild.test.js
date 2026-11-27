@@ -124,5 +124,55 @@ test('gamepad input handles deadzones, dpad fallback, right stick aim, and edge-
   if(navDesc)Object.defineProperty(globalThis,'navigator',navDesc);
 });
 
+test('trauma strictly clamps to 1.2 on heavy damage accumulation and decays at 1.5x rate',()=>{
+  const g=new Game();
+  g.player.maxHp=10000;
+  g.player.hp=10000;
+  assert.equal(g.trauma,0);
+  // Inflict multiple massive hits (>20% maxHp) without dying
+  for(let i=0;i<4;i++){
+    g.player.invuln=0;
+    g.hurt(2200);
+  }
+  assert.equal(g.state,'playing');
+  assert.equal(g.trauma,1.2,'trauma must strictly clamp to 1.2');
+  const initial=g.trauma;
+  g.update(0.04);
+  assert(g.trauma<initial,'trauma must decay during update');
+  assert(Math.abs(g.trauma-(initial-0.04*1.5))<0.01,'trauma decays at dt * 1.5');
+  g.spawnTimer=999;
+  g.enemies=[];
+  for(let i=0;i<60;i++)g.update(0.04);
+  assert.equal(g.trauma,0,'trauma clamped to zero, cannot be negative');
+});
+
+test('finisher strikes and guard breaks generate micro-hitstop triggers and trauma injection',()=>{
+  const g=new Game({hero:'cinder'});
+  g.spawnTimer=999;
+  const e=g.spawn('shield',{x:0,z:2});
+  e.hp=e.maxHp=500;
+  e.guarding=2;
+  const traumaBefore=g.trauma;
+  g.damage(e,50,'finisher');
+  assert.equal(e.guarding,0);
+  assert(g.events.some(ev=>ev.type==='guardBreak'&&ev.x!==undefined));
+  assert(g.events.some(ev=>ev.type==='damage'&&ev.crit&&ev.source==='finisher'));
+  assert(g.trauma>traumaBefore,'finisher and guard break inject visceral trauma');
+  assert(g.trauma<=1.2,'trauma remains capped under 1.2');
+});
+
+test('hurt events contain position coordinates for directional feedback',()=>{
+  const g=new Game();
+  g.player.x=5.5;
+  g.player.z=8.2;
+  g.hurt(12);
+  const hurtEv=g.events.find(ev=>ev.type==='hurt');
+  assert(hurtEv);
+  assert.equal(hurtEv.x,5.5);
+  assert.equal(hurtEv.z,8.2);
+  assert.equal(hurtEv.amount,12);
+});
+
+
 
 

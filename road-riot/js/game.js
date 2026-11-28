@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -15,7 +16,12 @@ import {
   SHOWROOM_CAMERA_PRESETS,
   buildShowroomTurntableMesh
 } from './player.js';
-import { TrafficManager, updateEvasionTracking } from './traffic.js';
+import {
+  TrafficManager,
+  updateEvasionTracking,
+  calculateVehicleLod,
+  buildLowPolyVehicleMesh
+} from './traffic.js';
 import { progression, ACHIEVEMENTS } from './progression.js';
 
 import { shop } from './shop.js';
@@ -24,7 +30,12 @@ import { PedestrianManager } from './pedestrians.js';
 import { loadJSON } from './utils/loadJSON.js';
 import { TouchInputTracker, normalizeGamepadState, HapticController } from './input.js';
 
-export { SHOWROOM_CAMERA_PRESETS, buildShowroomTurntableMesh };
+export {
+  SHOWROOM_CAMERA_PRESETS,
+  buildShowroomTurntableMesh,
+  calculateVehicleLod,
+  buildLowPolyVehicleMesh
+};
 
 class RoadRiotGame {
   constructor() {
@@ -105,12 +116,65 @@ class RoadRiotGame {
     this.cameraTargetLook = new THREE.Vector3(-1.4, 0.19 + 0.65, -8);
     this.cameraCurrentLook = new THREE.Vector3(-1.4, 0.19 + 0.65, -8);
 
-    // Assets Prototypes
+    // Asset Preloader & Telemetry State (Day 14: Draco & KTX2 Texture Streaming)
+    this.preloaderTelemetry = {
+      loaded: 0,
+      total: 25,
+      progressPct: 0,
+      complete: false,
+      activeUrl: ''
+    };
+
+    // Centralized THREE.LoadingManager driving the Asset Preloader UI
+    this.loadingManager = new THREE.LoadingManager();
+    this.loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+      const pct = Math.min(100, Math.round((itemsLoaded / itemsTotal) * 100));
+      this.preloaderTelemetry.loaded = itemsLoaded;
+      this.preloaderTelemetry.total = itemsTotal;
+      this.preloaderTelemetry.progressPct = pct;
+      this.preloaderTelemetry.activeUrl = url;
+
+      if (this.ui?.preloaderBar) {
+        this.ui.preloaderBar.style.width = `${pct}%`;
+      }
+      if (this.ui?.preloaderPct) {
+        this.ui.preloaderPct.textContent = `${pct}%`;
+      }
+      if (this.ui?.preloaderStatus) {
+        const name = (url.split('/').pop() || 'asset').replace('.glb', '');
+        this.ui.preloaderStatus.textContent = `STREAMING: ${name.toUpperCase()} (${itemsLoaded}/${itemsTotal})`;
+      }
+    };
+
+    this.loadingManager.onLoad = () => {
+      this.preloaderTelemetry.complete = true;
+      if (this.ui?.preloaderStatus) {
+        this.ui.preloaderStatus.textContent = 'STREAMING COMPLETE • ASSETS MOUNTED';
+      }
+      if (this.ui?.preloaderOverlay) {
+        this.ui.preloaderOverlay.classList.add('fade-out');
+        setTimeout(() => {
+          this.ui.preloaderOverlay?.classList.add('hidden');
+        }, 500);
+      }
+    };
+
+    // Assets Prototypes & Loaders with Draco + KTX2 GPU Texture Support
     this.assetPrototypes = {};
-    this.gltfLoader = new GLTFLoader();
+    this.gltfLoader = new GLTFLoader(this.loadingManager);
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('./assets/draco/');
     this.gltfLoader.setDRACOLoader(dracoLoader);
+
+    // KTX2 GPU compressed texture streaming support with safe fallback
+    try {
+      this.ktx2Loader = new KTX2Loader(this.loadingManager)
+        .setTranscoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/')
+        .detectSupport(this.renderer);
+      this.gltfLoader.setKTX2Loader(this.ktx2Loader);
+    } catch (e) {
+      console.warn('[Road Riot] KTX2 GPU texture loader skipped or unsupported:', e);
+    }
 
     // Subsystems
     this.world = new WorldManager(this.scene, this.renderer);
@@ -366,10 +430,24 @@ class RoadRiotGame {
       dynoValTorque: document.querySelector('#dyno-val-torque'),
       dynoRpmTorque: document.querySelector('#dyno-rpm-torque'),
 
+      // Day 14: Asset Preloader Screen UI Elements
+      preloaderOverlay: document.querySelector('#asset-preloader'),
+      preloaderBar: document.querySelector('#preloader-progress-bar'),
+      preloaderPct: document.querySelector('#preloader-pct-text'),
+      preloaderStatus: document.querySelector('#preloader-status-text'),
+
       // Network Modal
       networkModal: document.querySelector('#network-modal'),
       networkCloseBtn: document.querySelector('#network-close-btn')
     };
+  }
+
+  getPreloaderTelemetry() {
+    return { ...this.preloaderTelemetry };
+  }
+
+  getTrafficLodTelemetry() {
+    return this.traffic ? this.traffic.getLodTelemetry() : null;
   }
 
   buildTurntableMesh() {

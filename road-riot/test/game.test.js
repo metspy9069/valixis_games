@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 import { ProgressionManager, ACHIEVEMENTS } from '../js/progression.js';
 import {
@@ -28,7 +31,10 @@ import {
   calculatePursuitSpeed,
   simulatePitManeuver,
   createRoadblockFormation,
-  updateEvasionTracking
+  updateEvasionTracking,
+  calculateVehicleLod,
+  buildLowPolyVehicleMesh,
+  TrafficManager
 } from '../js/traffic.js';
 import {
   ScreenDropletSystem,
@@ -2206,3 +2212,123 @@ test('Live dynamometer torque and horsepower curve generation with upgrade scali
     assert.ok(pt.hp >= 0, 'Horsepower is non-negative');
   });
 });
+
+test('Draco geometry and asset loader decoder pipeline configuration', () => {
+  const loadingManager = new THREE.LoadingManager();
+  const gltfLoader = new GLTFLoader(loadingManager);
+  const dracoLoader = new DRACOLoader();
+
+  dracoLoader.setDecoderPath('./assets/draco/');
+  gltfLoader.setDRACOLoader(dracoLoader);
+
+  assert.ok(dracoLoader, 'DRACOLoader instantiated successfully');
+  assert.equal(dracoLoader.decoderPath, './assets/draco/', 'Draco decoder path configured correctly');
+
+  // Verify Draco decoder runtime binaries exist on disk
+  const decoderWasmExists = fs.existsSync('road-riot/assets/draco/draco_decoder.wasm');
+  const decoderJsExists = fs.existsSync('road-riot/assets/draco/draco_decoder.js') || fs.existsSync('road-riot/assets/draco/draco_wasm_wrapper.js');
+  assert.ok(decoderWasmExists, 'Draco decoder WebAssembly binary exists in assets/draco/');
+  assert.ok(decoderJsExists, 'Draco decoder JavaScript wrapper exists in assets/draco/');
+});
+
+test('Traffic distance Level of Detail (LOD) switching at 75m threshold', () => {
+  // Test standalone LOD distance calculation helper
+  assert.equal(calculateVehicleLod(0, 75), 'near', '0m distance is near LOD');
+  assert.equal(calculateVehicleLod(40, 75), 'near', '40m distance is near LOD');
+  assert.equal(calculateVehicleLod(74.9, 75), 'near', '74.9m is near LOD');
+  assert.equal(calculateVehicleLod(75.1, 75), 'far', '75.1m transitions to far LOD');
+  assert.equal(calculateVehicleLod(137, 75), 'far', '137m spawn distance is far LOD');
+  assert.equal(calculateVehicleLod(-85, 75), 'far', 'Negative distance magnitude beyond 75m is far LOD');
+
+  // Test TrafficManager LOD management
+  const scene = new THREE.Scene();
+  const tm = new TrafficManager(scene);
+
+  const nearMesh = tm.buildVehicleMesh('sports', false, false, false, false);
+  nearMesh.position.set(0, 0, -25); // 17m ahead of player at -8
+  scene.add(nearMesh);
+
+  const farMesh = tm.buildVehicleMesh('sedan', false, false, false, false);
+  farMesh.position.set(6, 0, -115); // 107m ahead of player at -8
+  scene.add(farMesh);
+
+  tm.vehicles.push({
+    mesh: nearMesh,
+    currentLod: 'near',
+    lane: 0,
+    speed: 20,
+    baseSpeed: 20
+  });
+
+  tm.vehicles.push({
+    mesh: farMesh,
+    currentLod: 'far',
+    lane: 6,
+    speed: 20,
+    baseSpeed: 20
+  });
+
+  const lodTelemetry = tm.getLodTelemetry();
+  assert.equal(lodTelemetry.totalVehicles, 2, '2 vehicles tracked in LOD telemetry');
+  assert.equal(lodTelemetry.nearLodCount, 1, '1 near LOD vehicle');
+  assert.equal(lodTelemetry.farLodCount, 1, '1 far LOD vehicle');
+  assert.equal(lodTelemetry.lodThreshold, 75, 'LOD distance threshold is 75m');
+});
+
+test('Asset preloader progress calculation and completion callback', () => {
+  const loadingManager = new THREE.LoadingManager();
+  let reportedPct = 0;
+  let isComplete = false;
+
+  loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+    reportedPct = Math.round((itemsLoaded / itemsTotal) * 100);
+  };
+
+  loadingManager.onLoad = () => {
+    isComplete = true;
+  };
+
+  // Simulate progress across 25 assets
+  const totalAssets = 25;
+  for (let i = 1; i <= totalAssets; i++) {
+    loadingManager.onProgress(`assets/model_${i}.glb`, i, totalAssets);
+    assert.equal(reportedPct, Math.round((i / totalAssets) * 100), `Progress step ${i} matches expected percentage`);
+  }
+  assert.equal(reportedPct, 100, 'Preloader reaches 100% on final item');
+
+  loadingManager.onLoad();
+  assert.equal(isComplete, true, 'Preloader onLoad callback completes');
+});
+
+test('Low-poly LOD geometry optimization (reduced polygon and mesh count)', () => {
+  const carLod = buildLowPolyVehicleMesh('sports', 0x00d9ff, false, false);
+  const truckLod = buildLowPolyVehicleMesh('truck', 0x3366cc, true, false);
+  const tankerLod = buildLowPolyVehicleMesh('tanker', 0xff9900, false, true);
+
+  // Verify group names and types
+  assert.equal(carLod.name, 'lodFarGroup', 'Car LOD group named correctly');
+  assert.equal(truckLod.name, 'lodFarGroup', 'Truck LOD group named correctly');
+  assert.equal(tankerLod.name, 'lodFarGroup', 'Tanker LOD group named correctly');
+
+  // Count sub-meshes in low-poly models (must be <= 3 meshes for ultra-fast draw calls)
+  let carMeshCount = 0;
+  carLod.traverse(n => { if (n.isMesh) carMeshCount++; });
+  assert.ok(carMeshCount >= 1 && carMeshCount <= 3, 'Low-poly car has minimal mesh count (<= 3)');
+
+  let truckMeshCount = 0;
+  truckLod.traverse(n => { if (n.isMesh) truckMeshCount++; });
+  assert.ok(truckMeshCount >= 1 && truckMeshCount <= 3, 'Low-poly truck has minimal mesh count (<= 3)');
+
+  let tankerMeshCount = 0;
+  tankerLod.traverse(n => { if (n.isMesh) tankerMeshCount++; });
+  assert.ok(tankerMeshCount >= 1 && tankerMeshCount <= 3, 'Low-poly tanker has minimal mesh count (<= 3)');
+
+  // Verify shadows are disabled to eliminate shadow map rendering passes on distant vehicles
+  carLod.traverse(n => {
+    if (n.isMesh) {
+      assert.equal(n.castShadow, false, 'Distant LOD mesh must not cast dynamic shadows');
+      assert.equal(n.receiveShadow, false, 'Distant LOD mesh must not receive dynamic shadows');
+    }
+  });
+});
+

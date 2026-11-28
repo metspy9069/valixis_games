@@ -35,6 +35,27 @@
   <!-- Tactile Film Grain Overlay (Studio Depth) -->
   <div class="film-grain-overlay" aria-hidden="true"></div>
 
+  <!-- High-Precision Asset Preloader Screen Overlay (Day 14: Draco & KTX2 Texture Streaming) -->
+  <div id="asset-preloader" class="asset-preloader-overlay">
+    <div class="preloader-backdrop"></div>
+    <div class="preloader-content">
+      <div class="preloader-branding">
+        <div class="preloader-pill">VALIXIS HIGH-PERFORMANCE ENGINE</div>
+        <h1 class="preloader-title">ROAD RIOT 3D</h1>
+        <div class="preloader-subtitle">DRACO GEOMETRY &bull; KTX2 GPU STREAMING PIPELINE</div>
+      </div>
+      <div class="preloader-track">
+        <div id="preloader-progress-bar" class="preloader-fill" style="width: 0%;">
+          <div class="preloader-shimmer"></div>
+        </div>
+      </div>
+      <div class="preloader-telemetry">
+        <span id="preloader-status-text" class="preloader-status">STREAMING 3D ASSETS...</span>
+        <span id="preloader-pct-text" class="preloader-pct">0%</span>
+      </div>
+    </div>
+  </div>
+
   <!-- 3D Canvas -->
   <canvas id="game-canvas"></canvas>
   <!-- Fullscreen Hypersonic Nitro Speed Lines Canvas -->

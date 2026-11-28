@@ -16,6 +16,62 @@ export function selectConvoyAwareLanes(availableLanes, isHeavyConvoy = false) {
   return [...availableLanes];
 }
 
+/**
+ * Distance-based Level of Detail (LOD) threshold calculation.
+ * Beyond 75m from the player, traffic entities switch to simplified low-poly geometry.
+ */
+export function calculateVehicleLod(distToPlayer, threshold = 75) {
+  return Math.abs(distToPlayer) > threshold ? 'far' : 'near';
+}
+
+/**
+ * Builds ultra-lightweight low-poly hull geometry for distant traffic entities.
+ * Eliminates wheels, rims, headlights, taillights, dynamic shadows, and sub-mesh traversals.
+ */
+export function buildLowPolyVehicleMesh(type, color = 0x3366cc, isTruck = false, isTanker = false) {
+  const group = new THREE.Group();
+  group.name = 'lodFarGroup';
+
+  const bodyMat = new THREE.MeshBasicMaterial({ color });
+  const darkMat = new THREE.MeshBasicMaterial({ color: 0x111622 });
+
+  if (isTanker) {
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 6.4, 8), bodyMat);
+    tank.rotation.x = Math.PI / 2;
+    tank.position.set(0, 1.4, -0.6);
+    group.add(tank);
+
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.8, 2.5), darkMat);
+    cab.position.set(0, 1.1, 2.8);
+    group.add(cab);
+  } else if (isTruck) {
+    const trailer = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 6.0), bodyMat);
+    trailer.position.set(0, 1.4, -0.8);
+    group.add(trailer);
+
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.8, 2.4), darkMat);
+    cab.position.set(0, 1.1, 2.8);
+    group.add(cab);
+  } else {
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.55, 4.4), bodyMat);
+    chassis.position.y = 0.5;
+    group.add(chassis);
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.52, 2.1), darkMat);
+    cabin.position.set(0, 0.96, 0.1);
+    group.add(cabin);
+  }
+
+  group.traverse(node => {
+    if (node.isMesh) {
+      node.castShadow = false;
+      node.receiveShadow = false;
+    }
+  });
+
+  return group;
+}
+
 // Zero-allocation reusable structures for per-frame corridor and deadlock checks
 const _byLane = new Map([[-6, []], [0, []], [6, []]]);
 const _corridorMap = new Map([[-6, []], [0, []], [6, []]]);
@@ -447,8 +503,17 @@ export class TrafficManager {
       mesh.position.set(lane, 0, -145);
       this.scene.add(mesh);
 
+      // Distance Level of Detail (LOD) Initialization (spawned at -145m is distant)
+      const initLod = calculateVehicleLod(mesh.position.z - (-8), 75);
+      if (mesh.userData.lodNear && mesh.userData.lodFar) {
+        mesh.userData.lodNear.visible = (initLod === 'near');
+        mesh.userData.lodFar.visible = (initLod === 'far');
+        mesh.castShadow = (initLod === 'near');
+      }
+
       this.vehicles.push({
         mesh,
+        currentLod: initLod,
         lane,
         targetLane: lane,
         pendingTargetLane: lane,
@@ -472,90 +537,111 @@ export class TrafficManager {
   }
 
   buildVehicleMesh(type, isRival, isPolice, isTruck, isTanker) {
+    let nearMesh;
+    let carColor = isPolice ? 0x111622 : (isRival ? 0xff2a85 : 0x00d9ff);
+
     if (isTanker) {
-      return this.buildChemicalTanker();
-    }
-    if (isTruck) {
-      return this.buildSemiTruck();
-    }
+      nearMesh = this.buildChemicalTanker();
+    } else if (isTruck) {
+      nearMesh = this.buildSemiTruck();
+    } else {
+      // Try finding loaded prototype asset
+      const proto = this.assetPrototypes[type] ||
+        (type === 'sedan' ? this.assetPrototypes['sports'] : null) ||
+        (type === 'delivery' ? this.assetPrototypes['van'] : null) ||
+        (type === 'taxi' ? this.assetPrototypes['sedan'] || this.assetPrototypes['sports'] : null) ||
+        (type === 'ambulance' ? this.assetPrototypes['van'] : null) ||
+        this.assetPrototypes.sports;
 
-    // Try finding loaded prototype asset
-    const proto = this.assetPrototypes[type] ||
-      (type === 'sedan' ? this.assetPrototypes['sports'] : null) ||
-      (type === 'delivery' ? this.assetPrototypes['van'] : null) ||
-      (type === 'taxi' ? this.assetPrototypes['sedan'] || this.assetPrototypes['sports'] : null) ||
-      (type === 'ambulance' ? this.assetPrototypes['van'] : null) ||
-      this.assetPrototypes.sports;
+      if (proto) {
+        const model = proto.clone(true);
+        const carPalette = [0xd91626, 0x0066cc, 0x111622, 0xe8edf2, 0x159a42, 0x7b2cbf, 0xff9900, 0x00b4d8];
+        carColor = carPalette[Math.floor(Math.random() * carPalette.length)];
 
-    if (proto) {
-      const model = proto.clone(true);
-      const carPalette = [0xd91626, 0x0066cc, 0x111622, 0xe8edf2, 0x159a42, 0x7b2cbf, 0xff9900, 0x00b4d8];
-      const carColor = carPalette[Math.floor(Math.random() * carPalette.length)];
+        model.traverse(node => {
+          if (!node.isMesh) return;
+          node.castShadow = true;
+          node.receiveShadow = true;
 
-      model.traverse(node => {
-        if (!node.isMesh) return;
-        node.castShadow = true;
-        node.receiveShadow = true;
+          if (node.material) {
+            node.material = node.material.clone();
+            if (node.material.map) {
+              node.material.map.flipY = false;
+              node.material.map.colorSpace = THREE.SRGBColorSpace;
+              node.material.map.anisotropy = 16;
+            } else if (this.colormapTexture) {
+              node.material.map = this.colormapTexture;
+            }
 
-        if (node.material) {
-          node.material = node.material.clone();
-          if (node.material.map) {
-            node.material.map.flipY = false;
-            node.material.map.colorSpace = THREE.SRGBColorSpace;
-            node.material.map.anisotropy = 16;
-          } else if (this.colormapTexture) {
-            node.material.map = this.colormapTexture;
+            // Keep base color pure white so the authentic Kenney texture atlas
+            // (tinted glass windows, crisp headlights, red taillights, black rubber tires)
+            // renders at full fidelity without becoming a monochrome clay blob!
+            node.material.color.setHex(0xffffff);
+            node.material.roughness = 0.28;
+            node.material.metalness = 0.45;
+            node.material.needsUpdate = true;
           }
+        });
 
-          // Keep base color pure white so the authentic Kenney texture atlas
-          // (tinted glass windows, crisp headlights, red taillights, black rubber tires)
-          // renders at full fidelity without becoming a monochrome clay blob!
-          node.material.color.setHex(0xffffff);
-          node.material.roughness = 0.28;
-          node.material.metalness = 0.45;
-          node.material.needsUpdate = true;
-        }
-      });
+        // Center model inside an inner group
+        const inner = new THREE.Group();
+        inner.add(model);
 
-      // Center model inside an inner group
-      const inner = new THREE.Group();
-      inner.add(model);
+        // Normalize scale and ground model
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const targetLength = (type === 'delivery' || type === 'ambulance') ? 5.6 : 4.5;
+        model.scale.setScalar(targetLength / maxDim);
 
-      // Normalize scale and ground model
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z) || 1;
-      const targetLength = (type === 'delivery' || type === 'ambulance') ? 5.6 : 4.5;
-      model.scale.setScalar(targetLength / maxDim);
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        const center = scaledBox.getCenter(new THREE.Vector3());
+        model.position.x = -center.x;
+        model.position.y = -scaledBox.min.y; // Sits flat on the road pavement
+        model.position.z = -center.z;
 
-      const scaledBox = new THREE.Box3().setFromObject(model);
-      const center = scaledBox.getCenter(new THREE.Vector3());
-      model.position.x = -center.x;
-      model.position.y = -scaledBox.min.y; // Sits flat on the road pavement
-      model.position.z = -center.z;
+        // Rotate inner group by Math.PI so car nose points forward down highway (-Z)
+        // and rear taillights face the camera (+Z)
+        inner.rotation.y = Math.PI;
 
-      // Rotate inner group by Math.PI so car nose points forward down highway (-Z)
-      // and rear taillights face the camera (+Z)
-      inner.rotation.y = Math.PI;
+        // Wrapper group in unrotated track space
+        const wrapper = new THREE.Group();
+        wrapper.add(inner);
 
-      // Wrapper group in unrotated track space
-      const wrapper = new THREE.Group();
-      wrapper.add(inner);
+        // Attach Highway Taillights facing camera at +Z, headlights pointing down road at -Z
+        this.attachTrafficLamps(wrapper, type, isPolice, isRival);
 
-      // Attach Highway Taillights facing camera at +Z, headlights pointing down road at -Z
-      this.attachTrafficLamps(wrapper, type, isPolice, isRival);
+        // Soft Ambient Occlusion Contact Shadow (firmly plants NPC tires onto the asphalt)
+        const shadowW = (type === 'delivery' || type === 'ambulance') ? 2.8 : 2.5;
+        const shadowL = (type === 'delivery' || type === 'ambulance') ? 5.8 : 4.8;
+        this.attachContactShadow(wrapper, shadowW, shadowL);
 
-      // Soft Ambient Occlusion Contact Shadow (firmly plants NPC tires onto the asphalt)
-      const shadowW = (type === 'delivery' || type === 'ambulance') ? 2.8 : 2.5;
-      const shadowL = (type === 'delivery' || type === 'ambulance') ? 5.8 : 4.8;
-      this.attachContactShadow(wrapper, shadowW, shadowL);
-
-      return wrapper;
+        nearMesh = wrapper;
+      } else {
+        const palette = [0xff3355, 0xffaa00, 0x00d9ff, 0x9944ff, 0x00ff88, 0xffffff];
+        carColor = palette[Math.floor(Math.random() * palette.length)];
+        nearMesh = this.buildProceduralTraffic(type, carColor, isRival, isPolice);
+      }
     }
 
-    const palette = [0xff3355, 0xffaa00, 0x00d9ff, 0x9944ff, 0x00ff88, 0xffffff];
-    const color = palette[Math.floor(Math.random() * palette.length)];
-    return this.buildProceduralTraffic(type, color, isRival, isPolice);
+    // Build simplified low-poly LOD geometry for distant highway rendering (>75m)
+    const farMesh = buildLowPolyVehicleMesh(type, carColor, isTruck, isTanker);
+    farMesh.visible = false;
+
+    // Dual-tier LOD parent container
+    const lodContainer = new THREE.Group();
+    lodContainer.name = `trafficVehicle_${type}`;
+    lodContainer.add(nearMesh);
+    lodContainer.add(farMesh);
+
+    // Bubble up user data for lamps, sirens, and signals
+    lodContainer.userData = {
+      ...nearMesh.userData,
+      lodNear: nearMesh,
+      lodFar: farMesh
+    };
+
+    return lodContainer;
   }
 
   createContactShadowTexture() {
@@ -1657,6 +1743,20 @@ export class TrafficManager {
       const relativeSpeed = playerSpeed - v.speed;
       v.mesh.position.z += relativeSpeed * dt;
 
+      // Distance Level of Detail (LOD) Dynamic Switching (75m threshold)
+      const distToPlayer = Math.abs(v.mesh.position.z - playerZ);
+      const targetLod = calculateVehicleLod(distToPlayer, 75);
+      if (v.currentLod !== targetLod) {
+        v.currentLod = targetLod;
+        const lodNear = v.mesh.userData?.lodNear;
+        const lodFar = v.mesh.userData?.lodFar;
+        if (lodNear && lodFar) {
+          lodNear.visible = (targetLod === 'near');
+          lodFar.visible = (targetLod === 'far');
+          v.mesh.castShadow = (targetLod === 'near');
+        }
+      }
+
       // 1.2s Pre-Change Turn Signal Countdown & Amber Flasher Animation
       if ((v.signalTimer || 0) > 0) {
         v.signalTimer = Math.max(0, v.signalTimer - dt);
@@ -1903,6 +2003,21 @@ export class TrafficManager {
       roadblockCount: roadblocks.length,
       roadblockLanes: roadblocks.map(o => o.lane),
       hasEscapeCorridor: hasViableEscapeCorridor(this.vehicles, this.obstacles, this.jumpRamps)
+    };
+  }
+
+  getLodTelemetry() {
+    let near = 0;
+    let far = 0;
+    for (const v of this.vehicles) {
+      if (v.currentLod === 'far') far++;
+      else near++;
+    }
+    return {
+      totalVehicles: this.vehicles.length,
+      nearLodCount: near,
+      farLodCount: far,
+      lodThreshold: 75
     };
   }
 }

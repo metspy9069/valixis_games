@@ -1795,7 +1795,7 @@ function explodeBarrel(barrel) {
   const cfg = barrel.type === 'fuel' ? HAZARD_CONFIG.barrels.fuel : HAZARD_CONFIG.barrels.biohazard;
 
   if (barrel.type === 'fuel') {
-    firePools.push(createFirePool(barrel.pos, { radius: cfg.fireRadius, poolDuration: cfg.fireDuration }));
+    spawnFirePool(barrel.pos, { radius: cfg.fireRadius, poolDuration: cfg.fireDuration, dps: 34, burnDuration: 3.0, burnDps: 15 });
   } else {
     spawnAcidPuddle(barrel.pos);
     spawnGasCloud(barrel.pos);

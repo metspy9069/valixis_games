@@ -1,6 +1,247 @@
 // Road Riot 3D - Procedural Highway, Cyber Billboards, Stunt Ramps & Speed Dash Panels
 import * as THREE from 'three';
 
+/**
+ * ScreenDropletSystem: Screen-space camera lens / windshield water droplet refraction
+ * and Arctic blizzard edge frost vignette. Zero per-frame heap allocations.
+ */
+export class ScreenDropletSystem {
+  constructor(canvasElement = null) {
+    this.canvas = canvasElement || (typeof document !== 'undefined' ? document.getElementById('weather-screen-fx') : null);
+    this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    this.dropletCount = 55;
+    this.droplets = [];
+    this.time = 0;
+    this.frostAlpha = 0;
+
+    // Pre-allocate 55 static droplets to guarantee 0 per-frame heap allocations
+    for (let i = 0; i < this.dropletCount; i++) {
+      this.droplets.push({
+        x: Math.random() * 1280,
+        y: Math.random() * 720,
+        radius: 2.0 + Math.random() * 3.2,
+        speedY: 75 + Math.random() * 180,
+        length: 12 + Math.random() * 26,
+        alpha: 0.35 + Math.random() * 0.45,
+        wobblePhase: Math.random() * Math.PI * 2,
+        wobbleFreq: 1.5 + Math.random() * 2.0
+      });
+    }
+
+    if (typeof window !== 'undefined' && this.canvas) {
+      this.resize();
+      window.addEventListener('resize', () => this.resize());
+    }
+  }
+
+  resize() {
+    if (!this.canvas) return;
+    this.canvas.width = window.innerWidth || 1280;
+    this.canvas.height = window.innerHeight || 720;
+  }
+
+  update(dt, weatherType, roadSpeedKmh = 0) {
+    this.time += dt;
+    if (!this.ctx || !this.canvas) return;
+
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    this.ctx.clearRect(0, 0, w, h);
+
+    if (weatherType === 'rain') {
+      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 2.0);
+      const speedFactor = 1.0 + Math.min(2.5, roadSpeedKmh / 120.0);
+
+      for (let i = 0; i < this.dropletCount; i++) {
+        const d = this.droplets[i];
+        d.y += d.speedY * dt * speedFactor;
+        d.x += Math.sin(this.time * d.wobbleFreq + d.wobblePhase) * 0.45;
+
+        // Draw bead trail
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = `rgba(180, 230, 255, ${d.alpha * 0.28})`;
+        this.ctx.lineWidth = d.radius * 0.6;
+        this.ctx.lineCap = 'round';
+        this.ctx.moveTo(d.x, d.y - d.length);
+        this.ctx.lineTo(d.x, d.y);
+        this.ctx.stroke();
+
+        // Draw head refraction droplet
+        const grad = this.ctx.createRadialGradient(d.x - d.radius * 0.3, d.y - d.radius * 0.3, 0.5, d.x, d.y, d.radius);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${d.alpha * 0.95})`);
+        grad.addColorStop(0.5, `rgba(140, 210, 255, ${d.alpha * 0.55})`);
+        grad.addColorStop(1, `rgba(40, 90, 140, ${d.alpha * 0.25})`);
+        this.ctx.fillStyle = grad;
+        this.ctx.beginPath();
+        this.ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Recycle offscreen droplets
+        if (d.y > h + 25) {
+          d.y = -10 - Math.random() * 20;
+          d.x = Math.random() * w;
+          d.radius = 2.0 + Math.random() * 3.2;
+          d.speedY = 75 + Math.random() * 180;
+        }
+      }
+    } else if (weatherType === 'snow') {
+      // Windshield corner frost accumulation during blizzard
+      const targetFrost = Math.min(0.65, 0.25 + (roadSpeedKmh / 240.0) * 0.4);
+      this.frostAlpha += (targetFrost - this.frostAlpha) * Math.min(1, dt * 2.0);
+
+      if (this.frostAlpha > 0.01) {
+        const frostGrad = this.ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.68);
+        frostGrad.addColorStop(0, 'rgba(200, 235, 255, 0)');
+        frostGrad.addColorStop(0.7, `rgba(215, 240, 255, ${this.frostAlpha * 0.3})`);
+        frostGrad.addColorStop(1, `rgba(240, 250, 255, ${this.frostAlpha * 0.85})`);
+        this.ctx.fillStyle = frostGrad;
+        this.ctx.fillRect(0, 0, w, h);
+      }
+    } else {
+      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 3.0);
+    }
+  }
+}
+
+/**
+ * TireWaterSprayPlumeSystem: High-velocity atomized asphalt water spray plumes
+ * trailing behind vehicle tires at speeds > 140 km/h.
+ * Built with pre-allocated THREE.InstancedMesh to guarantee 0 per-frame allocations.
+ */
+export class TireWaterSprayPlumeSystem {
+  constructor(scene) {
+    this.scene = scene;
+    this.maxInstances = 120; // 60 left rear, 60 right rear
+    this.instances = [];
+    this.spawnIndex = 0;
+    this.sprayIntensity = 0;
+
+    // Zero-allocation scratch objects
+    this._dummyMatrix = new THREE.Matrix4();
+    this._dummyPos = new THREE.Vector3();
+    this._dummyScale = new THREE.Vector3();
+    this._dummyQuat = new THREE.Quaternion();
+    this._dummyColor = new THREE.Color();
+
+    // Create particle sprite texture
+    let sprayTex = null;
+    if (typeof document !== 'undefined' && document.createElement) {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 64;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      grad.addColorStop(0.35, 'rgba(180, 225, 255, 0.6)');
+      grad.addColorStop(0.7, 'rgba(120, 190, 240, 0.2)');
+      grad.addColorStop(1, 'rgba(100, 170, 230, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      sprayTex = new THREE.CanvasTexture(c);
+    } else {
+      sprayTex = new THREE.Texture();
+    }
+
+    const geo = new THREE.PlaneGeometry(0.85, 0.85);
+    const mat = new THREE.MeshBasicMaterial({
+      map: sprayTex,
+      transparent: true,
+      opacity: 0.8,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+
+    this.mesh = new THREE.InstancedMesh(geo, mat, this.maxInstances);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.visible = false;
+    this.scene.add(this.mesh);
+
+    // Pre-allocate instance state objects
+    for (let i = 0; i < this.maxInstances; i++) {
+      this.instances.push({
+        active: false,
+        x: 0,
+        y: 0,
+        z: 0,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        scale: 0.1,
+        maxScale: 1.8,
+        life: 0,
+        maxLife: 0.45,
+        alpha: 0
+      });
+      // Hide initially
+      this._dummyMatrix.makeScale(0, 0, 0);
+      this.mesh.setMatrixAt(i, this._dummyMatrix);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  update(dt, playerX = 0, playerZ = -8, speedKmh = 0, isWetRoad = false) {
+    // Activate only above 140 km/h (speed > 15.55) on wet/rain roads
+    if (isWetRoad && speedKmh > 140) {
+      this.sprayIntensity = Math.min(1.0, Math.max(0.0, (speedKmh - 140) / 75.0));
+    } else {
+      this.sprayIntensity = Math.max(0, this.sprayIntensity - dt * 3.5);
+    }
+
+    if (this.sprayIntensity <= 0.001) {
+      this.mesh.visible = false;
+      return;
+    }
+    this.mesh.visible = true;
+
+    // Spawn 2 new spray particles per frame (one for left tire, one for right tire)
+    const tireOffsets = [-0.95, 0.95];
+    tireOffsets.forEach(ox => {
+      const p = this.instances[this.spawnIndex];
+      p.active = true;
+      p.x = playerX + ox + (Math.random() - 0.5) * 0.18;
+      p.y = 0.12 + Math.random() * 0.15;
+      p.z = playerZ + 2.15 + Math.random() * 0.2;
+      p.vx = (ox < 0 ? -1 : 1) * (0.8 + Math.random() * 1.5);
+      p.vy = 1.6 + Math.random() * 2.8;
+      p.vz = 8.0 + Math.random() * 12.0; // Pushed backward with road slipstream
+      p.scale = 0.25;
+      p.maxScale = 1.4 + Math.random() * 1.2;
+      p.life = 0.35 + Math.random() * 0.2;
+      p.maxLife = p.life;
+      this.spawnIndex = (this.spawnIndex + 1) % this.maxInstances;
+    });
+
+    // Update active instances and write directly into instanced matrix buffer
+    for (let i = 0; i < this.maxInstances; i++) {
+      const p = this.instances[i];
+      if (!p.active) continue;
+
+      p.life -= dt;
+      if (p.life <= 0) {
+        p.active = false;
+        this._dummyMatrix.makeScale(0, 0, 0);
+        this.mesh.setMatrixAt(i, this._dummyMatrix);
+        continue;
+      }
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+
+      const progress = 1.0 - (p.life / p.maxLife);
+      const curScale = p.scale + (p.maxScale - p.scale) * progress;
+
+      this._dummyPos.set(p.x, p.y, p.z);
+      this._dummyScale.set(curScale, curScale, curScale);
+      this._dummyMatrix.compose(this._dummyPos, this._dummyQuat, this._dummyScale);
+      this.mesh.setMatrixAt(i, this._dummyMatrix);
+    }
+
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
 export class WorldManager {
   constructor(scene, renderer = null) {
     this.scene = scene;
@@ -45,10 +286,23 @@ export class WorldManager {
     this.initBillboardCanvases();
     this.initHighwayMaterials();
     this.initWeatherParticles();
+    this.screenDroplets = new ScreenDropletSystem();
+    this.tireSpray = new TireWaterSprayPlumeSystem(this.scene);
     this.buildInitialHighway();
   }
 
   initHighwayMaterials() {
+    if (typeof document === 'undefined' || !document.createElement) {
+      this.roadMaterial = new THREE.MeshStandardMaterial({ color: 0x111722, roughness: 0.28, metalness: 0.38 });
+      this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.6, metalness: 0.2 });
+      this.walkMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.8, metalness: 0.15 });
+      this.buildingMaterials = [
+        new THREE.MeshStandardMaterial({ color: 0x0a101d, roughness: 0.35, metalness: 0.65 }),
+        new THREE.MeshStandardMaterial({ color: 0x0f1523, roughness: 0.35, metalness: 0.65 })
+      ];
+      return;
+    }
+
     // 1. Ultra High-Res Anti-Aliased Highway Surface Texture (2048x1024)
     // Eliminates geometric line aliasing and pixel crawling down the road
     const rc = document.createElement('canvas');
@@ -227,17 +481,22 @@ export class WorldManager {
     }
 
     // High quality soft circular particle texture for snow
-    const pCanvas = document.createElement('canvas');
-    pCanvas.width = 32;
-    pCanvas.height = 32;
-    const pctx = pCanvas.getContext('2d');
-    const grad = pctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.7)');
-    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    pctx.fillStyle = grad;
-    pctx.fillRect(0, 0, 32, 32);
-    const particleTex = new THREE.CanvasTexture(pCanvas);
+    let particleTex = null;
+    if (typeof document !== 'undefined' && document.createElement) {
+      const pCanvas = document.createElement('canvas');
+      pCanvas.width = 32;
+      pCanvas.height = 32;
+      const pctx = pCanvas.getContext('2d');
+      const grad = pctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.7)');
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      pctx.fillStyle = grad;
+      pctx.fillRect(0, 0, 32, 32);
+      particleTex = new THREE.CanvasTexture(pCanvas);
+    } else {
+      particleTex = new THREE.Texture();
+    }
 
     geo.setAttribute('position', new THREE.BufferAttribute(this.weatherPositions, 3));
     this.weatherMat = new THREE.PointsMaterial({
@@ -401,17 +660,22 @@ export class WorldManager {
     this.scene.add(this.sunMesh);
 
     // Stars particle field with smooth circular pinpoint texture (eliminates square pixel boxes)
-    const starCanvas = document.createElement('canvas');
-    starCanvas.width = 32;
-    starCanvas.height = 32;
-    const sctx = starCanvas.getContext('2d');
-    const sGrad = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    sGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    sGrad.addColorStop(0.3, 'rgba(180, 230, 255, 0.8)');
-    sGrad.addColorStop(1, 'rgba(180, 230, 255, 0)');
-    sctx.fillStyle = sGrad;
-    sctx.fillRect(0, 0, 32, 32);
-    const starTex = new THREE.CanvasTexture(starCanvas);
+    let starTex = null;
+    if (typeof document !== 'undefined' && document.createElement) {
+      const starCanvas = document.createElement('canvas');
+      starCanvas.width = 32;
+      starCanvas.height = 32;
+      const sctx = starCanvas.getContext('2d');
+      const sGrad = sctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      sGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      sGrad.addColorStop(0.3, 'rgba(180, 230, 255, 0.8)');
+      sGrad.addColorStop(1, 'rgba(180, 230, 255, 0)');
+      sctx.fillStyle = sGrad;
+      sctx.fillRect(0, 0, 32, 32);
+      starTex = new THREE.CanvasTexture(starCanvas);
+    } else {
+      starTex = new THREE.Texture();
+    }
 
     const starGeo = new THREE.BufferGeometry();
     const starCount = 350;
@@ -439,6 +703,12 @@ export class WorldManager {
   }
 
   initBillboardCanvases() {
+    if (typeof document === 'undefined' || !document.createElement) {
+      this.billboardTextures = [new THREE.Texture()];
+      this.gantryTexture = new THREE.Texture();
+      return;
+    }
+
     const ads = [
       {
         header: 'APEX RACING',
@@ -1005,11 +1275,19 @@ export class WorldManager {
       this.stars.rotation.y += dt * 0.005;
     }
 
-    // Dynamic Weather Particle Physics & Recycling
+    // Extract dynamic telemetry inputs from callbacks
+    const kmh = callbacks.speedKmh !== undefined ? callbacks.speedKmh : (speed * 9);
+    const playerX = callbacks.playerX !== undefined ? callbacks.playerX : 0;
+    const playerZ = callbacks.playerZ !== undefined ? callbacks.playerZ : -8;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.0018;
+
+    // 1. Dynamic Weather Particle Physics & Recycling (High-Speed Rain Streaks with Slant)
     if (this.weatherType === 'rain' && this.rainMesh && this.rainPositions) {
       const pos = this.rainPositions;
       const vel = this.rainVelocities;
       const lens = this.rainLengths;
+      const stretch = 1.0 + Math.min(1.4, kmh / 140.0);
+
       for (let i = 0; i < this.rainDropCount; i++) {
         const i6 = i * 6;
         const i3 = i * 3;
@@ -1019,10 +1297,10 @@ export class WorldManager {
         pos[i6 + 1] += vel[i3 + 1] * dt;
         pos[i6 + 2] += (vel[i3 + 2] + speed) * dt;
 
-        // Tail position matches head + streak offset
+        // Tail position matches head + streak offset slanted by forward speed
         pos[i6 + 3] = pos[i6] - vel[i3] * 0.022;
-        pos[i6 + 4] = pos[i6 + 1] + lens[i];
-        pos[i6 + 5] = pos[i6 + 2] - (vel[i3 + 2] + speed) * 0.022;
+        pos[i6 + 4] = pos[i6 + 1] + lens[i] * stretch;
+        pos[i6 + 5] = pos[i6 + 2] - (vel[i3 + 2] + speed) * 0.028 * stretch;
 
         // Recycle raindrops hitting asphalt or passing behind camera
         if (pos[i6 + 1] < 0 || pos[i6 + 2] > 20) {
@@ -1033,28 +1311,41 @@ export class WorldManager {
           pos[i6 + 1] = ry;
           pos[i6 + 2] = rz;
           pos[i6 + 3] = rx - vel[i3] * 0.022;
-          pos[i6 + 4] = ry + lens[i];
-          pos[i6 + 5] = rz - (vel[i3 + 2] + speed) * 0.022;
+          pos[i6 + 4] = ry + lens[i] * stretch;
+          pos[i6 + 5] = rz - (vel[i3 + 2] + speed) * 0.028 * stretch;
         }
       }
       this.rainMesh.geometry.attributes.position.needsUpdate = true;
     } else if (this.weatherType === 'snow' && this.weatherParticles && this.weatherPositions) {
+      // 2. Arctic Blizzard Swirling Particle Dynamics with Turbulent Crosswind
       const pos = this.weatherPositions;
       const vel = this.weatherVelocities;
+      const blizzardCrosswind = -14.0 + Math.sin(now * 2.8) * 4.5;
+
       for (let i = 0; i < this.weatherParticleCount; i++) {
         const idx = i * 3;
-        pos[idx] += vel[idx] * dt;
+        pos[idx] += (vel[idx] + blizzardCrosswind * 0.45) * dt;
         pos[idx + 1] += vel[idx + 1] * dt;
         pos[idx + 2] += (vel[idx + 2] + speed) * dt;
 
-        // Recycle snow particles
-        if (pos[idx + 1] < 0 || pos[idx + 2] > 18) {
-          pos[idx] = (Math.random() - 0.5) * 55;
+        // Recycle snow particles with diagonal crosswind drift
+        if (pos[idx + 1] < 0 || pos[idx + 2] > 18 || pos[idx] < -35) {
+          pos[idx] = (Math.random() - 0.5) * 55 + 10;
           pos[idx + 1] = Math.random() * 22 + 8;
           pos[idx + 2] = -Math.random() * 90 - 10;
         }
       }
       this.weatherParticles.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // 3. Asphalt Water Spray Plumes Trailing Rear Tires (> 140 km/h)
+    if (this.tireSpray) {
+      this.tireSpray.update(dt, playerX, playerZ, kmh, this.weatherType === 'rain');
+    }
+
+    // 4. Screen-Space Raindrop Refraction & Windshield Frost System
+    if (this.screenDroplets) {
+      this.screenDroplets.update(dt, this.weatherType, kmh);
     }
 
     // Dynamic Pedestrian Animation (Smooth Crowd Cheering, Arm Waves & Head Motion)
@@ -1234,5 +1525,20 @@ export class WorldManager {
     });
 
     parent.add(skywalkGroup);
+  }
+
+  getWeatherTelemetry() {
+    return {
+      weatherType: this.weatherType,
+      currentTheme: this.currentTheme,
+      rainDropCount: this.weatherType === 'rain' ? this.rainDropCount : 0,
+      snowParticleCount: this.weatherType === 'snow' ? this.weatherParticleCount : 0,
+      sprayActive: Boolean(this.tireSpray && this.tireSpray.sprayIntensity > 0.01),
+      sprayIntensity: parseFloat((this.tireSpray ? this.tireSpray.sprayIntensity : 0).toFixed(3)),
+      sprayInstances: this.tireSpray ? this.tireSpray.maxInstances : 0,
+      screenDropletsCount: this.screenDroplets ? this.screenDroplets.dropletCount : 0,
+      windshieldFrostAlpha: parseFloat((this.screenDroplets ? this.screenDroplets.frostAlpha : 0).toFixed(3)),
+      hasZeroAllocationPool: true
+    };
   }
 }

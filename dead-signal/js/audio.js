@@ -1070,6 +1070,37 @@ export class AudioEngine {
     this._noise({ dur: 0.14, gain: 0.08 * falloff, type: 'bandpass', freq: 900, q: 2, sweepTo: 400, pan, when: 0.03 });
   }
 
+  /** Stealth skittering footfalls and claw clicks on asphalt - silent predator cues. */
+  lurkerSkitter(distance = 8, pan = 0) {
+    if (!this.ctx) return;
+    const falloff = clamp(10 / Math.max(2, distance), 0.05, 1);
+    for (let i = 0; i < 3; i++) {
+      this._noise({
+        dur: 0.03,
+        gain: (0.04 + Math.random() * 0.02) * falloff,
+        type: 'highpass',
+        freq: 3200 + Math.random() * 800,
+        when: i * 0.06 + Math.random() * 0.02,
+        pan,
+      });
+    }
+  }
+
+  /** Blinding hiss or pounce telegraph hiss */
+  lurkerHiss(distance = 8, pan = 0) {
+    if (!this.ctx) return;
+    const falloff = clamp(12 / Math.max(2, distance), 0.08, 1);
+    this._noise({
+      dur: 0.35,
+      gain: 0.15 * falloff,
+      type: 'bandpass',
+      freq: 2800,
+      q: 2.2,
+      sweepTo: 1400,
+      pan,
+    });
+  }
+
   /** Short, aggressive snarl when a zombie commits to a bite. */
   snarl(distance = 5, pan = 0) {
     if (!this.ctx) return;

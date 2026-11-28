@@ -2992,6 +2992,19 @@ html, body {
   transition: opacity 0.25s ease-out;
 }
 
+/* ========================================================= */
+/* DYNAMIC WEATHER & WINDSHIELD DROPLETS SCREEN FX CANVAS    */
+/* ========================================================= */
+.weather-screen-fx {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 1;
+}
+
 .radar-label {
   font-family: var(--font-mono);
   font-size: 8px;

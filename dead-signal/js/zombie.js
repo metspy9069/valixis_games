@@ -6,6 +6,7 @@ import { resolveCircle } from './world.js';
 import { buildZombieModel } from './models.js';
 import { initZombieDismemberment, severZombieLimb, settleRagdollDeath } from './dismemberment.js';
 import { computeHordeSteering } from './nav.js';
+import { stepLurkerAI, LURKER_CONFIG } from './lurker.js';
 
 import { TYPES } from './data.js';
 export { TYPES };
@@ -107,7 +108,25 @@ export class Zombie {
 
   takeDamage(amount, part, ctx, limbId = null, hitPoint = null, shotDir = null) {
     if (!this.alive) return false;
-    this.hp -= amount;
+    let effAmount = amount;
+
+    // Mid-air lurker pounce counterplay (Day 11)
+    // Shooting lurker mid-leap interrupts the jump with a 25% vulnerability bonus and heavy stagger
+    if (this.type === 'lurker' && this.state === 'pounce_leap') {
+      effAmount *= 1.25;
+      this.state = 'pounce_recover';
+      this.staggerTimer = 1.2;
+      this.flinch = 1.5;
+      if (this.group && this.group.position.y > 0) {
+        this.group.position.y = 0;
+      }
+      if (ctx && ctx.audio && typeof ctx.audio.lurkerHiss === 'function') {
+        const pPos = ctx.playerPos;
+        ctx.audio.lurkerHiss(pPos ? Math.hypot(this.group.position.x - pPos.x, this.group.position.z - pPos.z) : 5);
+      }
+    }
+
+    this.hp -= effAmount;
     this.flinch = 1;
     this.hitTimer = 0.12;
     if (this.state === 'idle') this.state = 'chase';

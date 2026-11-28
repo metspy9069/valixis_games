@@ -32,6 +32,8 @@ export const MONSTER_MODELS={
  brood:{kind:'spider',primary:0x594237,secondary:0x251c19,scale:1.18},
  hex:{kind:'humanoid',primary:0x624e70,secondary:0x282330,head:'hood',weapon:'hexStaff',cape:true,scale:1.03},
  sentinel:{kind:'humanoid',primary:0xb6ad94,secondary:0x3b3932,head:'boneHelm',weapon:'boneBlade',shield:true,bone:true,armor:true,scale:1.28},
+ shifter:{kind:'hound',primary:0x3f4f2c,secondary:0x1f2b16,scale:1.12},
+ weaver:{kind:'spider',primary:0x4d5e2e,secondary:0x222d16,scale:1.06},
  abbot:{kind:'humanoid',primary:0x9b4e34,secondary:0x38221d,head:'mitre',weapon:'emberStaff',cape:true,armor:true,boss:true,scale:1.68},
  warden:{kind:'humanoid',primary:0x46696a,secondary:0x233637,head:'wardenHelm',weapon:'anchor',cape:true,armor:true,boss:true,scale:1.78},
  regent:{kind:'humanoid',primary:0x667044,secondary:0x2d3422,head:'antlers',weapon:'rootStaff',cape:true,armor:true,boss:true,scale:1.82},

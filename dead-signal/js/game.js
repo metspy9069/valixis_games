@@ -57,6 +57,16 @@ import {
   severZombieLimb,
   convertToCrawler,
 } from './dismemberment.js';
+import {
+  createAcidPuddle,
+  updateAcidPuddle,
+  createGasCloud,
+  updateGasCloud,
+  calculateBloaterBurstDamage,
+  stepAcidProjectileCCD,
+  evaluateChainReaction,
+  HAZARD_CONFIG,
+} from './hazards.js';
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -1597,8 +1607,8 @@ function defensiveShove() {
   return pushed;
 }
 
-// ---------------------------------------------------------------- acid
-// Spitter projectiles: a lobbed glob with its own gravity, trail and splash.
+// ---------------------------------------------------------------- acid & environmental hazards (Day 10)
+// Spitter projectiles: a lobbed glob with its own gravity, trail, swept CCD and persistent acid puddles.
 const acidParticleMat = new THREE.MeshBasicMaterial({ color: 0x9dff3d });
 const acidShotMat = new THREE.MeshStandardMaterial({
   color: 0xaaff4d, emissive: 0x6cff1a, emissiveIntensity: 2.8, roughness: 0.3, toneMapped: false,
@@ -1611,6 +1621,44 @@ for (let i = 0; i < 10; i++) {
   mesh.frustumCulled = false;
   scene.add(mesh);
   acidShots.push({ mesh, vel: new THREE.Vector3(), life: 0 });
+}
+
+const acidPuddles = [];
+const gasClouds = [];
+const acidPuddleGeo = new THREE.CircleGeometry(1, 24);
+const acidPuddleMat = new THREE.MeshBasicMaterial({
+  color: 0x4df51b,
+  transparent: true,
+  opacity: 0.72,
+  depthWrite: false,
+});
+const acidPuddleMeshes = [];
+for (let i = 0; i < 20; i++) {
+  const mesh = new THREE.Mesh(acidPuddleGeo, acidPuddleMat.clone());
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.026;
+  mesh.visible = false;
+  scene.add(mesh);
+  acidPuddleMeshes.push(mesh);
+}
+
+function spawnAcidPuddle(pos) {
+  const puddle = createAcidPuddle(pos);
+  acidPuddles.push(puddle);
+  const mesh = acidPuddleMeshes.find((m) => !m.visible) || acidPuddleMeshes[0];
+  mesh.position.set(pos.x, 0.026, pos.z);
+  mesh.scale.set(puddle.radius, puddle.radius, 1);
+  mesh.material.opacity = 0.72;
+  mesh.visible = true;
+  puddle._mesh = mesh;
+  return puddle;
+}
+
+function spawnGasCloud(pos) {
+  const cloud = createGasCloud(pos);
+  gasClouds.push(cloud);
+  spawnParticles(pos, 35, 'acid', 2.8);
+  return cloud;
 }
 
 function spitAcid(zombie) {
@@ -1632,34 +1680,138 @@ function spitAcid(zombie) {
 }
 
 function updateAcid(dt) {
-  const chest = new THREE.Vector3(player.pos.x, player.pos.y + 0.95, player.pos.z);
   for (const s of acidShots) {
     if (s.life <= 0) continue;
     s.life -= dt;
-    s.vel.y -= 22 * dt;
-    s.mesh.position.addScaledVector(s.vel, dt);
     s.mesh.rotation.x += dt * 7;
     s.mesh.rotation.y += dt * 5;
     if (Math.random() < 0.35) spawnParticles(s.mesh.position, 1, 'acid', 0.22);
 
+    const prevPos = s.mesh.position.clone();
+    const ccd = stepAcidProjectileCCD({
+      from: prevPos,
+      vel: s.vel,
+      dt,
+      gravity: 22,
+      colliders: world.colliders,
+      playerPos: player.pos,
+      playerChestHeight: 0.95,
+      playerRadius: 0.45,
+    });
+
+    s.mesh.position.copy(ccd.nextPos);
+    s.vel.copy(ccd.nextVel);
+
     let burst = false;
-    if (s.mesh.position.distanceTo(chest) < 0.95) {
-      damagePlayer(13 * (game.damageScale || 1), null);
-      player.vel.x += s.vel.x * 0.06;
-      player.vel.z += s.vel.z * 0.06;
+    let burstPos = ccd.nextPos.clone();
+
+    if (ccd.hit) {
       burst = true;
-    } else if (s.mesh.position.y <= 0.12
-      || pointBlocked(s.mesh.position.x, s.mesh.position.y, s.mesh.position.z)) {
-      // Acid stops at walls instead of sailing through a building to reach you.
-      burst = true;
+      burstPos = ccd.point ? ccd.point.clone() : ccd.nextPos.clone();
+      if (ccd.hitType === 'player') {
+        damagePlayer(13 * (game.damageScale || 1), null);
+        player.vel.x += s.vel.x * 0.06;
+        player.vel.z += s.vel.z * 0.06;
+      }
     }
 
     if (burst || s.life <= 0) {
-      spawnParticles(s.mesh.position, 9, 'acid', 0.7);
+      spawnParticles(burstPos, 9, 'acid', 0.7);
+      spawnAcidPuddle(burstPos);
       s.life = 0;
       s.mesh.visible = false;
     }
   }
+}
+
+function updateHazards(dt) {
+  player.inAcidPuddle = false;
+  player.inToxicGas = false;
+  player.hazardSpeedMul = 1.0;
+
+  for (let i = acidPuddles.length - 1; i >= 0; i--) {
+    const p = acidPuddles[i];
+    updateAcidPuddle(p, dt, player, zombies, {
+      audio,
+      damagePlayer: (dmg) => damagePlayer(dmg, null),
+    });
+    if (p._mesh) {
+      p._mesh.scale.set(p.radius, p.radius, 1);
+      const remain = p.duration - p.elapsed;
+      p._mesh.material.opacity = remain < 0.8 ? (remain / 0.8) * 0.72 : 0.72;
+      if (Math.random() < 0.22) {
+        spawnParticles(new THREE.Vector3(p.pos.x + (Math.random() - 0.5) * p.radius, 0.05, p.pos.z + (Math.random() - 0.5) * p.radius), 1, 'acid', 0.15);
+      }
+    }
+    if (!p.active) {
+      if (p._mesh) p._mesh.visible = false;
+      acidPuddles.splice(i, 1);
+    }
+  }
+
+  for (let i = gasClouds.length - 1; i >= 0; i--) {
+    const c = gasClouds[i];
+    updateGasCloud(c, dt, player, {
+      audio,
+      damagePlayer: (dmg) => damagePlayer(dmg, null),
+    });
+    if (Math.random() < 0.3) {
+      spawnParticles(new THREE.Vector3(c.pos.x + (Math.random() - 0.5) * c.radius, c.pos.y + (Math.random() - 0.5) * 0.8, c.pos.z + (Math.random() - 0.5) * c.radius), 2, 'acid', 0.6);
+    }
+    if (!c.active) {
+      gasClouds.splice(i, 1);
+    }
+  }
+}
+
+function triggerBarrelChainReaction(origin, radius, damage) {
+  if (!world.barrels || !world.barrels.length) return;
+  const res = evaluateChainReaction({
+    origin,
+    blastRadius: radius,
+    blastDamage: damage,
+    barrels: world.barrels,
+    zombies,
+    colliders: world.colliders,
+    ctx: makeContext(),
+  });
+
+  for (const b of res.triggeredBarrels) {
+    explodeBarrel(b);
+  }
+
+  for (const z of res.triggeredBloaters) {
+    if (!z.chainDetonated) {
+      z.chainDetonated = true;
+      setTimeout(() => { bloaterBurst(z); }, 80);
+    }
+  }
+}
+
+function explodeBarrel(barrel) {
+  if (audio && typeof audio.explosion === 'function') audio.explosion(panFor(barrel.pos), barrel.pos.distanceTo(player.pos));
+  player.shake = Math.min(1.4, player.shake + 0.6);
+  spawnParticles(barrel.pos, 32, barrel.type === 'fuel' ? 'spark' : 'acid', 1.8);
+  const cfg = barrel.type === 'fuel' ? HAZARD_CONFIG.barrels.fuel : HAZARD_CONFIG.barrels.biohazard;
+
+  if (barrel.type === 'fuel') {
+    firePools.push(createFirePool(barrel.pos, { radius: cfg.fireRadius, poolDuration: cfg.fireDuration }));
+  } else {
+    spawnAcidPuddle(barrel.pos);
+    spawnGasCloud(barrel.pos);
+  }
+
+  // Radial damage to player
+  const pDist = barrel.pos.distanceTo(player.pos);
+  if (pDist <= cfg.blastRadius) {
+    const wall = rayWorld(barrel.pos, new THREE.Vector3().subVectors(player.pos, barrel.pos).normalize(), pDist);
+    if (!wall || wall.distance >= pDist - 0.25) {
+      damagePlayer(Math.round(cfg.peakDamage * (1 - pDist / cfg.blastRadius)), null);
+    }
+  }
+
+  // Secondary blast propagation
+  triggerBarrelChainReaction(barrel.pos, cfg.blastRadius, cfg.peakDamage);
 }
 
 // ---------------------------------------------------------------- tactical ordnance & throwables (Day 6)
@@ -2433,27 +2585,42 @@ function bloaterBurst(zombie) {
   burstLight.intensity = 70;
   burstLightTimer = 0.3;
 
+  // Day 10: Toxic Gas Cloud release
+  spawnGasCloud(at);
+
+  // Day 10: Bloater damage to player with true 3D Euclidean distance & catwalk / elevation occlusion check
+  const playerDmg = calculateBloaterBurstDamage({
+    bloaterPos: at,
+    targetPos: new THREE.Vector3(player.pos.x, player.pos.y + 0.95, player.pos.z),
+    blastRadius: radius,
+    peakDamage: peak,
+    colliders: world.colliders,
+  });
+
+  if (playerDmg.inRange && !playerDmg.occluded && playerDmg.damage > 0) {
+    const toPlayer = new THREE.Vector3(player.pos.x - at.x, 0, player.pos.z - at.z).normalize();
+    player.vel.x += toPlayer.x * 3.2;
+    player.vel.z += toPlayer.z * 3.2;
+    damagePlayer(playerDmg.damage, null);
+  }
+
+  // Damage nearby zombies & trigger cascading bloater chain reactions
   for (const other of zombies) {
     if (!other.alive || other === zombie) continue;
     const d = other.group.position.distanceTo(at);
     if (d > radius) continue;
     const t = 1 - d / radius;
     const dmg = peak * (0.35 + 0.65 * t);
-    other.takeDamage(dmg, 'body', makeContext());
+    const died = other.takeDamage(dmg, 'body', makeContext());
     other.flinch = 1;
-  }
-
-  const self = Math.hypot(player.pos.x - at.x, player.pos.z - at.z);
-  if (self < radius && self > 1e-3) {
-    // A solid wall between the burst and the player takes the hit instead.
-    const toPlayer = new THREE.Vector3((player.pos.x - at.x) / self, 0, (player.pos.z - at.z) / self);
-    const wall = rayWorld(new THREE.Vector3(at.x, 1.0, at.z), toPlayer, self);
-    if (!wall || wall.distance >= self - 0.25) {
-      player.vel.x += toPlayer.x * 3.2;
-      player.vel.z += toPlayer.z * 3.2;
-      damagePlayer(Math.round(peak * 0.75 * (1 - self / radius)), null);
+    if (died && other.type === 'bloater' && !other.chainDetonated) {
+      other.chainDetonated = true;
+      setTimeout(() => { bloaterBurst(other); }, 80);
     }
   }
+
+  // Day 10: Chain reaction with explosive barrels
+  triggerBarrelChainReaction(at, radius, peak);
 }
 
 /**
@@ -2770,12 +2937,13 @@ function updatePlayer(dt) {
   const inputLen = Math.hypot(ix, iz);
   if (inputLen > 1) { ix /= inputLen; iz /= inputLen; }
 
-  const wantsSprint = (keys['ShiftLeft'] || keys['ShiftRight']) && iz > 0.1 && player.stamina > 1 && !player.ads;
+  const wantsSprint = (keys['ShiftLeft'] || keys['ShiftRight']) && iz > 0.1 && player.stamina > 1 && !player.ads && !player.inToxicGas;
   player.sprinting = wantsSprint;
   if (wantsSprint && interruptReloadState(ammo)) updateAmmoHud();
 
   const baseSpeed = player.ads ? 2.6 : 4.6;
-  const speed = wantsSprint ? 7.3 : baseSpeed;
+  let speed = wantsSprint ? 7.3 : baseSpeed;
+  if (player.hazardSpeedMul) speed *= player.hazardSpeedMul;
 
   const targetVX = (forward.x * iz + right.x * ix) * speed;
   const targetVZ = (forward.z * iz + right.z * ix) * speed;
@@ -3761,6 +3929,7 @@ function stepSimulation(dt) {
   updateTracers(dt);
   updateCasings(dt);
   updateAcid(dt);
+  updateHazards(dt);
   updateGrenades(dt);
   updatePickups(dt);
   updateDamageNumbers(dt);
@@ -4228,5 +4397,13 @@ window.__severZombieLimb = severZombieLimb;
 window.__convertToCrawler = convertToCrawler;
 window.__nav = nav;
 window.__computeHordeSteering = computeHordeSteering;
+window.__acidPuddles = acidPuddles;
+window.__gasClouds = gasClouds;
+window.__spawnAcidPuddle = spawnAcidPuddle;
+window.__spawnGasCloud = spawnGasCloud;
+window.__calculateBloaterBurstDamage = calculateBloaterBurstDamage;
+window.__stepAcidProjectileCCD = stepAcidProjectileCCD;
+window.__bloaterBurst = bloaterBurst;
+window.__triggerBarrelChainReaction = triggerBarrelChainReaction;
 
 requestAnimationFrame(frame);

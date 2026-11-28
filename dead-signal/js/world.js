@@ -800,6 +800,7 @@ export function buildWorld(scene) {
   // 5. Fuel & Biohazard Barrels
   const barrelSpots = [];
   const bioSpots = [];
+  const barrels = [];
   for (let i = 0; i < 38; i++) {
     const onX = propRng() > 0.5;
     const street = onX ? STREETS_Z[Math.floor(propRng() * STREETS_Z.length)] : STREETS_X[Math.floor(propRng() * STREETS_X.length)];
@@ -812,8 +813,10 @@ export function buildWorld(scene) {
     const s = 0.85 + propRng() * 0.35;
     if (propRng() > 0.35) {
       barrelSpots.push([x, 0.55 * s, z, s, s, s, propRng() * Math.PI, 0.8 * s, 0.8 * s, 1.1 * s]);
+      barrels.push({ id: `barrel_fuel_${i}`, type: 'fuel', pos: new THREE.Vector3(x, 0.55 * s, z), radius: 0.45 * s, hp: 25, active: true });
     } else {
       bioSpots.push([x, 0.58 * s, z, s, s, s, propRng() * Math.PI, 0.84 * s, 0.84 * s, 1.15 * s]);
+      barrels.push({ id: `barrel_bio_${i}`, type: 'biohazard', pos: new THREE.Vector3(x, 0.58 * s, z), radius: 0.45 * s, hp: 25, active: true });
     }
   }
   makeInstanced(PROP_GEO.barrel, PROP_MAT.barrel, barrelSpots, false, { material: 'metal', penetrable: false });
@@ -912,6 +915,7 @@ export function buildWorld(scene) {
 
   return {
     colliders,
+    barrels,
     spawnPoints,
     addDecal,
     moon,

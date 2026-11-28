@@ -27,6 +27,15 @@ class SoulAudio{
    if(attack.includes('golem-slam')){
     this.tone(45,.72,{type:'sawtooth',gain:.35,slide:.42,pan});
     this.noise(.38,{gain:.26,frequency:150,pan});
+   }else if(attack.includes('hulk-slam')){
+    this.tone(70,.65,{type:'sawtooth',gain:.32,slide:.38,pan});
+    this.noise(.42,{gain:.28,frequency:180,pan});
+   }else if(attack.includes('siren-scream')){
+    this.tone(880,.55,{type:'sine',gain:.26,slide:1.5,pan});
+    this.tone(1320,.45,{type:'sine',gain:.18,delay:.08,slide:.85,pan});
+   }else if(attack.includes('siren-bolt')){
+    this.tone(680,.2,{type:'triangle',gain:.2,slide:.5,pan});
+    this.noise(.15,{gain:.14,frequency:1400,pan});
    }else if(attack.includes('priest')){
     this.tone(523,.42,{type:'triangle',gain:.22,slide:1.25,pan});
     this.tone(784,.32,{type:'sine',gain:.18,delay:.08,slide:.95,pan});

@@ -96,8 +96,8 @@ export function intersectColliderRay(origin, dir, c, maxDist) {
   }
   tmax = Math.min(tmax, tzMax);
 
-  if (tmax < Math.max(0, tmin)) return null;
-  const t = tmin > 0.05 ? tmin : -1;
+  if (tmax < 0.05) return null;
+  const t = tmin > 0.05 ? tmin : (tmax > 0.05 ? tmax : -1);
   if (t <= 0.05 || t > maxDist) return null;
 
   return {

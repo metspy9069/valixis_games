@@ -983,6 +983,11 @@ export class AudioEngine {
     this._noise({ dur: 0.04, gain: 0.06, type: 'highpass', freq: 4800, q: 1.5, pan, priority: 0 });
   }
 
+  /** Explosive detonation alias. */
+  explode(pan = 0, dist = 0) {
+    this.explosion(pan, dist);
+  }
+
   /** A bloater coming apart: wet tearing over a low, gassy thump. */
   bloaterBurst() {
     this._noise({ dur: 0.58, gain: 0.46, type: 'lowpass', freq: 1200, sweepTo: 100, q: 1.1, attack: 0.003, send: 0.8, drive: 5 });

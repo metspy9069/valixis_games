@@ -8,7 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>VALIXIS Games &mdash; Browser-Native Interactive Gaming Studio</title>
-  <meta name="description" content="Official browser-native AAA gaming portal and interactive 3D simulations by VALIXIS Technologies. Zero dependencies, pure web performance.">
+  <meta name="description" content="Official browser-native AAA gaming portal and interactive 3D simulations by VALIXIS Technologies. Pure web performance, zero dependencies.">
   <link rel="canonical" href="https://games.valixis.tech/">
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 
@@ -48,7 +48,7 @@
 
   <style>
     /* ==========================================================================
-       VALIXIS QUAD-CHROMA DESIGN TOKENS & SYSTEM VARIABLES
+       VALIXIS DESIGN TOKENS & SYSTEM VARIABLES
        ========================================================================== */
     :root {
       --bg-void: #03060c;
@@ -57,21 +57,16 @@
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-hover: rgba(0, 229, 255, 0.45);
 
-      /* VALIXIS Corporate Identity Spectrum */
+      /* Corporate Identity Colors */
       --valixis-cyan: #00e5ff;
       --valixis-blue: #2563ff;
       --valixis-violet: #7c3aed;
       --valixis-magenta: #d946ef;
-      --valixis-gradient: linear-gradient(135deg, #00e5ff 0%, #2563ff 38%, #7c3aed 72%, #d946ef 100%);
-      --valixis-aurora: linear-gradient(90deg, #00e5ff, #2563ff, #7c3aed, #d946ef, #00e5ff);
 
-      /* Game-Specific Thematic Accents */
+      /* Per-Game Signature Accents */
       --ember-gold: #ff9d42;
-      --ember-glow: rgba(255, 145, 0, 0.4);
       --dead-toxic: #7dfa34;
-      --dead-glow: rgba(125, 250, 52, 0.35);
       --road-cyan: #00e5ff;
-      --road-glow: rgba(0, 229, 255, 0.4);
 
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
@@ -109,7 +104,7 @@
       height: 100vh;
       z-index: 0;
       pointer-events: none;
-      opacity: 0.85;
+      opacity: 0.90;
       transition: opacity 1.2s ease;
     }
 
@@ -121,12 +116,12 @@
       height: 100%;
       pointer-events: none;
       z-index: 90;
-      opacity: 0.035;
+      opacity: 0.032;
       mix-blend-mode: overlay;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     }
 
-    /* Ambient Cyber Horizon Glows */
+    /* Ambient Spatial Lighting */
     .ambient-glow-top {
       position: fixed;
       top: -200px;
@@ -134,7 +129,7 @@
       transform: translateX(-50%);
       width: 1100px;
       height: 600px;
-      background: radial-gradient(circle, rgba(37, 99, 255, 0.15) 0%, rgba(124, 58, 237, 0.12) 40%, transparent 70%);
+      background: radial-gradient(circle, rgba(37, 99, 255, 0.14) 0%, rgba(124, 58, 237, 0.10) 40%, transparent 70%);
       pointer-events: none;
       z-index: 1;
       filter: blur(60px);
@@ -146,14 +141,14 @@
       right: -100px;
       width: 700px;
       height: 700px;
-      background: radial-gradient(circle, rgba(217, 70, 239, 0.08) 0%, transparent 60%);
+      background: radial-gradient(circle, rgba(217, 70, 239, 0.07) 0%, transparent 60%);
       pointer-events: none;
       z-index: 1;
       filter: blur(80px);
     }
 
     /* ==========================================================================
-       CINEMATIC "ENTERING THE GAMING WORLD" PRELOADER
+       TRUE ASSET & WEBGL BOOT PRELOADER
        ========================================================================== */
     .portal-loader {
       position: fixed;
@@ -167,14 +162,14 @@
       justify-content: center;
       flex-direction: column;
       overflow: hidden;
-      transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), filter 0.85s ease;
+      transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), filter 0.75s ease;
       will-change: transform, opacity, filter;
     }
 
     .portal-loader.warp-exit {
       opacity: 0;
-      transform: scale(2.6);
-      filter: blur(28px) brightness(1.8);
+      transform: scale(2.2);
+      filter: blur(24px) brightness(1.6);
       pointer-events: none;
     }
 
@@ -182,17 +177,11 @@
       position: absolute;
       inset: 0;
       background-image:
-        linear-gradient(rgba(0, 229, 255, 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(124, 58, 237, 0.06) 1px, transparent 1px);
+        linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 58, 237, 0.05) 1px, transparent 1px);
       background-size: 48px 48px;
       mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
       pointer-events: none;
-      animation: loaderGridDrift 20s linear infinite;
-    }
-
-    @keyframes loaderGridDrift {
-      0% { transform: translateY(0); }
-      100% { transform: translateY(48px); }
     }
 
     .loader-center {
@@ -201,17 +190,17 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      max-width: 520px;
+      max-width: 480px;
       width: 90%;
       text-align: center;
     }
 
-    /* Holographic Dual Concentric Rings */
+    /* Concentric Rings with Official Brand Mark */
     .cyber-rings-container {
       position: relative;
-      width: 240px;
-      height: 240px;
-      margin-bottom: 32px;
+      width: 220px;
+      height: 220px;
+      margin-bottom: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -226,20 +215,20 @@
     }
 
     .ring-outer {
-      animation: ringSpinClockwise 12s linear infinite;
+      animation: ringSpinClockwise 14s linear infinite;
     }
 
     .ring-inner {
-      width: 72%;
-      height: 72%;
-      top: 14%;
-      left: 14%;
-      animation: ringSpinCounter 8s linear infinite;
+      width: 74%;
+      height: 74%;
+      top: 13%;
+      left: 13%;
+      animation: ringSpinCounter 9s linear infinite;
     }
 
     .ring-track {
       fill: none;
-      stroke: rgba(255, 255, 255, 0.05);
+      stroke: rgba(255, 255, 255, 0.06);
       stroke-width: 1.5;
     }
 
@@ -248,15 +237,7 @@
       stroke: url(#cyan-blue-grad);
       stroke-width: 2.5;
       stroke-dasharray: 80 40 20 50;
-      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.7));
-    }
-
-    .ring-dots {
-      fill: none;
-      stroke: var(--valixis-magenta);
-      stroke-width: 2;
-      stroke-dasharray: 4 28;
-      opacity: 0.6;
+      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));
     }
 
     .ring-dash-inner {
@@ -264,14 +245,7 @@
       stroke: url(#magenta-violet-grad);
       stroke-width: 2;
       stroke-dasharray: 50 30 15 35;
-      filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.6));
-    }
-
-    .ring-pulse {
-      fill: none;
-      stroke: rgba(0, 229, 255, 0.3);
-      stroke-width: 1;
-      stroke-dasharray: 6 12;
+      filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.5));
     }
 
     @keyframes ringSpinClockwise {
@@ -286,8 +260,8 @@
 
     .loader-core {
       position: relative;
-      width: 72px;
-      height: 72px;
+      width: 70px;
+      height: 70px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -295,32 +269,35 @@
 
     .core-pulse-glow {
       position: absolute;
-      inset: 0;
+      inset: -6px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(0, 229, 255, 0.4) 0%, rgba(124, 58, 237, 0.25) 50%, transparent 70%);
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, rgba(124, 58, 237, 0.2) 50%, transparent 70%);
       animation: coreBreathe 2.4s ease-in-out infinite;
     }
 
     @keyframes coreBreathe {
-      0%, 100% { transform: scale(0.9); opacity: 0.6; }
-      50% { transform: scale(1.35); opacity: 1; filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.9)); }
+      0%, 100% { transform: scale(0.92); opacity: 0.6; }
+      50% { transform: scale(1.25); opacity: 0.95; filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.8)); }
     }
 
-    .loader-v-mark {
-      width: 44px;
-      height: 44px;
+    /* Official VALIXIS Brand Logo */
+    .loader-brand-icon {
+      width: 52px;
+      height: 52px;
+      position: relative;
       z-index: 2;
-      filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.8));
+      object-fit: contain;
+      filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.85));
     }
 
-    /* Diagnostic Telemetry Terminal */
+    /* Real Preloader Terminal */
     .loader-terminal {
       width: 100%;
-      background: rgba(10, 16, 28, 0.9);
+      background: rgba(10, 16, 28, 0.92);
       border: 1px solid rgba(0, 229, 255, 0.25);
       border-radius: 12px;
       padding: 18px 22px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
       backdrop-filter: blur(12px);
     }
 
@@ -333,19 +310,9 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       text-transform: uppercase;
-    }
-
-    .terminal-blink {
-      color: #10b981;
-      font-size: 0.8rem;
-      animation: blinkDot 1s infinite;
-    }
-
-    @keyframes blinkDot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.2; }
+      font-weight: 700;
     }
 
     .terminal-progress-track {
@@ -364,7 +331,7 @@
       background: linear-gradient(90deg, #00e5ff, #2563ff 50%, #d946ef 100%);
       border-radius: 999px;
       box-shadow: 0 0 16px rgba(0, 229, 255, 0.8);
-      transition: width 0.15s ease-out;
+      transition: width 0.18s ease-out;
     }
 
     .terminal-status-row {
@@ -372,15 +339,14 @@
       justify-content: space-between;
       align-items: center;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: #e2e8f0;
-      margin-bottom: 14px;
     }
 
     #loader-status-text {
       color: #94a3b8;
       letter-spacing: 0.5px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     #loader-pct {
@@ -389,48 +355,8 @@
       letter-spacing: 1px;
     }
 
-    .terminal-telemetry-tags {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .terminal-telemetry-tags span {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.65rem;
-      color: var(--text-dim);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 1px;
-    }
-
-    .loader-skip-btn {
-      margin-top: 18px;
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-      letter-spacing: 1px;
-    }
-
-    .loader-skip-btn:hover {
-      color: #fff;
-      border-color: var(--valixis-cyan);
-      background: rgba(0, 229, 255, 0.08);
-    }
-
     /* ==========================================================================
-       UNIVERSAL TOP NAVBAR & LIVE TELEMETRY BAR
+       TOP NAVBAR
        ========================================================================== */
     .top-nav {
       padding: 14px 32px;
@@ -440,7 +366,7 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.07);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      background: rgba(3, 6, 12, 0.82);
+      background: rgba(3, 6, 12, 0.85);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -480,16 +406,15 @@
     }
 
     .nav-btn {
-      color: var(--text-muted);
+      color: #e2e8f0;
       text-decoration: none;
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.80rem;
       font-weight: 600;
       padding: 6px 14px;
       border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      cursor: pointer;
+      border: 1px solid rgba(37, 99, 255, 0.4);
+      background: rgba(37, 99, 255, 0.1);
       transition: all 0.2s ease;
       display: inline-flex;
       align-items: center;
@@ -497,93 +422,10 @@
     }
 
     .nav-btn:hover {
-      color: #fff;
-      border-color: rgba(0, 229, 255, 0.4);
-      background: rgba(0, 229, 255, 0.08);
-      box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
-    }
-
-    .nav-btn-company {
-      color: #e2e8f0;
-      border-color: rgba(37, 99, 255, 0.4);
-      background: rgba(37, 99, 255, 0.1);
-    }
-
-    .nav-btn-company:hover {
       border-color: #2563ff;
-      background: rgba(37, 99, 255, 0.22);
-      box-shadow: 0 0 16px rgba(37, 99, 255, 0.3);
-    }
-
-    .nav-btn-sfx {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.74rem;
-      padding: 6px 10px;
-    }
-
-    /* Live Telemetry Bar under Nav */
-    .live-telemetry-bar {
-      position: sticky;
-      top: 61px;
-      z-index: 95;
-      background: rgba(5, 8, 16, 0.85);
-      border-bottom: 1px solid rgba(0, 229, 255, 0.15);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      padding: 6px 20px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    .live-telemetry-bar::-webkit-scrollbar {
-      display: none;
-    }
-
-    .telemetry-inner {
-      max-width: 1320px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-      white-space: nowrap;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.70rem;
-    }
-
-    .telemetry-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--text-dim);
-    }
-
-    .telemetry-dot.live {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #10b981;
-      box-shadow: 0 0 10px #10b981;
-      animation: pulseGreen 1.8s ease-in-out infinite;
-    }
-
-    @keyframes pulseGreen {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.35; transform: scale(0.85); }
-    }
-
-    .telemetry-label {
-      color: #64748b;
-      font-weight: 600;
-    }
-
-    .telemetry-val {
-      color: #cbd5e1;
-      font-weight: 700;
-    }
-
-    .telemetry-val.highlight {
-      color: var(--valixis-cyan);
+      background: rgba(37, 99, 255, 0.25);
+      box-shadow: 0 0 16px rgba(37, 99, 255, 0.35);
+      color: #fff;
     }
 
     /* ==========================================================================
@@ -594,7 +436,7 @@
       z-index: 10;
       max-width: 1320px;
       margin: 0 auto;
-      padding: 36px 24px 60px;
+      padding: 40px 24px 60px;
       flex: 1;
       width: 100%;
     }
@@ -698,7 +540,7 @@
     }
 
     /* ==========================================================================
-       AD CONTAINERS (RESPONSIVE & CLEANED OF BRAND LABELS)
+       AD CONTAINER (RESPONSIVE & CLEAN)
        ========================================================================== */
     .ad-leaderboard-container {
       margin: 24px auto 32px;
@@ -731,7 +573,7 @@
     }
 
     /* ==========================================================================
-       FEATURED FLAGSHIP GAME: SOUL EMBER: SURVIVORS
+       FEATURED FLAGSHIP GAME: SOUL EMBER
        ========================================================================== */
     .featured-card {
       background: linear-gradient(135deg, rgba(14, 22, 38, 0.92) 0%, rgba(10, 14, 24, 0.96) 60%, rgba(24, 16, 32, 0.92) 100%);
@@ -753,26 +595,6 @@
     .featured-card:hover {
       border-color: rgba(255, 157, 66, 0.65);
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 45px rgba(255, 145, 0, 0.25);
-    }
-
-    /* Electric Spark Border Accent */
-    .featured-card::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      border-radius: 20px;
-      padding: 1.5px;
-      background: linear-gradient(90deg, transparent 20%, rgba(255, 157, 66, 0.6) 50%, transparent 80%);
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-      animation: borderSweep 6s linear infinite;
-    }
-
-    @keyframes borderSweep {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
 
     .tag-row {
@@ -900,7 +722,7 @@
     }
 
     /* ==========================================================================
-       GAMES GRID (DEAD SIGNAL & ROAD RIOT) - 100% UNCLIPPED 3D ART
+       GAMES GRID (DEAD SIGNAL & ROAD RIOT) - UNCLIPPED 16:9 ART
        ========================================================================== */
     .games-grid {
       display: grid;
@@ -924,26 +746,11 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
 
-    .game-mini-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0;
-      background: radial-gradient(320px circle at var(--card-x, 50%) var(--card-y, 0%), rgba(0, 229, 255, 0.14), transparent 60%);
-      transition: opacity 0.35s ease;
-    }
-
-    .game-mini-card:hover::before {
-      opacity: 1;
-    }
-
     .game-mini-card:hover {
       transform: translateY(-6px);
       box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 229, 255, 0.12);
     }
 
-    /* Game Art Presentation: 16/9, Object-Fit Contain, ZERO Clipping */
     .game-art-container {
       position: relative;
       width: 100%;
@@ -974,7 +781,6 @@
       filter: saturate(1.15) drop-shadow(0 6px 24px rgba(0, 0, 0, 1));
     }
 
-    /* Dedicated HUD Eyebrow Tagline (Outside art so title art is clean!) */
     .art-hud-eyebrow {
       display: inline-flex;
       align-items: center;
@@ -987,7 +793,6 @@
       text-transform: uppercase;
     }
 
-    /* Dead Signal Specific Card Styling */
     .card-dead {
       border-color: rgba(125, 250, 52, 0.3);
       background: linear-gradient(145deg, rgba(14, 26, 16, 0.92), rgba(6, 12, 8, 0.96));
@@ -1009,7 +814,6 @@
       text-shadow: 0 0 15px rgba(125, 250, 52, 0.3);
     }
 
-    /* Road Riot Specific Card Styling */
     .card-road {
       border-color: rgba(0, 229, 255, 0.3);
       background: linear-gradient(145deg, rgba(12, 22, 36, 0.92), rgba(6, 12, 22, 0.96));
@@ -1066,7 +870,7 @@
     }
 
     /* ==========================================================================
-       PRODUCTION PIPELINE SECTION (REDUCED SIZE, CLEAN & COMPACT)
+       PRODUCTION PIPELINE SECTION
        ========================================================================== */
     .pipeline-wrapper {
       max-width: 1100px;
@@ -1159,7 +963,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* Ad Container Card in Pipeline: Strictly Sized, NO Sponsor/Adsterra text */
     .pipeline-ad-card {
       background: rgba(6, 10, 18, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1182,7 +985,6 @@
       overflow: hidden;
     }
 
-    /* Responsive Bottom Ad Container */
     .adsense-bottom-container {
       max-width: 1000px;
       margin: 30px auto 20px;
@@ -1196,7 +998,7 @@
     }
 
     /* ==========================================================================
-       FOOTER & UTILITIES
+       STREAMLINED STUDIO FOOTER
        ========================================================================== */
     footer {
       border-top: 1px solid rgba(255, 255, 255, 0.07);
@@ -1216,42 +1018,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
-    }
-
-    .footer-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      color: #10b981;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 4px 12px;
-      border-radius: 999px;
-      margin-bottom: 6px;
+      gap: 12px;
     }
 
     .footer-links {
       display: flex;
       gap: 20px;
-      flex-wrap: wrap;
       justify-content: center;
     }
 
-    .footer-links a, .footer-btn {
+    .footer-links a {
       color: var(--valixis-cyan);
       text-decoration: none;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.80rem;
-      background: transparent;
-      border: none;
-      cursor: pointer;
+      font-size: 0.82rem;
       transition: color 0.2s;
     }
 
-    .footer-links a:hover, .footer-btn:hover {
+    .footer-links a:hover {
       color: #fff;
       text-decoration: underline;
     }
@@ -1288,7 +1072,7 @@
 
     @media (max-width: 560px) {
       .top-nav {
-        padding-inline: 12px;
+        padding-inline: 14px;
       }
       .arcade-badge {
         display: none;
@@ -1297,12 +1081,8 @@
         height: 26px;
       }
       .nav-btn {
-        padding: 5px 8px;
-        font-size: 0.70rem;
-      }
-      .live-telemetry-bar {
-        top: 57px;
-        padding: 4px 12px;
+        padding: 5px 10px;
+        font-size: 0.72rem;
       }
       .hero-title {
         font-size: clamp(2rem, 8.5vw, 2.8rem);
@@ -1327,7 +1107,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .portal-loader, .hero-title, .ring-outer, .ring-inner, .core-pulse-glow, .featured-card::before {
+      .portal-loader, .hero-title, .ring-outer, .ring-inner, .core-pulse-glow {
         animation: none !important;
       }
       .game-mini-card:hover, .featured-card:hover {
@@ -1344,12 +1124,12 @@
 <body>
 
   <!-- ========================================================================
-       CINEMATIC "ENTERING THE GAMING WORLD" PRELOADER
+       REAL ASSET & WEBGL BOOT PRELOADER
        ======================================================================== -->
   <div id="portal-loader" class="portal-loader" aria-label="Portal Boot Sequence">
     <div class="loader-bg-grid"></div>
     <div class="loader-center">
-      <!-- Dual Concentric Holographic Cyber Rings -->
+      <!-- Concentric Holographic Rings with Official Brand Mark -->
       <div class="cyber-rings-container">
         <svg class="cyber-ring ring-outer" viewBox="0 0 280 280">
           <defs>
@@ -1364,65 +1144,44 @@
           </defs>
           <circle cx="140" cy="140" r="130" class="ring-track" />
           <circle cx="140" cy="140" r="130" class="ring-dash" />
-          <circle cx="140" cy="140" r="115" class="ring-dots" />
         </svg>
 
         <svg class="cyber-ring ring-inner" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" class="ring-dash-inner" />
-          <circle cx="100" cy="100" r="76" class="ring-pulse" />
         </svg>
 
-        <!-- Center Hologram Node with VALIXIS Mark -->
+        <!-- Official VALIXIS Logo in Hologram Core -->
         <div class="loader-core">
           <div class="core-pulse-glow"></div>
-          <svg class="loader-v-mark" viewBox="0 0 40 40" fill="none">
-            <path d="M7 9 L20 31 L33 9" stroke="url(#core-grad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <defs>
-              <linearGradient id="core-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#00e5ff"/>
-                <stop offset="50%" stop-color="#2563ff"/>
-                <stop offset="100%" stop-color="#d946ef"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="icon-512.png" alt="VALIXIS" class="loader-brand-icon" width="56" height="56">
         </div>
       </div>
 
-      <!-- Live Diagnostics Terminal -->
+      <!-- Real Asset Preloader Terminal -->
       <div class="loader-terminal">
         <div class="terminal-kicker">
-          <span class="terminal-blink">●</span> VALIXIS QUANTUM RUNTIME // BOOT SEQ v2.4
+          VALIXIS ARCADE &bull; ASSET INITIALIZATION
         </div>
         <div class="terminal-progress-track">
           <div id="loader-bar" class="terminal-progress-fill"></div>
         </div>
         <div class="terminal-status-row">
-          <span id="loader-status-text">INITIALIZING QUANTUM CORE...</span>
+          <span id="loader-status-text">CONNECTING RUNTIME...</span>
           <span id="loader-pct">0%</span>
         </div>
-        <div class="terminal-telemetry-tags">
-          <span>WEBGL 2.0</span>
-          <span>120HZ UNLOCKED</span>
-          <span>SPATIAL DSP</span>
-          <span>GLOBAL EDGE</span>
-        </div>
       </div>
-
-      <button id="loader-skip-btn" class="loader-skip-btn" type="button">
-        SKIP INTRO [ESC] &rarr;
-      </button>
     </div>
   </div>
 
-  <!-- 3D Interactive WebGL Canvas -->
+  <!-- 3D Interactive WebGL Canvas with Gaming Artifacts -->
   <canvas id="arcade-3d-bg" aria-hidden="true"></canvas>
 
-  <!-- Fine Film Grain Overlay -->
+  <!-- Film Grain Overlay -->
   <div class="film-grain-overlay" aria-hidden="true"></div>
   <div class="ambient-glow-top" aria-hidden="true"></div>
   <div class="ambient-glow-side" aria-hidden="true"></div>
 
-  <!-- Universal Top Navigation -->
+  <!-- Universal Top Navigation (Streamlined) -->
   <header class="top-nav">
     <a href="./" class="brand-link">
       <img src="valixis-horizontal-lockup.png" alt="VALIXIS" class="brand-logo" width="836" height="120" fetchpriority="high">
@@ -1430,44 +1189,11 @@
     </a>
 
     <nav class="nav-links" aria-label="Portal Navigation">
-      <a href="https://valixis.tech" class="nav-btn nav-btn-company" target="_blank" rel="noopener">
+      <a href="https://valixis.tech" class="nav-btn" target="_blank" rel="noopener">
         <span>&larr; VALIXIS.TECH</span>
       </a>
-      <a href="logos.html" class="nav-btn">
-        <span>BRAND ASSETS</span>
-      </a>
-      <button id="audio-toggle-btn" class="nav-btn nav-btn-sfx" type="button" aria-label="Toggle Sound Effects">
-        <span id="audio-icon">🔊</span> <span id="audio-label">SFX ON</span>
-      </button>
     </nav>
   </header>
-
-  <!-- Live Telemetry Status Ticker Bar -->
-  <div class="live-telemetry-bar">
-    <div class="telemetry-inner">
-      <div class="telemetry-pill">
-        <span class="telemetry-dot live"></span>
-        <span class="telemetry-label">NETWORK:</span>
-        <span class="telemetry-val">VALIXIS EDGE LIVE</span>
-      </div>
-      <div class="telemetry-pill">
-        <span class="telemetry-label">REGION:</span>
-        <span class="telemetry-val">GLOBAL CLOUD (12ms)</span>
-      </div>
-      <div class="telemetry-pill">
-        <span class="telemetry-label">RENDER ENGINE:</span>
-        <span class="telemetry-val">THREE.JS WEBGL 2.0</span>
-      </div>
-      <div class="telemetry-pill">
-        <span class="telemetry-label">ACTIVE RUNNERS:</span>
-        <span id="live-player-counter" class="telemetry-val highlight">1,438</span>
-      </div>
-      <div class="telemetry-pill">
-        <span class="telemetry-label">STATUS:</span>
-        <span class="telemetry-val highlight">100% OPERATIONAL</span>
-      </div>
-    </div>
-  </div>
 
   <!-- Main Arcade Container -->
   <main class="container">
@@ -1483,9 +1209,9 @@
         Many worlds. One arcade. Jump straight into a run, a siege, a race, or your next empire.
       </p>
       <nav class="quick-launch" aria-label="Quick launch games">
-        <a href="soul-ember/index.html?v=16" data-game-id="soul-ember" data-sound="ember">SOUL EMBER <span>↗</span></a>
-        <a href="dead-signal/index.html" data-game-id="dead-signal" data-sound="dead">DEAD SIGNAL <span>↗</span></a>
-        <a href="road-riot/index.html" data-game-id="road-riot" data-sound="road">ROAD RIOT <span>↗</span></a>
+        <a href="soul-ember/index.html?v=16" data-game-id="soul-ember" data-aura="ember">SOUL EMBER <span>↗</span></a>
+        <a href="dead-signal/index.html" data-game-id="dead-signal" data-aura="dead">DEAD SIGNAL <span>↗</span></a>
+        <a href="road-riot/index.html" data-game-id="road-riot" data-aura="road">ROAD RIOT <span>↗</span></a>
       </nav>
     </div>
 
@@ -1524,7 +1250,7 @@
           <li><span>PLAY YOUR WAY</span>Keyboard, touch, or full gamepad</li>
         </ul>
 
-        <a href="soul-ember/index.html?v=16" class="play-btn-main" data-game-id="soul-ember" data-sound="launch">
+        <a href="soul-ember/index.html?v=16" class="play-btn-main" data-game-id="soul-ember">
           <span>Play Soul Ember Now</span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
         </a>
@@ -1587,7 +1313,7 @@
       </a>
     </section>
 
-    <!-- VALIXIS Game Studio Titles & Pipeline (Clean & Compact) -->
+    <!-- VALIXIS Game Studio Titles & Pipeline -->
     <div class="pipeline-wrapper">
       <h3 class="section-heading portal-reveal">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3-2h.01"></path></svg>
@@ -1626,7 +1352,7 @@
           </div>
         </div>
 
-        <!-- 300x250 Display Ad Unit (Clean Frame, No labels) -->
+        <!-- 300x250 Display Ad Unit -->
         <div class="pipeline-ad-card">
           <div class="pipeline-ad-inner">
             <script>
@@ -1661,171 +1387,24 @@
 
   </main>
 
-  <!-- Universal Footer -->
+  <!-- Clean, Authentic Studio Footer -->
   <footer>
     <div class="footer-content">
-      <div class="footer-status-pill">
-        <span class="pulse-dot" style="background:#10b981; box-shadow:0 0 10px #10b981;"></span>
-        ALL SYSTEMS OPERATIONAL // ZERO DOWNTIME
-      </div>
       <p>&copy; 2026 VALIXIS Technologies. All rights reserved.</p>
       <div class="footer-links">
         <a href="https://valixis.tech" target="_blank" rel="noopener">valixis.tech &nearr;</a>
-        <a href="logos.html">Official Game Logos &nearr;</a>
-        <button id="replay-intro-btn" class="footer-btn" type="button">↺ Replay Portal Intro</button>
       </div>
     </div>
   </footer>
 
   <!-- ========================================================================
-       SCRIPTS: AUDIO SYNTH, 3D WEBGL ENGINE & INTERACTIVE PORTAL CONTROLLER
+       SCRIPTS: 3D WEBGL ENGINE (GAMING ASSETS) & REAL ASSET PRELOADER
        ======================================================================== -->
   <script type="module">
     import * as THREE from './node_modules/three/build/three.module.js';
 
     /* ==========================================================================
-       1. WEB AUDIO PROCEDURAL SYNTHESIZER
-       ========================================================================== */
-    class ValixisAudioEngine {
-      constructor() {
-        this.ctx = null;
-        this.muted = localStorage.getItem('valixis_sfx_muted') === 'true';
-        this.updateUI();
-      }
-
-      init() {
-        if (!this.ctx) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) {
-            this.ctx = new AudioContext();
-          }
-        }
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
-        }
-      }
-
-      toggleMute() {
-        this.muted = !this.muted;
-        localStorage.setItem('valixis_sfx_muted', this.muted);
-        this.updateUI();
-        if (!this.muted) {
-          this.init();
-          this.playBlip(660);
-        }
-      }
-
-      updateUI() {
-        const icon = document.getElementById('audio-icon');
-        const label = document.getElementById('audio-label');
-        if (icon && label) {
-          icon.textContent = this.muted ? '🔇' : '🔊';
-          label.textContent = this.muted ? 'SFX OFF' : 'SFX ON';
-        }
-      }
-
-      playBlip(freq = 880) {
-        if (this.muted) return;
-        this.init();
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now);
-          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.08);
-          gain.gain.setValueAtTime(0.04, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.08);
-        } catch(e) {}
-      }
-
-      playClick() {
-        if (this.muted) return;
-        this.init();
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(440, now);
-          osc.frequency.exponentialRampToValueAtTime(120, now + 0.05);
-          gain.gain.setValueAtTime(0.06, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.05);
-        } catch(e) {}
-      }
-
-      playWarp() {
-        if (this.muted) return;
-        this.init();
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const filter = this.ctx.createBiquadFilter();
-          const gain = this.ctx.createGain();
-
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(60, now);
-          osc.frequency.exponentialRampToValueAtTime(920, now + 0.8);
-
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(200, now);
-          filter.frequency.exponentialRampToValueAtTime(4500, now + 0.7);
-
-          gain.gain.setValueAtTime(0.01, now);
-          gain.gain.linearRampToValueAtTime(0.08, now + 0.4);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
-
-          osc.connect(filter);
-          filter.connect(gain);
-          gain.connect(this.ctx.destination);
-
-          osc.start(now);
-          osc.stop(now + 0.85);
-        } catch(e) {}
-      }
-
-      playAuraTone(aura) {
-        if (this.muted) return;
-        this.init();
-        if (!this.ctx) return;
-        try {
-          const now = this.ctx.currentTime;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sine';
-          let freq = 523.25; // C5
-          if (aura === 'ember') freq = 440; // A4
-          if (aura === 'dead') freq = 311.13; // Eb4 (tritone tension)
-          if (aura === 'road') freq = 587.33; // D5
-          osc.frequency.setValueAtTime(freq, now);
-          gain.gain.setValueAtTime(0.03, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.22);
-        } catch(e) {}
-      }
-    }
-
-    const audio = new ValixisAudioEngine();
-    document.getElementById('audio-toggle-btn')?.addEventListener('click', () => {
-      audio.toggleMute();
-    });
-
-    /* ==========================================================================
-       2. THREE.JS 3D SPATIAL BACKGROUND ENGINE
+       1. THREE.JS 3D SPATIAL BACKGROUND WITH PROCEDURAL GAMING ASSETS
        ========================================================================== */
     class Arcade3DBackground {
       constructor() {
@@ -1857,22 +1436,22 @@
           this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 
           // Lights
-          this.ambientLight = new THREE.AmbientLight(0x0b1528, 1.2);
+          this.ambientLight = new THREE.AmbientLight(0x0b1528, 1.3);
           this.scene.add(this.ambientLight);
 
-          this.dirLight = new THREE.DirectionalLight(0x00e5ff, 1.0);
+          this.dirLight = new THREE.DirectionalLight(0x00e5ff, 1.1);
           this.dirLight.position.set(15, 25, 20);
           this.scene.add(this.dirLight);
 
-          this.auraLight = new THREE.PointLight(0x7c3aed, 2.5, 90);
+          this.auraLight = new THREE.PointLight(0x7c3aed, 2.8, 90);
           this.auraLight.position.set(0, 10, 10);
           this.scene.add(this.auraLight);
 
           // 1. Perspective Cyber Grid
           this.createCyberGrid();
 
-          // 2. Floating Gaming Monoliths
-          this.createMonoliths();
+          // 2. Procedural 3D Gaming Artifacts (Controllers, Joysticks, D-Pads, Tokens)
+          this.createGamingAssets();
 
           // 3. Cyber Dust / Energy Particles
           this.createDustParticles();
@@ -1897,58 +1476,231 @@
         this.scene.add(this.gridHelper);
       }
 
-      createMonoliths() {
-        this.monoliths = [];
-        const geometries = [
-          new THREE.IcosahedronGeometry(2.2, 0),
-          new THREE.OctahedronGeometry(1.9, 0),
-          new THREE.TorusKnotGeometry(1.4, 0.35, 64, 8),
-          new THREE.DodecahedronGeometry(2.0, 0),
-          new THREE.TetrahedronGeometry(2.2, 0)
-        ];
+      /* ========================================================================
+         PROCEDURAL 3D GAMING ASSET GENERATOR
+         ======================================================================== */
+      createGamingAssets() {
+        this.gamingAssets = [];
 
-        const colors = [0x00e5ff, 0xd946ef, 0x7c3aed, 0x2563ff, 0xff9d42];
-        const positions = [
-          [-22, 6, -10],
-          [24, 8, -12],
-          [-18, -4, -8],
-          [20, -5, -6],
-          [0, 16, -20]
-        ];
-
-        geometries.forEach((geo, i) => {
-          const group = new THREE.Group();
-          const wireMat = new THREE.MeshBasicMaterial({
-            color: colors[i],
-            wireframe: true,
-            transparent: true,
-            opacity: 0.35
-          });
-          const wireMesh = new THREE.Mesh(geo, wireMat);
-
-          const coreMat = new THREE.MeshStandardMaterial({
-            color: colors[i],
-            metalness: 0.8,
-            roughness: 0.2,
-            transparent: true,
-            opacity: 0.15
-          });
-          const coreMesh = new THREE.Mesh(geo, coreMat);
-
-          group.add(wireMesh);
-          group.add(coreMesh);
-          group.position.set(...positions[i]);
-
-          group.userData = {
-            rotX: (Math.random() - 0.5) * 0.008,
-            rotY: (Math.random() - 0.5) * 0.008,
-            baseY: positions[i][1],
-            floatOffset: Math.random() * Math.PI * 2
-          };
-
-          this.monoliths.push(group);
-          this.scene.add(group);
+        // Common Materials
+        const darkChassisMat = new THREE.MeshStandardMaterial({
+          color: 0x0a101d,
+          roughness: 0.35,
+          metalness: 0.85
         });
+
+        const neonCyanMat = new THREE.MeshStandardMaterial({
+          color: 0x00e5ff,
+          emissive: 0x00e5ff,
+          emissiveIntensity: 0.6,
+          roughness: 0.2
+        });
+
+        const neonMagentaMat = new THREE.MeshStandardMaterial({
+          color: 0xd946ef,
+          emissive: 0xd946ef,
+          emissiveIntensity: 0.6,
+          roughness: 0.2
+        });
+
+        const chromeMat = new THREE.MeshStandardMaterial({
+          color: 0xe2e8f0,
+          roughness: 0.1,
+          metalness: 0.95
+        });
+
+        const goldMat = new THREE.MeshStandardMaterial({
+          color: 0xffb74d,
+          emissive: 0xff9d42,
+          emissiveIntensity: 0.3,
+          roughness: 0.2,
+          metalness: 0.85
+        });
+
+        // 1. CONSOLE GAMEPAD CONTROLLER
+        const gamepad = new THREE.Group();
+        // Central body
+        const gpBody = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.8, 0.6), darkChassisMat);
+        gamepad.add(gpBody);
+        // Left & Right Grips (angled cylinders)
+        const leftGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), darkChassisMat);
+        leftGrip.position.set(-1.8, -0.5, 0);
+        leftGrip.rotation.z = 0.35;
+        gamepad.add(leftGrip);
+
+        const rightGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), darkChassisMat);
+        rightGrip.position.set(1.8, -0.5, 0);
+        rightGrip.rotation.z = -0.35;
+        gamepad.add(rightGrip);
+
+        // D-Pad Cross
+        const dpadH = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.24, 0.15), neonCyanMat);
+        dpadH.position.set(-0.9, 0.25, 0.35);
+        const dpadV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.15), neonCyanMat);
+        dpadV.position.set(-0.9, 0.25, 0.35);
+        gamepad.add(dpadH, dpadV);
+
+        // 4 Action Buttons (Diamond arrangement)
+        const btnGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12);
+        const btnY = new THREE.Mesh(btnGeo, goldMat);
+        btnY.position.set(0.9, 0.5, 0.35);
+        btnY.rotation.x = Math.PI / 2;
+        const btnX = new THREE.Mesh(btnGeo, neonCyanMat);
+        btnX.position.set(0.68, 0.28, 0.35);
+        btnX.rotation.x = Math.PI / 2;
+        const btnB = new THREE.Mesh(btnGeo, neonMagentaMat);
+        btnB.position.set(1.12, 0.28, 0.35);
+        btnB.rotation.x = Math.PI / 2;
+        const btnA = new THREE.Mesh(btnGeo, neonCyanMat);
+        btnA.position.set(0.9, 0.06, 0.35);
+        btnA.rotation.x = Math.PI / 2;
+        gamepad.add(btnY, btnX, btnB, btnA);
+
+        // Dual Analog Thumbsticks
+        const stickGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.18, 16);
+        const leftStick = new THREE.Mesh(stickGeo, chromeMat);
+        leftStick.position.set(-0.45, -0.25, 0.35);
+        leftStick.rotation.x = Math.PI / 2;
+        const rightStick = new THREE.Mesh(stickGeo, chromeMat);
+        rightStick.position.set(0.45, -0.25, 0.35);
+        rightStick.rotation.x = Math.PI / 2;
+        gamepad.add(leftStick, rightStick);
+
+        // Shoulder Bumpers
+        const leftBumper = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), neonCyanMat);
+        leftBumper.position.set(-1.0, 0.95, 0);
+        const rightBumper = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), neonMagentaMat);
+        rightBumper.position.set(1.0, 0.95, 0);
+        gamepad.add(leftBumper, rightBumper);
+
+        gamepad.position.set(-20, 5, -10);
+        gamepad.scale.set(0.9, 0.9, 0.9);
+        this.addAsset(gamepad, [-20, 5, -10], 0.005, 0.007);
+
+        // 2. RETRO ARCADE JOYSTICK & BUTTON CONSOLE
+        const arcadeUnit = new THREE.Group();
+        const baseDeck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 2.4), darkChassisMat);
+        baseDeck.rotation.x = -0.25;
+        arcadeUnit.add(baseDeck);
+
+        // Steel Shaft & Luminous Ball Knob
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.3, 12), chromeMat);
+        shaft.position.set(-0.9, 0.7, 0.2);
+        arcadeUnit.add(shaft);
+
+        const ballKnob = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 20), neonMagentaMat);
+        ballKnob.position.set(-0.9, 1.35, 0.2);
+        arcadeUnit.add(ballKnob);
+
+        // Arcade Push Buttons
+        const buttonGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.15, 16);
+        const btnPositions = [
+          [0.4, 0.48, 0.35, neonCyanMat],
+          [0.95, 0.48, 0.32, neonMagentaMat],
+          [1.5, 0.48, 0.28, neonCyanMat],
+          [0.4, 0.38, -0.25, neonMagentaMat],
+          [0.95, 0.38, -0.28, neonCyanMat],
+          [1.5, 0.38, -0.32, goldMat]
+        ];
+        btnPositions.forEach(([bx, by, bz, bmat]) => {
+          const btn = new THREE.Mesh(buttonGeo, bmat);
+          btn.position.set(bx, by, bz);
+          btn.rotation.x = -0.25;
+          arcadeUnit.add(btn);
+        });
+
+        arcadeUnit.position.set(22, 6, -12);
+        arcadeUnit.scale.set(0.85, 0.85, 0.85);
+        this.addAsset(arcadeUnit, [22, 6, -12], -0.006, 0.005);
+
+        // 3. 8-WAY DIRECTIONAL D-PAD CROSS
+        const dpadCross = new THREE.Group();
+        const crossH = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.95, 0.4), darkChassisMat);
+        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.0, 0.4), darkChassisMat);
+        const centerDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.45, 20), neonCyanMat);
+        centerDisc.rotation.x = Math.PI / 2;
+
+        const crossHBorder = new THREE.Mesh(new THREE.BoxGeometry(3.06, 1.01, 0.38), neonCyanMat);
+        const crossVBorder = new THREE.Mesh(new THREE.BoxGeometry(1.01, 3.06, 0.38), neonCyanMat);
+
+        dpadCross.add(crossH, crossV, centerDisc);
+        dpadCross.position.set(-16, -5, -8);
+        dpadCross.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(dpadCross, [-16, -5, -8], 0.007, -0.005);
+
+        // 4. RETRO GAME CARTRIDGE
+        const cartridge = new THREE.Group();
+        const cartBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.2, 0.45), darkChassisMat);
+        cartridge.add(cartBody);
+
+        // Holographic label inset
+        const labelFrame = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 0.05), neonMagentaMat);
+        labelFrame.position.set(0, -0.2, 0.24);
+        cartridge.add(labelFrame);
+
+        // Top Grip Ridges
+        for (let r = 0; r < 4; r++) {
+          const ridge = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 0.06), neonCyanMat);
+          ridge.position.set(0, 1.0 + r * 0.16, 0.23);
+          cartridge.add(ridge);
+        }
+
+        // Connector Pins (Gold)
+        const pins = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 0.15), goldMat);
+        pins.position.set(0, -1.55, 0);
+        cartridge.add(pins);
+
+        cartridge.position.set(18, -4, -8);
+        cartridge.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(cartridge, [18, -4, -8], -0.005, -0.006);
+
+        // 5. ARCADE TOKEN / COIN
+        const token = new THREE.Group();
+        const coinDisc = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.24, 36), goldMat);
+        coinDisc.rotation.x = Math.PI / 2;
+        token.add(coinDisc);
+
+        // Outer Ring Ridge
+        const coinRim = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 12, 36), chromeMat);
+        token.add(coinRim);
+
+        // Embossed Star Shape
+        const starShape = new THREE.Shape();
+        const pts = 5;
+        const outerR = 0.8;
+        const innerR = 0.38;
+        for (let i = 0; i < pts * 2; i++) {
+          const r = i % 2 === 0 ? outerR : innerR;
+          const a = (i / (pts * 2)) * Math.PI * 2 - Math.PI / 2;
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (i === 0) starShape.moveTo(x, y);
+          else starShape.lineTo(x, y);
+        }
+        starShape.closePath();
+
+        const extrudeSettings = { depth: 0.12, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.03, bevelThickness: 0.03 };
+        const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+        const starMeshFront = new THREE.Mesh(starGeo, neonCyanMat);
+        starMeshFront.position.set(0, 0, 0.08);
+        const starMeshBack = new THREE.Mesh(starGeo, neonCyanMat);
+        starMeshBack.position.set(0, 0, -0.20);
+        token.add(starMeshFront, starMeshBack);
+
+        token.position.set(0, 15, -18);
+        token.scale.set(0.9, 0.9, 0.9);
+        this.addAsset(token, [0, 15, -18], 0.008, 0.006);
+      }
+
+      addAsset(group, pos, rotX, rotY) {
+        group.userData = {
+          rotX,
+          rotY,
+          baseY: pos[1],
+          floatOffset: Math.random() * Math.PI * 2
+        };
+        this.gamingAssets.push(group);
+        this.scene.add(group);
       }
 
       createDustParticles() {
@@ -2028,11 +1780,11 @@
           this.gridHelper.position.z = (time * 6) % (160 / 40);
         }
 
-        // Monoliths floating and tumbling
-        this.monoliths.forEach((m) => {
-          m.rotation.x += m.userData.rotX;
-          m.rotation.y += m.userData.rotY;
-          m.position.y = m.userData.baseY + Math.sin(time * 1.5 + m.userData.floatOffset) * 0.8;
+        // Gaming assets gentle rotation and floating oscillation
+        this.gamingAssets.forEach((asset) => {
+          asset.rotation.x += asset.userData.rotX;
+          asset.rotation.y += asset.userData.rotY;
+          asset.position.y = asset.userData.baseY + Math.sin(time * 1.4 + asset.userData.floatOffset) * 0.7;
         });
 
         // Dust drift
@@ -2041,7 +1793,7 @@
           this.particles.rotation.x = time * 0.01;
         }
 
-        // Lerp aura lighting color
+        // Dynamic aura lighting
         this.currentAuraColor.lerp(this.targetAuraColor, 0.05);
         this.auraLight.color.copy(this.currentAuraColor);
 
@@ -2052,92 +1804,85 @@
     const bg3D = new Arcade3DBackground();
 
     /* ==========================================================================
-       3. PRELOADER CONTROLLER & WARP SEQUENCE
+       2. TRUE ASSET & WEBGL SHADER PRELOADER
        ========================================================================== */
     const loader = document.getElementById('portal-loader');
     const progressBar = document.getElementById('loader-bar');
     const statusText = document.getElementById('loader-status-text');
     const pctText = document.getElementById('loader-pct');
-    const skipBtn = document.getElementById('loader-skip-btn');
-    const replayBtn = document.getElementById('replay-intro-btn');
 
-    const bootSteps = [
-      { pct: 15, msg: 'ESTABLISHING QUANTUM LINK...' },
-      { pct: 38, msg: 'INITIALIZING 3D SPATIAL GRID...' },
-      { pct: 64, msg: 'COMPILING WEBGL 2.0 SHADERS...' },
-      { pct: 85, msg: 'CALIBRATING AUDIO DSP ENGINE...' },
-      { pct: 100, msg: 'WARP DRIVE ENGAGED // ENTERING ARCADE...' }
+    const coreAssets = [
+      'valixis-horizontal-lockup.png',
+      'icon-512.png',
+      'assets/logos/soul-ember-title.jpg',
+      'assets/logos/dead-signal-title.jpg',
+      'assets/logos/road-riot-title.jpg'
     ];
 
-    let currentStepIndex = 0;
-    let loaderDone = false;
-    const hasSeenIntro = sessionStorage.getItem('valixis_portal_booted') === 'true';
+    let completedTasks = 0;
+    const totalTasks = coreAssets.length + 2; // Images + Fonts + WebGL Precompile
+    let isLoaderClosed = false;
+
+    function advanceProgress(label) {
+      if (isLoaderClosed) return;
+      completedTasks++;
+      if (label) statusText.textContent = label;
+      const pct = Math.min(Math.round((completedTasks / totalTasks) * 100), 100);
+      progressBar.style.width = pct + '%';
+      pctText.textContent = pct + '%';
+
+      if (completedTasks >= totalTasks) {
+        statusText.textContent = 'SYSTEM READY // ENTERING ARCADE...';
+        setTimeout(dismissLoader, 300);
+      }
+    }
 
     function dismissLoader() {
-      if (loaderDone) return;
-      loaderDone = true;
-      sessionStorage.setItem('valixis_portal_booted', 'true');
-      audio.playWarp();
+      if (isLoaderClosed) return;
+      isLoaderClosed = true;
       loader.classList.add('warp-exit');
       setTimeout(() => {
         loader.style.display = 'none';
         initPageMotion();
-      }, 850);
+      }, 750);
     }
 
-    function runBootSequence(speedMultiplier = 1) {
-      loaderDone = false;
-      loader.style.display = 'flex';
-      loader.classList.remove('warp-exit');
-      currentStepIndex = 0;
+    // Safety timeout: Never keep the user waiting more than 3.5 seconds regardless of network
+    setTimeout(dismissLoader, 3500);
 
-      let progress = 0;
-      const interval = setInterval(() => {
-        if (loaderDone) {
-          clearInterval(interval);
-          return;
-        }
+    // 1. Preload Core Images
+    coreAssets.forEach((src) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        advanceProgress('DECODING GRAPHICS...');
+      };
+      img.src = src;
+    });
 
-        const targetStep = bootSteps[currentStepIndex];
-        if (targetStep) {
-          statusText.textContent = targetStep.msg;
-          if (progress < targetStep.pct) {
-            progress += 2;
-          } else {
-            currentStepIndex++;
-            audio.playBlip(700 + currentStepIndex * 80);
-          }
-        }
-
-        progress = Math.min(progress, 100);
-        progressBar.style.width = progress + '%';
-        pctText.textContent = progress + '%';
-
-        if (progress >= 100) {
-          clearInterval(interval);
-          setTimeout(dismissLoader, 400);
-        }
-      }, 20 * speedMultiplier);
-    }
-
-    // Fast-boot if already visited in same tab session
-    if (hasSeenIntro) {
-      runBootSequence(0.3); // fast 300ms transition
+    // 2. Preload Web Fonts
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        advanceProgress('SYSTEM FONTS LOADED...');
+      }).catch(() => advanceProgress('SYSTEM FONTS LOADED...'));
     } else {
-      runBootSequence(1); // full cinematic intro
+      advanceProgress('SYSTEM FONTS LOADED...');
     }
 
-    skipBtn?.addEventListener('click', dismissLoader);
-    replayBtn?.addEventListener('click', () => {
-      sessionStorage.removeItem('valixis_portal_booted');
-      runBootSequence(1);
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') dismissLoader();
-    });
+    // 3. Three.js WebGL Shader Warm-up & Pipeline Precompilation
+    if (bg3D && bg3D.renderer && bg3D.scene && bg3D.camera) {
+      try {
+        bg3D.renderer.compile(bg3D.scene, bg3D.camera);
+        bg3D.renderer.render(bg3D.scene, bg3D.camera);
+        advanceProgress('WEBGL SHADERS COMPILED...');
+      } catch (e) {
+        advanceProgress('PIPELINE READY...');
+      }
+    } else {
+      advanceProgress('PIPELINE READY...');
+    }
 
     /* ==========================================================================
-       4. INTERACTIVE MOTION, AUDIO REACTIVITY & AURA TRACKING
+       3. INTERACTIVE MOTION & AURA HOVER TRACKING
        ========================================================================== */
     function initPageMotion() {
       document.body.classList.add('portal-motion-ready');
@@ -2163,7 +1908,6 @@
 
       card.addEventListener('pointerenter', () => {
         if (bg3D) bg3D.setAura(aura);
-        audio.playAuraTone(aura);
       });
 
       card.addEventListener('pointerleave', () => {
@@ -2175,19 +1919,10 @@
         const rect = card.getBoundingClientRect();
         const x = (e.clientX - rect.left) / rect.width;
         const y = (e.clientY - rect.top) / rect.height;
-        card.style.setProperty('--card-x', `${Math.round(x * 100)}%`);
-        card.style.setProperty('--card-y', `${Math.round(y * 100)}%`);
-
         const tiltX = (y - 0.5) * -4.0;
         const tiltY = (x - 0.5) * 4.0;
         card.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) translateY(-5px)`;
       }, { passive: true });
-    });
-
-    // Audio clicks on interactive buttons
-    document.querySelectorAll('.play-btn-main, .quick-launch a, .nav-btn').forEach((btn) => {
-      btn.addEventListener('click', () => audio.playClick());
-      btn.addEventListener('pointerenter', () => audio.playBlip(950));
     });
 
     // Analytics game launch tracking
@@ -2199,17 +1934,6 @@
         }
       });
     });
-
-    // Live fluctuating player counter for vibrant living feel
-    const playerCounter = document.getElementById('live-player-counter');
-    if (playerCounter) {
-      let count = 1438;
-      setInterval(() => {
-        const delta = Math.floor(Math.random() * 7) - 3;
-        count += delta;
-        playerCounter.textContent = count.toLocaleString();
-      }, 4500);
-    }
   </script>
 
 </body>

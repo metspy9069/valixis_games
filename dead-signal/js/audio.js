@@ -1241,5 +1241,26 @@ export class AudioEngine {
     this._noise({ dur: 0.34, gain: 0.09, type: 'highpass', freq: 1600, send: 0.4, when: 0.03 });
   }
 
+  /** Weakpoint pustule rupture on Gatekeeper spine: high-pitched resonant crack and pop. */
+  weakpointHit() {
+    this._tone({ freq: 880, to: 240, dur: 0.35, gain: 0.36, type: 'sawtooth', send: 0.7 });
+    this._noise({ dur: 0.26, gain: 0.28, type: 'bandpass', freq: 1400, sweepTo: 320, send: 0.55 });
+  }
+
+  /** Gatekeeper enrage roar when entering Phase 2 / Phase 3. */
+  bossEnrage() {
+    this._voice({
+      f0: 56, dur: 1.35, vowel: 'a', gain: 0.36, rasp: 1.0, breath: 0.7,
+      syllables: 2, distance: 4, glide: 1.8, bite: 0.1, send: 0.7,
+    });
+    this._tone({ freq: 48, to: 92, dur: 1.1, gain: 0.32, type: 'sawtooth', send: 0.65 });
+  }
+
+  /** Thrown concrete rock impact against asphalt or wall. */
+  rockImpact() {
+    this._tone({ freq: 54, to: 28, dur: 0.45, gain: 0.38, type: 'sine' });
+    this._noise({ dur: 0.44, gain: 0.28, type: 'lowpass', freq: 420, sweepTo: 80, send: 0.5 });
+  }
+
   heartbeat() { this._tone({ freq: 62, to: 38, dur: 0.17, gain: 0.22, type: 'sine' }); }
 }

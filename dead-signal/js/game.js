@@ -74,6 +74,17 @@ import {
   stepLurkerAI,
   LURKER_CONFIG,
 } from './lurker.js';
+import {
+  initGatekeeperBoss,
+  evaluateGatekeeperPhase,
+  ruptureGatekeeperWeakpoint,
+  createRockProjectile,
+  stepRockProjectile,
+  calculateRockTrajectory,
+  sampleRockTrajectoryPoints,
+  GATEKEEPER_PHASES,
+  GATEKEEPER_THRESHOLDS,
+} from './boss.js';
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -1544,7 +1555,11 @@ function swingMelee() {
     z.staggerTimer = Math.max(z.staggerTimer || 0, combo.staggerSec);
 
     if (combo.breaksGuard && (z.isBoss || z.type === 'brute')) {
-      z.abilityWindup = 0;
+      if (z.isBoss && typeof z.finishAbility === 'function') {
+        z.finishAbility();
+      } else {
+        z.abilityWindup = 0;
+      }
       z.attackTimer = Math.max(z.attackTimer || 0, 0.9);
       guardBroken = true;
     }
@@ -2550,6 +2565,12 @@ function spawnFromQueue() {
     // announces itself before it can corner you.
     z.abilityCd = 2.2;
     game.boss = z;
+
+    if (boss.id === 'gatekeeper') {
+      initGatekeeperBoss(z, THREE);
+      hitMeshesDirty = true;
+    }
+
     showBanner('BOSS CONTACT', boss.name, boss.line, 3400);
     audio.bossAlarm();
   }
@@ -2640,8 +2661,9 @@ function bossShockwave(zombie) {
   const radius = 6.2;
 
   audio.bossSlam();
-  player.shake = Math.min(1.6, player.shake + 0.85);
+  player.shake = Math.min(1.8, player.shake + 1.15);
   spawnParticles(at, 26, 'spark', 1.5);
+  spawnParticles(at, 18, 'concrete', 1.3);
   spawnParticles(at, 10, 'blood', 0.8);
   burstLight.position.set(at.x, 1.1, at.z);
   burstLight.intensity = 65;
@@ -2654,9 +2676,79 @@ function bossShockwave(zombie) {
   const dir = new THREE.Vector3(dx / self, 0, dz / self);
   const wall = rayWorld(new THREE.Vector3(at.x, 1.0, at.z), dir, self);
   if (wall && wall.distance < self - 0.25) return;
-  player.vel.x += dir.x * 8.5;
-  player.vel.z += dir.z * 8.5;
-  damagePlayer(Math.round(zombie.damage * 1.1 * (1 - (self / radius) * 0.45)), zombie);
+  // Day 12: Heavy ground slam stumbles player and inflicts high damage within 4m
+  const stumbleFactor = self <= 4.0 ? 1.45 : 0.8;
+  player.vel.x += dir.x * 9.5 * stumbleFactor;
+  player.vel.z += dir.z * 9.5 * stumbleFactor;
+  const dmg = Math.round(zombie.damage * 1.15 * (1 - (self / radius) * 0.45));
+  damagePlayer(dmg, zombie);
+}
+
+// ---------------------------------------------------------------- rock throw & boss multi-phase
+const rockProjectiles = [];
+const rockMat = new THREE.MeshStandardMaterial({ color: 0x6e7379, roughness: 0.92, metalness: 0.1 });
+const rockGeo = new THREE.DodecahedronGeometry(0.42);
+
+function bossThrowRock(boss, targetPos) {
+  const from = boss.group.position.clone();
+  from.y += 2.2;
+  const rockMesh = new THREE.Mesh(rockGeo, rockMat);
+  rockMesh.position.copy(from);
+  scene.add(rockMesh);
+
+  const proj = createRockProjectile({
+    from,
+    target: targetPos || player.pos,
+    damage: 38,
+    aoeRadius: 3.2,
+    speed: 22.0,
+    gravity: 14.0,
+    mesh: rockMesh,
+  });
+  rockProjectiles.push(proj);
+  spawnParticles(from, 14, 'concrete', 0.9);
+  if (audio && typeof audio.bossTell === 'function') audio.bossTell(panFor(from));
+}
+
+function bossSpawnRunnerEscort(boss, count = 3) {
+  if (audio) {
+    if (typeof audio.bossEnrage === 'function') audio.bossEnrage();
+    else if (typeof audio.bossAlarm === 'function') audio.bossAlarm();
+  }
+  showHint('GATEKEEPER SUMMONS RUNNER SWARM!', 3200);
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const offset = new THREE.Vector3(Math.cos(angle) * 7.5, 0, Math.sin(angle) * 7.5);
+    const spawnPos = freeSpotNear(boss.group.position.clone().add(offset), 1.0);
+    const runner = spawnAt('runner', spawnPos);
+    runner.state = 'chase';
+  }
+  hitMeshesDirty = true;
+}
+
+function updateRockProjectiles(dt) {
+  for (let i = rockProjectiles.length - 1; i >= 0; i--) {
+    const rock = rockProjectiles[i];
+    const res = stepRockProjectile(rock, dt, {
+      playerPos: player.pos,
+      colliders: world.colliders,
+      damagePlayer: (dmg) => damagePlayer(dmg, { type: 'rock_throw', isBoss: true }),
+      screenShake: (intensity) => { player.shake = Math.min(1.8, player.shake + intensity); },
+      onImpact: (r, reason, dmgDealt) => {
+        if (audio && typeof audio.rockImpact === 'function') audio.rockImpact();
+        const p = new THREE.Vector3(r.pos.x, Math.max(0.2, r.pos.y), r.pos.z);
+        spawnParticles(p, 18, 'concrete', 1.2);
+        spawnParticles(p, 6, 'spark', 0.8);
+        world.addDecal(p.x, p.z, 0.45);
+        if (r.mesh) scene.remove(r.mesh);
+      },
+    });
+
+    if (!rock.active) {
+      if (rock.mesh) scene.remove(rock.mesh);
+      rockProjectiles.splice(i, 1);
+    }
+  }
 }
 
 /** Boss ability audio: a tell before the move, an impact when it commits. */
@@ -2683,7 +2775,15 @@ function onZombieKilled(zombie, head) {
   const payout = creditsFor(zombie) + (head ? 3 : 0);
   game.credits += payout;
   game.creditsEarned = (game.creditsEarned || 0) + payout;
-  if (zombie.isBoss) game.bossesKilled = (game.bossesKilled || 0) + 1;
+  // Day 12 Bug 2 Fix: immediately clear game.boss reference and hide boss bar
+  if (zombie.isBoss || zombie === game.boss) {
+    game.bossesKilled = (game.bossesKilled || 0) + 1;
+    game.boss = null;
+    if (hud.boss) {
+      hud.boss.classList.remove('show');
+      hud.boss.style.opacity = '0';
+    }
+  }
   audio.kill();
   world.addDecal(zombie.group.position.x, zombie.group.position.z, 0.55 + Math.random() * 0.35);
   if (zombie.def && zombie.def.explode) bloaterBurst(zombie);

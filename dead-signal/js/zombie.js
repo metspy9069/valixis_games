@@ -7,6 +7,12 @@ import { buildZombieModel } from './models.js';
 import { initZombieDismemberment, severZombieLimb, settleRagdollDeath } from './dismemberment.js';
 import { computeHordeSteering } from './nav.js';
 import { stepLurkerAI, LURKER_CONFIG } from './lurker.js';
+import {
+  evaluateGatekeeperPhase,
+  ruptureGatekeeperWeakpoint,
+  GATEKEEPER_PHASES,
+  GATEKEEPER_THRESHOLDS,
+} from './boss.js';
 
 import { TYPES } from './data.js';
 export { TYPES };
@@ -70,6 +76,17 @@ export class Zombie {
     this.chargeDir = new THREE.Vector3();
     this.chargeMark = new THREE.Vector3();
     this.chargeSpeed = 0;
+    // Day 12: Gatekeeper multi-phase encounter attributes
+    this.isGatekeeper = false;
+    this.phase = GATEKEEPER_PHASES.PHASE_1;
+    this.armorPlatesBroken = false;
+    this.canThrowRock = false;
+    this.abilityCooldownScale = 1.0;
+    this.phase2SpeedApplied = false;
+    this.runnerEscortSummoned = false;
+    this.currentAbility = null;
+    this.spinePustule = null;
+    this.armorPlates = [];
     this.home = position.clone();
     this.build();
     this.group.position.copy(position);
@@ -110,6 +127,16 @@ export class Zombie {
     if (!this.alive) return false;
     let effAmount = amount;
 
+    // Glowing Spine Pustule Weak Point Targeting (Day 12)
+    // 2.5x critical damage, poise break, and 2.0s vulnerable stun
+    if (part === 'weakpoint' || (this.isBoss && part === 'weakpoint')) {
+      if (!shotDir) effAmount *= 2.5;
+      ruptureGatekeeperWeakpoint(this, ctx);
+      if (ctx && ctx.audio && typeof ctx.audio.weakpointHit === 'function') {
+        ctx.audio.weakpointHit();
+      }
+    }
+
     // Mid-air lurker pounce counterplay (Day 11)
     // Shooting lurker mid-leap interrupts the jump with a 25% vulnerability bonus and heavy stagger
     if (this.type === 'lurker' && this.state === 'pounce_leap') {
@@ -126,11 +153,16 @@ export class Zombie {
       }
     }
 
+    const prevHp = this.hp;
     this.hp -= effAmount;
-    this.flinch = Math.max(this.flinch || 0, 1);
     this.hitTimer = 0.12;
     if (this.state === 'idle') this.state = 'chase';
-    if (ctx && ctx.audio) ctx.audio.hit(part === 'head');
+    if (ctx && ctx.audio) ctx.audio.hit(part === 'head' || part === 'weakpoint');
+
+    // Boss Phase Transitions (Day 12 Gatekeeper)
+    if (this.isBoss) {
+      evaluateGatekeeperPhase(this, prevHp, this.hp, ctx);
+    }
 
     // Locational dismemberment evaluation (Day 8)
     if (part === 'head' && (this.hp <= 0 || amount >= 65)) {
@@ -147,13 +179,26 @@ export class Zombie {
       this.die(ctx, part);
       return true;
     }
-    // Stagger on limb impacts or heavy calibre hits.
-    if (part === 'limb') {
-      this.flinch = Math.max(this.flinch, 1.15);
-      this.attackTimer = Math.max(this.attackTimer, 0.36);
-      this.staggerTimer = Math.max(this.staggerTimer, 0.42);
-    } else if (amount > 60) {
-      this.attackTimer = Math.max(this.attackTimer, 0.25);
+
+    // Poise and Stagger:
+    // Regular enemies stagger on limb impacts or heavy calibre hits.
+    // Bosses possess unstoppable poise during ability windup unless their spine pustule weakpoint was ruptured.
+    if (this.isBoss) {
+      if (part === 'weakpoint') {
+        this.staggerTimer = 2.0;
+        this.flinch = 2.0;
+      } else if (this.abilityState !== 'windup') {
+        this.flinch = Math.max(this.flinch || 0, 0.4);
+      }
+    } else {
+      this.flinch = Math.max(this.flinch || 0, 1);
+      if (part === 'limb') {
+        this.flinch = Math.max(this.flinch, 1.15);
+        this.attackTimer = Math.max(this.attackTimer, 0.36);
+        this.staggerTimer = Math.max(this.staggerTimer, 0.42);
+      } else if (amount > 60) {
+        this.attackTimer = Math.max(this.attackTimer, 0.25);
+      }
     }
     return false;
   }
@@ -175,6 +220,14 @@ export class Zombie {
       severZombieLimb(this, 'head', null, null, ctx);
     }
     if (ctx && ctx.audio) ctx.audio.zombieDeath();
+    // Immediately hide boss bar and clear reference on boss death (Bug 2 fix)
+    if (this.isBoss) {
+      if (ctx && ctx.hud && ctx.hud.boss) {
+        ctx.hud.boss.classList.remove('show');
+        ctx.hud.boss.style.opacity = '0';
+      }
+      if (ctx && ctx.clearBoss) ctx.clearBoss(this);
+    }
     if (ctx && ctx.onDeath) ctx.onDeath(this, part);
   }
 
@@ -457,15 +510,31 @@ export class Zombie {
    */
   stepAbility(dt, ctx, dist, toPlayer, pos) {
     const zero = new THREE.Vector3();
-    this.abilityCd = Math.max(0, this.abilityCd - dt);
+    const cdSpeed = 1 / (this.abilityCooldownScale || 1.0);
+    this.abilityCd = Math.max(0, this.abilityCd - dt * cdSpeed);
 
     if (this.abilityState === 'idle') {
       if (this.abilityCd > 0) return null;
-      const kind = this.bossAbility;
+
+      // Dynamic ability selection for Gatekeeper (Day 12 Multi-Phase)
+      let kind = this.bossAbility;
+      if (this.bossAbility === 'slam' || this.isGatekeeper) {
+        if (this.phase >= 2 && this.canThrowRock && dist > 6.5 && dist < 26) {
+          kind = 'rock_throw';
+        } else if (this.phase >= 3 && dist > 6.0 && (this.rng ? this.rng() : Math.random()) < 0.55) {
+          kind = 'charge';
+        } else {
+          kind = 'slam';
+        }
+      }
+      this.currentAbility = kind;
+
       const inRange = kind === 'slam' ? dist < 9
-        : kind === 'cleave' ? dist < this.def.reach * 2
-          : dist > 5 && dist < 15;
+        : kind === 'rock_throw' ? dist > 5 && dist < 26
+          : kind === 'cleave' ? dist < this.def.reach * 2
+            : dist > 5 && dist < 16;
       if (!inRange) return null;
+
       this.abilityState = 'windup';
       this.abilityWindup = 0;
       this.abilityHits = false;
@@ -473,8 +542,6 @@ export class Zombie {
       // aside is the counter-play, and standing still is the mistake.
       if (kind === 'charge') {
         this.chargeDir.copy(toPlayer).normalize();
-        // Cover the gap in roughly three quarters of a second, with a hard cap
-        // so it lunges rather than teleporting onto the player.
         this.chargeSpeed = Math.min(this.speed * 7, Math.max(this.speed * 2.2, (dist - 1) / 0.75));
       }
       if (ctx.abilityCry) ctx.abilityCry(this, 'windup');
@@ -482,21 +549,29 @@ export class Zombie {
     }
 
     this.abilityWindup += dt;
+    const currentKind = this.currentAbility || this.bossAbility;
 
     if (this.abilityState === 'windup') {
-      const warn = this.bossAbility === 'charge' ? 0.7 : 0.85;
+      const warn = currentKind === 'charge' ? 0.7
+        : currentKind === 'rock_throw' ? 0.75
+          : 0.85;
+
       if (this.abilityWindup >= warn) {
         this.abilityState = 'active';
         this.abilityWindup = 0;
         this.chargeMark.copy(pos);
         if (ctx.abilityCry) ctx.abilityCry(this, 'release');
-        if (this.bossAbility === 'slam' && ctx.shockwave) ctx.shockwave(this);
+        if (currentKind === 'slam' && ctx.shockwave) {
+          ctx.shockwave(this);
+        } else if (currentKind === 'rock_throw' && ctx.throwRock) {
+          ctx.throwRock(this, ctx.playerPos);
+        }
       }
       return { dir: zero, speed: 0 };
     }
 
     if (this.abilityState === 'active') {
-      if (this.bossAbility === 'charge') {
+      if (currentKind === 'charge') {
         // A building stops the charge; the boss eats the recovery instead of
         // grinding straight through a wall.
         const moved = Math.hypot(pos.x - this.chargeMark.x, pos.z - this.chargeMark.z);
@@ -520,13 +595,19 @@ export class Zombie {
         return { dir: this.chargeDir, speed: this.chargeSpeed || this.speed * 4.6 };
       }
 
-      if (this.bossAbility === 'cleave') {
+      if (currentKind === 'cleave') {
         if (!this.abilityHits) {
           this.abilityHits = true;
           if (dist < this.def.reach * 1.7) ctx.damage(this.damage * 1.55, this);
           if (ctx.abilityCry) ctx.abilityCry(this, 'hit');
         }
         if (this.abilityWindup > 0.42) this.finishAbility();
+        return { dir: zero, speed: 0 };
+      }
+
+      if (currentKind === 'rock_throw') {
+        // Recovery window after concrete chunk heave
+        if (this.abilityWindup > 0.38) this.finishAbility();
         return { dir: zero, speed: 0 };
       }
 
@@ -539,11 +620,16 @@ export class Zombie {
   }
 
   finishAbility() {
+    const kind = this.currentAbility || this.bossAbility;
     this.abilityState = 'idle';
     this.abilityWindup = 0;
     this.abilityHits = false;
-    this.abilityCd = this.bossAbility === 'charge' ? 6.5
-      : this.bossAbility === 'cleave' ? 5 : 7.5;
+    const baseCd = kind === 'charge' ? 5.5
+      : kind === 'rock_throw' ? 4.2
+        : kind === 'cleave' ? 5.0
+          : 6.8;
+    this.abilityCd = baseCd * (this.abilityCooldownScale || 1.0);
+    this.currentAbility = null;
   }
 
   animate(dt, speed, dist) {
@@ -713,9 +799,10 @@ export class Zombie {
 
     // 5. Boss signature move telegraphs & visual tell states
     if (this.isBoss) {
+      const currentKind = this.currentAbility || this.bossAbility;
       if (this.abilityState === 'windup') {
         const t = Math.min(1, this.abilityWindup / 0.65);
-        if (this.bossAbility === 'slam') {
+        if (currentKind === 'slam') {
           // Both arms hoisted high overhead, spine arched backward in ominous tell
           r.armL.shoulder.rotation.x = -2.5 * t;
           r.armR.shoulder.rotation.x = -2.5 * t;
@@ -725,14 +812,22 @@ export class Zombie {
           r.armR.elbow.rotation.x = -0.4;
           r.hips.rotation.x = lean - 0.35 * t;
           r.neck.rotation.x = -0.45 * t;
-        } else if (this.bossAbility === 'charge') {
+        } else if (currentKind === 'rock_throw') {
+          // Crouches down to rip concrete chunk from street
+          r.hips.position.y = hipBaseY - 0.38 * t;
+          r.hips.rotation.x = lean + 0.65 * t;
+          r.armL.shoulder.rotation.x = 1.25 * t;
+          r.armR.shoulder.rotation.x = 1.25 * t;
+          r.armL.elbow.rotation.x = -0.5 * t;
+          r.armR.elbow.rotation.x = -0.5 * t;
+        } else if (currentKind === 'charge') {
           // Low 4-point sprinter crouch, jaws gaping
           r.hips.position.y = hipBaseY - 0.28 * t;
           r.hips.rotation.x = lean + 0.65 * t;
           r.armL.shoulder.rotation.x = 0.7 * t;
           r.armR.shoulder.rotation.x = 0.7 * t;
           if (r.jaw) r.jaw.rotation.x = 0.75 * t;
-        } else if (this.bossAbility === 'cleave') {
+        } else if (currentKind === 'cleave') {
           // Torso coiled right, right arm cocked behind back
           r.hips.rotation.y = -0.85 * t;
           r.armR.shoulder.rotation.x = -1.2 * t;
@@ -740,22 +835,34 @@ export class Zombie {
           r.armL.shoulder.rotation.x = 0.4 * t;
         }
       } else if (this.abilityState === 'active') {
-        if (this.bossAbility === 'charge') {
+        if (currentKind === 'charge') {
           // Aerodynamic torpedo rush forward
           r.hips.rotation.x = lean + 0.65;
           r.armL.shoulder.rotation.x = 1.25;
           r.armR.shoulder.rotation.x = 1.25;
-        } else if (this.bossAbility === 'cleave') {
+        } else if (currentKind === 'cleave') {
           // Explosive horizontal 160-degree slash across front
           r.hips.rotation.y = 0.85;
           r.armR.shoulder.rotation.x = 0.3;
           r.armR.shoulder.rotation.y = -1.4;
-        } else if (this.bossAbility === 'slam') {
+        } else if (currentKind === 'slam') {
           // Fists driven into ground
           r.armL.shoulder.rotation.x = 0.95;
           r.armR.shoulder.rotation.x = 0.95;
           r.hips.position.y = hipBaseY - 0.35;
+        } else if (currentKind === 'rock_throw') {
+          // Powerful overhead forward heave
+          r.armL.shoulder.rotation.x = -1.35;
+          r.armR.shoulder.rotation.x = -1.35;
+          r.hips.position.y = hipBaseY + 0.12;
+          r.hips.rotation.x = lean - 0.25;
         }
+      }
+
+      // Pulsating glowing spine pustule animation
+      if (this.spinePustule) {
+        const pulse = 1.0 + Math.sin(this.phase * 4.2) * 0.1;
+        this.spinePustule.scale.set(1.2 * pulse, 1.5 * pulse, 0.95 * pulse);
       }
     }
 

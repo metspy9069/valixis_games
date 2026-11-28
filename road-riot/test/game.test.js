@@ -1853,3 +1853,76 @@ test('UnrealBloomPass post-processing pipeline pulses bloom strength on nitro bo
 
   assert.ok(bloomPass.strength > 0.65, 'Bloom strength flares dynamically above 0.65 during hypersonic nitro boost');
 });
+
+test('Neo-Tokyo holographic billboards initialize glowing aura and periodic chromatic glitch cycling', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.ok(world.holographicBillboards.length > 0, 'Cyber holographic billboards registered in scene');
+  const b = world.holographicBillboards[0];
+  assert.ok(b.auraMesh, 'Holographic aura projection plane attached to billboard');
+  assert.ok(b.auraMesh.material.transparent, 'Aura material configured for semi-transparent projection glow');
+
+  // Simulate hologram animation & glitch cycle
+  world.hologramGlitchTimer = 0.15; // force glitch state
+  world.updateHolograms(0.016, 1.5);
+  assert.ok(b.auraMesh.material.opacity > 0.5, 'Holographic billboard pulses high opacity during chromatic glitch flare');
+});
+
+test('Wet asphalt shader transitions surface roughness and metalness dynamically under rain or Neo-Tokyo biome', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.equal(world.roadWetness, 0.0, 'Road starts in dry condition (wetness = 0.0)');
+  assert.equal(world.roadMaterial.roughness, world.baseRoadRoughness, 'Dry road has standard asphalt roughness');
+
+  // Activate Neo-Tokyo biome with rain
+  world.setBiome('neotokyo');
+  assert.equal(world.currentTheme, 'neotokyo', 'Biome switched to Neo-Tokyo');
+  assert.equal(world.weatherType, 'rain', 'Rain weather automatically activated in Neo-Tokyo');
+  assert.equal(world.targetWetness, 1.0, 'Target wetness set to 1.0');
+
+  // Advance simulation frames for asphalt wetness transition
+  for (let i = 0; i < 40; i++) {
+    world.update(0.016, 20, 100);
+  }
+  const telem = world.getBiomeTelemetry();
+  assert.ok(telem.wetness > 0.7, 'Asphalt surface transitioned to wet state (> 0.7)');
+  assert.ok(telem.isWetAsphalt, 'isWetAsphalt flag active');
+  assert.ok(telem.asphaltRoughness < 0.20, 'Wet asphalt roughness drops down to slick specular reflection level (< 0.20)');
+  assert.ok(telem.asphaltMetalness > 0.55, 'Wet asphalt metalness increases for planar reflections (> 0.55)');
+});
+
+test('Overhead elevated monorail train cruises continuously along highway guideway with loop recycling', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.ok(world.monorailTrain, 'Elevated monorail train initialized in world scene');
+  assert.equal(world.monorailTrain.children.length >= 3, true, 'Train comprises 3 articulated aerodynamic cars');
+  assert.equal(world.monorailPylons.length > 0, true, 'Guideway supported by heavy concrete cantilevered pylons');
+
+  const initialZ = world.monorailTrain.position.z;
+  const initialY = world.monorailTrain.position.y;
+  assert.ok(initialY > 13.0, 'Monorail elevated above highway (> 13m)');
+
+  // Advance simulation frames to test cruising motion
+  world.updateMonorail(0.05, 15.0, -8);
+  assert.notEqual(world.monorailTrain.position.z, initialZ, 'Monorail train moves dynamically along highway guideway');
+
+  // Test horizon wrap recycling
+  world.monorailTrain.position.z = 85; // past camera
+  world.updateMonorail(0.016, 15.0, -8);
+  assert.ok(world.monorailTrain.position.z < -200, 'Monorail train wraps back to horizon for continuous overhead pass-bys');
+});
+
+test('Roadside highway acoustic sound barriers and overhead expressway gantries generate with ETC sensors', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.ok(world.soundBarriers.length > 0, 'Roadside acoustic sound barriers generated along highway verges');
+  assert.ok(world.gantries.length > 0, 'Overhead expressway gantries spanning highway generated');
+
+  const telem = world.getBiomeTelemetry();
+  assert.ok(telem.soundBarriersCount >= 4, 'Multiple sound barrier segments active');
+  assert.ok(telem.gantriesCount >= 2, 'Overhead gantries active with ETC optical sensors');
+});

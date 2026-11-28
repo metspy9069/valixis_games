@@ -687,6 +687,22 @@ export class Scene{
      }
     });
    }
+   if(e.bountyTarget){
+    sync(`bounty:${e.id}`,()=>{
+     const g=new T.Group();g.name='bountyCrown';
+     const halo=new T.Mesh(this.geo.decalRing,this.mat(0xffd700,'glass',true));
+     halo.name='halo';halo.scale.setScalar(0.65);g.add(halo);
+     const crest=new T.Mesh(this.geo.decalInnerGlyph,this.mat(0xffaa00,'metal',true));
+     crest.name='crest';crest.scale.setScalar(0.45);g.add(crest);
+     return g;
+    },o=>{
+     const bob=Math.sin(clock*5+e.id)*.08;
+     o.position.set(e.x,2.3+bob,e.z);
+     o.rotation.y=clock*2.8;
+     const crest=o.getObjectByName('crest');
+     if(crest)crest.rotation.y=-clock*4.0;
+    });
+   }
   }
   for(const ev of Object.values(game?.roomEvents||{})){
    if(Math.hypot(ev.x-p.x,ev.z-p.z)>45)continue;

@@ -17,9 +17,10 @@ export class Game{
   Object.assign(this,{hero,rng:random(seed),ranked,modifier,state:'playing',time:0,kills:0,gold:0,earned:0,spent:0,elites:0,biome:0,cycle:0,ascension:0,endless:false,ascensionModifier:null,id:0,spawnTimer:1,bossSpawned:false,bossKills:0,regionStart:0,streak:0,maxStreak:0,trauma:0,navClock:0,merchantOffers:[],merchantRerolled:false,merchantBought:false,emberFlash:0,comboScore:0,comboRank:'D',comboDecay:0,threat:1,trialTimer:0,lastX:0,lastZ:0});
   this.director={tier:0,pressure:0,clock:5,lastKills:0,lastHp:maxHp,grace:8};
   this.enemies=[];this.bolts=[];this.loot=[];this.effects=[];this.zones=[];this.corpses=[];this.events=[];this.choices=[];this.damageLog={weapon:0,skill:0,status:0,signature:0,defense:0};this.levelTimes=[];this.navigation=new Navigation();
-  this.player={id:'hero',x:0,z:0,y:0,vx:0,vz:0,hp:maxHp,maxHp,speed,damage:1,damageMult:mastery>=1?1.04:1,attackRate:0.95,comboStep:0,comboTimer:0,ignition:0,tempest:0,magnet:4+(armory.magnetism||0)*.6,stamina:100,staminaRate:23*(1+(armory.footwork||0)*.06),ult:mastery>=3?10:0,level:1,xp:0,need:h.initialXp,fire:0,cooldown:h.cooldown*.82,invuln:0,dash:0,dashCost:34,dx:0,dz:1,attack:0,cast:0,moving:false,ranks:[0,0,0],shared:{},skills:[0,0],skillRate:1+(armory.focus||0)*.05+(mastery>=2?.05:0),signatureRate:1,relics:{},rites:{},shield:0,counter:0,ward:0,trail:0,mastery,revives:0,goldChance:.55+(armory.fortune||0)*.08,critBonus:0};
+  this.player={id:'hero',x:0,z:0,y:0,vx:0,vz:0,hp:maxHp,maxHp,speed,damage:1,damageMult:mastery>=1?1.04:1,attackRate:0.95,comboStep:0,comboTimer:0,ignition:0,tempest:0,magnet:4+(armory.magnetism||0)*.6,stamina:100,staminaRate:23*(1+(armory.footwork||0)*.06),ult:mastery>=3?10:0,level:1,xp:0,need:h.initialXp,fire:0,cooldown:h.cooldown*.82,invuln:0,dash:0,dashCost:34,dx:0,dz:1,attack:0,cast:0,moving:false,ranks:[0,0,0],shared:{},skills:[0,0],skillRate:1+(armory.focus||0)*.05+(mastery>=2?.05:0),signatureRate:1,relics:{},rites:{},shield:0,counter:0,ward:0,trail:0,mastery,revives:0,goldChance:.55+(armory.fortune||0)*.08,critBonus:0,bountyRush:0};
   this.roomEvents={};this.visitedRooms=new Set([4]);this.currentRoom=4;
   this.initRoomEvents();
+  this.bountyClaimed=0;this.currentBounty=null;this.initBounty();
  }
  emit(type,data={}){this.events.push({type,...data});}
  effect(x,z,color=0xd9b97c,radius=1,kind='burst',life=.45,meta={}){this.effects.push({id:++this.id,x,z,color,radius,kind,life,maxLife:life,...meta});}
@@ -59,6 +60,24 @@ export class Game{
     {id:'temper',name:'Temper Weapon',desc:'Temper weapon at embers for +10% Damage.'}
    ]
   };
+ }
+  initBounty(){
+  const regional=Object.values(MONSTERS).filter(e=>!e.boss&&e.region===this.biome);
+  if(!regional.length)return;
+  const target=regional[Math.floor(this.rng()*regional.length)];
+  const affixes=['molten','vortex','frostbound','shielded','avenger'];
+  const affix=this.rng()<0.45?affixes[Math.floor(this.rng()*affixes.length)]:null;
+  this.currentBounty={
+   targetType:target.id,
+   targetName:target.name,
+   targetAffix:affix,
+   countNeeded:1,
+   countCurrent:0,
+   rewardGold:50,
+   rewardBuff:'bountyRush',
+   claimed:false
+  };
+  this.emit('bountyAssigned',{...this.currentBounty});
  }
  updateRoomEvents(dt){
   for(const k in this.roomEvents){
@@ -149,7 +168,8 @@ export class Game{
   spawn(type,position,options={}){const def=MONSTERS[type];if(!def)throw new Error('Unknown monster');let x=0,z=0;for(let i=0;i<100;i++){const a=this.rng()*Math.PI*2,r=13+this.rng()*8;x=this.player.x+Math.sin(a)*r;z=this.player.z+Math.cos(a)*r;if(!solid(x,z,def.boss?1.1:.5)){const crId=Object.values(this.roomEvents||{}).find(e=>e.type==='campfire')?.room;if(crId!==undefined&&!def.boss){const cr=ROOMS[crId];if(Math.abs(x-cr.x)<12&&Math.abs(z-cr.z)<12)continue;}break;}}if(solid(x,z,1.1)){x=0;z=0;}if(position){x=position.x;z=position.z;}
   const mutator=ASCENSIONS[this.ascensionModifier]||{},defaultElite=!def.boss&&(this.time>20)&&this.rng()<Math.min(.42,.06+(this.time/70)*.18+this.director.tier*.035+(mutator.elite||0)),elite=options?.elite!==undefined?options.elite:defaultElite,cycleScale=1+this.cycle*.28,timeScale=1+(this.time/140)*0.85,hp=def.hp*(elite?2.4:1)*(1+this.biome*.35)*timeScale*cycleScale*(mutator.hp||1),spd=def.speed*1.25*(1+this.director.tier*.04)*Math.min(1.55,1+(this.time/180)*0.35);
   const affix=elite?(options?.affix||AFFIX_KEYS[Math.floor(this.rng()*AFFIX_KEYS.length)]):null;
-  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,growth:0,teleportCooldown:0,burrowed:type==='shifter',unburrowTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:['golem','hulk'].includes(type)?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
+   const isBounty=options?.bountyTarget!==undefined?!!options.bountyTarget:(!!elite&&!!this.currentBounty&&!this.currentBounty.claimed&&type===this.currentBounty.targetType&&(!this.currentBounty.targetAffix||affix===this.currentBounty.targetAffix));
+  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,bountyTarget:isBounty,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,growth:0,teleportCooldown:0,burrowed:type==='shifter',unburrowTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:['golem','hulk'].includes(type)?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
  }
  damage(e,amount,source='weapon'){if(e.hp<=0)return 0;const p=this.player;
   if(e.type==='shifter'&&e.burrowed){
@@ -377,9 +397,9 @@ export class Game{
   this.emberFlash=Math.max(0,(this.emberFlash||0)-dt);this.comboDecay=(this.comboDecay||0)-dt;if(this.comboDecay<=0&&this.comboScore>0){this.comboScore=Math.max(0,this.comboScore-dt*220);this.updateComboRank();}
   this.threat=1+(this.time/105)*0.55+this.cycle*0.35;this.updateDirector(dt);
   p.chill=Math.max(0,(p.chill||0)-dt);const chillSlow=p.chill>0?.65:1.0;
-  p.disorient=Math.max(0,(p.disorient||0)-dt);p.screamImmune=Math.max(0,(p.screamImmune||0)-dt);const disorientSlow=p.disorient>0?.6:1.0;
+  p.disorient=Math.max(0,(p.disorient||0)-dt);p.screamImmune=Math.max(0,(p.screamImmune||0)-dt);const disorientSlow=p.disorient>0?.6:1.0;p.bountyRush=Math.max(0,(p.bountyRush||0)-dt);const rushSpeed=p.bountyRush>0?1.25:1.0;
   for(const k of ['invuln','dash','attack','cast','counter','ward','trail'])p[k]=Math.max(0,p[k]-dt);p.skills=p.skills.map(v=>Math.max(0,v-dt));p.ignition=Math.max(0,(p.ignition||0)-dt);p.tempest=Math.max(0,(p.tempest||0)-dt);p.stamina=Math.min(100,p.stamina+(p.staminaRate||23)*(1+(p.shared.stride||0)*.08)*(p.chill>0?.55:1.0)*dt);p.ult=Math.min(100,p.ult+dt*(1+p.ranks[2]*.12)*p.signatureRate);
-  const n=Math.max(1,Math.hypot(input.x,input.z)),ix=input.x/n,iz=input.z/n;p.moving=!!(ix||iz);const pSpeed=p.speed*(p.tempest>0?1.35:1)*chillSlow*disorientSlow;if(p.dash){p.vx=p.dx*pSpeed*3.2;p.vz=p.dz*pSpeed*3.2;}else{const targetX=ix*pSpeed,targetZ=iz*pSpeed,rate=p.moving?55:75;p.vx=approach(p.vx,targetX,rate*dt);p.vz=approach(p.vz,targetZ,rate*dt);if(p.moving&&!p.attack&&!p.cast){p.dx=ix;p.dz=iz;}}p.x+=p.vx*dt;p.z+=p.vz*dt;collide(p,.45);if(p.disorient>0){p.vx*=.94;p.vz*=.94;}if(p.trail>0&&Math.floor(this.time*10)!==Math.floor((this.time-dt)*10))this.zones.push({id:++this.id,x:p.x,z:p.z,life:2.2,warn:0,radius:1.25,enemy:false,kind:'burn'});
+  const n=Math.max(1,Math.hypot(input.x,input.z)),ix=input.x/n,iz=input.z/n;p.moving=!!(ix||iz);const pSpeed=p.speed*(p.tempest>0?1.35:1)*rushSpeed*chillSlow*disorientSlow;if(p.dash){p.vx=p.dx*pSpeed*3.2;p.vz=p.dz*pSpeed*3.2;}else{const targetX=ix*pSpeed,targetZ=iz*pSpeed,rate=p.moving?55:75;p.vx=approach(p.vx,targetX,rate*dt);p.vz=approach(p.vz,targetZ,rate*dt);if(p.moving&&!p.attack&&!p.cast){p.dx=ix;p.dz=iz;}}p.x+=p.vx*dt;p.z+=p.vz*dt;collide(p,.45);if(p.disorient>0){p.vx*=.94;p.vz*=.94;}if(p.trail>0&&Math.floor(this.time*10)!==Math.floor((this.time-dt)*10))this.zones.push({id:++this.id,x:p.x,z:p.z,life:2.2,warn:0,radius:1.25,enemy:false,kind:'burn'});
   const mutator=ASCENSIONS[this.ascensionModifier]||{};this.spawnTimer-=dt;if(this.spawnTimer<=0&&this.enemies.length<160){this.spawnTimer=Math.max(.16,.68-(this.time-this.regionStart)/190)*(this.modifier==='swarm'?.75:1)*(1-this.director.tier*.07)*(mutator.spawn||1)*Math.max(.65,1-this.cycle*.028);const regional=Object.values(MONSTERS).filter(e=>!e.boss&&e.region===this.biome),mixed=this.endless&&this.cycle>=2?Object.values(MONSTERS).filter(e=>!e.boss):regional,types=this.endless&&this.rng()<Math.min(.5,this.cycle*.08)?mixed:regional,unlocked=Math.min(types.length,2+Math.floor((this.time-this.regionStart)/14)+Math.floor(this.director.tier/2)+this.cycle);const packSize=Math.min(7,Math.max(2,Math.floor(2.0+Math.floor((this.time-this.regionStart)/22)+this.director.tier*.5)));for(let k=0;k<packSize;k++){if(this.enemies.length>=160)break;this.spawn(types[Math.floor(this.rng()*unlocked)].id);}}
   if(!this.bossSpawned&&this.time-this.regionStart>=155){this.bossSpawned=true;this.spawn(BOSSES[this.biome]);this.emit('boss',{name:MONSTERS[BOSSES[this.biome]].name});}
   const activeBoss=this.enemies.find(e=>e.boss&&e.hp>0);
@@ -411,7 +431,7 @@ export class Game{
     }
    }
   }
-  p.fire-=dt;const range=h.pattern==='cleave'?3.8:h.pattern==='wave'?(p.ranks[1]===3?8:6.0):15,target=this.smartTarget(range);if(target&&p.fire<=0){this.attack(target);p.fire=h.cooldown*(p.relics.quickwick?.85:1)*p.attackRate;}
+  p.fire-=dt;const rushRate=p.bountyRush>0?.72:1.0;const range=h.pattern==='cleave'?3.8:h.pattern==='wave'?(p.ranks[1]===3?8:6.0):15,target=this.smartTarget(range);if(target&&p.fire<=0){this.attack(target);p.fire=h.cooldown*(p.relics.quickwick?.85:1)*p.attackRate*rushRate;}
   let activeTelegraphs=this.enemies.filter(e=>e.windup>0).length;
   const sep=this.computeSeparation();
   for(let idx=0;idx<this.enemies.length;idx++){const e=this.enemies[idx];if(e.hp<=0)continue;e.age+=dt;e.flash=Math.max(0,e.flash-dt);e.attack=Math.max(0,e.attack-dt);e.freeze=Math.max(0,e.freeze-dt);e.guarding=Math.max(0,(e.guarding||0)-dt);e.recover=Math.max(0,(e.recover||0)-dt);if(e.poison>0){e.poison-=dt;this.damage(e,(this.hero==='plague'?18:9)*(1+p.ranks[0]*.22)*dt,'status');}if(e.vx||e.vz){this.moveEnemySafe(e,e.vx*dt,e.vz*dt);e.vx=approach(e.vx,0,dt*32);e.vz=approach(e.vz,0,dt*32);}const d=dist(e,p),los=clearLine(e,p,.25);let a=los?Math.atan2(p.x-e.x,p.z-e.z):this.navigation.direction(e,p),slow=this.emberFlash>0?.38:1;
@@ -476,8 +496,29 @@ export class Game{
     }
    }
   }
-  let advance=false;for(const e of deadEnemies){this.kills++;this.streak++;this.maxStreak=Math.max(this.streak,this.maxStreak);if(e.elite)this.elites++;p.ult=Math.min(100,p.ult+.5);const mult=this.comboMultiplier();this.drop('xp',e.x,e.z,e.xp*(e.elite?2.0:1.0)*h.soulYield*mult,e.elite?'rare':'common');if(e.elite)this.drop('crest',e.x,e.z,250,'epic');else if(this.rng()<.09){if(['censer','abbot','thrall','priest'].includes(e.type))this.drop('mote',e.x,e.z,15,'rare');else if(['hound','wraith','stalker','siren'].includes(e.type))this.drop('spark',e.x,e.z,15,'rare');else if(['shield','sentinel','golem','hulk'].includes(e.type))this.drop('aegis',e.x,e.z,15,'rare');else if(['spitter','brood','leech','shifter','weaver'].includes(e.type))this.drop('toxic',e.x,e.z,15,'rare');}if(this.rng()<p.goldChance){const goldVal=Math.max(2,Math.round((e.elite?18:(2+(this.rng()<.4?1:0)))*(mutator.reward||1)));this.drop('gold',e.x+.3,e.z,goldVal,e.elite?'rare':'common');}if(this.rng()<.02)this.drop('potion',e.x,e.z,18,'rare');if(e.elite)this.drop('chest',e.x,e.z,0,'epic');if(p.relics.emberOil)this.zones.push({id:++this.id,x:e.x,z:e.z,life:2.5,warn:0,radius:1.5,enemy:false,kind:'burn'});const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1,impulse=e.boss?1.2:e.elite?2.2:3.0;this.corpses.push({...e,vx:(kx/kd)*impulse,vz:(kz/kd)*impulse,life:.75,maxLife:.75});const burstCol=['censer','abbot','thrall','hound','priest','golem'].includes(e.type)?0xff5511:['husk','warden','leech','wraith','siren','hulk'].includes(e.type)?0x22eedd:['brood','root','regent','thornling','spitter','shifter','weaver'].includes(e.type)?0x84cc16:0xd4af37;this.effect(e.x,e.z,burstCol,e.boss?3.8:e.elite?2.2:1.2,'impact',.4);this.emit('kill',{type:e.type,elite:e.elite,boss:e.boss,x:e.x,z:e.z});if(e.boss){this.bossKills++;const bounty=Math.round((45+this.cycle*15)*(mutator.reward||1));this.gold+=bounty;this.earned+=bounty;this.drop('bosscore',e.x,e.z,0,'legendary');this.drop('gold',e.x-.6,e.z,15,'rare');this.drop('gold',e.x+.6,e.z,15,'rare');this.drop('potion',e.x+.8,e.z,30,'epic');if(this.biome===2){if(this.ranked){this.state='victory';this.emit('end',{victory:true});}else{this.state='convergence';this.emit('convergence',{cycle:this.cycle});}}else advance=true;}}
-  this.enemies=this.enemies.filter(e=>e.hp>0);if(advance){this.biome++;this.regionStart=this.time;this.bossSpawned=false;this.enemies=[];this.bolts=[];this.zones=[];p.revives=0;this.visitedRooms=new Set([4]);this.currentRoom=4;this.initRoomEvents();this.emit('region',{name:REGIONS[this.biome].name});this.prepareMerchant();}
+  let advance=false;for(const e of deadEnemies){this.kills++;this.streak++;this.maxStreak=Math.max(this.streak,this.maxStreak);if(e.elite)this.elites++;
+   if(e.bountyTarget&&this.currentBounty&&!this.currentBounty.claimed){
+    this.currentBounty.countCurrent++;
+    if(this.currentBounty.countCurrent>=this.currentBounty.countNeeded){
+     this.currentBounty.claimed=true;
+     this.bountyClaimed++;
+     this.gold+=this.currentBounty.rewardGold;
+     this.earned+=this.currentBounty.rewardGold;
+     p.bountyRush=14.0;
+     this.effect(e.x,e.z,0xffd700,4.0,'ultimate',1.0);
+     this.emit('bountyComplete',{
+      targetType:this.currentBounty.targetType,
+      targetName:this.currentBounty.targetName,
+      targetAffix:this.currentBounty.targetAffix,
+      gold:this.currentBounty.rewardGold,
+      buff:this.currentBounty.rewardBuff,
+      bountyClaimed:this.bountyClaimed
+     });
+     this.initBounty();
+    }
+   }
+   p.ult=Math.min(100,p.ult+.5);const mult=this.comboMultiplier();this.drop('xp',e.x,e.z,e.xp*(e.elite?2.0:1.0)*h.soulYield*mult,e.elite?'rare':'common');if(e.elite)this.drop('crest',e.x,e.z,250,'epic');else if(this.rng()<.09){if(['censer','abbot','thrall','priest'].includes(e.type))this.drop('mote',e.x,e.z,15,'rare');else if(['hound','wraith','stalker','siren'].includes(e.type))this.drop('spark',e.x,e.z,15,'rare');else if(['shield','sentinel','golem','hulk'].includes(e.type))this.drop('aegis',e.x,e.z,15,'rare');else if(['spitter','brood','leech','shifter','weaver'].includes(e.type))this.drop('toxic',e.x,e.z,15,'rare');}if(this.rng()<p.goldChance){const baseGold=['golem','hulk','sentinel'].includes(e.type)?(e.elite?35:8):(e.elite?20:(2+(this.rng()<.4?1:0)));const goldVal=Math.max(2,Math.round(baseGold*(mutator.reward||1)));this.drop('gold',e.x+.3,e.z,goldVal,e.elite?'rare':'common');}if(this.rng()<.02)this.drop('potion',e.x,e.z,18,'rare');if(e.elite)this.drop('chest',e.x,e.z,0,'epic');if(p.relics.emberOil)this.zones.push({id:++this.id,x:e.x,z:e.z,life:2.5,warn:0,radius:1.5,enemy:false,kind:'burn'});const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1,impulse=e.boss?1.2:e.elite?2.2:3.0;this.corpses.push({...e,vx:(kx/kd)*impulse,vz:(kz/kd)*impulse,life:.75,maxLife:.75});const burstCol=['censer','abbot','thrall','hound','priest','golem'].includes(e.type)?0xff5511:['husk','warden','leech','wraith','siren','hulk'].includes(e.type)?0x22eedd:['brood','root','regent','thornling','spitter','shifter','weaver'].includes(e.type)?0x84cc16:0xd4af37;this.effect(e.x,e.z,burstCol,e.boss?3.8:e.elite?2.2:1.2,'impact',.4);this.emit('kill',{type:e.type,elite:e.elite,boss:e.boss,x:e.x,z:e.z});if(e.boss){this.bossKills++;const bounty=Math.round((45+this.cycle*15)*(mutator.reward||1));this.gold+=bounty;this.earned+=bounty;this.drop('bosscore',e.x,e.z,0,'legendary');this.drop('gold',e.x-.6,e.z,15,'rare');this.drop('gold',e.x+.6,e.z,15,'rare');this.drop('potion',e.x+.8,e.z,30,'epic');if(this.biome===2){if(this.ranked){this.state='victory';this.emit('end',{victory:true});}else{this.state='convergence';this.emit('convergence',{cycle:this.cycle});}}else advance=true;}}
+  this.enemies=this.enemies.filter(e=>e.hp>0);if(advance){this.biome++;this.regionStart=this.time;this.bossSpawned=false;this.enemies=[];this.bolts=[];this.zones=[];p.revives=0;this.visitedRooms=new Set([4]);this.currentRoom=4;this.initRoomEvents();this.initBounty();this.emit('region',{name:REGIONS[this.biome].name});this.prepareMerchant();}
   for(const l of this.loot){l.age+=dt;if(l.y>0||l.vy>0){l.vy-=12*dt;l.y+=l.vy*dt;l.x+=l.vx*dt;l.z+=l.vz*dt;l.vx*=Math.pow(.08,dt);l.vz*=Math.pow(.08,dt);if(l.y<=0){l.y=0;if(Math.abs(l.vy)>1){l.vy=-l.vy*.32;}else l.vy=0;}}let d=dist(l,p);if(l.age>.28&&l.y<.15&&d<p.magnet)l.magnet=true;if(l.magnet&&clearLine(l,p)){const step=Math.min(d,dt*(9+l.age*1.5));l.x+=(p.x-l.x)/Math.max(.01,d)*step;l.z+=(p.z-l.z)/Math.max(.01,d)*step;l.y=approach(l.y,.55,dt*3);}if(dist(l,p)<.65){l.taken=true;if(l.kind==='xp')p.xp+=l.value;else if(l.kind==='potion')p.hp=Math.min(p.maxHp,p.hp+l.value);else if(l.kind==='mote'){p.xp+=l.value;p.ignition=5;this.effect(p.x,p.z,0xff7034,2.2,'burst',.4);this.emit('motePickup',{kind:'mote'});}else if(l.kind==='spark'){p.xp+=l.value;p.stamina=100;p.tempest=4;this.effect(p.x,p.z,0x6ae2ff,2.2,'pulse',.4);this.emit('motePickup',{kind:'spark'});}else if(l.kind==='aegis'){p.xp+=l.value;p.shield+=25;for(const o of this.loot)o.magnet=true;this.effect(p.x,p.z,0x80ffb0,4,'shield',.5);this.emit('motePickup',{kind:'aegis'});}else if(l.kind==='toxic'){p.xp+=l.value;this.zones.push({id:++this.id,x:p.x,z:p.z,life:3,warn:0,radius:3.5,enemy:false,kind:'miasma'});this.emit('motePickup',{kind:'toxic'});}else if(l.kind==='crest'){p.xp+=l.value;p.skills=[0,0];p.hp=Math.min(p.maxHp,p.hp+30);this.effect(p.x,p.z,0xffd700,5,'ultimate',.7);this.emit('motePickup',{kind:'crest'});}else if(l.kind==='chest'){const value=16+Math.floor(this.rng()*10);this.gold+=value;this.earned+=value;if(this.rng()<.25)p.hp=Math.min(p.maxHp,p.hp+25);this.emit('chest',{value});}else if(l.kind==='gold'){this.gold+=l.value;this.earned+=l.value;}this.effect(l.x,l.z,l.kind==='gold'?0xe0b65b:l.kind==='potion'?0xdc6b62:0xa9dbc8,1.5,'pickup',.35);this.emit('pickup',{kind:l.kind,value:l.value});}}
   this.loot=this.loot.filter(l=>!l.taken);if(p.level===1&&this.time>=50)p.xp=Math.max(p.xp,p.need);if(p.xp>=p.need&&this.state==='playing'){this.choices=upgradeOffers(this);if(this.choices.length){p.xp-=p.need;p.level++;p.need=p.level<=13?Math.round(75+Math.pow(p.level-1,1.35)*32):Math.min(1100,420+(p.level-13)*26);this.levelTimes.push(this.time);this.state='upgrade';this.emit('level');}}
   for(const e of [...this.effects,...this.corpses])e.life-=dt;this.effects=this.effects.filter(e=>e.life>0);this.corpses=this.corpses.filter(e=>e.life>0);

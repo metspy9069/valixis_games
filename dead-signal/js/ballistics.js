@@ -4,6 +4,7 @@
 
 export const HIT_ZONES = {
   head:       { multiplier: 3.0,  priority: 4, penCost: 0.45, crit: true,  stagger: 0.35 },
+  weakpoint:  { multiplier: 2.5,  priority: 5, penCost: 0.35, crit: true,  stagger: 2.0 },
   upperTorso: { multiplier: 1.25, priority: 3, penCost: 0.55, crit: false, stagger: 0.16 },
   lowerTorso: { multiplier: 1.0,  priority: 2, penCost: 0.50, crit: false, stagger: 0.10 },
   body:       { multiplier: 1.0,  priority: 2, penCost: 0.50, crit: false, stagger: 0.10 },

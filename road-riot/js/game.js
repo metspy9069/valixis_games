@@ -3228,6 +3228,10 @@ class RoadRiotGame {
       postProcessing: bloomTelem
     };
   }
+
+  getBiomeTelemetry() {
+    return this.world && this.world.getBiomeTelemetry ? this.world.getBiomeTelemetry() : null;
+  }
 }
 
 // Boot application

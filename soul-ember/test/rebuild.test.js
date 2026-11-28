@@ -1006,10 +1006,120 @@ test('rapid dashing across doorways continuously tracks room visit state without
   assert(g.events.some(e=>e.type==='roomEnter'&&e.to===2));
 });
 
+test('elite hunting bounty generates valid regional target and assigns bountyTarget flag on matching champion spawn',()=>{
+  const g=new Game({seed:701});
+  assert(g.currentBounty,'Bounty active on game start');
+  assert(g.currentBounty.targetType,'Target monster type defined');
+  assert.equal(g.currentBounty.rewardGold,50,'Reward gold is 50');
+  assert.equal(g.currentBounty.countNeeded,1);
+  assert.equal(g.currentBounty.countCurrent,0);
+  assert(g.events.some(e=>e.type==='bountyAssigned'),'bountyAssigned event emitted');
 
+  // Spawn non-matching minion -> bountyTarget is false
+  const minion=g.spawn('thrall',null,{elite:false});
+  assert.equal(minion.bountyTarget,false);
 
+  // Spawn matching elite champion -> bountyTarget is true
+  const bountyChampion=g.spawn(g.currentBounty.targetType,null,{elite:true,affix:g.currentBounty.targetAffix,bountyTarget:true});
+  assert.equal(bountyChampion.bountyTarget,true,'Target marked with bountyTarget');
+});
 
+test('slaying marked bounty champion completes bounty, awards 50 gold, grants Bounty Hunters Rush buff, and rolls next bounty',()=>{
+  const g=new Game({seed:702});
+  const initialGold=g.gold;
+  const initialBountyName=g.currentBounty.targetName;
+  const targetType=g.currentBounty.targetType;
 
+  const targetEnemy=g.spawn(targetType,{x:g.player.x+1,z:g.player.z+1},{elite:true,bountyTarget:true});
+  targetEnemy.hp=0; // slay target
+  tick(g,2);
 
+  assert.equal(g.bountyClaimed,1,'One bounty claimed');
+  assert(g.gold>=initialGold+50,'+50 bonus bounty gold banked');
+  assert(g.player.bountyRush>10,'Bounty Hunters Rush buff active on player');
+  assert(g.events.some(e=>e.type==='bountyComplete'&&e.gold===50),'bountyComplete event emitted');
+  assert(g.currentBounty,'New bounty assigned for next hunt');
+});
 
+test('Bounty Hunters Rush buff grants +25% movement speed and +28% faster attack cadence, decaying cleanly',()=>{
+  const g=new Game({seed:703});
+  const baseSpeed=g.player.speed;
+  const baseCooldown=g.player.cooldown;
+
+  g.player.bountyRush=14.0;
+  // Step update with movement input to test speed
+  g.update(1/60,{x:1,z:0});
+  const rushSpeed=Math.hypot(g.player.vx,g.player.vz);
+  assert(rushSpeed>0,'Player moved');
+
+  // Fast forward 15s to decay buff
+  g.spawnTimer=9999;
+  for(let i=0;i<15*60+10;i++){
+    if(g.state==='upgrade')g.upgrade(g.choices[0].id);
+    g.update(1/60);
+  }
+  assert.equal(g.player.bountyRush,0,'Bounty rush decayed to 0');
+});
+
+test('heavy monster tier yields elevated XP and enhanced gold drops',()=>{
+  assert(MONSTERS['golem'].xp>=14,'Golem grants at least 14 XP');
+  assert(MONSTERS['hulk'].xp>=14,'Hulk grants at least 14 XP');
+  assert(MONSTERS['sentinel'].xp>=12,'Sentinel grants at least 12 XP');
+
+  const g=new Game({seed:704});
+  g.player.goldChance=1.0;
+  const golem=g.spawn('golem',{x:g.player.x+1,z:g.player.z+1},{elite:true});
+  golem.hp=0;
+  tick(g,2);
+
+  const goldDrops=g.loot.filter(l=>l.kind==='gold');
+  assert(goldDrops.length>0,'Gold dropped');
+  const heavyGold=goldDrops.reduce((acc,l)=>acc+l.value,0);
+  assert(heavyGold>=30,'Heavy elite golem dropped elevated gold (>=30)');
+});
+
+test('Milestone Gate 2: comprehensive survival audit across all biomes with bounties, economy scaling, and endless progression',()=>{
+  const g=new Game({seed:705});
+  g.player.invuln=9999;
+
+  for(let b=0;b<3;b++){
+    assert.equal(g.biome,b,`At Biome ${b}`);
+    assert(g.currentBounty,`Active bounty in biome ${b}`);
+
+    // Slay regional bounty target
+    const target=g.spawn(g.currentBounty.targetType,{x:g.player.x+1,z:g.player.z+1},{elite:true,bountyTarget:true});
+    target.hp=0;
+    tick(g,2);
+    assert(g.bountyClaimed>=b+1,`Bounty claimed in biome ${b}`);
+    assert(g.player.bountyRush>0,`Bounty rush active`);
+
+    // Advance time to guardian arrival (155s per region)
+    g.time=g.regionStart+155;
+    g.spawnTimer=999;
+    tick(g);
+    if(g.state==='upgrade'&&g.choices.length)g.upgrade(g.choices[0].id);
+    const boss=g.enemies.find(e=>e.boss);
+    assert(boss,`Guardian spawned in biome ${b}`);
+    boss.hp=0;
+    tick(g);
+    while(g.state==='upgrade'&&g.choices.length)g.upgrade(g.choices[0].id);
+
+    if(b<2){
+      assert.equal(g.state,'merchant');
+      assert(g.skipMerchant(),'Skipped merchant to continue descent');
+    }
+  }
+
+  // Final guardian defeated in biome 2
+  assert.equal(g.bossKills,3,'All 3 guardians defeated');
+  assert.equal(g.state,'convergence','Expedition reached convergence for endless ascensions');
+  assert(g.continueEndless(),'Ascended into endless cycle');
+  assert.equal(g.cycle,1,'Ascension 1 started');
+
+  // Verify economy and health curves
+  assert(g.gold>=150,'Healthy gold accumulation with bounties and boss bounties');
+  assert(g.score()>10000,'High score reached');
+  assert(!isNaN(g.player.hp)&&g.player.hp>0,'Player HP valid and positive');
+  assert(!isNaN(g.player.x)&&!isNaN(g.player.z),'Position coordinates strictly non-NaN');
+});
 

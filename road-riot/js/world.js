@@ -352,6 +352,23 @@ export class WorldManager {
     this.isInsideTunnel = false;
     this.tunnelTransition = 0;
 
+    // Day 11: Neo-Tokyo Biome Overhaul, Wet Asphalt, Monorail & Highway Infrastructures
+    this.roadWetness = 0.0;
+    this.targetWetness = 0.0;
+    this.baseRoadRoughness = 0.35;
+    this.wetRoadRoughness = 0.09;
+    this.baseRoadMetalness = 0.28;
+    this.wetRoadMetalness = 0.78;
+    this.holographicBillboards = [];
+    this.hologramGlitchTimer = 0.0;
+    this.hologramScanlinePhase = 0.0;
+    this.soundBarriers = [];
+    this.gantries = [];
+    this.monorailTrain = null;
+    this.monorailSpeed = 34.0; // ~306 km/h overhead cruising speed
+    this.monorailPylons = [];
+    this.puddleNoiseTexture = null;
+
     // Scratch color objects for zero-allocation lighting lerp
     this._targetSunColor = new THREE.Color();
     this._targetHemiSky = new THREE.Color();
@@ -384,12 +401,36 @@ export class WorldManager {
     this.initWeatherParticles();
     this.screenDroplets = new ScreenDropletSystem();
     this.tireSpray = new TireWaterSprayPlumeSystem(this.scene);
+    this.initMonorailTrain();
     this.buildInitialHighway();
   }
 
+  initMonorailTrain() {
+    this.monorailTrain = null;
+  }
+
   initHighwayMaterials() {
+    this.concreteBeamMat = new THREE.MeshStandardMaterial({ color: 0x161e2b, roughness: 0.85, metalness: 0.25 });
+    this.maglevRailMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+    this.soundBarrierPostMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.75, roughness: 0.3 });
+    this.soundBarrierPanelMat = new THREE.MeshStandardMaterial({
+      color: 0x0e3b4a,
+      roughness: 0.12,
+      metalness: 0.25,
+      transparent: true,
+      opacity: 0.65
+    });
+    this.gantryTrussMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.35 });
+    this.hologramAuraMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+
     if (typeof document === 'undefined' || !document.createElement) {
-      this.roadMaterial = new THREE.MeshStandardMaterial({ color: 0x111722, roughness: 0.28, metalness: 0.38 });
+      this.roadMaterial = new THREE.MeshStandardMaterial({ color: 0x111722, roughness: this.baseRoadRoughness, metalness: this.baseRoadMetalness });
       this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.6, metalness: 0.2 });
       this.walkMat = new THREE.MeshStandardMaterial({ color: 0x0c121e, roughness: 0.8, metalness: 0.15 });
       this.buildingMaterials = [
@@ -405,6 +446,27 @@ export class WorldManager {
     this.tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x121822, roughness: 0.85, metalness: 0.2 });
     this.tunnelRoofMat = new THREE.MeshStandardMaterial({ color: 0x0e131c, roughness: 0.90, metalness: 0.15 });
     this.tunnelPortalMat = new THREE.MeshStandardMaterial({ color: 0x222a36, roughness: 0.70, metalness: 0.4 });
+
+    // 0. Procedural Puddle Specular / Noise Texture (512x256)
+    const pc = document.createElement('canvas');
+    pc.width = 512;
+    pc.height = 256;
+    const pctx = pc.getContext('2d');
+    pctx.fillStyle = '#111722';
+    pctx.fillRect(0, 0, 512, 256);
+    // Draw smooth organic puddle patches
+    pctx.fillStyle = 'rgba(0, 229, 255, 0.12)';
+    for (let p = 0; p < 18; p++) {
+      const px = ((p * 79 + 37) % 480) + 16;
+      const py = ((p * 47 + 23) % 220) + 16;
+      const pr = 14 + (p % 5) * 8;
+      pctx.beginPath();
+      pctx.ellipse(px, py, pr * 1.6, pr, 0, 0, Math.PI * 2);
+      pctx.fill();
+    }
+    this.puddleNoiseTexture = new THREE.CanvasTexture(pc);
+    this.puddleNoiseTexture.wrapS = THREE.RepeatWrapping;
+    this.puddleNoiseTexture.wrapT = THREE.RepeatWrapping;
 
     // 1. Ultra High-Res Anti-Aliased Highway Surface Texture (2048x1024)
     // Eliminates geometric line aliasing and pixel crawling down the road
@@ -461,8 +523,8 @@ export class WorldManager {
 
     this.roadMaterial = new THREE.MeshStandardMaterial({
       map: this.roadTexture,
-      roughness: 0.28,
-      metalness: 0.38
+      roughness: this.baseRoadRoughness,
+      metalness: this.baseRoadMetalness
     });
 
     this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.6, metalness: 0.2 });
@@ -814,15 +876,23 @@ export class WorldManager {
 
     const ads = [
       {
-        header: 'APEX RACING',
-        sub: 'HIGHWAY GT TELEMETRY',
-        tag: 'TWIN TURBO HYPERDRIVE',
-        bg: '#051124',
-        accent: '#00d9ff',
+        header: 'NEO-TOKYO // 新宿',
+        sub: 'MIDNIGHT EXPRESSWAY',
+        tag: 'VALIXIS AUTONOMOUS AI',
+        bg: '#040b17',
+        accent: '#00e5ff',
         glow: '#00aacc'
       },
       {
-        header: 'SOUL EMBER',
+        header: 'CYBER DYNAMICS',
+        sub: 'HYPER-DRIVE NITRO // 電脳',
+        tag: '750 KW TURBINE HYBRID',
+        bg: '#180412',
+        accent: '#ff007f',
+        glow: '#cc0066'
+      },
+      {
+        header: 'SOUL EMBER // 魂の炎',
         sub: 'SURVIVORS ROGUELIKE',
         tag: 'PLAY FREE NOW • 8 HEROES',
         bg: '#200a05',
@@ -830,7 +900,7 @@ export class WorldManager {
         glow: '#ff4400'
       },
       {
-        header: 'DEAD SIGNAL',
+        header: 'DEAD SIGNAL // 孤立',
         sub: 'ZOMBIE SURVIVAL FPS',
         tag: 'HOLD THE RELAY STATION',
         bg: '#08180c',
@@ -838,12 +908,12 @@ export class WorldManager {
         glow: '#66cc22'
       },
       {
-        header: 'CYBER DRIFT',
-        sub: 'NEO SHINJUKU EXPRESSWAY',
-        tag: 'SLIPSTREAM & NITRO BOOST',
-        bg: '#180518',
-        accent: '#ff2a85',
-        glow: '#cc0066'
+        header: 'KINETIC // 磁気浮上',
+        sub: 'MAGLEV TRANSIT NETWORK',
+        tag: 'NEO EXPRESS LINE 01',
+        bg: '#161204',
+        accent: '#ffea00',
+        glow: '#cca000'
       }
     ];
 
@@ -953,6 +1023,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x280e1a);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('none');
+      this.targetWetness = 0.0;
       if (this.renderer) this.initEnvironmentMap(this.renderer, 0xffaa33, 0x1a0826);
     } else if (biomeId === 'neotokyo') {
       // Neo-Tokyo Rain: Moody teal and violet skyline, rainy atmosphere
@@ -965,6 +1036,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x061120);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('rain');
+      this.targetWetness = 1.0;
       if (this.renderer) this.initEnvironmentMap(this.renderer, 0x00d9ff, 0x020712);
     } else if (biomeId === 'arctic') {
       // Arctic Frostway: Polar ice horizon, pale frost sun, swirling blizzard
@@ -977,6 +1049,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c223c);
       if (this.stars) this.stars.visible = false;
       this.setWeatherType('snow');
+      this.targetWetness = 0.0;
       if (this.renderer) this.initEnvironmentMap(this.renderer, 0x8ce2ff, 0x040e1c);
     } else {
       // Midnight Metropolis (Default night sky with circular stars)
@@ -989,6 +1062,7 @@ export class WorldManager {
       if (this.scene.fog) this.scene.fog.color.setHex(0x0c1322);
       if (this.stars) this.stars.visible = true;
       this.setWeatherType('none');
+      this.targetWetness = 0.0;
       if (this.renderer) this.initEnvironmentMap(this.renderer, 0xd94b76, 0x050c1e);
     }
   }
@@ -1041,7 +1115,20 @@ export class WorldManager {
         this.createStreetLight(group, 10.2, -1);
       }
 
-      // Neon Cyber Billboard (every 5 segments)
+      // Elevated Monorail Track Guideway (continuous elevated rail at Y = 13.5m)
+      this.createMonorailGuideway(group, index);
+
+      // Roadside Highway Acoustic Sound Barriers (segments % 4 === 1 or 2, outside tunnel)
+      if (index % 4 === 1 || index % 4 === 2) {
+        this.createSoundBarriers(group, index);
+      }
+
+      // Overhead Expressway Gantry Signs (every 10 segments at index % 10 === 5, outside tunnel)
+      if (index % 10 === 5) {
+        this.createOverheadGantry(group, index);
+      }
+
+      // Neon Cyber Holographic Billboard (every 5 segments)
       if (index % 5 === 2) {
         const side = (index % 10 === 2) ? -1 : 1;
         this.createCyberBillboard(group, side * 15.5, (index / 5) % this.billboardTextures.length);
@@ -1312,9 +1399,9 @@ export class WorldManager {
     parent.add(lamp);
   }
 
-  createOverheadGantry(parent) {
+  createOverheadGantry(parent, index = 0) {
     const gantry = new THREE.Group();
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.4 });
+    const frameMat = this.gantryTrussMat || new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.4 });
 
     [-10, 10].forEach(x => {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 6.5, 8), frameMat);
@@ -1340,23 +1427,318 @@ export class WorldManager {
     signMesh.position.set(0, 5.0, 0.14);
     gantry.add(signMesh);
 
+    // Electronic Toll Collection (ETC) Optical Sensor Arrays
+    [-4.5, 0, 4.5].forEach(sx => {
+      const sensor = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.3, 0.4),
+        frameMat
+      );
+      sensor.position.set(sx, 4.0, 0.2);
+      gantry.add(sensor);
+
+      const beacon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+      );
+      beacon.position.set(sx, 3.9, 0.42);
+      gantry.add(beacon);
+    });
+
     parent.add(gantry);
+    this.gantries.push(gantry);
   }
 
   createCyberBillboard(parent, x, adIndex) {
+    const group = new THREE.Group();
     const texture = this.billboardTextures[adIndex] || this.billboardTextures[0];
     const boardMat = new THREE.MeshBasicMaterial({ map: texture });
     const boardGeo = new THREE.BoxGeometry(8.5, 4.25, 0.3);
     const board = new THREE.Mesh(boardGeo, boardMat);
     board.position.set(x, 5.8, 0);
     board.rotation.y = x < 0 ? 0.2 : -0.2;
+    group.add(board);
 
+    // Glowing Semi-Transparent Holographic Aura Plane
+    const auraGeo = new THREE.PlaneGeometry(9.2, 4.8);
+    const auraMesh = new THREE.Mesh(auraGeo, this.hologramAuraMat);
+    auraMesh.position.set(x, 5.8, x < 0 ? 0.16 : -0.16);
+    auraMesh.rotation.y = x < 0 ? 0.2 : -0.2;
+    group.add(auraMesh);
+
+    // Holographic Emitter Projector Rails (Top & Bottom)
+    [-2.2, 2.2].forEach(ey => {
+      const rail = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 8.8, 8),
+        this.maglevRailMat
+      );
+      rail.rotation.z = Math.PI / 2;
+      rail.position.set(x, 5.8 + ey, 0.1);
+      rail.rotation.y = x < 0 ? 0.2 : -0.2;
+      group.add(rail);
+    });
+
+    // Carbon-fiber Support Pylon
     const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 });
     const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 4.0, 8), pylonMat);
     pylon.position.set(x, 2.0, 0);
+    group.add(pylon);
 
-    parent.add(board);
+    parent.add(group);
+    this.holographicBillboards.push({
+      group,
+      boardMesh: board,
+      auraMesh,
+      boardMat,
+      adIndex,
+      glitchTimer: 0
+    });
+  }
+
+  createMonorailGuideway(parent, index) {
+    const guideway = new THREE.Group();
+
+    // 1. Concrete Structural Beam
+    const beam = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 1.0, this.segmentLength),
+      this.concreteBeamMat
+    );
+    beam.position.set(-12.5, 13.5, 0);
+    beam.receiveShadow = true;
+    guideway.add(beam);
+
+    // 2. Dual Glowing Cyan Maglev Induction Rails
+    [-0.76, 0.76].forEach(rx => {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.08, this.segmentLength),
+        this.maglevRailMat
+      );
+      rail.position.set(-12.5 + rx, 14.04, 0);
+      guideway.add(rail);
+    });
+
+    // 3. Support Pylons (every 6 segments)
+    if (index % 6 === 0) {
+      this.createMonorailPylon(guideway, -12.5, 13.5);
+    }
+
+    parent.add(guideway);
+  }
+
+  createMonorailPylon(parent, x, y) {
+    const pylon = new THREE.Group();
+
+    // Heavy Cylindrical Concrete Pier Column
+    const colGeo = new THREE.CylinderGeometry(0.75, 1.05, y, 8);
+    const col = new THREE.Mesh(colGeo, this.concreteBeamMat);
+    col.position.set(x, y / 2, 0);
+    col.receiveShadow = true;
+    col.castShadow = true;
+    pylon.add(col);
+
+    // Cantilevered T-Crosshead Beam
+    const headGeo = new THREE.BoxGeometry(3.2, 1.1, 2.2);
+    const head = new THREE.Mesh(headGeo, this.concreteBeamMat);
+    head.position.set(x, y - 0.55, 0);
+    head.receiveShadow = true;
+    head.castShadow = true;
+    pylon.add(head);
+
+    // Yellow/Black Hazard Striping on Pylon Base
+    const hazardMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 1.12, 0.4, 8), hazardMat);
+    ring.position.set(x, 0.8, 0);
+    pylon.add(ring);
+
     parent.add(pylon);
+    this.monorailPylons.push(pylon);
+  }
+
+  initMonorailTrain() {
+    this.monorailTrain = new THREE.Group();
+    const trainMat = new THREE.MeshStandardMaterial({ color: 0x182436, roughness: 0.25, metalness: 0.8 });
+    const darkAccMat = new THREE.MeshStandardMaterial({ color: 0x090f18, roughness: 0.6, metalness: 0.3 });
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+
+    // 1. Lead Locomotive Car
+    const leadCar = new THREE.Group();
+    const leadBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 9.0), trainMat);
+    leadBody.position.set(0, 1.0, 0);
+    leadCar.add(leadBody);
+
+    // Aerodynamic Nose Wedge
+    const noseGeo = new THREE.ConeGeometry(1.6, 3.2, 4);
+    noseGeo.rotateX(Math.PI / 2);
+    noseGeo.rotateY(Math.PI / 4);
+    const nose = new THREE.Mesh(noseGeo, trainMat);
+    nose.position.set(0, 0.9, -5.4);
+    nose.scale.set(1.1, 0.85, 1.0);
+    leadCar.add(nose);
+
+    // Tinted Cockpit Canopy Glass
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.8, 2.8), windowMat);
+    canopy.position.set(0, 1.7, -3.2);
+    leadCar.add(canopy);
+
+    // Dual Forward Xenon Projector Headlights
+    [-0.8, 0.8].forEach(hx => {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), headlightMat);
+      lamp.position.set(hx, 0.7, -6.6);
+      leadCar.add(lamp);
+    });
+    this.monorailTrain.add(leadCar);
+
+    // 2. Articulated Center Passenger Coach
+    const midCar = new THREE.Group();
+    midCar.position.set(0, 0, 10.5);
+    const midBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 10.0), trainMat);
+    midBody.position.set(0, 1.0, 0);
+    midCar.add(midBody);
+
+    // Connecting Accordion Bellows
+    const bellows = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.8, 1.5), darkAccMat);
+    bellows.position.set(0, 1.0, -5.5);
+    midCar.add(bellows);
+
+    // Panoramic Illuminated Cabin Windows (Left & Right)
+    [-1.26, 1.26].forEach(wx => {
+      for (let wz = -3.6; wz <= 3.6; wz += 1.8) {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 1.2), windowMat);
+        win.position.set(wx, 1.25, wz);
+        midCar.add(win);
+      }
+    });
+    this.monorailTrain.add(midCar);
+
+    // 3. Rear Trailer Car
+    const rearCar = new THREE.Group();
+    rearCar.position.set(0, 0, 21.0);
+    const rearBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.0, 9.0), trainMat);
+    rearBody.position.set(0, 1.0, 0);
+    rearCar.add(rearBody);
+
+    const rearBellows = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.8, 1.5), darkAccMat);
+    rearBellows.position.set(0, 1.0, -5.0);
+    rearCar.add(rearBellows);
+
+    // Trailing Glowing Red LED Marker Lights
+    [-0.9, 0.9].forEach(tx => {
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.08), taillightMat);
+      tail.position.set(tx, 1.0, 4.54);
+      rearCar.add(tail);
+    });
+
+    // Flashing Aviation Warning Beacon on Roof
+    const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.25, 8), beaconMat);
+    beacon.position.set(0, 2.15, 0);
+    rearCar.add(beacon);
+
+    this.monorailTrain.add(rearCar);
+
+    // 4. Wrap-Around Maglev Bogie Guidance Skids
+    [0, 10.5, 21.0].forEach(cz => {
+      [-1.4, 1.4].forEach(bx => {
+        const skid = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 4.0), darkAccMat);
+        skid.position.set(bx, 0.2, cz);
+        this.monorailTrain.add(skid);
+      });
+    });
+
+    // Set initial position: elevated along highway verge
+    this.monorailTrain.position.set(-12.5, 14.05, -220);
+    this.scene.add(this.monorailTrain);
+  }
+
+  updateMonorail(dt, speed, playerZ) {
+    if (!this.monorailTrain) return;
+
+    // Train cruises along Z relative to highway motion
+    this.monorailTrain.position.z += (this.monorailSpeed - speed) * dt;
+
+    // Subtle magnetic levitation floating bob
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.003;
+    this.monorailTrain.position.y = 14.05 + Math.sin(now) * 0.06;
+
+    // When train passes far behind camera, loop back to distance horizon
+    if (this.monorailTrain.position.z > 80) {
+      this.monorailTrain.position.z = -380;
+    } else if (this.monorailTrain.position.z < -420) {
+      this.monorailTrain.position.z = 60;
+    }
+  }
+
+  createSoundBarriers(parent, index) {
+    const barrierGroup = new THREE.Group();
+    const isLeft = (index % 2 === 0);
+    const xPos = isLeft ? -10.8 : 10.8;
+
+    // 4 Vertical Galvanized Steel Posts per 15m segment
+    [-5.6, -1.85, 1.85, 5.6].forEach(pz => {
+      const post = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 3.2, 0.14),
+        this.soundBarrierPostMat
+      );
+      post.position.set(xPos, 1.6, pz);
+      post.receiveShadow = true;
+      barrierGroup.add(post);
+    });
+
+    // 3 Transparent Tinted Acoustic Polymer Noise Panels
+    [-3.75, 0, 3.75].forEach(pz => {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 2.6, 3.65),
+        this.soundBarrierPanelMat
+      );
+      panel.position.set(xPos, 1.7, pz);
+      panel.receiveShadow = true;
+      barrierGroup.add(panel);
+
+      // Acoustic Horizontal Baffle Ribs
+      [-0.6, 0, 0.6].forEach(ry => {
+        const rib = new THREE.Mesh(
+          new THREE.BoxGeometry(0.08, 0.04, 3.65),
+          this.soundBarrierPostMat
+        );
+        rib.position.set(xPos, 1.7 + ry, pz);
+        barrierGroup.add(rib);
+      });
+    });
+
+    // Concrete Deflector Crash Guard Baseboard
+    const baseboard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.35, 0.45, this.segmentLength),
+      this.curbMat
+    );
+    baseboard.position.set(xPos, 0.22, 0);
+    barrierGroup.add(baseboard);
+
+    parent.add(barrierGroup);
+    this.soundBarriers.push(barrierGroup);
+  }
+
+  updateHolograms(dt, now) {
+    this.hologramScanlinePhase += dt * 3.5;
+
+    // Periodic glitch triggers
+    this.hologramGlitchTimer -= dt;
+    if (this.hologramGlitchTimer <= -2.5) {
+      this.hologramGlitchTimer = 0.18; // active glitch duration
+    }
+
+    const isGlitching = (this.hologramGlitchTimer > 0);
+    const pulseAlpha = 0.25 + Math.sin(now * 3.8) * 0.12;
+
+    for (let i = 0; i < this.holographicBillboards.length; i++) {
+      const b = this.holographicBillboards[i];
+      if (b.auraMesh && b.auraMesh.material) {
+        b.auraMesh.material.opacity = isGlitching ? 0.65 : pulseAlpha;
+      }
+      if (isGlitching && b.boardMesh) {
+        b.boardMesh.position.x = (b.group.position.x || 0) + (Math.random() - 0.5) * 0.08;
+      }
+    }
   }
 
   createRoadsideBuildings(parent, index) {
@@ -1496,6 +1878,21 @@ export class WorldManager {
 
     // 0.1 Progressive Day-to-Sunset-to-Night Lighting Cycle
     this.updateLightingCycle(currentDistance, dt);
+
+    // 0.2 Day 11: Wet Asphalt Surface Friction & Specular Reflection Dynamics
+    const wantsWet = (this.weatherType === 'rain' || this.currentTheme === 'neotokyo');
+    this.targetWetness = wantsWet ? 1.0 : 0.0;
+    this.roadWetness += (this.targetWetness - this.roadWetness) * Math.min(1.0, dt * 2.5);
+    if (this.roadMaterial) {
+      this.roadMaterial.roughness = THREE.MathUtils.lerp(this.baseRoadRoughness, this.wetRoadRoughness, this.roadWetness);
+      this.roadMaterial.metalness = THREE.MathUtils.lerp(this.baseRoadMetalness, this.wetRoadMetalness, this.roadWetness);
+    }
+
+    // 0.3 Day 11: Holographic Billboard Scanning & Chromatic Glitch Cycles
+    this.updateHolograms(dt, now);
+
+    // 0.4 Day 11: Elevated Monorail Train Overhead Cruising & Wrap Cycles
+    this.updateMonorail(dt, speed, playerZ);
 
     // 1. Dynamic Weather Particle Physics & Recycling (High-Speed Rain Streaks with Slant)
     if (this.weatherType === 'rain' && this.rainMesh && this.rainPositions) {
@@ -1875,6 +2272,27 @@ export class WorldManager {
       tunnelSegmentCount: this.tunnelSegments ? this.tunnelSegments.length : 0,
       tunnelLightCount: this.tunnelLights ? this.tunnelLights.length : 0,
       headlightsRequired: Boolean(this.headlightsRequired)
+    };
+  }
+
+  getBiomeTelemetry() {
+    return {
+      currentTheme: this.currentTheme,
+      wetness: parseFloat((this.roadWetness || 0).toFixed(3)),
+      isWetAsphalt: Boolean(this.roadWetness > 0.05),
+      asphaltRoughness: parseFloat((this.roadMaterial ? this.roadMaterial.roughness : 0.35).toFixed(3)),
+      asphaltMetalness: parseFloat((this.roadMaterial ? this.roadMaterial.metalness : 0.28).toFixed(3)),
+      holographicBillboardsCount: this.holographicBillboards ? this.holographicBillboards.length : 0,
+      hologramGlitchActive: Boolean(this.hologramGlitchTimer > 0),
+      monorail: {
+        active: Boolean(this.monorailTrain),
+        positionZ: this.monorailTrain ? parseFloat(this.monorailTrain.position.z.toFixed(2)) : 0,
+        speedKmh: this.monorailSpeed ? Math.round(this.monorailSpeed * 9) : 0,
+        heightY: this.monorailTrain ? parseFloat(this.monorailTrain.position.y.toFixed(2)) : 0,
+        pylonCount: this.monorailPylons ? this.monorailPylons.length : 0
+      },
+      soundBarriersCount: this.soundBarriers ? this.soundBarriers.length : 0,
+      gantriesCount: this.gantries ? this.gantries.length : 0
     };
   }
 }

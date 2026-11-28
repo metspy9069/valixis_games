@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VALIXIS Live Ops &amp; Player Telemetry Center</title>
+  <title>VALIXIS Live Ops &bull; Proprietary Player Telemetry Center</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,8 +13,8 @@
   <style>
     :root {
       --bg: #03060c;
-      --card-bg: rgba(10, 16, 28, 0.92);
-      --card-border: rgba(0, 229, 255, 0.18);
+      --card-bg: rgba(10, 16, 28, 0.94);
+      --card-border: rgba(0, 229, 255, 0.2);
       --cyan: #00e5ff;
       --violet: #8b5cf6;
       --magenta: #d946ef;
@@ -38,7 +38,7 @@
       line-height: 1.5;
     }
 
-    /* Ambient Spatial Background */
+    /* Ambient Spatial Grid */
     .bg-grid {
       position: fixed;
       inset: 0;
@@ -51,7 +51,7 @@
       z-index: -1;
     }
 
-    /* Auth Gate Modal */
+    /* Security Gate Modal */
     #auth-gate {
       position: fixed;
       inset: 0;
@@ -69,14 +69,14 @@
       border: 1px solid var(--card-border);
       border-radius: 16px;
       padding: 36px 32px;
-      max-width: 420px;
+      max-width: 440px;
       width: 100%;
       text-align: center;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 229, 255, 0.15);
     }
 
     .auth-logo {
-      width: 64px;
+      width: 68px;
       height: auto;
       margin-bottom: 20px;
       filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.7));
@@ -122,7 +122,7 @@
       background: linear-gradient(135deg, var(--cyan), #2563eb);
       color: #fff;
       font-family: var(--font-head);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       letter-spacing: 1.5px;
       border: none;
@@ -144,19 +144,18 @@
       display: none;
     }
 
-    /* Main Dashboard Layout */
+    /* Dashboard Layout */
     .dashboard-container {
       max-width: 1380px;
       margin: 0 auto;
       padding: 24px;
     }
 
-    /* Dashboard Header */
     .dash-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 24px;
+      padding: 18px 24px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 14px;
@@ -172,9 +171,9 @@
     }
 
     .dash-brand img {
-      width: 36px;
+      width: 38px;
       height: auto;
-      filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.6));
+      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));
     }
 
     .dash-brand-title {
@@ -198,6 +197,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .live-indicator {
@@ -205,9 +205,9 @@
       align-items: center;
       gap: 8px;
       font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 11px;
       color: var(--green);
-      background: rgba(16, 185, 129, 0.1);
+      background: rgba(16, 185, 129, 0.12);
       border: 1px solid rgba(16, 185, 129, 0.3);
       padding: 6px 12px;
       border-radius: 20px;
@@ -249,10 +249,48 @@
       border-color: rgba(255, 255, 255, 0.3);
     }
 
-    /* KPI Highlights Grid */
+    /* Proprietary Engine Banner */
+    .telemetry-banner {
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(139, 92, 246, 0.08));
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .telemetry-banner h3 {
+      font-family: var(--font-head);
+      font-size: 14px;
+      letter-spacing: 1.2px;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .telemetry-banner p {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 650px;
+    }
+
+    .endpoint-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cyan);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 229, 255, 0.2);
+    }
+
+    /* KPI Cards */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
       gap: 20px;
       margin-bottom: 24px;
     }
@@ -303,7 +341,7 @@
       color: var(--text-muted);
     }
 
-    /* Main Section Columns */
+    /* Main Grid */
     .ops-main-grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
@@ -335,12 +373,12 @@
 
     .panel-title {
       font-family: var(--font-head);
-      font-size: 14px;
+      font-size: 13px;
       letter-spacing: 1.5px;
       color: #fff;
     }
 
-    /* Game Distribution Table */
+    /* Game Table */
     .game-telemetry-table {
       width: 100%;
       border-collapse: collapse;
@@ -388,7 +426,7 @@
       border-radius: 12px;
     }
 
-    /* Realtime Event Stream Terminal */
+    /* Real-Time Terminal */
     .terminal-box {
       background: #000;
       border: 1px solid rgba(0, 229, 255, 0.2);
@@ -416,56 +454,45 @@
     }
 
     .t-time { color: var(--text-muted); min-width: 65px; }
-    .t-game { color: var(--cyan); font-weight: 600; min-width: 110px; }
-    .t-device { color: var(--violet); min-width: 65px; }
+    .t-game { color: var(--cyan); font-weight: 600; min-width: 100px; }
+    .t-device { color: var(--violet); min-width: 110px; }
     .t-msg { color: #e2e8f0; }
 
-    /* GA4 Quick Launch Banner */
-    .ga4-banner {
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(124, 58, 237, 0.15));
-      border: 1px solid rgba(0, 229, 255, 0.25);
-      border-radius: 14px;
-      padding: 24px;
+    /* Settings Box */
+    .settings-drawer {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 16px;
       display: flex;
+      gap: 12px;
       align-items: center;
-      justify-content: space-between;
       flex-wrap: wrap;
-      gap: 16px;
-      margin-bottom: 24px;
     }
 
-    .ga4-info h3 {
-      font-family: var(--font-head);
-      font-size: 15px;
-      letter-spacing: 1px;
-      margin-bottom: 6px;
-    }
-
-    .ga4-info p {
-      font-size: 13px;
-      color: var(--text-muted);
-      max-width: 600px;
-    }
-
-    .btn-launch {
-      background: linear-gradient(135deg, var(--cyan), #3b82f6);
+    .settings-input {
+      flex: 1;
+      min-width: 240px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 6px;
+      padding: 8px 12px;
       color: #fff;
-      font-family: var(--font-head);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      outline: none;
     }
 
-    .btn-launch:hover {
-      box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
-      filter: brightness(1.15);
+    .settings-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      font-size: 12px;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -473,62 +500,62 @@
 
   <div class="bg-grid"></div>
 
-  <!-- AUTHENTICATION SECURITY GATE -->
+  <!-- SECURITY GATE -->
   <div id="auth-gate">
     <div class="auth-card">
       <img src="valixis-logo-transparent.png" alt="VALIXIS" class="auth-logo">
       <h1 class="auth-title">STUDIO OPS CENTER</h1>
-      <p class="auth-subtitle">Restricted Executive Access &bull; VALIXIS Games</p>
+      <p class="auth-subtitle">VALIXIS Proprietary Player Telemetry &bull; Restricted Access</p>
       <input type="password" id="auth-pin" class="auth-input" placeholder="ENTER ACCESS PIN" autofocus maxlength="16">
       <button id="auth-btn" class="auth-btn">UNLOCK MONITOR</button>
       <div id="auth-err" class="auth-error">INVALID ACCESS CODE. ACCESS DENIED.</div>
     </div>
   </div>
 
-  <!-- MAIN OPS DASHBOARD -->
+  <!-- DASHBOARD MAIN -->
   <main class="dashboard-container" id="dash-main" style="display: none;">
 
-    <!-- Top Navigation Header -->
     <header class="dash-header">
       <div class="dash-brand">
         <img src="valixis-logo-transparent.png" alt="VALIXIS">
         <div>
           <span class="dash-brand-title">VALIXIS GAMES OPS</span>
-          <span class="dash-brand-badge">REALTIME TELEMETRY</span>
+          <span class="dash-brand-badge">PROPRIETARY TELEMETRY CORE v2.0</span>
         </div>
       </div>
 
       <div class="dash-actions">
         <div class="live-indicator">
           <span class="live-dot"></span>
-          <span>LIVE TELEMETRY STREAM</span>
+          <span>100% OWNED DATA &bull; ZERO 3RD-PARTY</span>
         </div>
+        <button id="btn-export" class="btn-secondary">📥 Export JSON</button>
         <a href="./" class="btn-secondary" target="_blank">&larr; Public Arcade</a>
         <button id="btn-lock" class="btn-secondary">🔒 Lock</button>
       </div>
     </header>
 
-    <!-- GA4 Direct Live Realtime Banner -->
-    <div class="ga4-banner">
-      <div class="ga4-info">
-        <h3>GOOGLE ANALYTICS 4 &bull; GLOBAL AUDIENCE INTELLIGENCE</h3>
-        <p>Real-time player events from games.valixis.tech stream live to your GA4 property (<b>G-9SGCBYSRYB</b>). You can also monitor live players directly on the Google Analytics iOS / Android app.</p>
+    <!-- Proprietary Telemetry Banner -->
+    <div class="telemetry-banner">
+      <div>
+        <h3>VALIXIS INDEPENDENT TELEMETRY ENGINE &bull; 100% PRIVATE</h3>
+        <p>This system runs exclusively on your own code. No Google trackers, no third-party tags, no external data harvesting. All player sessions, real-time presence heartbeats, and gameplay milestones are processed and owned entirely by VALIXIS Technologies.</p>
       </div>
-      <a href="https://analytics.google.com/analytics/web/#/realtime" target="_blank" rel="noopener" class="btn-launch">
-        OPEN GA4 REALTIME CONSOLE ↗
-      </a>
+      <div>
+        <span class="endpoint-pill" id="endpoint-status-pill">MODE: AUTONOMOUS EDGE PRESENCE</span>
+      </div>
     </div>
 
-    <!-- KPI Summary Grid -->
+    <!-- KPI Grid -->
     <div class="kpi-grid">
       <div class="kpi-card green">
         <div class="kpi-label">Active Live Players</div>
         <div class="kpi-val" id="val-live-players">0</div>
-        <div class="kpi-desc">Players actively playing right now (2m heartbeat)</div>
+        <div class="kpi-desc">Players actively playing right now (live presence)</div>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-label">Portal Sessions Today</div>
+        <div class="kpi-label">Total Visits Tracked</div>
         <div class="kpi-val" id="val-portal-sessions">0</div>
         <div class="kpi-desc">Verified unique sessions registered</div>
       </div>
@@ -536,7 +563,7 @@
       <div class="kpi-card violet">
         <div class="kpi-label">Total Game Starts</div>
         <div class="kpi-val" id="val-game-starts">0</div>
-        <div class="kpi-desc">Cumulative game launches across all titles</div>
+        <div class="kpi-desc">Cumulative game deployments across all titles</div>
       </div>
 
       <div class="kpi-card amber">
@@ -546,9 +573,9 @@
       </div>
     </div>
 
-    <!-- Main Content Grid -->
+    <!-- Main Grid -->
     <div class="ops-main-grid">
-      
+
       <!-- Game-by-Game Active Breakdown -->
       <div class="panel-card">
         <div class="panel-head">
@@ -562,7 +589,7 @@
               <th>GAME TITLE</th>
               <th>ACTIVE PLAYERS</th>
               <th>GENRE</th>
-              <th>STATUS</th>
+              <th>ENGINE STATUS</th>
             </tr>
           </thead>
           <tbody>
@@ -575,7 +602,7 @@
               </td>
               <td><span class="badge-live" id="stat-dead-signal">0 LIVE</span></td>
               <td style="color:var(--text-muted)">3D Survival Horror</td>
-              <td style="color:var(--cyan)">ONLINE &bull; v2.0</td>
+              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
             </tr>
 
             <tr>
@@ -587,7 +614,7 @@
               </td>
               <td><span class="badge-live" id="stat-soul-ember">0 LIVE</span></td>
               <td style="color:var(--text-muted)">Action Roguelite</td>
-              <td style="color:var(--cyan)">ONLINE &bull; v2.0</td>
+              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
             </tr>
 
             <tr>
@@ -599,7 +626,7 @@
               </td>
               <td><span class="badge-live" id="stat-road-riot">0 LIVE</span></td>
               <td style="color:var(--text-muted)">Arcade Supercar Racer</td>
-              <td style="color:var(--cyan)">ONLINE &bull; v2.0</td>
+              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
             </tr>
 
             <tr>
@@ -611,7 +638,7 @@
               </td>
               <td><span class="badge-live" id="stat-dev-tycoon">0 LIVE</span></td>
               <td style="color:var(--text-muted)">Sim / Management</td>
-              <td style="color:var(--cyan)">ONLINE &bull; v1.0</td>
+              <td style="color:var(--cyan)">ONLINE &bull; Flutter Web</td>
             </tr>
 
             <tr>
@@ -623,25 +650,32 @@
               </td>
               <td><span class="badge-live" id="stat-portal">0 LIVE</span></td>
               <td style="color:var(--text-muted)">Portal &amp; Game Browser</td>
-              <td style="color:var(--cyan)">ONLINE &bull; v2.0</td>
+              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
             </tr>
           </tbody>
         </table>
+
+        <!-- Custom Backend Settings -->
+        <div class="settings-drawer">
+          <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Custom Telemetry API:</span>
+          <input type="text" id="endpoint-input" class="settings-input" placeholder="e.g. https://telemetry.valixis.tech (Optional)">
+          <button id="endpoint-save-btn" class="settings-btn">Save Endpoint</button>
+        </div>
       </div>
 
-      <!-- Live Realtime Event Stream -->
+      <!-- Realtime Event Stream Terminal -->
       <div class="panel-card">
         <div class="panel-head">
           <h2 class="panel-title">LIVE TELEMETRY STREAM</h2>
-          <span class="dash-brand-badge" id="event-rate">STREAM ACTIVE</span>
+          <button id="btn-test-ping" class="btn-secondary" style="font-size:11px;padding:3px 8px;">+ Test Ping</button>
         </div>
 
         <div class="terminal-box" id="terminal-feed">
           <div class="terminal-line">
             <span class="t-time">SYS</span>
             <span class="t-game">VALIXIS_OPS</span>
-            <span class="t-device">CORE</span>
-            <span class="t-msg">Telemetry listener initialized. Awaiting player telemetry heartbeats...</span>
+            <span class="t-device">PROPRIETARY</span>
+            <span class="t-msg">VALIXIS Telemetry Bus initialized. Real-time presence listening active...</span>
           </div>
         </div>
       </div>
@@ -652,7 +686,6 @@
 
   <script src="assets/js/valixis-telemetry.js"></script>
   <script>
-    // Security Passcode: Default master PIN is '7799' (or can be customized)
     const MASTER_PIN = '7799';
     const AUTH_STORAGE_KEY = 'valixis_ops_authenticated';
 
@@ -662,6 +695,11 @@
     const authErr = document.getElementById('auth-err');
     const dashMain = document.getElementById('dash-main');
     const btnLock = document.getElementById('btn-lock');
+    const btnExport = document.getElementById('btn-export');
+    const btnTestPing = document.getElementById('btn-test-ping');
+    const endpointInput = document.getElementById('endpoint-input');
+    const endpointSaveBtn = document.getElementById('endpoint-save-btn');
+    const endpointPill = document.getElementById('endpoint-status-pill');
 
     function checkAuth() {
       if (sessionStorage.getItem(AUTH_STORAGE_KEY) === 'true') {
@@ -675,7 +713,7 @@
     }
 
     authBtn.addEventListener('click', () => {
-      if (authPin.value.trim() === MASTER_PIN || authPin.value.trim() === 'VALIXIS') {
+      if (authPin.value.trim() === MASTER_PIN || authPin.value.trim().toUpperCase() === 'VALIXIS') {
         sessionStorage.setItem(AUTH_STORAGE_KEY, 'true');
         authErr.style.display = 'none';
         checkAuth();
@@ -694,7 +732,20 @@
       checkAuth();
     });
 
-    // Real-Time Telemetry Poll & Bus Listener
+    // Endpoint Configuration
+    endpointInput.value = ValixisTelemetry.getEndpoint();
+    if (endpointInput.value) {
+      endpointPill.textContent = 'CONNECTED: ' + endpointInput.value;
+    }
+
+    endpointSaveBtn.addEventListener('click', () => {
+      const url = endpointInput.value.trim();
+      ValixisTelemetry.setEndpoint(url);
+      endpointPill.textContent = url ? 'CONNECTED: ' + url : 'MODE: AUTONOMOUS EDGE PRESENCE';
+      alert(url ? 'Custom VALIXIS Telemetry endpoint saved!' : 'Switched to Autonomous Edge Presence mode!');
+    });
+
+    // Real-Time Telemetry Monitor
     function startTelemetryMonitoring() {
       const feed = document.getElementById('terminal-feed');
 
@@ -708,7 +759,7 @@
 
         // Counts
         document.getElementById('val-live-players').textContent = activeSessions.length;
-        document.getElementById('val-portal-sessions').textContent = Math.max(sessions.length, 1);
+        document.getElementById('val-portal-sessions').textContent = Math.max(registry.stats?.totalVisits || sessions.length, 1);
         document.getElementById('games-active-count').textContent = `${activeSessions.length} ACTIVE NOW`;
 
         // Game breakdown
@@ -725,8 +776,8 @@
         document.getElementById('stat-portal').textContent = `${portalCount} LIVE`;
 
         // Total game starts
-        const totalStarts = (registry.events || []).filter(e => e.type === 'game_start').length;
-        document.getElementById('val-game-starts').textContent = Math.max(totalStarts, activeSessions.length > 0 ? activeSessions.length : 0);
+        const totalStarts = registry.stats?.gameStarts || (registry.events || []).filter(e => e.type === 'game_start').length;
+        document.getElementById('val-game-starts').textContent = totalStarts;
 
         // Device breakdown
         const mobiles = activeSessions.filter(s => s.device === 'Mobile').length;
@@ -751,7 +802,6 @@
         }
       }
 
-      // Refresh every 3 seconds
       setInterval(updateDashboard, 3000);
       updateDashboard();
 
@@ -762,6 +812,24 @@
           updateDashboard();
         };
       }
+
+      // Test Ping
+      btnTestPing.addEventListener('click', () => {
+        ValixisTelemetry.heartbeat('test-probe', { gameName: 'Ops Monitor Ping', details: 'Manual diagnostic heartbeat' });
+        updateDashboard();
+      });
+
+      // Export JSON
+      btnExport.addEventListener('click', () => {
+        const registry = ValixisTelemetry.getRegistry();
+        const blob = new Blob([JSON.stringify(registry, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `valixis_telemetry_export_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
     }
 
     checkAuth();

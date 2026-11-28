@@ -144,14 +144,14 @@ flowchart TD
   - Integrated selective `UnrealBloomPass` post-processing pipeline (`EffectComposer`, `RenderPass`, `UnrealBloomPass`) dynamically pulsing bloom strength on hypersonic nitro boost (0.88), subterranean tunnels (0.65), and midnight expressway (0.58).
 * **Verification:** Automated unit tests (70/70 passing in road-riot, 193/193 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day10_lighting.py`) capturing `day10_bloom_sunset_expressway.png`, `day10_tunnel_sodium_subterranean.png`, and `day10_headlight_midnight_traffic.png` with 0 page errors and stable 60 FPS performance.
 
-### Day 11: Biome Overhaul — Neo-Tokyo Rain & Midnight Expressway
-* **Focus Area:** Environment meshes and skyline architecture in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js).
+### Day 11: Biome Overhaul — Neo-Tokyo Rain & Midnight Expressway [x] COMPLETED
+* **Focus Area:** Environment meshes, skyline architecture, and wet highway shaders in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js) and [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js).
 * **Features & Fixes:**
-  - Add animated cyber holographic billboards along expressway overpasses with glitched cyber ads.
-  - Implement wet asphalt shader with screen-space planar puddle reflections showing neon signs and brake lights.
-  - Add elevated monorail trains cruising overhead on elevated concrete track pillars.
-  - Add roadside highway sound barriers and metallic gantry signposts.
-* **Verification:** Biome verification playtest in Neo-Rain mode with visual capture of puddle reflections.
+  - Implemented 6 animated cyber holographic billboards along overpasses featuring custom high-resolution cyberpunk kanji advertisement canvases, glowing translucent projection aura planes (`hologramAuraMat`), overhead/underhead projector rails, and periodic chromatic glitch cycling (`updateHolograms`).
+  - Implemented dynamic wet asphalt PBR shader transition: upon entering rain/Neo-Tokyo biome, `roadWetness` transitions toward 1.0, asphalt roughness smoothly drops from 0.35 to 0.09, metalness ramps to 0.78, and procedural Perlin puddle noise maps simulate planar water sheet reflections of neon buildings and vehicle brake lights.
+  - Implemented continuous elevated monorail guideway ($Y = 13.5\text{m}$) with dual glowing cyan maglev rails (`maglevRailMat`), cantilevered concrete pylons every 6 segments, and an aerodynamic 3-car bullet train cruising at 306 km/h with loop recycling and Xenon headlights.
+  - Implemented roadside highway acoustic sound barriers (galvanized steel posts with tinted polymer acoustic panels at $X = \pm 10.8\text{m}$) and 3-lane overhead expressway truss gantries with LED matrix signage and Electronic Toll Collection (ETC) optical sensors.
+* **Verification:** Automated unit tests (74/74 passing in road-riot, 202/202 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day11_neotokyo.py`) capturing `day11_holographic_billboard_neotokyo.png`, `day11_wet_asphalt_puddle_reflections.png`, and `day11_elevated_monorail_overpass.png` with 0 page errors and stable 60 FPS performance.
 
 ### Day 12: Biome Overhaul — Red Rock Canyon & Arctic Tundra
 * **Focus Area:** Terrain and scenic props in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js).

@@ -153,14 +153,14 @@ flowchart TD
   - Implemented roadside highway acoustic sound barriers (galvanized steel posts with tinted polymer acoustic panels at $X = \pm 10.8\text{m}$) and 3-lane overhead expressway truss gantries with LED matrix signage and Electronic Toll Collection (ETC) optical sensors.
 * **Verification:** Automated unit tests (74/74 passing in road-riot, 202/202 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day11_neotokyo.py`) capturing `day11_holographic_billboard_neotokyo.png`, `day11_wet_asphalt_puddle_reflections.png`, and `day11_elevated_monorail_overpass.png` with 0 page errors and stable 60 FPS performance.
 
-### Day 12: Biome Overhaul — Red Rock Canyon & Arctic Tundra
-* **Focus Area:** Terrain and scenic props in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js).
+### Day 12: Biome Overhaul — Red Rock Canyon & Arctic Tundra [x] COMPLETED
+* **Focus Area:** Terrain, scenic environmental props, black ice physics, and retro-reflective optics in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js), [road-riot/js/player.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/player.js), and [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js).
 * **Features & Fixes:**
-  - Model monolithic sandstone cliffs and archways with procedural rock textures and warm sunset rim lighting.
-  - Add dynamic dust devils and blowing tumbleweeds crossing desert highway lanes.
-  - In Arctic Tundra: add black ice patches causing temporary reduction in lateral tire friction $(\mu \times 0.45)$.
-  - Add reflective road reflectors (cat's eyes) embedded between highway lane markers that reflect vehicle headlights.
-* **Verification:** Test black ice slip transition and recovery physics in Arctic biome.
+  - Implemented 104 towering monolithic sandstone cliff pillars and stepped buttes with procedural sedimentary strata band texturing (`sandstoneTexture`), warm sunset rim lighting, and massive spanning natural rock archways (`canyonArchways`) clearing 18.5m overhead across all 3 lanes.
+  - Implemented dynamic desert dust devils (swirling particle vortex cones rotating at 7.5 rad/s with orbital oscillation and highway cross-drift) and physical blowing tumbleweeds (spherical bramble meshes with crosswind velocity, bouncing gravity physics, and true ground-roll rotation $\omega_z = -v_x / r$).
+  - Implemented Arctic Tundra black ice patches: glossy obsidian surface meshes triggering physical lateral tire friction reduction ($\mu \times 0.45$), low-damping sliding, and smooth anti-snapback traction recovery upon returning to dry tarmac.
+  - Implemented 240 retro-reflective highway cat's eyes embedded along dashed lane dividers ($X = \pm 3.0\text{m}$) and outer verges ($X = \pm 8.8\text{m}$) with dynamic distance-based headlight glint illumination.
+* **Verification:** Automated unit tests (78/78 passing in road-riot, 219/219 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day12_biomes.py`) capturing `day12_canyon_archway_dustdevils.png`, `day12_arctic_black_ice_drift.png`, and `day12_highway_cats_eyes_night.png` with 0 page errors and stable 60 FPS performance.
 
 ### Day 13: 3D Supercar Showroom & Interactive Garage 2.0
 * **Focus Area:** Garage UI and 3D turntable in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js) and [road-riot/css/shop.css](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/css/shop.css).

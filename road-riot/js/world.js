@@ -369,6 +369,17 @@ export class WorldManager {
     this.monorailPylons = [];
     this.puddleNoiseTexture = null;
 
+    // Day 12: Red Rock Canyon & Arctic Tundra Biome Overhaul, Black Ice & Cat's Eyes
+    this.canyonCliffs = [];
+    this.canyonArchways = [];
+    this.dustDevils = [];
+    this.tumbleweeds = [];
+    this.blackIcePatches = [];
+    this.roadReflectors = [];
+    this.lastPlayerOnBlackIce = false;
+    this.lastSurfaceFriction = 1.0;
+    this.activeCatEyesCount = 0;
+
     // Scratch color objects for zero-allocation lighting lerp
     this._targetSunColor = new THREE.Color();
     this._targetHemiSky = new THREE.Color();
@@ -402,11 +413,9 @@ export class WorldManager {
     this.screenDroplets = new ScreenDropletSystem();
     this.tireSpray = new TireWaterSprayPlumeSystem(this.scene);
     this.initMonorailTrain();
+    this.initDynamicDustDevils();
+    this.initBlowingTumbleweeds();
     this.buildInitialHighway();
-  }
-
-  initMonorailTrain() {
-    this.monorailTrain = null;
   }
 
   initHighwayMaterials() {
@@ -429,6 +438,33 @@ export class WorldManager {
       side: THREE.DoubleSide
     });
 
+    // Day 12 Materials
+    this.canyonRockMat = new THREE.MeshStandardMaterial({ color: 0xc4542d, roughness: 0.88, metalness: 0.10 });
+    this.canyonArchMat = new THREE.MeshStandardMaterial({ color: 0xdb6235, roughness: 0.82, metalness: 0.12 });
+    this.tumbleweedMat = new THREE.MeshStandardMaterial({ color: 0x9e784f, roughness: 0.95, metalness: 0.05 });
+    this.dustDevilMat = new THREE.MeshBasicMaterial({
+      color: 0xdf9c68,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+    this.blackIceMat = new THREE.MeshStandardMaterial({
+      color: 0x08121c,
+      roughness: 0.04,
+      metalness: 0.88,
+      transparent: true,
+      opacity: 0.85
+    });
+    this.catEyeStudMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.35 });
+    this.catEyeLensMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffe066,
+      emissiveIntensity: 0.2,
+      roughness: 0.1,
+      metalness: 0.9
+    });
+
     if (typeof document === 'undefined' || !document.createElement) {
       this.roadMaterial = new THREE.MeshStandardMaterial({ color: 0x111722, roughness: this.baseRoadRoughness, metalness: this.baseRoadMetalness });
       this.curbMat = new THREE.MeshStandardMaterial({ color: 0x1e2838, roughness: 0.6, metalness: 0.2 });
@@ -442,6 +478,25 @@ export class WorldManager {
       this.tunnelPortalMat = new THREE.MeshStandardMaterial({ color: 0x222a36, roughness: 0.70, metalness: 0.4 });
       return;
     }
+
+    // Procedural Sandstone Sedimentary Strata Texture
+    const sc = document.createElement('canvas');
+    sc.width = 512;
+    sc.height = 512;
+    const sctx = sc.getContext('2d');
+    const strataColors = ['#9e3c1b', '#c4542d', '#b04523', '#d96e43', '#823015', '#e08358', '#6b250e'];
+    let sy = 0;
+    while (sy < 512) {
+      const sh = 10 + Math.floor(Math.random() * 26);
+      sctx.fillStyle = strataColors[Math.floor(Math.random() * strataColors.length)];
+      sctx.fillRect(0, sy, 512, sh);
+      sy += sh;
+    }
+    this.sandstoneTexture = new THREE.CanvasTexture(sc);
+    this.sandstoneTexture.wrapS = THREE.RepeatWrapping;
+    this.sandstoneTexture.wrapT = THREE.RepeatWrapping;
+    this.canyonRockMat.map = this.sandstoneTexture;
+    this.canyonArchMat.map = this.sandstoneTexture;
 
     this.tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x121822, roughness: 0.85, metalness: 0.2 });
     this.tunnelRoofMat = new THREE.MeshStandardMaterial({ color: 0x0e131c, roughness: 0.90, metalness: 0.15 });
@@ -1012,6 +1067,22 @@ export class WorldManager {
     this.currentTheme = biomeId;
     if (!this.skyMat) return;
 
+    const isCanyon = (biomeId === 'canyon');
+    const isArctic = (biomeId === 'arctic');
+
+    // Toggle segment group visibility based on active biome
+    for (const seg of this.segments) {
+      if (seg.userData.canyonGroup) seg.userData.canyonGroup.visible = isCanyon;
+      if (seg.userData.arcticGroup) seg.userData.arcticGroup.visible = isArctic;
+      if (seg.userData.cityGroup) seg.userData.cityGroup.visible = !isCanyon;
+    }
+    if (this.dustDevils) {
+      for (const dd of this.dustDevils) dd.visible = isCanyon;
+    }
+    if (this.tumbleweeds) {
+      for (const tw of this.tumbleweeds) tw.visible = isCanyon;
+    }
+
     if (biomeId === 'canyon') {
       // Sunset Canyon: Amber twilight, rich gold sun, warm red sky (stars hidden in daytime twilight)
       this.skyMat.uniforms.topColor.value.setHex(0x1a0826);
@@ -1105,47 +1176,78 @@ export class WorldManager {
       group.add(walk);
     });
 
+    // Day 12: Retro-Reflective Highway Cat's Eyes (Embedded along all segments)
+    this.createRoadReflectors(group, index);
+
     const isTunnel = (index >= 18 && index <= 21);
     if (isTunnel) {
       this.createTunnelSegment(group, index, index === 18, index === 21);
     } else {
+      // 1. City / Metropolis Scenery Group
+      const cityGroup = new THREE.Group();
+      cityGroup.name = `CityGroup_${index}`;
+      cityGroup.visible = (this.currentTheme !== 'canyon');
+      group.userData.cityGroup = cityGroup;
+
       // Street Lights (every 3 segments)
       if (index % 3 === 0) {
-        this.createStreetLight(group, -10.2, 1);
-        this.createStreetLight(group, 10.2, -1);
+        this.createStreetLight(cityGroup, -10.2, 1);
+        this.createStreetLight(cityGroup, 10.2, -1);
       }
 
       // Elevated Monorail Track Guideway (continuous elevated rail at Y = 13.5m)
-      this.createMonorailGuideway(group, index);
+      this.createMonorailGuideway(cityGroup, index);
 
       // Roadside Highway Acoustic Sound Barriers (segments % 4 === 1 or 2, outside tunnel)
       if (index % 4 === 1 || index % 4 === 2) {
-        this.createSoundBarriers(group, index);
+        this.createSoundBarriers(cityGroup, index);
       }
 
       // Overhead Expressway Gantry Signs (every 10 segments at index % 10 === 5, outside tunnel)
       if (index % 10 === 5) {
-        this.createOverheadGantry(group, index);
+        this.createOverheadGantry(cityGroup, index);
       }
 
       // Neon Cyber Holographic Billboard (every 5 segments)
       if (index % 5 === 2) {
         const side = (index % 10 === 2) ? -1 : 1;
-        this.createCyberBillboard(group, side * 15.5, (index / 5) % this.billboardTextures.length);
+        this.createCyberBillboard(cityGroup, side * 15.5, (index / 5) % this.billboardTextures.length);
       }
 
       // Roadside Buildings
-      this.createRoadsideBuildings(group, index);
+      this.createRoadsideBuildings(cityGroup, index);
 
       // Pedestrian Sidewalk Spectators & Cheerers (every 3 segments)
       if (index % 3 === 1) {
-        this.createSidewalkPedestrians(group, index);
+        this.createSidewalkPedestrians(cityGroup, index);
       }
 
       // Modern Elevated Glass Pedestrian Skywalk (every 14 segments)
       if (index % 14 === 7) {
-        this.createPedestrianSkywalk(group, index);
+        this.createPedestrianSkywalk(cityGroup, index);
       }
+      group.add(cityGroup);
+
+      // 2. Canyon Scenery Group (Sandstone Cliffs & Natural Rock Archways)
+      const canyonGroup = new THREE.Group();
+      canyonGroup.name = `CanyonGroup_${index}`;
+      canyonGroup.visible = (this.currentTheme === 'canyon');
+      group.userData.canyonGroup = canyonGroup;
+      this.createCanyonCliffs(canyonGroup, index);
+      if (index % 12 === 4) {
+        this.createCanyonArchway(canyonGroup, index);
+      }
+      group.add(canyonGroup);
+
+      // 3. Arctic Scenery Group (Black Ice Patches)
+      const arcticGroup = new THREE.Group();
+      arcticGroup.name = `ArcticGroup_${index}`;
+      arcticGroup.visible = (this.currentTheme === 'arctic');
+      group.userData.arcticGroup = arcticGroup;
+      if (index % 4 === 1 || index % 4 === 2) {
+        this.createBlackIcePatches(arcticGroup, index);
+      }
+      group.add(arcticGroup);
     }
 
     // Interactive Highway Objects:
@@ -1784,6 +1886,316 @@ export class WorldManager {
     });
   }
 
+  createCanyonCliffs(parent, index) {
+    [-31.0, 31.0].forEach((x, side) => {
+      // 1. Towering monolithic sandstone cliff pillar
+      const h1 = 28.0 + ((index * 7 + side * 5) % 18);
+      const w1 = 16.0 + ((index * 3) % 8);
+      const cliff1 = new THREE.Mesh(
+        new THREE.BoxGeometry(w1, h1, 15),
+        this.canyonRockMat
+      );
+      cliff1.position.set(x, h1 / 2 - 2, 0);
+      cliff1.rotation.y = (side === 0 ? 1 : -1) * (((index * 13) % 20) * 0.04);
+      cliff1.castShadow = true;
+      cliff1.receiveShadow = true;
+      parent.add(cliff1);
+      this.canyonCliffs.push(cliff1);
+
+      // 2. Flanking jagged stepped rock butte
+      const h2 = 18.0 + ((index * 11 + side * 7) % 14);
+      const cliff2 = new THREE.Mesh(
+        new THREE.BoxGeometry(11, h2, 11),
+        this.canyonRockMat
+      );
+      cliff2.position.set(x + (side === 0 ? 8.5 : -8.5), h2 / 2 - 2, (index % 2 === 0 ? 3.5 : -3.5));
+      cliff2.castShadow = true;
+      cliff2.receiveShadow = true;
+      parent.add(cliff2);
+      this.canyonCliffs.push(cliff2);
+    });
+  }
+
+  createCanyonArchway(parent, index) {
+    const archGroup = new THREE.Group();
+    archGroup.name = `CanyonArch_${index}`;
+
+    // Left and Right Sandstone Buttress Pillars
+    const leftPillar = new THREE.Mesh(
+      new THREE.BoxGeometry(8.5, 22.0, 9.5),
+      this.canyonRockMat
+    );
+    leftPillar.position.set(-18.5, 10.0, 0);
+    leftPillar.castShadow = true;
+    leftPillar.receiveShadow = true;
+    archGroup.add(leftPillar);
+
+    const rightPillar = new THREE.Mesh(
+      new THREE.BoxGeometry(8.5, 22.0, 9.5),
+      this.canyonRockMat
+    );
+    rightPillar.position.set(18.5, 10.0, 0);
+    rightPillar.castShadow = true;
+    rightPillar.receiveShadow = true;
+    archGroup.add(rightPillar);
+
+    // Spanning Natural Rock Arch Bridge
+    const archBridge = new THREE.Mesh(
+      new THREE.BoxGeometry(32.0, 5.8, 8.5),
+      this.canyonArchMat
+    );
+    archBridge.position.set(0, 18.5, 0);
+    archBridge.castShadow = true;
+    archBridge.receiveShadow = true;
+    archGroup.add(archBridge);
+
+    // Eroded Crest Crown Rock Formation
+    const crownRock = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(4.2),
+      this.canyonRockMat
+    );
+    crownRock.position.set(0, 22.2, 0);
+    crownRock.scale.set(3.2, 1.2, 1.5);
+    crownRock.castShadow = true;
+    crownRock.receiveShadow = true;
+    archGroup.add(crownRock);
+
+    parent.add(archGroup);
+    this.canyonArchways.push(archGroup);
+  }
+
+  createBlackIcePatches(parent, index) {
+    const laneX = [-5.5, 0.0, 5.5][(index * 3) % 3];
+    const iceMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(3.6, 0.015, 12.0),
+      this.blackIceMat
+    );
+    iceMesh.position.set(laneX, 0.008, -this.segmentLength / 2);
+    iceMesh.receiveShadow = true;
+    parent.add(iceMesh);
+    this.blackIcePatches.push({
+      mesh: iceMesh,
+      segment: parent,
+      localX: laneX,
+      localZ: -this.segmentLength / 2,
+      width: 3.6,
+      length: 12.0
+    });
+  }
+
+  createRoadReflectors(parent, index) {
+    // 2 Z rows along segment, 4 lateral positions across lane markers and verge
+    const zOffsets = [-3.75, -11.25];
+    const xPositions = [-8.8, -3.0, 3.0, 8.8];
+
+    for (let rz of zOffsets) {
+      for (let rx of xPositions) {
+        const marker = new THREE.Group();
+        marker.position.set(rx, 0.015, rz);
+
+        // Cast casing stud
+        const casing = new THREE.Mesh(
+          new THREE.BoxGeometry(0.18, 0.035, 0.12),
+          this.catEyeStudMat
+        );
+        casing.receiveShadow = true;
+        marker.add(casing);
+
+        // Retro-reflective faceted glass bead lens
+        const lensMat = this.catEyeLensMat.clone();
+        const lens = new THREE.Mesh(
+          new THREE.BoxGeometry(0.14, 0.02, 0.03),
+          lensMat
+        );
+        lens.position.set(0, 0.016, -0.04);
+        marker.add(lens);
+
+        parent.add(marker);
+        this.roadReflectors.push({
+          mesh: marker,
+          lensMesh: lens,
+          parent,
+          localX: rx,
+          localZ: rz
+        });
+      }
+    }
+  }
+
+  initDynamicDustDevils() {
+    this.dustDevils = [];
+    for (let d = 0; d < 3; d++) {
+      const group = new THREE.Group();
+      group.name = `DustDevil_${d}`;
+
+      // 5 vertical rotating spiral tiers
+      for (let t = 0; t < 5; t++) {
+        const radius = 1.6 + t * 0.85;
+        const y = 0.5 + t * 2.6;
+        const ringGeo = new THREE.TorusGeometry(radius, 0.22 + t * 0.08, 6, 16);
+        ringGeo.rotateX(Math.PI / 2);
+        const ring = new THREE.Mesh(ringGeo, this.dustDevilMat);
+        ring.position.y = y;
+        ring.rotation.z = (t * Math.PI) / 3;
+        group.add(ring);
+      }
+
+      // Conical vortex core
+      const coreGeo = new THREE.ConeGeometry(3.8, 13.5, 8, 1, true);
+      coreGeo.rotateX(Math.PI);
+      const core = new THREE.Mesh(coreGeo, this.dustDevilMat);
+      core.position.y = 6.75;
+      group.add(core);
+
+      const initX = [-12.0, 5.0, -4.0][d];
+      const initZ = -60 - d * 75;
+      group.position.set(initX, 0, initZ);
+      group.userData = {
+        driftVx: (d % 2 === 0 ? 1.4 : -1.4),
+        swirlSpeed: 6.8 + d * 1.2,
+        wobblePhase: d * 2.1
+      };
+      group.visible = (this.currentTheme === 'canyon');
+      this.scene.add(group);
+      this.dustDevils.push(group);
+    }
+  }
+
+  initBlowingTumbleweeds() {
+    this.tumbleweeds = [];
+    for (let i = 0; i < 5; i++) {
+      const geo = new THREE.IcosahedronGeometry(0.65, 1);
+      const mesh = new THREE.Mesh(geo, this.tumbleweedMat);
+      mesh.name = `Tumbleweed_${i}`;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const initX = -18.0 + (i * 7) % 36;
+      const initZ = -40 - i * 45;
+      mesh.position.set(initX, 0.65, initZ);
+      mesh.userData = {
+        vx: 3.8 + (i % 3) * 0.9,
+        vy: 1.5 + (i % 2) * 2.0,
+        vz: -2.0 - (i % 2) * 1.5,
+        radius: 0.65
+      };
+      mesh.visible = (this.currentTheme === 'canyon');
+      this.scene.add(mesh);
+      this.tumbleweeds.push(mesh);
+    }
+  }
+
+  updateBiomeProps(dt, speed, playerX, playerZ, currentDistance, callbacks) {
+    const isCanyon = (this.currentTheme === 'canyon');
+    const isArctic = (this.currentTheme === 'arctic');
+
+    // 1. Dust Devils Physics & Vortex Animation (Canyon)
+    if (this.dustDevils && this.dustDevils.length > 0) {
+      for (const dd of this.dustDevils) {
+        if (!isCanyon) {
+          dd.visible = false;
+          continue;
+        }
+        dd.visible = true;
+        dd.userData.wobblePhase += dt * 2.5;
+        dd.rotation.y += dt * dd.userData.swirlSpeed;
+        dd.rotation.z = Math.sin(dd.userData.wobblePhase) * 0.08;
+
+        // Relative road scrolling & crosswind drift
+        dd.position.z += speed * dt;
+        dd.position.x += dd.userData.driftVx * dt;
+        if (dd.position.x > 15.0) dd.userData.driftVx = -Math.abs(dd.userData.driftVx);
+        if (dd.position.x < -15.0) dd.userData.driftVx = Math.abs(dd.userData.driftVx);
+
+        // Recycle when passing behind player
+        if (dd.position.z > 30.0) {
+          dd.position.z = -260.0 - Math.random() * 60.0;
+          dd.position.x = (Math.random() - 0.5) * 24.0;
+        }
+      }
+    }
+
+    // 2. Blowing Tumbleweeds Rolling Physics (Canyon)
+    if (this.tumbleweeds && this.tumbleweeds.length > 0) {
+      for (const tw of this.tumbleweeds) {
+        if (!isCanyon) {
+          tw.visible = false;
+          continue;
+        }
+        tw.visible = true;
+        // Crosswind movement
+        tw.position.x += tw.userData.vx * dt;
+        // Relative forward scrolling
+        tw.position.z += (speed + tw.userData.vz) * dt;
+        // Gravity & bouncing
+        tw.userData.vy -= 18.0 * dt;
+        tw.position.y += tw.userData.vy * dt;
+        if (tw.position.y <= tw.userData.radius) {
+          tw.position.y = tw.userData.radius;
+          tw.userData.vy = Math.abs(tw.userData.vy) * 0.68 + (Math.random() - 0.5) * 0.8;
+          if (tw.userData.vy < 0.6) tw.userData.vy = 2.4; // keep bouncing lively
+        }
+
+        // True physical rolling: omega_z = -vx / r
+        tw.rotation.z -= (tw.userData.vx / tw.userData.radius) * dt;
+        tw.rotation.x += dt * 3.2;
+
+        // Recycle when crossing off highway or behind player
+        if (tw.position.x > 22.0 || tw.position.z > 35.0) {
+          tw.position.x = -18.0 - Math.random() * 6.0;
+          tw.position.z = (playerZ || -8.0) - 70.0 - Math.random() * 110.0;
+          tw.position.y = 0.65;
+          tw.userData.vy = 2.5;
+        }
+      }
+    }
+
+    // 3. Arctic Black Ice Friction & Traction Slip Detection
+    this.lastPlayerOnBlackIce = false;
+    this.lastSurfaceFriction = 1.0;
+    if (isArctic && this.blackIcePatches && this.blackIcePatches.length > 0) {
+      for (const patch of this.blackIcePatches) {
+        const patchWorldZ = patch.segment.position.z + patch.localZ;
+        const dx = Math.abs(playerX - patch.localX);
+        const dz = Math.abs(playerZ - patchWorldZ);
+        if (dx < (patch.width / 2 + 0.3) && dz < (patch.length / 2)) {
+          this.lastPlayerOnBlackIce = true;
+          this.lastSurfaceFriction = 0.45;
+          if (callbacks && callbacks.player) {
+            callbacks.player.onBlackIce = true;
+            callbacks.player.surfaceFriction = 0.45;
+          }
+          break;
+        }
+      }
+      if (!this.lastPlayerOnBlackIce && callbacks && callbacks.player) {
+        callbacks.player.onBlackIce = false;
+      }
+    } else if (callbacks && callbacks.player && !isArctic) {
+      callbacks.player.onBlackIce = false;
+    }
+
+    // 4. Retro-Reflective Highway Cat's Eyes
+    let activeGlints = 0;
+    if (this.roadReflectors && this.roadReflectors.length > 0) {
+      const isLowLight = (this.currentLightingPhase === 'night' || this.currentLightingPhase === 'sunset' || this.isInsideTunnel || this.currentTheme === 'neotokyo');
+      for (const ref of this.roadReflectors) {
+        const worldZ = ref.parent.position.z + ref.localZ;
+        const relZ = worldZ - playerZ;
+        // Within forward headlights cone (0 to -65m)
+        if (relZ < 0 && relZ > -65.0) {
+          const distNorm = 1.0 - (-relZ / 65.0);
+          const glint = Math.pow(distNorm, 1.8) * (isLowLight ? 2.6 : 1.3);
+          ref.lensMesh.material.emissiveIntensity = glint;
+          activeGlints++;
+        } else {
+          ref.lensMesh.material.emissiveIntensity = 0.15;
+        }
+      }
+    }
+    this.activeCatEyesCount = activeGlints;
+  }
+
   reset() {
     for (let i = 0; i < this.segments.length; i++) {
       this.segments[i].position.z = -i * this.segmentLength;
@@ -1893,6 +2305,9 @@ export class WorldManager {
 
     // 0.4 Day 11: Elevated Monorail Train Overhead Cruising & Wrap Cycles
     this.updateMonorail(dt, speed, playerZ);
+
+    // 0.5 Day 12: Canyon & Arctic Biome Props (Dust Devils, Tumbleweeds, Black Ice & Cat's Eyes)
+    this.updateBiomeProps(dt, speed, playerX, playerZ, currentDistance, callbacks);
 
     // 1. Dynamic Weather Particle Physics & Recycling (High-Speed Rain Streaks with Slant)
     if (this.weatherType === 'rain' && this.rainMesh && this.rainPositions) {
@@ -2292,7 +2707,22 @@ export class WorldManager {
         pylonCount: this.monorailPylons ? this.monorailPylons.length : 0
       },
       soundBarriersCount: this.soundBarriers ? this.soundBarriers.length : 0,
-      gantriesCount: this.gantries ? this.gantries.length : 0
+      gantriesCount: this.gantries ? this.gantries.length : 0,
+      canyon: {
+        cliffsCount: this.canyonCliffs ? this.canyonCliffs.length : 0,
+        archwaysCount: this.canyonArchways ? this.canyonArchways.length : 0,
+        dustDevilsCount: this.dustDevils ? this.dustDevils.length : 0,
+        tumbleweedsCount: this.tumbleweeds ? this.tumbleweeds.length : 0
+      },
+      arctic: {
+        blackIcePatchesCount: this.blackIcePatches ? this.blackIcePatches.length : 0,
+        playerOnBlackIce: Boolean(this.lastPlayerOnBlackIce),
+        surfaceFriction: parseFloat((this.lastSurfaceFriction || 1.0).toFixed(3))
+      },
+      catEyes: {
+        totalReflectors: this.roadReflectors ? this.roadReflectors.length : 0,
+        activeGlintCount: this.activeCatEyesCount || 0
+      }
     };
   }
 }

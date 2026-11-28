@@ -322,6 +322,12 @@ export class PlayerCar {
     this.prevVx = 0;
     this.prevSpeed = 0;
 
+    // Day 12: Surface Friction & Black Ice Traction Dynamics
+    this.surfaceFriction = 1.0;
+    this.targetSurfaceFriction = 1.0;
+    this.onBlackIce = false;
+    this.iceSlipYaw = 0;
+
     // Dual-Clutch Transmission & Powertrain Simulation
     this.gear = 1;
     this.rpm = 1200;
@@ -662,6 +668,12 @@ export class PlayerCar {
     this.counterSteerAssist = 1.0;
     this.prevVx = 0;
     this.prevSpeed = 0;
+
+    // Day 12: Surface Friction & Black Ice Traction Dynamics
+    this.surfaceFriction = 1.0;
+    this.targetSurfaceFriction = 1.0;
+    this.onBlackIce = false;
+    this.iceSlipYaw = 0;
 
     // Dual-Clutch Transmission & Powertrain Simulation
     this.gear = 1;
@@ -1238,7 +1250,8 @@ export class PlayerCar {
     // Pacejka Magic Formula: mu(s) = D * sin(C * arctan(B * s))
     // D = Peak friction, C = Shape factor, B = Stiffness factor
     const handlingFactor = (this.handling || 24) / 24.0;
-    const D = isDrifting ? (0.92 * handlingFactor) : (1.18 * handlingFactor);
+    const surfaceScale = this.surfaceFriction !== undefined ? this.surfaceFriction : 1.0;
+    const D = (isDrifting ? (0.92 * handlingFactor) : (1.18 * handlingFactor)) * surfaceScale;
     const C = isDrifting ? 1.30 : 1.55;
     const B = isDrifting ? 5.8 : 9.5;
 
@@ -1246,7 +1259,7 @@ export class PlayerCar {
     return {
       mu,
       peakMu: D,
-      isSliding: Math.abs(slipAngle) > (0.18 / (isDrifting ? 0.7 : 1.0))
+      isSliding: Math.abs(slipAngle) > (0.18 / (isDrifting || this.onBlackIce ? 0.7 : 1.0))
     };
   }
 
@@ -1283,6 +1296,14 @@ export class PlayerCar {
     this.steerInput = inputDir;
     this.vx = this.vx || 0;
 
+    // Smoothly restore surface friction towards target (e.g. recovering from black ice)
+    if (this.onBlackIce) {
+      this.targetSurfaceFriction = 0.45;
+    } else {
+      this.targetSurfaceFriction = 1.0;
+    }
+    this.surfaceFriction += (this.targetSurfaceFriction - this.surfaceFriction) * Math.min(1.0, dt * 4.5);
+
     // 1. Calculate tire slip angle s = arctan(vx / vz) - steerAngle
     const forwardSpeed = Math.max(4.0, this.speed);
     const bodySlideAngle = Math.atan2(this.vx, forwardSpeed);
@@ -1294,14 +1315,14 @@ export class PlayerCar {
     this.tireGrip = pacejka.mu;
 
     // 3. Counter-Steering Stabilization Assist
-    // When oversteering during drift, natural caster counter-aligns wheels to stabilize slide
+    // When oversteering during drift or sliding on ice, natural caster counter-aligns wheels
     const assistFactor = THREE.MathUtils.clamp(counterAssist ?? this.counterSteerAssist ?? 1.0, 0, 1.5);
-    const isOversteering = this.isDrifting && (Math.sign(this.vx) !== Math.sign(inputDir) || inputDir === 0);
+    const isOversteering = (this.isDrifting || this.onBlackIce) && (Math.sign(this.vx) !== Math.sign(inputDir) || inputDir === 0);
     const counterSteerTorque = isOversteering ? (-this.slipAngle * 0.44 * assistFactor) : 0;
 
     // 4. Progressive Lateral Steering Velocity with Grip & Drift Dynamics
-    const handlingScale = this.isDrifting ? 0.68 : 0.54;
-    const baseTargetVx = inputDir * (this.handling * handlingScale * sensitivity);
+    const handlingScale = this.isDrifting ? 0.68 : (this.onBlackIce ? 0.40 : 0.54);
+    const baseTargetVx = inputDir * (this.handling * handlingScale * sensitivity * this.surfaceFriction);
     const targetVx = baseTargetVx + (isOversteering ? counterSteerTorque * 2.5 : 0);
 
     // Anti-snapback recovery damping when transitioning out of drift
@@ -1311,7 +1332,9 @@ export class PlayerCar {
     const recoveryFactor = this.driftExitTimer > 0 ? (this.driftExitTimer / 0.35) : 0;
 
     let damping;
-    if (this.isDrifting) {
+    if (this.onBlackIce) {
+      damping = 5.2; // Low damping allows car to slide on black ice with reduced steering bite
+    } else if (this.isDrifting) {
       damping = inputDir !== 0 ? 9.2 : 6.8;
     } else if (recoveryFactor > 0) {
       // Smoothly blend from sliding damping (7.5) to grip damping (14.0) without violent snap-back
@@ -1333,7 +1356,7 @@ export class PlayerCar {
     const maxSpeedHandling = Math.max(1, this.handling * handlingScale * sensitivity);
     const normTurn = THREE.MathUtils.clamp(this.vx / maxSpeedHandling, -1, 1);
 
-    const targetWheelTurn = this.isDrifting
+    const targetWheelTurn = (this.isDrifting || this.onBlackIce)
       ? (inputDir !== 0 && Math.sign(inputDir) !== Math.sign(normTurn)
           ? inputDir * 0.50 // crisp active counter-lock
           : (Math.abs(inputDir) > 0 ? normTurn * 0.42 : -normTurn * 0.35)) // natural caster counter-alignment
@@ -1350,14 +1373,16 @@ export class PlayerCar {
     // 7. Dynamic Suspension Body Roll (Coupled with Lateral Weight Transfer)
     // Outward chassis roll with spring damping
     const rollFromG = this.weightTransfer.dW_lat * 0.18;
-    const targetRoll = -normTurn * (this.isDrifting ? 0.24 : 0.12) - rollFromG;
+    const targetRoll = -normTurn * (this.isDrifting || this.onBlackIce ? 0.24 : 0.12) - rollFromG;
     this.suspensionRoll += (targetRoll - this.suspensionRoll) * Math.min(1, dt * 8.5);
 
     // 8. Vehicle Yaw Slide with Anti-Snapback Alignment
     // During drift recovery, targetYaw smoothly straightens back to neutral forward alignment
     const targetYaw = this.isDrifting
       ? -normTurn * 0.44
-      : (-normTurn * 0.08 * (1.0 - recoveryFactor));
+      : (this.onBlackIce
+          ? -normTurn * 0.28
+          : (-normTurn * 0.08 * (1.0 - recoveryFactor)));
     this.driftAngle = this.mesh.rotation.y;
     this.mesh.rotation.y += (targetYaw - this.mesh.rotation.y) * Math.min(1, dt * 7.8);
   }

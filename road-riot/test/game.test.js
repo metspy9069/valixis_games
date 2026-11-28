@@ -1926,3 +1926,131 @@ test('Roadside highway acoustic sound barriers and overhead expressway gantries 
   assert.ok(telem.soundBarriersCount >= 4, 'Multiple sound barrier segments active');
   assert.ok(telem.gantriesCount >= 2, 'Overhead gantries active with ETC optical sensors');
 });
+
+// ============================================================================
+// DAY 12: BIOME OVERHAUL — RED ROCK CANYON, ARCTIC TUNDRA & CAT'S EYES
+// ============================================================================
+
+test('Red Rock Canyon biome spawns monolithic sandstone cliffs and spanning natural rock archways', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  world.setBiome('canyon');
+  assert.equal(world.currentTheme, 'canyon', 'Biome switched to Sunset Canyon');
+  assert.ok(world.canyonCliffs.length >= 20, 'Towering monolithic sandstone cliffs generated along highway verges');
+  assert.ok(world.canyonArchways.length >= 2, 'Massive natural rock archways span overhead across 3 lanes');
+
+  // Verify segment group visibility toggles correctly
+  const nonTunnelSegs = world.segments.filter(s => !s.userData.isTunnel);
+  assert.ok(nonTunnelSegs.length > 0);
+  assert.equal(nonTunnelSegs[0].userData.canyonGroup.visible, true, 'Canyon scenery group is visible in canyon biome');
+  assert.equal(nonTunnelSegs[0].userData.cityGroup.visible, false, 'City scenery group is hidden in canyon biome');
+
+  const telem = world.getBiomeTelemetry();
+  assert.ok(telem.canyon.cliffsCount >= 20, 'Telemetry reports active canyon cliffs');
+  assert.ok(telem.canyon.archwaysCount >= 2, 'Telemetry reports active spanning archways');
+});
+
+test('Dynamic desert dust devils and blowing tumbleweeds simulate physical crosswind drift and ground bounce', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  world.setBiome('canyon');
+  assert.equal(world.dustDevils.length, 3, 'Three dynamic dust devil vortexes active in canyon');
+  assert.equal(world.tumbleweeds.length, 5, 'Five dynamic blowing tumbleweeds active on desert highway');
+
+  const dd0 = world.dustDevils[0];
+  const initialRotY = dd0.rotation.y;
+  const initialZ = dd0.position.z;
+
+  const tw0 = world.tumbleweeds[0];
+  const initialTwX = tw0.position.x;
+  const initialRotZ = tw0.rotation.z;
+
+  // Advance simulation frames
+  for (let i = 0; i < 15; i++) {
+    world.update(0.016, 20.0, 100, { playerX: 0, playerZ: -8 });
+  }
+
+  // Verify dust devil animated vortex
+  assert.notEqual(dd0.rotation.y, initialRotY, 'Dust devil spins rapidly around vertical axis');
+  assert.notEqual(dd0.position.z, initialZ, 'Dust devil moves relative to road velocity');
+
+  // Verify tumbleweed rolling crosswind physics
+  assert.ok(tw0.position.x > initialTwX, 'Tumbleweed drifts across highway driven by desert crosswind');
+  assert.notEqual(tw0.rotation.z, initialRotZ, 'Tumbleweed physically rolls with ground rotation');
+});
+
+test('Arctic Tundra black ice patches cause lateral tire friction reduction (mu x 0.45) with smooth grip recovery', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  world.setBiome('arctic');
+  assert.equal(world.currentTheme, 'arctic', 'Biome switched to Arctic Tundra');
+  assert.ok(world.blackIcePatches.length > 0, 'Black ice patches spawned along highway lanes');
+
+  const patch = world.blackIcePatches[0];
+  const patchWorldZ = patch.segment.position.z + patch.localZ;
+
+  // Create simulated player with Day 12 tire physics
+  const player = new PlayerCar(scene);
+  player.x = patch.localX;
+  player.mesh.position.z = patchWorldZ;
+
+  // Step world update with player on black ice
+  world.update(0.016, 22.0, 100, {
+    player,
+    playerX: player.x,
+    playerZ: player.mesh.position.z
+  });
+
+  assert.equal(player.onBlackIce, true, 'Player vehicle detected on black ice patch');
+  assert.equal(player.surfaceFriction, 0.45, 'Lateral tire friction coefficient reduced to mu * 0.45');
+
+  // Test Pacejka friction scaling under ice
+  const pacejka = player.calculatePacejkaGrip(0.2);
+  assert.ok(pacejka.peakMu < 0.80, 'Peak tire grip drops significantly on black ice');
+
+  // Move player off the ice patch
+  player.mesh.position.z += 80.0;
+  world.update(0.016, 22.0, 100, {
+    player,
+    playerX: player.x,
+    playerZ: player.mesh.position.z
+  });
+
+  assert.equal(player.onBlackIce, false, 'Player exits black ice patch');
+
+  // Advance simulation to verify smooth friction recovery towards 1.0
+  for (let i = 0; i < 25; i++) {
+    player.steer(0, 0.016);
+  }
+  assert.ok(player.surfaceFriction > 0.85, 'Tire grip smoothly recovers towards 1.0 upon returning to dry tarmac');
+});
+
+test('Retro-reflective highway cat\'s eyes dynamically illuminate with distance-based glint under headlights', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.ok(world.roadReflectors.length >= 60, 'High-density retro-reflective cat\'s eyes installed along lanes');
+
+  // Test daylight / far distance (no glint)
+  world.update(0.016, 20.0, 100, { playerX: 0, playerZ: 500 });
+  const farReflector = world.roadReflectors[0];
+  assert.ok(farReflector.lensMesh.material.emissiveIntensity <= 0.2, 'Reflectors at distance remain at baseline idle glow');
+
+  // Test close headlight illumination at night / dusk
+  world.setBiome('canyon'); // Twilight / sunset lighting
+  const targetRef = world.roadReflectors.find(r => {
+    const rz = r.parent.position.z + r.localZ;
+    return rz < -10 && rz > -50;
+  });
+
+  if (targetRef) {
+    const targetZ = targetRef.parent.position.z + targetRef.localZ;
+    // Position player 20m behind reflector
+    world.update(0.016, 20.0, 100, { playerX: 0, playerZ: targetZ + 20 });
+    assert.ok(targetRef.lensMesh.material.emissiveIntensity > 0.5, 'Cat\'s eyes lens emissive retro-reflection intensifies in headlight beam');
+    assert.ok(world.activeCatEyesCount > 0, 'Active cat\'s eyes counter detects retro-reflective glints');
+  }
+});

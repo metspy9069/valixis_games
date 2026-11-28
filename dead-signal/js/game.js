@@ -4066,6 +4066,7 @@ function stepSimulation(dt) {
   updateCasings(dt);
   updateAcid(dt);
   updateHazards(dt);
+  updateRockProjectiles(dt);
   updateGrenades(dt);
   updatePickups(dt);
   updateDamageNumbers(dt);
@@ -4551,5 +4552,17 @@ window.__samplePounceArcPoints = samplePounceArcPoints;
 window.__isTargetInFlashlightBeam = isTargetInFlashlightBeam;
 window.__LURKER_CONFIG = LURKER_CONFIG;
 window.__flashlight = flashlight;
+window.__initGatekeeperBoss = initGatekeeperBoss;
+window.__evaluateGatekeeperPhase = evaluateGatekeeperPhase;
+window.__ruptureGatekeeperWeakpoint = ruptureGatekeeperWeakpoint;
+window.__createRockProjectile = createRockProjectile;
+window.__stepRockProjectile = stepRockProjectile;
+window.__calculateRockTrajectory = calculateRockTrajectory;
+window.__sampleRockTrajectoryPoints = sampleRockTrajectoryPoints;
+window.__GATEKEEPER_PHASES = GATEKEEPER_PHASES;
+window.__GATEKEEPER_THRESHOLDS = GATEKEEPER_THRESHOLDS;
+window.__rockProjectiles = rockProjectiles;
+window.__bossThrowRock = bossThrowRock;
+window.__bossSpawnRunnerEscort = bossSpawnRunnerEscort;
 
 requestAnimationFrame(frame);

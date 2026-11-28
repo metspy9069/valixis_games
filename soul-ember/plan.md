@@ -298,13 +298,43 @@ The roadmap addresses every core pillar:
 
 ---
 
-### Day 12: Week 2 Integration, Elite Bounties & Balance Tuning
+### Day 12: Week 2 Integration, Elite Bounties & Balance Tuning (Milestone Gate 2) — COMPLETED
 - **Goal**: Integrate elite bounties, verify pacing, and complete Milestone Gate 2.
-- **Features to Add**:
-  - Elite Hunting Bounties: Defeating designated marked champion elites awards bonus Armory gold and temporary run buffs.
-  - Rebalance soul drop rates and gold yields for new monster types.
-  - **Milestone Gate 2 Verification**: Full workspace test pass (67+ tests), 15-minute survival audit, verify zero console exceptions.
-- **Files Touched**: `soul-ember/src/rebuild/game.js`, `soul-ember/src/rebuild/content.js`.
+- **Implemented Features**:
+  - **Elite Hunting Bounties System**:
+    - Active bounty tracking system (`this.currentBounty`, `this.bountyClaimed`, `this.initBounty()`).
+    - Randomly assigns a valid non-boss champion target from the current regional pool (e.g. Shieldbearer, Gargoyle, Mire Spitter, Sentinel).
+    - When an elite champion matching the bounty criteria spawns, it is marked with `e.bountyTarget = true`.
+    - **Visual 3D Bounty Indicator**: Renders an articulated hovering golden crown and diamond crest (`bountyCrown`) directly above the marked champion's head.
+    - **Bounty Completion & Rewards**: Slaying the designated bounty champion grants **+50 Bonus Armory Gold** and triggers **Bounty Hunter's Rush** (`p.bountyRush = 14.0s`).
+    - **Bounty Hunter's Rush**: Grants **+25% movement speed** and **+28% faster attack rate cadence**, with trailing golden particles, cleanly decaying over 14.0s.
+    - Emits `bountyComplete` with event details and immediately rolls the next bounty for continuous hunt progression.
+  - **Economy & XP Rebalancing for Heavy Monster Tiers**:
+    - Rebalanced base XP yield in `roster.js` for heavier units:
+      - Obsidian Golem: 14 XP (elevated from 9)
+      - Barnacle Hulk: 14 XP (elevated from 8)
+      - Ossuary Sentinel: 12 XP (elevated from 8)
+      - Root Brute: 9 XP (elevated from 7)
+      - Gargoyle & Abyssal Siren: 8 XP (elevated from 6)
+      - Bramble Shifter & Spore Weaver: 7 XP (elevated from 6)
+    - Enhanced gold drop yield scaling: Heavy tier enemies (Golem, Hulk, Sentinel) drop 35 gold for elites (elevated from 18) and 8 gold for base units.
+  - **HUD Badge & Procedural Audio**:
+    - `#bounty-badge` integrated into `.hud-top` displaying `👑 HUNT: <TARGET> [+50G]` with pulsating gold glow that intensifies (`.target-present`) when target is alive.
+    - Web Audio API procedural synthesis `bountyComplete`: 4-note ascending fanfare (440Hz -> 554Hz -> 659Hz -> 880Hz) with shimmering harmonic sparkle.
+- **Milestone Gate 2 Verification**:
+  - Full workspace test pass: **75 / 75 `soul-ember` unit tests pass (100%)**; **202 / 202 workspace tests pass (100%)**.
+  - Comprehensive survival audit verified across all 3 biomes:
+    - Ashen Cathedral -> Drowned Catacombs -> Thornbound Ossuary -> Convergence -> Endless Ascension 1.
+    - Bounty assignment and completion in every biome.
+    - Guardian phase shifts and boss defeats.
+    - Gold accumulation, high score calculation, non-NaN coordinate and vitality integrity.
+  - Headless Chrome CDP playtest in `scratch/test_day12_playtest.mjs` verified:
+    - Active `#bounty-badge` rendered in DOM.
+    - Spawned designated bounty champion with golden crown halo.
+    - Slew bounty champion: rewarded +50 gold, activated Bounty Hunter's Rush (14s), emitted `bountyComplete`, rolled next bounty (`Bell Ringer`).
+    - Performance: 60 FPS, DRS tier 0, zero console exceptions.
+    - Screenshot captured: [day12-elite-bounties.png](file:///C:/Users/nagas/.gemini/antigravity/brain/c814158f-61ed-4557-8d27-fa15ecf9161b/day12-elite-bounties.png).
+- **Files Touched**: `soul-ember/src/rebuild/roster.js`, `soul-ember/src/rebuild/game.js`, `soul-ember/src/rebuild/scene.js`, `soul-ember/src/core/AudioSynth.js`, `soul-ember/index.html`, `soul-ember/src/rebuild/style.css`, `soul-ember/src/rebuild/main.js`, `soul-ember/test/rebuild.test.js`, `soul-ember/dist/`, `site/`.
 
 ---
 

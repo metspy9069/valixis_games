@@ -3036,6 +3036,17 @@ function makeContext(forZombiePos = null) {
     panOf: (worldPos) => panFor(worldPos),
     onDeath: (z, part) => onZombieKilled(z, part === 'head'),
     lurePos: forZombiePos ? findActiveLureTarget(pipeBombLures, forZombiePos) : null,
+    hud,
+    game,
+    throwRock: (boss, targetPos) => bossThrowRock(boss, targetPos),
+    spawnRunnerEscort: (boss, count) => bossSpawnRunnerEscort(boss, count),
+    clearBoss: (boss) => {
+      game.boss = null;
+      if (hud.boss) {
+        hud.boss.classList.remove('show');
+        hud.boss.style.opacity = '0';
+      }
+    },
   };
 }
 
@@ -3250,11 +3261,15 @@ function updateAmmoHud() {
 
 function updateBossHud() {
   const boss = game.boss;
-  if (!boss || !boss.alive) {
-    if (hud.boss) hud.boss.classList.remove('show');
+  if (!boss || !boss.alive || boss.hp <= 0) {
+    if (hud.boss) {
+      hud.boss.classList.remove('show');
+      hud.boss.style.opacity = '0';
+    }
     return;
   }
   if (!hud.boss) return;
+  hud.boss.style.opacity = '';
   hud.boss.classList.add('show');
   hud.bossName.textContent = boss.bossName || 'BOSS';
   hud.bossFill.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;

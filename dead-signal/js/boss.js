@@ -83,9 +83,15 @@ export function createRockProjectile({
   mesh = null,
 }) {
   const traj = calculateRockTrajectory({ from, target, speed, gravity });
+  const pos = {
+    x: from.x,
+    y: from.y !== undefined ? from.y : 1.8,
+    z: from.z,
+    set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; },
+  };
   return {
     id,
-    pos: { x: from.x, y: from.y !== undefined ? from.y : 1.8, z: from.z },
+    pos,
     vel: { ...traj.vel },
     gravity,
     flightTime: traj.flightTime,

@@ -2690,6 +2690,7 @@ const rockMat = new THREE.MeshStandardMaterial({ color: 0x6e7379, roughness: 0.9
 const rockGeo = new THREE.DodecahedronGeometry(0.42);
 
 function bossThrowRock(boss, targetPos) {
+  if (!boss || !boss.group || !boss.group.position) return;
   const from = boss.group.position.clone();
   from.y += 2.2;
   const rockMesh = new THREE.Mesh(rockGeo, rockMat);
@@ -2711,6 +2712,7 @@ function bossThrowRock(boss, targetPos) {
 }
 
 function bossSpawnRunnerEscort(boss, count = 3) {
+  if (!boss || !boss.group || !boss.group.position) return;
   if (audio) {
     if (typeof audio.bossEnrage === 'function') audio.bossEnrage();
     else if (typeof audio.bossAlarm === 'function') audio.bossAlarm();
@@ -4562,6 +4564,8 @@ window.__sampleRockTrajectoryPoints = sampleRockTrajectoryPoints;
 window.__GATEKEEPER_PHASES = GATEKEEPER_PHASES;
 window.__GATEKEEPER_THRESHOLDS = GATEKEEPER_THRESHOLDS;
 window.__rockProjectiles = rockProjectiles;
+window.__hud = hud;
+window.__updateBossHud = updateBossHud;
 window.__bossThrowRock = bossThrowRock;
 window.__bossSpawnRunnerEscort = bossSpawnRunnerEscort;
 

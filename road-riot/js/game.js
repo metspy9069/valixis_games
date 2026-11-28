@@ -32,17 +32,29 @@ class RoadRiotGame {
     });
     this.isMobileDevice = typeof window !== 'undefined' && (
       window.matchMedia('(max-width: 768px)').matches ||
+      window.matchMedia('(pointer: coarse)').matches ||
       /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
     );
-    const maxDpr = this.isMobileDevice ? 1.35 : 2.0;
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, maxDpr));
+    // Safe DPR ceiling to prevent GPU memory exhaust and 4K FBO stalls on high-DPI displays
+    const maxDpr = this.isMobileDevice ? 1.0 : 1.25;
+    const dpr = Math.max(0.85, Math.min(window.devicePixelRatio || 1, maxDpr));
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = this.isMobileDevice ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = !this.isMobileDevice;
+    this.renderer.shadowMap.type = THREE.BasicShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
+
+    // Graceful WebGL Context Lost recovery
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      console.warn('[Road Riot] WebGL context lost. Pausing to prevent tab crash.');
+    }, false);
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      console.info('[Road Riot] WebGL context restored.');
+      this.initPostProcessing();
+    }, false);
 
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x0c1322, 130, 480);
@@ -366,11 +378,11 @@ class RoadRiotGame {
     const spotKey = new THREE.SpotLight(0xffffff, 5.5, 22, Math.PI / 4, 0.3);
     spotKey.position.set(-3, 7, -4);
     spotKey.target = base;
-    spotKey.castShadow = true;
+    spotKey.castShadow = !this.isMobileDevice;
     spotKey.shadow.bias = -0.0005;
-    spotKey.shadow.mapSize.width = 2048;
-    spotKey.shadow.mapSize.height = 2048;
-    spotKey.shadow.radius = 3.2;
+    spotKey.shadow.mapSize.width = 1024;
+    spotKey.shadow.mapSize.height = 1024;
+    spotKey.shadow.radius = 2.0;
     group.add(spotKey);
 
     const spotFill = new THREE.SpotLight(0x00d9ff, 3.5, 20, Math.PI / 3, 0.4);
@@ -433,7 +445,7 @@ class RoadRiotGame {
     this.bloomPass = null;
     this.renderPass = null;
 
-    if (typeof window === 'undefined' || !this.renderer) return;
+    if (typeof window === 'undefined' || !this.renderer || this.isMobileDevice) return;
 
     try {
       const w = window.innerWidth || 1280;
@@ -449,8 +461,8 @@ class RoadRiotGame {
       this.composer.addPass(this.renderPass);
       this.composer.addPass(this.bloomPass);
 
-      const q = (progression && progression.data && progression.data.settings && progression.data.settings.graphicsQuality) || 'high';
-      this.bloomEnabled = (q !== 'low');
+      const q = (progression && progression.data && progression.data.settings && progression.data.settings.graphicsQuality) || 'med';
+      this.bloomEnabled = (q === 'high' || q === 'ultra');
     } catch (e) {
       console.warn('EffectComposer post-processing init skipped or unsupported in environment:', e);
       this.composer = null;
@@ -467,22 +479,21 @@ class RoadRiotGame {
       b.classList.toggle('active', b.dataset.quality === quality);
     });
 
-    if (quality === 'low') {
+    if (this.isMobileDevice || quality === 'low') {
       this.renderer.shadowMap.enabled = false;
       this.renderer.setPixelRatio(1.0);
       this.bloomEnabled = false;
     } else if (quality === 'med') {
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.BasicShadowMap;
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.3));
-      this.bloomEnabled = true;
-      if (this.bloomPass) this.bloomPass.strength = 0.38;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.15));
+      this.bloomEnabled = false;
     } else {
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+      this.renderer.shadowMap.type = THREE.BasicShadowMap;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
       this.bloomEnabled = true;
-      if (this.bloomPass) this.bloomPass.strength = 0.48;
+      if (this.bloomPass) this.bloomPass.strength = 0.42;
     }
   }
 

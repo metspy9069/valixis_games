@@ -157,7 +157,7 @@ export class Zombie {
     this.hp -= effAmount;
     this.hitTimer = 0.12;
     if (this.state === 'idle') this.state = 'chase';
-    if (ctx && ctx.audio) ctx.audio.hit(part === 'head' || part === 'weakpoint');
+    if (ctx && ctx.audio && typeof ctx.audio.hit === 'function') ctx.audio.hit(part === 'head' || part === 'weakpoint');
 
     // Boss Phase Transitions (Day 12 Gatekeeper)
     if (this.isBoss) {
@@ -222,6 +222,13 @@ export class Zombie {
     if (ctx && ctx.audio) ctx.audio.zombieDeath();
     // Immediately hide boss bar and clear reference on boss death (Bug 2 fix)
     if (this.isBoss) {
+      if (typeof document !== 'undefined') {
+        const bar = document.getElementById('bossBar');
+        if (bar) {
+          bar.classList.remove('show');
+          bar.style.opacity = '0';
+        }
+      }
       if (ctx && ctx.hud && ctx.hud.boss) {
         ctx.hud.boss.classList.remove('show');
         ctx.hud.boss.style.opacity = '0';

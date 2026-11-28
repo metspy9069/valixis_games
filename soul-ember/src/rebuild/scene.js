@@ -557,7 +557,7 @@ export class Scene{
    mesh=this.mesh(group,this.geo.cone,0xff7a3d,[.32,1.6,.32],[0,0,0],'glass',true);mesh.rotation.x=Math.PI/2;
    this.mesh(group,this.geo.orb,0xffc062,[1.1,1.1,1.1],[0,0,-.4],'glass',true);
   }else if(kind==='spirit'){
-   mesh=this.mesh(group,this.geo.skull,0x9edab9,[.3,.35,.3],[0,0,0],'glass',true);
+   mesh=this.mesh(group,this.geo.skull,0x9edab9,[.45,.5,.45],[0,0,0],'glass',true);this.mesh(group,this.geo.orb,0x4ade80,[.65,.65,.65],[0,0,0],'glass',true);
    for(const side of[-1,1]){
     const wing=this.mesh(group,this.geo.cone,0xb7e5ca,[.2,.45,.08],[side*.18,0,0],'glass',true);wing.rotation.z=side*1.1;
    }
@@ -848,6 +848,9 @@ export class Scene{
      }
      return group;
     }
+    if(f.kind==='lightning'&&f.fromX!==undefined){const g=new T.Group();this.mesh(g,this.geo.cylinder,0xaeb9dc,[.12,1,.12],[0,0,0],'glass',true);this.mesh(g,this.geo.orb,0xffffff,[.3,.3,.3],[0,0,0],'glass',true);g.userData.isBeam=true;return g;}
+    if(f.kind==='slash'){const g=new T.Group();this.mesh(g,this.geo.decalConeArc,f.color||0xbab5a0,[1,1,1],[0,0,0],'metal',true);g.userData.isSlash=true;return g;}
+    if(f.kind==='wave'){const g=new T.Group();const r=this.mesh(g,this.geo.ring,f.color||0xd4b36f,[1,1,1],[0,0,0],'glass',true);r.rotation.x=Math.PI/2;g.userData.isWave=true;return g;}
     return new T.Mesh(this.geo.gem,this.mat(f.color,'glass',true));
    },o=>{
     if(f.kind==='warning'){
@@ -899,6 +902,9 @@ export class Scene{
      }
      return;
     }
+    if(o.userData?.isBeam){const dx=f.toX-f.fromX,dz=f.toZ-f.fromZ,len=Math.hypot(dx,dz)||1;o.position.set((f.fromX+f.toX)/2,.85,(f.fromZ+f.toZ)/2);o.rotation.y=Math.atan2(dx,dz);o.rotation.x=Math.PI/2;const bw=Math.max(.04,.24*(1-t));o.scale.set(bw,len,bw);return;}
+    if(o.userData?.isSlash){o.position.set(f.x,.45,f.z);o.rotation.y=(f.angle||0)+Math.PI*(t-.5)*.8;const s=Math.max(.5,f.radius*(.6+t*.5));o.scale.set(s,1,s);return;}
+    if(o.userData?.isWave){o.position.set(f.x,.18,f.z);const s=Math.max(.2,f.radius*Math.max(.1,t*1.2));o.scale.set(s,s,s);return;}
     o.position.set(f.x,f.kind==='pickup'?.45+t*1.1:.16,f.z);
     const scale=(f.kind==='impact'?1-t:Math.sin(t*Math.PI))*Math.max(.35,Math.min(2.2,f.radius));
     o.scale.setScalar(Math.max(.08,scale));o.rotation.y=clock*2.4;

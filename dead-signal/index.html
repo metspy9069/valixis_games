@@ -826,8 +826,8 @@
 </script>
 <script>
 window.__errors = [];
-window.addEventListener('error', (e) => window.__errors.push(e.message || String(e)));
-window.addEventListener('unhandledrejection', (e) => window.__errors.push(e.reason ? (e.reason.message || String(e.reason)) : 'Unhandled rejection'));
+window.addEventListener('error', (e) => window.__errors.push(e.error ? (e.error.stack || e.error.message || String(e.error)) : (e.message || String(e))));
+window.addEventListener('unhandledrejection', (e) => window.__errors.push(e.reason ? (e.reason.stack || e.reason.message || String(e.reason)) : 'Unhandled rejection'));
 </script>
 <script type="module" src="./js/game.js"></script>
 <!-- VALIXIS Unified Telemetry -->

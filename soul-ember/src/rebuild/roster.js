@@ -1,13 +1,13 @@
 export const VERSION = 4;
 const heroRows = [
- ['cinder','Cinder Witch','#cb704b','Ember staff','Scorching bolts ignite enemies.','Pyre Crown','bolt',30,.62,100,7.2,['Kindling','Forked Flame','Ash Mantle']],
- ['grave','Grave Knight','#aaa68d','Graveblade','Heavy sweeping strikes stagger nearby foes.','Last Oath','cleave',62,.85,145,6.5,['Gravestone','Execution','Iron Oath']],
- ['thorn','Thorn Ranger','#8da66b','Thornbow','Fast arrows pierce a line of enemies.','Wild Hunt','arrow',25,.42,90,7.7,['Barbed Arrow','Briar Volley','Fleetwood']],
- ['frost','Frost Oracle','#94bcc7','Frost prism','Crystal shards slow advancing enemies.','Winter Veil','shard',27,.57,95,7.1,['Permafrost','Shatterglass','Ice Ward']],
- ['bone','Bone Shepherd','#c4bc98','Soul lantern','Orbiting spirits seek nearby enemies.','Pale Procession','spirit',25,.65,105,7,['Soul Tether','Restless Choir','Grave Shelter']],
- ['storm','Storm Duelist','#a0a4c8','Twin sabers','Lightning jumps between close enemies.','Thunderstep','chain',31,.55,95,7.8,['Live Wire','Forked Sky','Static Guard']],
- ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',32,.7,115,7.2,['Virulence','Glass Garden','Antidote']],
- ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',39,.85,125,6.8,['Resonance','Echo Chamber','Sanctuary']],
+ ['cinder','Cinder Witch','#cb704b','Ember staff','Scorching bolts ignite enemies.','Pyre Crown','bolt',42,.56,115,7.3,['Kindling','Forked Flame','Ash Mantle']],
+ ['grave','Grave Knight','#aaa68d','Graveblade','Heavy sweeping strikes stagger nearby foes.','Last Oath','cleave',68,.80,160,6.6,['Gravestone','Execution','Iron Oath']],
+ ['thorn','Thorn Ranger','#8da66b','Thornbow','Fast arrows pierce a line of enemies.','Wild Hunt','arrow',32,.40,110,7.8,['Barbed Arrow','Briar Volley','Fleetwood']],
+ ['frost','Frost Oracle','#94bcc7','Frost prism','Crystal shards slow advancing enemies.','Winter Veil','shard',38,.52,115,7.2,['Permafrost','Shatterglass','Ice Ward']],
+ ['bone','Bone Shepherd','#c4bc98','Soul lantern','Orbiting spirits seek nearby enemies.','Pale Procession','spirit',36,.56,125,7.1,['Soul Tether','Restless Choir','Grave Shelter']],
+ ['storm','Storm Duelist','#a0a4c8','Twin sabers','Lightning jumps between close enemies.','Thunderstep','chain',42,.50,115,7.9,['Live Wire','Forked Sky','Static Guard']],
+ ['plague','Plague Alchemist','#a6ad61','Plague flask','Flasks leave damaging pools and harvest extra souls.','Black Harvest','flask',44,.62,130,7.3,['Virulence','Glass Garden','Antidote']],
+ ['bell','Bellkeeper','#c8ad72','Vesper bell','Resonant waves push back approaching enemies.','Final Toll','wave',48,.75,140,6.9,['Resonance','Echo Chamber','Sanctuary']],
 ];
 export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[75,90,75,80,85,90,85,90][index],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];

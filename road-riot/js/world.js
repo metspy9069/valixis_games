@@ -705,7 +705,7 @@ export class WorldManager {
     this.dirLight = new THREE.DirectionalLight(0xffb566, 3.2);
     this.dirLight.position.set(-45, 60, -90);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.set(2048, 2048);
+    this.dirLight.shadow.mapSize.set(1024, 1024);
     this.dirLight.shadow.camera.near = 5;
     this.dirLight.shadow.camera.far = 280;
     this.dirLight.shadow.camera.left = -35;

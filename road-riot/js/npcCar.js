@@ -52,25 +52,30 @@ export class NPCCar {
   buildProceduralCarMesh() {
     this.car = new THREE.Group();
 
-    // Aerodynamic GT Chassis
+    // Aerodynamic GT Chassis with PBR Clearcoat Lacquer
     const bodyGeo = new THREE.BoxGeometry(2.0, 0.55, 4.0);
-    const bodyMat = new THREE.MeshStandardMaterial({
+    const bodyMat = new THREE.MeshPhysicalMaterial({
       color: this.color,
       roughness: 0.22,
-      metalness: 0.8
+      metalness: 0.8,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.08
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = 0.55;
     this.car.add(body);
 
-    // Dark Tinted Glass Canopy
+    // Dark Tinted Refractive Glass Canopy
     const roofGeo = new THREE.BoxGeometry(1.5, 0.45, 2.0);
-    const roofMat = new THREE.MeshStandardMaterial({
+    const roofMat = new THREE.MeshPhysicalMaterial({
       color: 0x08101a,
       roughness: 0.08,
-      metalness: 0.95,
+      metalness: 0.2,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.75,
+      transmission: 0.6,
+      ior: 1.5,
+      clearcoat: 1.0
     });
     const roof = new THREE.Mesh(roofGeo, roofMat);
     roof.position.set(0, 0.95, -0.1);

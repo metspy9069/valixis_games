@@ -6,7 +6,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { audio } from './audio.js';
 import { WorldManager } from './world.js';
 import { PlayerCar, VEHICLE_ROSTER } from './player.js';
-import { TrafficManager } from './traffic.js';
+import { TrafficManager, updateEvasionTracking } from './traffic.js';
 import { progression, ACHIEVEMENTS } from './progression.js';
 
 import { shop } from './shop.js';
@@ -46,6 +46,8 @@ class RoadRiotGame {
 
     this.camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.1, 700);
     this.defaultCamPos = new THREE.Vector3(0, 3.8, 1.2);
+    this.introCamPos = new THREE.Vector3(-4.2, 2.8, -13);
+    this.scratchVec = new THREE.Vector3();
     this.camera.position.set(-0.5, 1.85, -3.2);
     this.camera.lookAt(-0.5, 0.75, -8);
 
@@ -142,6 +144,8 @@ class RoadRiotGame {
     this.nearMissChainTimer = 0;
     this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
+    this.evasionTimer = 0;
+    this.minPoliceDist = 999;
     this.empCooldown = 0;
 
     // Bind UI & Inputs
@@ -201,6 +205,9 @@ class RoadRiotGame {
 
       // New Gameplay Telemetry & Mechanisms
       heatStars: document.querySelectorAll('.heat-star'),
+      evasionBar: document.querySelector('#hud-evasion-bar'),
+      evasionFill: document.querySelector('#hud-evasion-fill'),
+      evasionText: document.querySelector('#hud-evasion-text'),
       draftingContainer: document.querySelector('#hud-drafting-container'),
       draftingFill: document.querySelector('#hud-drafting-fill'),
       draftingPct: document.querySelector('#hud-drafting-pct'),
@@ -366,6 +373,12 @@ class RoadRiotGame {
     spotFill.position.set(4, 5, -5);
     spotFill.target = base;
     group.add(spotFill);
+
+    // Automotive Rim & Glint Specular Light to accentuate PBR clearcoat
+    const spotRim = new THREE.SpotLight(0xfff0dd, 4.8, 22, Math.PI / 4, 0.4);
+    spotRim.position.set(-2, 6, -12);
+    spotRim.target = base;
+    group.add(spotRim);
 
     return group;
   }
@@ -938,6 +951,8 @@ class RoadRiotGame {
     this.nearMissChainTimer = 0;
     this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
+    this.evasionTimer = 0;
+    this.minPoliceDist = 999;
     this.empCooldown = 0;
         const sel = progression.data.selectedVehicle || 'apex';
     const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
@@ -1057,6 +1072,8 @@ class RoadRiotGame {
     this.nearMissChainTimer = 0;
     this.nextSpeedTrapDistance = 450;
     this.policeActive = false;
+    this.evasionTimer = 0;
+    this.minPoliceDist = 999;
     this.empCooldown = 0;
     const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
     audio.setEngineProfile(carDef.engineProfile || 'v8');
@@ -1625,7 +1642,7 @@ class RoadRiotGame {
       this.countdownTimer += dt;
       // Camera sweeps from side to rear chase cam
       const progress = Math.min(1, this.countdownTimer / 3.0);
-      this.camera.position.lerpVectors(new THREE.Vector3(-4.2, 2.8, -13), this.defaultCamPos, progress);
+      this.camera.position.lerpVectors(this.introCamPos, this.defaultCamPos, progress);
       this.camera.lookAt(0, 1.0, -8);
 
       if (this.countdownTimer >= 1.0 && this.countdownStep === 3) {
@@ -1775,7 +1792,7 @@ class RoadRiotGame {
         cooldownMs: 110
       });
       if (this.traffic.spawnSparks && Math.random() < 0.75) {
-        this.traffic.spawnSparks(new THREE.Vector3(side * railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
+        this.traffic.spawnSparks(this.scratchVec.set(side * railBoundary, 0.42, this.player.mesh.position.z), 5, 0xffd900);
       }
     }
     this.player.update(dt, () => {
@@ -1923,7 +1940,7 @@ class RoadRiotGame {
           this.player.vx = side * 2.0;
           this.camShake = 0.15;
           audio.play('collision');
-          this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.4, this.player.mesh.position.z), 0xffaa00, 8);
+          this.traffic.spawnExplosion(this.scratchVec.set(this.player.x, 0.4, this.player.mesh.position.z), 0xffaa00, 8);
           this.toast('RAMP GUARDRAIL SCRAPE', 'magenta');
         }
       }
@@ -2013,24 +2030,65 @@ class RoadRiotGame {
       }
     }
 
-    // Police Pursuit Evade Tracking
-    const activePolice = this.traffic.vehicles.find(v => v.isPolice && !v.hit);
-    if (activePolice) {
-      const relZ = activePolice.mesh.position.z - this.player.mesh.position.z;
-      if (!this.policeActive && relZ < 0 && relZ > -70) {
-        this.policeActive = true;
-        audio.startPoliceSiren();
-        this.toast('🚨 HIGHWAY PATROL INTERCEPTOR IN PURSUIT!', 'magenta');
-      } else if (this.policeActive && relZ > 18) {
-        this.policeActive = false;
-        audio.stopPoliceSiren();
-        this.toast('POLICE PURSUIT EVADED! +600 BOUNTY CREDITS', 'gold');
-        progression.activeRunStats.coinsEarned += 600;
-        this.increaseHeat(-1);
+    // 5. Police Pursuit & Continuous Evasion Tracking
+    const activePoliceList = this.traffic.vehicles.filter(v => v.isPolice && !v.hit && !v.evaded);
+    let closestPoliceDist = 999;
+    activePoliceList.forEach(pv => {
+      const dist = Math.hypot(pv.mesh.position.x - this.player.x, pv.mesh.position.z - this.player.mesh.position.z);
+      if (dist < closestPoliceDist) closestPoliceDist = dist;
+    });
+    this.minPoliceDist = closestPoliceDist;
+
+    // Visual sight acquisition: engage pursuit when within 38m proximity
+    if (!this.policeActive && activePoliceList.length > 0 && closestPoliceDist <= 38) {
+      this.policeActive = true;
+      audio.startPoliceSiren();
+      const hasInterceptor = activePoliceList.some(v => v.isInterceptor);
+      this.toast(hasInterceptor ? '🚨 TACTICAL INTERCEPTOR IN PURSUIT!' : '🚨 HIGHWAY PATROL CRUISER IN PURSUIT!', 'magenta');
+    }
+
+    if (this.policeActive) {
+      const evasion = updateEvasionTracking({
+        policeActive: this.policeActive,
+        minPoliceDist: closestPoliceDist,
+        evasionTimer: this.evasionTimer,
+        dt,
+        evasionThreshold: 35.0,
+        requiredTime: 6.0
+      });
+
+      this.evasionTimer = evasion.evasionTimer;
+
+      if (this.ui.evasionBar) {
+        if (this.evasionTimer > 0) {
+          this.ui.evasionBar.classList.remove('hidden');
+          if (this.ui.evasionFill) this.ui.evasionFill.style.width = `${(evasion.progress * 100).toFixed(1)}%`;
+          if (this.ui.evasionText) this.ui.evasionText.textContent = `EVADING ${(6.0 - this.evasionTimer).toFixed(1)}s`;
+        } else {
+          this.ui.evasionBar.classList.add('hidden');
+        }
       }
-    } else if (this.policeActive) {
-      this.policeActive = false;
-      audio.stopPoliceSiren();
+
+      if (evasion.evaded) {
+        this.policeActive = false;
+        this.pursuitEvasions = (this.pursuitEvasions || 0) + 1;
+        activePoliceList.forEach(pv => {
+          pv.evaded = true;
+          pv.speed = Math.max(14, pv.speed * 0.7);
+        });
+        audio.stopPoliceSiren();
+        this.toast('🚓 PURSUIT EVADED! +750 BOUNTY CREDITS (HEAT -1)', 'gold');
+        progression.activeRunStats.coinsEarned += evasion.bonusCredits;
+        progression.data.coins += evasion.bonusCredits;
+        progression.save();
+        this.increaseHeat(-evasion.heatReduction);
+        audio.play('fever');
+        this.vibrate([80, 50, 120]);
+        this.spawnScorePopup('+750 PURSUIT EVADED!', '#ffea00');
+        if (this.ui.evasionBar) this.ui.evasionBar.classList.add('hidden');
+      }
+    } else if (this.ui.evasionBar && !this.ui.evasionBar.classList.contains('hidden')) {
+      this.ui.evasionBar.classList.add('hidden');
     }
 
     // 6. Traffic & Obstacles System
@@ -2038,6 +2096,25 @@ class RoadRiotGame {
       isMagnetActive: this.player.magnetActive,
       jumpRamps: this.world.jumpRamps,
       heatLevel: this.heatLevel,
+      onPitManeuver: (v, pit) => {
+        const pitDir = pit.pitDir || 1;
+        this.player.x = THREE.MathUtils.clamp(this.player.x + pitDir * 0.45, -8.2, 8.2);
+        this.player.mesh.position.x = this.player.x;
+        this.player.driftAngle = (this.player.driftAngle || 0) + pitDir * 0.22;
+        const dmg = this.player.takeDamage(6);
+        progression.activeRunStats.damageTaken += dmg;
+        this.camShake = Math.max(this.camShake, 0.42);
+        audio.play('collision');
+        this.vibrate([50, 40, 90]);
+        if (this.traffic.spawnSparks) {
+          this.traffic.spawnSparks(this.scratchVec.set(this.player.x, 0.4, this.player.mesh.position.z), 14, 0xff0044);
+        }
+        this.toast('🚨 INTERCEPTOR PIT MANEUVER IMPACT!', 'magenta');
+        this.showDamageOverlay();
+        if (this.player.hull <= 0) {
+          this.gameOver(false, false);
+        }
+      },
       onNearMiss: (v) => {
         progression.activeRunStats.nearMisses++;
         this.score += 250 * this.multiplier;
@@ -2185,7 +2262,7 @@ class RoadRiotGame {
             v.mesh.position.x = THREE.MathUtils.clamp(v.mesh.position.x - bounceDir * 0.45, -7.5, 7.5);
             this.player.speed = Math.max(0, this.player.speed * 0.82);
             if (this.traffic.spawnSparks) {
-              this.traffic.spawnSparks(new THREE.Vector3(this.player.x + bounceDir * 0.85, 0.45, this.player.mesh.position.z), 12, 0xffd900);
+              this.traffic.spawnSparks(this.scratchVec.set(this.player.x + bounceDir * 0.85, 0.45, this.player.mesh.position.z), 12, 0xffd900);
             }
           }
 
@@ -2229,7 +2306,7 @@ class RoadRiotGame {
             audio.play('collision');
             this.vibrate([Math.round(shakeIntensity * 120), 40, Math.round(shakeIntensity * 180)]);
 
-            const impactLocation = new THREE.Vector3((this.player.x + v.mesh.position.x) * 0.5, 0.5, (this.player.mesh.position.z + v.mesh.position.z) * 0.5);
+            const impactLocation = this.scratchVec.set((this.player.x + v.mesh.position.x) * 0.5, 0.5, (this.player.mesh.position.z + v.mesh.position.z) * 0.5);
             this.traffic.spawnExplosion(impactLocation, 0xff2a44, Math.round(15 + shakeIntensity * 20));
             if (this.traffic.spawnSparks) {
               this.traffic.spawnSparks(impactLocation, Math.round(12 + shakeIntensity * 16), 0xffea00);
@@ -2284,7 +2361,7 @@ class RoadRiotGame {
             this.camShake = 0.55;
             audio.play('collision');
             this.vibrate([80, 40, 120]);
-            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0x00f0ff, 20);
+            this.traffic.spawnExplosion(this.scratchVec.set(this.player.x, 0.5, this.player.mesh.position.z), 0x00f0ff, 20);
             this.showDamageOverlay();
             this.toast('NPC TRAFFIC COLLISION!', 'magenta');
             if (this.player.hull <= 0) {
@@ -2421,6 +2498,29 @@ class RoadRiotGame {
             this.vibrate(90);
             this.toast('TIRES PUNCTURED BY SPIKES', 'magenta');
           }
+        } else if (o.isRoadblock) {
+          // SWAT Armored Roadblock: Severe deflection & heavy structural damage
+          this.player.x = THREE.MathUtils.clamp(o.mesh.position.x + bounceDir * (obsHalfW + 0.15), -8.2, 8.2);
+          this.player.mesh.position.x = this.player.x;
+          this.player.speed = Math.max(0, this.player.speed * 0.25);
+
+          if (!o.isColliding) {
+            o.isColliding = true;
+            const dmg = this.player.takeDamage(24);
+            progression.activeRunStats.damageTaken += dmg;
+            this.camShake = 0.65;
+            audio.play('collision');
+            this.vibrate([100, 60, 150]);
+            this.traffic.spawnExplosion(this.scratchVec.set(this.player.x, 0.6, this.player.mesh.position.z), 0xff0044, 22);
+            if (this.traffic.spawnSparks) {
+              this.traffic.spawnSparks(this.scratchVec.set(this.player.x, 0.5, this.player.mesh.position.z), 18, 0xff0044);
+            }
+            this.toast('💥 HEAVY SWAT ROADBLOCK IMPACT!', 'magenta');
+            if (this.player.hull <= 0) {
+              this.gameOver(false, false);
+              return;
+            }
+          }
         } else {
           // Hard physical barrier / barrel: SOLID LATERAL SEPARATION & SPEED CLAMP
           this.player.x = THREE.MathUtils.clamp(o.mesh.position.x + bounceDir * (obsHalfW + 0.1), -8.2, 8.2);
@@ -2434,9 +2534,9 @@ class RoadRiotGame {
             this.camShake = 0.55;
             audio.play('collision');
             this.vibrate([60, 40, 100]);
-            this.traffic.spawnExplosion(new THREE.Vector3(this.player.x, 0.5, this.player.mesh.position.z), 0xff6600, 18);
+            this.traffic.spawnExplosion(this.scratchVec.set(this.player.x, 0.5, this.player.mesh.position.z), 0xff6600, 18);
             if (this.traffic.spawnSparks) {
-              this.traffic.spawnSparks(new THREE.Vector3(this.player.x, 0.45, this.player.mesh.position.z), 16, 0xffaa00);
+              this.traffic.spawnSparks(this.scratchVec.set(this.player.x, 0.45, this.player.mesh.position.z), 16, 0xffaa00);
             }
             this.toast('SOLID BARRIER COLLISION', 'magenta');
             if (this.player.hull <= 0) {
@@ -2761,6 +2861,8 @@ class RoadRiotGame {
 
       let hazardAhead = false;
       let hazardIsTruck = false;
+      let hazardIsPolice = false;
+      let hazardIsRoadblock = false;
 
       if (this.traffic && this.traffic.vehicles) {
         this.traffic.vehicles.forEach(v => {
@@ -2768,7 +2870,10 @@ class RoadRiotGame {
           if (relZ < 0 && relZ > -65) {
             const topPct = Math.min(95, Math.max(5, (-relZ / 65) * 100));
             const isTruck = v.isTruck || v.isTanker;
-            const blipClass = isTruck ? 'blip-truck' : 'blip-car';
+            let blipClass = isTruck ? 'blip-truck' : 'blip-car';
+            if (v.isPolice) {
+              blipClass = v.isInterceptor ? 'blip-police blip-interceptor' : 'blip-police';
+            }
             const blipHtml = `<div class="radar-blip ${blipClass}" style="top:${topPct.toFixed(1)}%;"></div>`;
 
             if (v.mesh.position.x < -2.5) blipsL.push(blipHtml);
@@ -2779,6 +2884,9 @@ class RoadRiotGame {
               hazardAhead = true;
               if (isTruck) hazardIsTruck = true;
             }
+            if (v.isPolice && relZ > -28) {
+              hazardIsPolice = true;
+            }
           }
         });
       }
@@ -2788,13 +2896,17 @@ class RoadRiotGame {
           const relZ = o.mesh.position.z - playerZ;
           if (relZ < 0 && relZ > -60) {
             const topPct = Math.min(95, Math.max(5, (-relZ / 60) * 100));
-            const blipHtml = `<div class="radar-blip blip-truck" style="top:${topPct.toFixed(1)}%;"></div>`;
+            const blipClass = o.isRoadblock ? 'blip-roadblock' : 'blip-truck';
+            const blipHtml = `<div class="radar-blip ${blipClass}" style="top:${topPct.toFixed(1)}%;"></div>`;
             if (o.mesh.position.x < -2.5) blipsL.push(blipHtml);
             else if (o.mesh.position.x > 2.5) blipsR.push(blipHtml);
             else blipsC.push(blipHtml);
 
             if (relZ > -28 && Math.abs(o.mesh.position.x - this.player.x) < 1.8) {
               hazardAhead = true;
+            }
+            if (o.isRoadblock && relZ > -38) {
+              hazardIsRoadblock = true;
             }
           }
         });
@@ -2819,10 +2931,18 @@ class RoadRiotGame {
       if (this.ui.blipsRight) this.ui.blipsRight.innerHTML = blipsR.join('');
 
       // Forward Hazard Proximity Alert
-      if (hazardAhead) {
+      if (hazardAhead || hazardIsRoadblock || hazardIsPolice) {
         this.ui.proximityAlert?.classList.remove('hidden');
         if (this.ui.proximityText) {
-          this.ui.proximityText.textContent = hazardIsTruck ? 'HEAVY TRUCK AHEAD • SHIFT LANE' : 'HAZARD IN LANE • EVADE';
+          if (hazardIsRoadblock) {
+            this.ui.proximityText.textContent = 'SWAT ROADBLOCK AHEAD • FIND ESCAPE GAP';
+          } else if (hazardIsPolice) {
+            this.ui.proximityText.textContent = 'POLICE INTERCEPTOR CLOSING IN • EVADE PIT';
+          } else if (hazardIsTruck) {
+            this.ui.proximityText.textContent = 'HEAVY TRUCK AHEAD • SHIFT LANE';
+          } else {
+            this.ui.proximityText.textContent = 'HAZARD IN LANE • EVADE';
+          }
         }
       } else {
         this.ui.proximityAlert?.classList.add('hidden');
@@ -2922,9 +3042,52 @@ class RoadRiotGame {
     if (dt < 0.001) dt = 0.001;
     this.lastTime = now;
 
+    const tUpdate0 = performance.now();
     this.update(dt);
+    const updateMs = performance.now() - tUpdate0;
+
+    const tRender0 = performance.now();
     this.renderer.render(this.scene, this.camera);
+    const renderMs = performance.now() - tRender0;
+
+    this.lastLogicUpdateMs = updateMs;
+    this.lastRenderMs = renderMs;
+    this.lastFrameComputeMs = updateMs + renderMs;
+
+    if (this.state === 'RUNNING') {
+      if (!this.logicUpdateTimes) this.logicUpdateTimes = [];
+      this.logicUpdateTimes.push(updateMs);
+      if (this.logicUpdateTimes.length > 600) this.logicUpdateTimes.shift();
+
+      if (!this.frameComputeTimes) this.frameComputeTimes = [];
+      this.frameComputeTimes.push(updateMs + renderMs);
+      if (this.frameComputeTimes.length > 600) this.frameComputeTimes.shift();
+    }
+
     requestAnimationFrame(this.loop);
+  }
+
+  getPerformanceMetrics() {
+    const logicTimes = this.logicUpdateTimes || [];
+    const count = logicTimes.length;
+    if (count === 0) return { avgLogicMs: 0, p95LogicMs: 0, p99LogicMs: 0, avgTotalMs: 0 };
+    const sumLogic = logicTimes.reduce((a, b) => a + b, 0);
+    const sortedLogic = [...logicTimes].sort((a, b) => a - b);
+
+    const totalTimes = this.frameComputeTimes || [];
+    const sumTotal = totalTimes.reduce((a, b) => a + b, 0);
+    const sortedTotal = [...totalTimes].sort((a, b) => a - b);
+
+    return {
+      totalFramesSampled: count,
+      lastLogicMs: parseFloat((this.lastLogicUpdateMs || 0).toFixed(3)),
+      avgLogicMs: parseFloat((sumLogic / count).toFixed(3)),
+      p95LogicMs: parseFloat((sortedLogic[Math.floor(sortedLogic.length * 0.95)] || 0).toFixed(3)),
+      p99LogicMs: parseFloat((sortedLogic[Math.floor(sortedLogic.length * 0.99)] || 0).toFixed(3)),
+      maxLogicMs: parseFloat((sortedLogic[sortedLogic.length - 1] || 0).toFixed(3)),
+      lastRenderMs: parseFloat((this.lastRenderMs || 0).toFixed(3)),
+      avgTotalMs: parseFloat((sumTotal / (totalTimes.length || 1)).toFixed(3))
+    };
   }
 
   getInputTelemetry() {
@@ -2940,11 +3103,16 @@ class RoadRiotGame {
       recentHaptics: this.haptics.history.slice(-10)
     };
   }
+
+  getMaterialTelemetry() {
+    return this.player ? this.player.getMaterialTelemetry() : null;
+  }
 }
 
 // Boot application
 function bootGame() {
   if (!window.game) {
+    window.progression = progression;
     window.game = new RoadRiotGame();
   }
 }

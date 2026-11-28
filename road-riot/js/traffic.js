@@ -16,13 +16,42 @@ export function selectConvoyAwareLanes(availableLanes, isHeavyConvoy = false) {
   return [...availableLanes];
 }
 
+// Zero-allocation reusable structures for per-frame corridor and deadlock checks
+const _byLane = new Map([[-6, []], [0, []], [6, []]]);
+const _corridorMap = new Map([[-6, []], [0, []], [6, []]]);
+const _poolEntries = [];
+let _poolIndex = 0;
+
+function allocEntry(item, z, isVehicle) {
+  if (_poolIndex < _poolEntries.length) {
+    const e = _poolEntries[_poolIndex++];
+    e.item = item;
+    e.z = z;
+    e.isVehicle = isVehicle;
+    return e;
+  }
+  const e = { item, z, isVehicle };
+  _poolEntries.push(e);
+  _poolIndex++;
+  return e;
+}
+
+const _midMatches = [];
+const _rightMatches = [];
+const _clusterVehicles = [];
+
+const _tempVecA = new THREE.Vector3();
+const _tempVecB = new THREE.Vector3();
+
 /**
  * Guarantee at least one viable escape lane or ramp gap exists in the [zMin, zMax] corridor
  * ahead of the player (default 60m corridor: -65m to -5m) without 3-wide clump deadlocks.
  */
 export function hasViableEscapeCorridor(vehicles = [], obstacles = [], jumpRamps = [], zMin = -65, zMax = -5) {
   const lanes = [-6, 0, 6];
-  const blockerZByLane = new Map([[-6, []], [0, []], [6, []]]);
+  _corridorMap.get(-6).length = 0;
+  _corridorMap.get(0).length = 0;
+  _corridorMap.get(6).length = 0;
 
   const getZ = (item) => (item.mesh ? item.mesh.position.z : (item.z ?? 0));
   const getLane = (item) => (item.targetLane !== undefined ? item.targetLane : item.lane);
@@ -31,24 +60,24 @@ export function hasViableEscapeCorridor(vehicles = [], obstacles = [], jumpRamps
     const z = getZ(v);
     if (z >= zMin && z <= zMax) {
       const lane = lanes.reduce((best, l) => (Math.abs(l - getLane(v)) < Math.abs(best - getLane(v)) ? l : best), 0);
-      blockerZByLane.get(lane).push(z);
+      _corridorMap.get(lane).push(z);
     }
   }
   for (const o of obstacles) {
     const z = getZ(o);
     if (z >= zMin && z <= zMax) {
       const lane = lanes.reduce((best, l) => (Math.abs(l - (o.lane ?? 0)) < Math.abs(best - (o.lane ?? 0)) ? l : best), 0);
-      blockerZByLane.get(lane).push(z);
+      _corridorMap.get(lane).push(z);
     }
   }
 
   // If any lane has zero blockers in the entire corridor, escape is guaranteed
-  if (lanes.some(l => blockerZByLane.get(l).length === 0)) return true;
+  if (lanes.some(l => _corridorMap.get(l).length === 0)) return true;
 
   // Otherwise check if all 3 lanes overlap within a tight 14m longitudinal wall
-  for (const zLeft of blockerZByLane.get(-6)) {
-    const midOverlap = blockerZByLane.get(0).some(zm => Math.abs(zm - zLeft) < 14);
-    const rightOverlap = blockerZByLane.get(6).some(zr => Math.abs(zr - zLeft) < 14);
+  for (const zLeft of _corridorMap.get(-6)) {
+    const midOverlap = _corridorMap.get(0).some(zm => Math.abs(zm - zLeft) < 14);
+    const rightOverlap = _corridorMap.get(6).some(zr => Math.abs(zr - zLeft) < 14);
     if (midOverlap && rightOverlap) {
       // Check if a jump ramp offers a vertical escape over one of those blocked spots
       const hasRampEscape = (jumpRamps || []).some(r => {
@@ -73,28 +102,38 @@ export function preventClumpDeadlocks(vehicles = [], obstacles = [], jumpRamps =
   };
   const getLane = (item) => (item.targetLane !== undefined ? item.targetLane : item.lane);
   const lanes = [-6, 0, 6];
-  const byLane = new Map([[-6, []], [0, []], [6, []]]);
+
+  _poolIndex = 0;
+  _byLane.get(-6).length = 0;
+  _byLane.get(0).length = 0;
+  _byLane.get(6).length = 0;
 
   for (const v of vehicles) {
     const z = getZ(v);
     if (z >= -145 && z <= -5) {
       const lane = lanes.reduce((best, l) => (Math.abs(l - getLane(v)) < Math.abs(best - getLane(v)) ? l : best), 0);
-      byLane.get(lane).push({ item: v, z, isVehicle: true });
+      _byLane.get(lane).push(allocEntry(v, z, true));
     }
   }
   for (const o of obstacles) {
     const z = getZ(o);
     if (z >= -145 && z <= -5) {
       const lane = lanes.reduce((best, l) => (Math.abs(l - (o.lane ?? 0)) < Math.abs(best - (o.lane ?? 0)) ? l : best), 0);
-      byLane.get(lane).push({ item: o, z, isVehicle: false });
+      _byLane.get(lane).push(allocEntry(o, z, false));
     }
   }
 
   let adjusted = false;
-  for (const leftEntry of byLane.get(-6)) {
-    const midMatches = byLane.get(0).filter(m => Math.abs(m.z - leftEntry.z) < 22);
-    const rightMatches = byLane.get(6).filter(r => Math.abs(r.z - leftEntry.z) < 22);
-    if (midMatches.length === 0 || rightMatches.length === 0) continue;
+  for (const leftEntry of _byLane.get(-6)) {
+    _midMatches.length = 0;
+    _rightMatches.length = 0;
+    for (const m of _byLane.get(0)) {
+      if (Math.abs(m.z - leftEntry.z) < 22) _midMatches.push(m);
+    }
+    for (const r of _byLane.get(6)) {
+      if (Math.abs(r.z - leftEntry.z) < 22) _rightMatches.push(r);
+    }
+    if (_midMatches.length === 0 || _rightMatches.length === 0) continue;
 
     const hasRamp = (jumpRamps || []).some(r => {
       const rz = r.parent ? (r.parent.position.z + r.mesh.position.z) : (r.z ?? 0);
@@ -102,31 +141,33 @@ export function preventClumpDeadlocks(vehicles = [], obstacles = [], jumpRamps =
     });
     if (hasRamp) continue;
 
-    for (const midEntry of midMatches) {
-      for (const rightEntry of rightMatches) {
+    for (const midEntry of _midMatches) {
+      for (const rightEntry of _rightMatches) {
         if (Math.abs(midEntry.z - leftEntry.z) < 14 && Math.abs(rightEntry.z - leftEntry.z) < 14) {
-          const cluster = [leftEntry, midEntry, rightEntry];
-          const clusterVehicles = cluster.filter(e => e.isVehicle);
-          if (clusterVehicles.length > 0) {
-            clusterVehicles.sort((a, b) => a.z - b.z);
-            const lead = clusterVehicles[clusterVehicles.length - 1].item;
-            const trail = clusterVehicles[0].item;
+          _clusterVehicles.length = 0;
+          if (leftEntry.isVehicle) _clusterVehicles.push(leftEntry);
+          if (midEntry.isVehicle) _clusterVehicles.push(midEntry);
+          if (rightEntry.isVehicle) _clusterVehicles.push(rightEntry);
+
+          if (_clusterVehicles.length > 0) {
+            _clusterVehicles.sort((a, b) => a.z - b.z);
+            const lead = _clusterVehicles[_clusterVehicles.length - 1].item;
+            const trail = _clusterVehicles[0].item;
             lead.speed = Math.min(36, (lead.speed || 22) + 35 * dt);
             if (trail !== lead) {
               trail.speed = Math.max(6, (trail.speed || 18) - 35 * dt);
             }
 
             // Stagger the cluster so the 3-wide deadlock is broken immediately
-            const zVals = cluster.map(c => c.z);
-            const minZ = Math.min(...zVals);
-            const maxZ = Math.max(...zVals);
+            const minZ = Math.min(leftEntry.z, midEntry.z, rightEntry.z);
+            const maxZ = Math.max(leftEntry.z, midEntry.z, rightEntry.z);
             const targetZ = minZ - 16.5;
             if (targetZ >= -145) {
               setZ(trail, targetZ);
-              clusterVehicles[0].z = targetZ;
+              _clusterVehicles[0].z = targetZ;
             } else {
               setZ(lead, maxZ + 16.5);
-              clusterVehicles[clusterVehicles.length - 1].z = maxZ + 16.5;
+              _clusterVehicles[_clusterVehicles.length - 1].z = maxZ + 16.5;
             }
             adjusted = true;
           }
@@ -149,6 +190,129 @@ export function planLaneChangeWithSignal(vehicle, desiredLane, signalLeadTime = 
   return true;
 }
 
+/**
+ * Calculate pursuit target speed based on police tier and player relative distance:
+ * - Tier 1 Patrol: shadows from trailing distance (~24-28 m/s).
+ * - Tier 2-3 Interceptor: matches player velocity and accelerates up to 42 m/s to intercept alongside.
+ */
+export function calculatePursuitSpeed(isInterceptor, isPolice, heatLevel = 1, currentSpeed = 22, playerSpeed = 25, relZ = 0) {
+  if (!isPolice) return currentSpeed;
+
+  if (isInterceptor || heatLevel >= 2) {
+    // High-Speed Tactical Interceptor (★2 - ★5)
+    // relZ = interceptorZ - playerZ (interceptor is behind player when relZ > 2.0 in track space)
+    if (relZ > 2.0) {
+      // Trailing behind: surge to close distance and pull alongside
+      return Math.min(42, Math.max(currentSpeed, playerSpeed + 4.5));
+    }
+    if (relZ < -4.0) {
+      // Far ahead down highway: decelerate to allow flank engagement
+      return Math.max(16, Math.min(currentSpeed, playerSpeed - 3.5));
+    }
+    // Alongside player (-4.0 <= relZ <= 2.0): lock velocity to player speed for flank maneuvers
+    return playerSpeed;
+  }
+
+  // Standard Highway Patrol Cruiser (★1)
+  if (relZ > 8.0) {
+    return Math.min(30, playerSpeed + 1.5);
+  }
+  return Math.max(18, Math.min(26, playerSpeed - 2.0));
+}
+
+/**
+ * Simulate Tactical Interceptor PIT maneuver physics:
+ * When alongside player, interceptor aggressively veers inward to clip rear quarter,
+ * inducing lateral displacement and yaw destabilization on the player vehicle.
+ */
+export function simulatePitManeuver(interceptorX, interceptorZ, playerX, playerZ, dt, pitStrength = 4.8) {
+  const dx = playerX - interceptorX;
+  const dz = playerZ - interceptorZ;
+  const pitDir = Math.sign(dx) || 1;
+  const absDz = Math.abs(dz);
+  const absDx = Math.abs(dx);
+  const alongside = absDz < 3.2;
+  const inLateralRange = absDx < 3.2;
+  const isContact = alongside && absDx < 1.95;
+
+  let nudgeX = 0;
+  if (alongside && inLateralRange) {
+    nudgeX = pitDir * Math.min(absDx, pitStrength * dt);
+  }
+
+  const yawImpulse = isContact ? pitDir * 0.22 : 0;
+  const playerNudge = isContact ? pitDir * 0.45 : 0;
+
+  return {
+    alongside,
+    inLateralRange,
+    isContact,
+    pitDir,
+    nudgeX,
+    yawImpulse,
+    playerNudge
+  };
+}
+
+/**
+ * Generate SWAT Roadblock lane formation:
+ * Blocks exactly 2 lanes at identical longitudinal coordinate while guaranteeing
+ * strictly 1 open escape lane exists for skillful evasive maneuvers.
+ */
+export function createRoadblockFormation(lanes = [-6, 0, 6], openLane = null) {
+  const validLanes = [...lanes];
+  let chosenOpenLane = openLane;
+  if (chosenOpenLane === null || chosenOpenLane === undefined || !validLanes.includes(chosenOpenLane)) {
+    chosenOpenLane = validLanes[Math.floor(Math.random() * validLanes.length)];
+  }
+  const blockedLanes = validLanes.filter(l => l !== chosenOpenLane);
+  return {
+    openLane: chosenOpenLane,
+    blockedLanes,
+    lanes: validLanes
+  };
+}
+
+/**
+ * Continuous Evasion Tracker:
+ * When police are active, tracks continuous time player remains outside 35m proximity.
+ * Shaking pursuit for 6.0 uninterrupted seconds successfully evades police (+750 CR, Heat -1).
+ */
+export function updateEvasionTracking({ policeActive, minPoliceDist, evasionTimer = 0, dt = 0.016, evasionThreshold = 35.0, requiredTime = 6.0 }) {
+  if (!policeActive) {
+    return { evaded: false, evasionTimer: 0, progress: 0, bonusCredits: 0, heatReduction: 0 };
+  }
+
+  if (minPoliceDist > evasionThreshold) {
+    const nextTimer = evasionTimer + dt;
+    if (nextTimer >= requiredTime) {
+      return {
+        evaded: true,
+        evasionTimer: 0,
+        progress: 1.0,
+        bonusCredits: 750,
+        heatReduction: 1
+      };
+    }
+    return {
+      evaded: false,
+      evasionTimer: nextTimer,
+      progress: Math.min(1.0, nextTimer / requiredTime),
+      bonusCredits: 0,
+      heatReduction: 0
+    };
+  }
+
+  // Interceptor inside 35m resets continuous evasion timer
+  return {
+    evaded: false,
+    evasionTimer: 0,
+    progress: 0,
+    bonusCredits: 0,
+    heatReduction: 0
+  };
+}
+
 const SHARED_DEBRIS_GEO = new THREE.BoxGeometry(0.24, 0.24, 0.24);
 const SHARED_SPARK_GEO = new THREE.BoxGeometry(0.12, 0.12, 0.35);
 
@@ -166,6 +330,7 @@ export class TrafficManager {
     this.trafficTimer = 0.5;
     this.obstacleTimer = 2.0;
     this.collectibleTimer = 1.2;
+    this.roadblockTimer = 14.0;
 
     this.lanes = [-6, 0, 6];
     this.sharedShadowTex = null;
@@ -194,6 +359,7 @@ export class TrafficManager {
     this.trafficTimer = 2.2;
     this.obstacleTimer = 4.0;
     this.collectibleTimer = 2.0;
+    this.roadblockTimer = 14.0;
   }
 
   spawnTraffic(currentDistance) {
@@ -229,6 +395,7 @@ export class TrafficManager {
       let speed = 21 + Math.random() * 4;
       let isRival = false;
       let isPolice = false;
+      let isInterceptor = false;
       let isTruck = false;
       let isTanker = false;
 
@@ -242,8 +409,9 @@ export class TrafficManager {
         isRival = true;
       } else if (((this.heatLevel || 0) >= 1 && Math.random() < 0.35 + (this.heatLevel || 0) * 0.12) || (currentDistance > 400 && Math.random() < 0.15)) {
         type = 'police';
-        speed = 25 + Math.random() * 4; // ~92 km/h
         isPolice = true;
+        isInterceptor = (this.heatLevel || 0) >= 2;
+        speed = isInterceptor ? (29 + Math.random() * 5) : (25 + Math.random() * 4); // ~105-122 km/h
       } else if (roll < 0.12) {
         type = 'truck';
         speed = 17 + Math.random() * 3; // ~64 km/h
@@ -292,6 +460,8 @@ export class TrafficManager {
         width: 2.2,
         isRival,
         isPolice,
+        isInterceptor,
+        pitCooldown: 0,
         isTruck,
         isTanker,
         nearMissAwarded: false,
@@ -918,6 +1088,98 @@ export class TrafficManager {
     });
   }
 
+  buildRoadblockMesh() {
+    const group = new THREE.Group();
+
+    // Heavy Armored Cruiser Chassis / Barrier Frame
+    const chassisMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      metalness: 0.85,
+      roughness: 0.25
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.35, 4.8), chassisMat);
+    body.position.y = 0.85;
+    body.castShadow = true;
+    group.add(body);
+
+    // Armored Tactical Cabin
+    const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.2 });
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.9, 2.6), cabinMat);
+    cabin.position.set(0, 1.7, -0.2);
+    cabin.castShadow = true;
+    group.add(cabin);
+
+    // Roadblock Chevrons / Reflective Hazard Stripes
+    const chevronGeo = new THREE.BoxGeometry(2.35, 0.35, 0.1);
+    const chevronMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
+    const chevron = new THREE.Mesh(chevronGeo, chevronMat);
+    chevron.position.set(0, 0.75, 2.42);
+    group.add(chevron);
+
+    // Red & Blue Siren Bar
+    const sirenBar = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.16, 0.35),
+      new THREE.MeshStandardMaterial({ color: 0x111622, metalness: 0.8 })
+    );
+    sirenBar.position.set(0, 2.22, -0.2);
+    group.add(sirenBar);
+
+    const redBeacon = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.18, 0.28),
+      new THREE.MeshBasicMaterial({ color: 0xff0044 })
+    );
+    redBeacon.position.set(-0.42, 2.32, -0.2);
+    group.add(redBeacon);
+
+    const blueBeacon = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.18, 0.28),
+      new THREE.MeshBasicMaterial({ color: 0x0088ff })
+    );
+    blueBeacon.position.set(0.42, 2.32, -0.2);
+    group.add(blueBeacon);
+
+    const sirenLight = new THREE.PointLight(0xff0044, 3.0, 12.0);
+    sirenLight.position.set(0, 2.4, -0.2);
+    group.add(sirenLight);
+
+    group.userData.sirenRedMesh = redBeacon;
+    group.userData.sirenBlueMesh = blueBeacon;
+    group.userData.sirenLight = sirenLight;
+
+    this.attachContactShadow(group, 2.8, 5.2);
+    return group;
+  }
+
+  spawnRoadblock(currentDistance, heatLevel = 4) {
+    const occupiedLanes = new Set([
+      ...this.vehicles.filter(v => v.mesh.position.z < -115).map(v => v.targetLane ?? v.lane),
+      ...this.obstacles.filter(o => o.mesh.position.z < -115).map(o => o.lane)
+    ]);
+    const freeLanes = this.lanes.filter(l => !occupiedLanes.has(l));
+    const openLane = freeLanes.length > 0
+      ? freeLanes[Math.floor(Math.random() * freeLanes.length)]
+      : this.lanes[Math.floor(Math.random() * this.lanes.length)];
+
+    const formation = createRoadblockFormation(this.lanes, openLane);
+    formation.blockedLanes.forEach(lane => {
+      const mesh = this.buildRoadblockMesh();
+      mesh.position.set(lane, 0, -145);
+      this.scene.add(mesh);
+      this.obstacles.push({
+        mesh,
+        lane,
+        hit: false,
+        isRoadblock: true,
+        isPolice: true,
+        isSpike: false,
+        isBarrel: false,
+        isBarrier: true,
+        length: 4.8,
+        width: 2.3
+      });
+    });
+  }
+
   spawnCollectible() {
     const occupiedLanes = new Set([
       ...this.collectibles.filter(c => c.mesh.position.z < -120).map(c => c.mesh.position.x),
@@ -1214,6 +1476,15 @@ export class TrafficManager {
       this.collectibleTimer = 2.0 + Math.random() * 2.5;
     }
 
+    // At Heat >= 4, spawn armored SWAT roadblocks periodically
+    if ((this.heatLevel || 0) >= 4) {
+      this.roadblockTimer -= dt;
+      if (this.roadblockTimer <= 0) {
+        this.spawnRoadblock(currentDistance, this.heatLevel);
+        this.roadblockTimer = 14.0 + Math.random() * 8.0;
+      }
+    }
+
     // Prevent 3-wide longitudinal convergence clump deadlocks ahead of player
     preventClumpDeadlocks(this.vehicles, this.obstacles, callbacks.jumpRamps || this.jumpRamps, dt);
 
@@ -1350,6 +1621,39 @@ export class TrafficManager {
         }
       }
 
+      // Highway Patrol Pursuit AI & Tactical Interceptor Mechanics
+      if (v.isPolice) {
+        if ((this.heatLevel || 0) >= 2 || v.isInterceptor) {
+          v.isInterceptor = true;
+        }
+        const relZ = v.mesh.position.z - playerZ;
+        const targetPursuitSpeed = calculatePursuitSpeed(v.isInterceptor, v.isPolice, this.heatLevel || 0, v.speed, playerSpeed, relZ);
+        v.speed += (targetPursuitSpeed - v.speed) * Math.min(1, dt * (v.isInterceptor ? 3.5 : 2.0));
+
+        // Tactical Interceptor Flanking & PIT Maneuver
+        if (v.isInterceptor && !v.hit) {
+          const pit = simulatePitManeuver(v.mesh.position.x, v.mesh.position.z, playerX, playerZ, dt);
+          if (pit.alongside && pit.inLateralRange) {
+            v.mesh.position.x += pit.nudgeX;
+            if (pit.isContact) {
+              v.pitCooldown = (v.pitCooldown || 0) - dt;
+              if (v.pitCooldown <= 0) {
+                v.pitCooldown = 2.2;
+                if (callbacks.onPitManeuver) {
+                  callbacks.onPitManeuver(v, pit);
+                }
+              }
+            }
+          } else if (!pit.alongside && (v.signalTimer || 0) <= 0 && v.targetLane === v.lane) {
+            // Flank adjacent to or track player lane
+            const playerLane = Math.abs(playerX) < 3 ? 0 : (playerX < 0 ? -6 : 6);
+            if (v.lane !== playerLane && Math.random() < 0.04) {
+              planLaneChangeWithSignal(v, playerLane, 0.8);
+            }
+          }
+        }
+      }
+
       const relativeSpeed = playerSpeed - v.speed;
       v.mesh.position.z += relativeSpeed * dt;
 
@@ -1462,11 +1766,8 @@ export class TrafficManager {
           }
 
           if (Math.abs(v1.mesh.position.z - playerZ) < 45) {
-            this.spawnExplosion(
-              new THREE.Vector3((v1.mesh.position.x + v2.mesh.position.x) * 0.5, 0.4, (v1.mesh.position.z + v2.mesh.position.z) * 0.5),
-              0xffcc00,
-              8
-            );
+            _tempVecA.set((v1.mesh.position.x + v2.mesh.position.x) * 0.5, 0.4, (v1.mesh.position.z + v2.mesh.position.z) * 0.5);
+            this.spawnExplosion(_tempVecA, 0xffcc00, 8);
           }
         }
       }
@@ -1503,8 +1804,9 @@ export class TrafficManager {
             v.speed = Math.max(0, v.speed * 0.55);
           }
           if (Math.abs(v.mesh.position.z - playerZ) < 45) {
+            _tempVecA.set((v.mesh.position.x + o.mesh.position.x) * 0.5, 0.4, (v.mesh.position.z + o.mesh.position.z) * 0.5);
             this.spawnExplosion(
-              new THREE.Vector3((v.mesh.position.x + o.mesh.position.x) * 0.5, 0.4, (v.mesh.position.z + o.mesh.position.z) * 0.5),
+              _tempVecA,
               o.isBarrel ? 0xff6600 : (o.isSpike ? 0xff2a44 : 0xffaa00),
               10
             );
@@ -1517,6 +1819,18 @@ export class TrafficManager {
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
       const o = this.obstacles[i];
       o.mesh.position.z += playerSpeed * dt;
+
+      if (o.isRoadblock && o.mesh.userData) {
+        const strobe = Math.sin(performance.now() * 0.02) > 0;
+        if (o.mesh.userData.sirenRedMesh && o.mesh.userData.sirenBlueMesh) {
+          o.mesh.userData.sirenRedMesh.visible = strobe;
+          o.mesh.userData.sirenBlueMesh.visible = !strobe;
+        }
+        if (o.mesh.userData.sirenLight) {
+          o.mesh.userData.sirenLight.color.setHex(strobe ? 0xff0044 : 0x0088ff);
+        }
+      }
+
       if (o.mesh.position.z > 24) {
         this.scene.remove(o.mesh);
         this.obstacles.splice(i, 1);
@@ -1530,9 +1844,9 @@ export class TrafficManager {
       c.mesh.rotation.y += dt * 3.2;
 
       if (callbacks.isMagnetActive) {
-        const toPlayer = new THREE.Vector3(playerX, 0.8, playerZ).sub(c.mesh.position);
-        if (toPlayer.length() < 35) {
-          c.mesh.position.addScaledVector(toPlayer.normalize(), dt * 26);
+        _tempVecA.set(playerX, 0.8, playerZ).sub(c.mesh.position);
+        if (_tempVecA.length() < 35) {
+          c.mesh.position.addScaledVector(_tempVecA.normalize(), dt * 26);
         }
       }
 
@@ -1563,6 +1877,8 @@ export class TrafficManager {
   getTrafficTelemetry() {
     const signalingVehicles = this.vehicles.filter(v => (v.signalTimer || 0) > 0 || v.targetLane !== v.lane);
     const heavyConvoys = this.vehicles.filter(v => v.isTruck || v.isTanker);
+    const policeVehicles = this.vehicles.filter(v => v.isPolice);
+    const roadblocks = this.obstacles.filter(o => o.isRoadblock);
     return {
       activeVehicles: this.vehicles.length,
       activeObstacles: this.obstacles.length,
@@ -1575,6 +1891,17 @@ export class TrafficManager {
         signalTimer: parseFloat((v.signalTimer || 0).toFixed(3))
       })),
       heavyConvoyLanes: heavyConvoys.map(v => v.lane),
+      policeCount: policeVehicles.length,
+      interceptorCount: policeVehicles.filter(v => v.isInterceptor).length,
+      policeDetails: policeVehicles.map(v => ({
+        isInterceptor: !!v.isInterceptor,
+        lane: v.lane,
+        speed: parseFloat(v.speed.toFixed(2)),
+        x: parseFloat(v.mesh.position.x.toFixed(2)),
+        z: parseFloat(v.mesh.position.z.toFixed(2))
+      })),
+      roadblockCount: roadblocks.length,
+      roadblockLanes: roadblocks.map(o => o.lane),
       hasEscapeCorridor: hasViableEscapeCorridor(this.vehicles, this.obstacles, this.jumpRamps)
     };
   }

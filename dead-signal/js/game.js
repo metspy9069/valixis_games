@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { buildWorld, resolveCircle, makeRng } from './world.js';
 import { Zombie } from './zombie.js';
 import { WEAPONS, ViewModel } from './weapons.js';
-import { NavGrid } from './nav.js';
+import { NavGrid, computeHordeSteering } from './nav.js';
 import { wavePlan, rollType, MAX_WAVE_ENEMIES, expectedMix } from './waves.js';
 import { bossFor, MELEE_TIERS, MELEE_KNOCKBACK, ARMOR_MAX, ARMOR_ABSORB, GRENADE, ALT_FIRE, ATTACHMENTS } from './data.js';
 import { SHOP_ITEMS, SHOP_SECTIONS, itemCost, itemMaxed } from './shop.js';
@@ -33,6 +33,30 @@ import {
   isTargetInMeleeArc,
   applyMeleeWear,
 } from './melee.js';
+import {
+  THROWABLE_TYPES,
+  isExplosionOccluded,
+  calculateExplosionDamage,
+  stepThrowablePhysics,
+  createCookState,
+  updateCookState,
+  releaseCookState,
+  computeTrajectoryArc,
+  createFirePool,
+  updateFirePool,
+  findActiveLureTarget,
+} from './throwables.js';
+import {
+  WEAPON_RECOIL_PROFILES,
+  WeaponRecoilSpring,
+  ScreenShakeSystem,
+} from './gunplay-polish.js';
+import {
+  GoreDebrisPool,
+  ArterialSprayPool,
+  severZombieLimb,
+  convertToCrawler,
+} from './dismemberment.js';
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -245,12 +269,12 @@ if (!settings.keybinds || typeof settings.keybinds !== 'object') settings.keybin
 // Action keys can be rebound; movement stays on WASD so the layout never
 // depends on a saved file.
 const DEFAULT_BINDS = {
-  altFire: 'KeyX', reload: 'KeyR', melee: 'KeyV', grenade: 'KeyG',
+  altFire: 'KeyX', reload: 'KeyR', melee: 'KeyV', grenade: 'KeyG', cycleThrowable: 'KeyT',
   depot: 'KeyB', flashlight: 'KeyF', mute: 'KeyM', photo: 'KeyP',
 };
 const BIND_ACTIONS = [
   ['altFire', 'ALT-FIRE'], ['reload', 'RELOAD'], ['melee', 'MELEE'],
-  ['grenade', 'GRENADE'], ['depot', 'SUPPLY DEPOT'], ['flashlight', 'FLASHLIGHT'],
+  ['grenade', 'GRENADE'], ['cycleThrowable', 'CYCLE THROWABLE'], ['depot', 'SUPPLY DEPOT'], ['flashlight', 'FLASHLIGHT'],
   ['mute', 'MUTE'], ['photo', 'PHOTO MODE'],
 ];
 let rebinding = null;
@@ -305,6 +329,9 @@ const player = {
   maxStamina: 100,
   grenades: GRENADE.startCount,
   grenadeMax: GRENADE.maxCount,
+  throwables: { frag: 2, molotov: 1, pipeBomb: 1 },
+  activeThrowable: 'frag',
+  cookingState: null,
   grounded: true,
   bob: 0,
   lastDamage: -99,
@@ -315,8 +342,9 @@ const player = {
   iframes: 0,
 };
 
-// Camera recoil is kept separate from aim: it climbs with sustained fire and
-// springs back, so the player's actual mouse aim is never permanently moved.
+// Camera recoil is driven by per-weapon harmonic springs & 3-tier screen shake (Day 7).
+const recoilSpring = new WeaponRecoilSpring('pistol');
+const shakeSystem = new ScreenShakeSystem(2.6);
 const recoil = { pitch: 0, yaw: 0 };
 
 const ammo = {
@@ -494,6 +522,8 @@ for (let i = 0; i < 240; i++) {
   particles.push({ mesh, vel: new THREE.Vector3(), life: 0, max: 1, gravity: 12 });
 }
 let particleCursor = 0;
+const debrisPool = new GoreDebrisPool(scene, 40);
+const arterialPool = new ArterialSprayPool(scene, 50);
 
 function spawnParticles(point, count, kind, power = 1, normal = null) {
   const mat = kind === 'blood' ? bloodMat
@@ -629,6 +659,8 @@ function updateParticles(dt) {
     p.mesh.rotation.x += dt * 6;
     p.mesh.rotation.y += dt * 4;
   }
+  debrisPool.update(dt, world.colliders);
+  arterialPool.update(dt);
 }
 
 // ---------------------------------------------------------------- tracers
@@ -810,6 +842,7 @@ const hud = {
   surgeBadge: el('surgeBadge'),
   boss: el('bossBar'), bossName: el('bossName'), bossFill: el('bossFill'), bossHp: el('bossHp'),
   credits: el('creditValue'), grenadeCount: el('grenadeCount'),
+  throwableLabel: el('throwableLabel'), cookBar: el('cookBar'), cookFill: el('cookFill'),
   shop: el('shopScreen'), shopItems: el('shopItems'), shopCredits: el('shopCredits'),
   cross: el('cross'), blood: el('blood'), hurt: el('hurtFlash'),
   crossMiss: el('crossMiss'),
@@ -955,7 +988,8 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (!game.running || game.paused || game.over) return;
-  if (action === 'grenade') { throwGrenade(); return; }
+  if (action === 'cycleThrowable' || k === 'KeyT') { cycleThrowable(); return; }
+  if (action === 'grenade') { startCookingThrowable(); return; }
   if (action === 'altFire') { altFire(); return; }
   if (action === 'reload') startReload();
   if (action === 'flashlight') toggleFlashlight();
@@ -972,7 +1006,14 @@ window.addEventListener('keydown', (e) => {
     player.grounded = false;
   }
 });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+  if (actionFor(e.code) === 'grenade') {
+    if (player.cookingState && player.cookingState.isCooking) {
+      releaseCookedThrowable();
+    }
+  }
+});
 
 canvas.addEventListener('mousedown', (e) => {
   if (!game.running || game.paused || game.over) return;
@@ -1098,9 +1139,21 @@ if (isTouch) {
   el('meleeBtn').addEventListener('click', () => swingMelee());
   el('nadeBtn').addEventListener('touchstart', (e) => {
     e.preventDefault();
-    throwGrenade();
+    startCookingThrowable();
+  }, { passive: false });
+  el('nadeBtn').addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (player.cookingState && player.cookingState.isCooking) {
+      releaseCookedThrowable();
+    } else {
+      throwGrenade();
+    }
   }, { passive: false });
   el('nadeBtn').addEventListener('click', () => throwGrenade());
+  const nadeRow = el('nadeRow');
+  if (nadeRow) {
+    nadeRow.addEventListener('click', () => cycleThrowable());
+  }
 }
 
 // ---------------------------------------------------------------- weapons
@@ -1186,6 +1239,7 @@ function selectWeapon(index, strict = false) {
   ammo.autoReloadWeapon = -1;
   ammo.dryFireLatched = false;
   ammo.weapon = next;
+  recoilSpring.setWeapon(WEAPONS[next].id);
   // Recoil bloom belongs to the gun that was being fired; a fresh weapon
   // starts on its own cone instead of inheriting the last one's spread.
   spreadBloom = 0;
@@ -1256,11 +1310,12 @@ function fireRound(opts = {}) {
   viewModel.flash(settings.reduceFlash ? 0.35 : 1);
   viewModel.recoil(def.recoil * weaponRecoilMul() * (slug ? 1.4 : 1));
   muzzleLightTimer = settings.reduceFlash ? 0.03 : 0.06;
-  player.shake = Math.min(0.5, player.shake + def.recoil * weaponRecoilMul() * 0.016);
 
-  // Recoil pushes the view up; aim down sights halves it.
-  recoil.pitch += (def.recoil * weaponRecoilMul() * 0.0038) * (player.ads ? 0.55 : 1);
-  recoil.yaw += (Math.random() - 0.5) * def.recoil * weaponRecoilMul() * 0.0012;
+  // Spring-driven per-weapon recoil impulse and micro-shake on fire (Day 7)
+  const rMul = weaponRecoilMul();
+  const kickResult = recoilSpring.kick(def.id, player.ads, rMul, slug);
+  shakeSystem.addFireShake(kickResult.fireShake);
+  player.shake = shakeSystem.trauma;
 
   // The round leaves the barrel, not the eye. Aim is resolved from the camera
   // first so the shot still lands under the crosshair, and the muzzle is then
@@ -1314,20 +1369,27 @@ function fireRound(opts = {}) {
     let traceEnd = null;
     for (const ev of events) {
       if (ev.kind === 'zombie') {
-        const { zombie, point: hitPoint, distance, part, zone, damageScale } = ev;
+        const { zombie, point: hitPoint, distance, part, zone, damageScale, limbId } = ev;
         const head = zone.crit;
         const falloff = damageFalloff(def, distance);
         const mods = game.mods || {};
-        const dmg = def.damage * damageMul * falloff * zone.multiplier * damageScale * weaponDamageMul()
-          * (head ? 1 : (mods.headshotOnly ? 0.34 : 1));
+        const dmg = Math.round(
+          def.damage * damageMul * falloff * zone.multiplier * damageScale * weaponDamageMul()
+          * (head ? 1 : (mods.headshotOnly ? 0.34 : 1))
+        );
         game.hits += 1;
-        const killed = zombie.takeDamage(dmg, part, makeContext());
+        const killed = zombie.takeDamage(dmg, part, makeContext(), limbId, hitPoint, shotDir);
         if (killed) hitMeshesDirty = true;
-        spawnParticles(hitPoint, head ? 14 : 7, 'blood', head ? 1.45 : 1);
-        if (head || ev.penetrated) {
-          spawnParticles(hitPoint, head ? 7 : 4, 'bloodMist', 0.65, shotDir);
+        // Fix blood spurting from feet: ensure headshot blood fountain spawns at true head height
+        const bloodSpawnPoint = hitPoint.clone();
+        if (head && bloodSpawnPoint.y < 1.35) {
+          bloodSpawnPoint.y = zombie.group.position.y + (zombie.isCrawler ? 0.38 : 1.62);
         }
-        spawnDamageNumber(hitPoint, dmg, head);
+        spawnParticles(bloodSpawnPoint, head ? 14 : 7, 'blood', head ? 1.45 : 1);
+        if (head || ev.penetrated) {
+          spawnParticles(bloodSpawnPoint, head ? 7 : 4, 'bloodMist', 0.65, shotDir);
+        }
+        spawnDamageNumber(bloodSpawnPoint, dmg, head);
         flashCrosshair(killed ? 'kill' : 'hit');
         traceEnd = hitPoint;
         lastShotEvents.push({ kind: 'zombie', part, multiplier: zone.multiplier, dmg, killed, penetrated: ev.penetrated });
@@ -1455,8 +1517,9 @@ function swingMelee() {
     // Blades scale gently with the wave, plus 3-hit combo multiplier (1.0x -> 1.15x -> 1.75x cleave).
     const dmg = melee.damage * combo.damageMul * (1 + Math.min(1.2, game.wave * 0.03));
     const at = z.group.position.clone();
-    at.y = 0.95;
-    z.takeDamage(dmg, combo.step === 2 ? 'head' : 'body', makeContext());
+    at.y = z.isCrawler ? 0.35 : (combo.step === 2 ? 1.68 : 1.15);
+    const swingDir = new THREE.Vector3(arc.dirX, 0, arc.dirZ);
+    z.takeDamage(dmg, combo.step === 2 ? 'head' : 'body', makeContext(), combo.step === 2 ? 'head' : null, at, swingDir);
     z.group.position.x += arc.dirX * MELEE_KNOCKBACK * combo.knockbackMul;
     z.group.position.z += arc.dirZ * MELEE_KNOCKBACK * combo.knockbackMul;
     resolveCircle(world.colliders, z.group.position, z.radius);
@@ -1599,96 +1662,469 @@ function updateAcid(dt) {
   }
 }
 
-// ---------------------------------------------------------------- grenades
-const grenadeGeo = new THREE.SphereGeometry(0.085, 10, 8);
-const grenadeMat = new THREE.MeshStandardMaterial({ color: 0x39412c, roughness: 0.55, metalness: 0.35 });
-const grenadePool = [];
-for (let i = 0; i < 8; i++) {
-  const mesh = new THREE.Mesh(grenadeGeo, grenadeMat);
-  mesh.visible = false;
-  mesh.frustumCulled = false;
-  scene.add(mesh);
-  grenadePool.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), fuse: 0, live: false });
+// ---------------------------------------------------------------- tactical ordnance & throwables (Day 6)
+let pipeBombLures = [];
+const firePools = [];
+
+// Trajectory arc visualization
+const trajectoryMaxPoints = 28;
+const trajectoryPositions = new Float32Array(trajectoryMaxPoints * 3);
+const trajectoryGeo = new THREE.BufferGeometry();
+trajectoryGeo.setAttribute('position', new THREE.BufferAttribute(trajectoryPositions, 3));
+const trajectoryMat = new THREE.LineBasicMaterial({
+  color: 0x66ff66,
+  transparent: true,
+  opacity: 0.75,
+});
+const trajectoryLine = new THREE.Line(trajectoryGeo, trajectoryMat);
+trajectoryLine.visible = false;
+trajectoryLine.frustumCulled = false;
+scene.add(trajectoryLine);
+
+function updateTrajectoryLine(points) {
+  if (!points || points.length === 0) {
+    trajectoryLine.visible = false;
+    return;
+  }
+  const posAttr = trajectoryGeo.attributes.position;
+  const count = Math.min(points.length, trajectoryMaxPoints);
+  for (let i = 0; i < count; i++) {
+    posAttr.setXYZ(i, points[i].x, points[i].y, points[i].z);
+  }
+  for (let i = count; i < trajectoryMaxPoints; i++) {
+    const last = points[count - 1];
+    posAttr.setXYZ(i, last.x, last.y, last.z);
+  }
+  posAttr.needsUpdate = true;
+  trajectoryGeo.setDrawRange(0, count);
+  trajectoryLine.visible = true;
 }
 
-function throwGrenade() {
+function hideTrajectoryLine() {
+  trajectoryLine.visible = false;
+}
+
+// 12-slot pooled throwable meshes supporting Frag, Molotov, and Pipe Bomb
+const grenadePool = [];
+for (let i = 0; i < 12; i++) {
+  const group = new THREE.Group();
+  group.visible = false;
+  group.frustumCulled = false;
+
+  // 1. Frag grenade mesh
+  const fragMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.085, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0x39412c, roughness: 0.55, metalness: 0.35 })
+  );
+
+  // 2. Molotov cocktail mesh
+  const molotovMesh = new THREE.Group();
+  const bottle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.048, 0.22, 10),
+    new THREE.MeshStandardMaterial({ color: 0x994411, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.88 })
+  );
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02, 0.024, 0.08, 8),
+    new THREE.MeshStandardMaterial({ color: 0x994411, roughness: 0.2, metalness: 0.1 })
+  );
+  neck.position.y = 0.14;
+  const cloth = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.012, 0.07, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffaa33 })
+  );
+  cloth.position.y = 0.19;
+  molotovMesh.add(bottle, neck, cloth);
+
+  // 3. Pipe bomb mesh with blinking red siren LED
+  const pipeMesh = new THREE.Group();
+  const pipe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.038, 0.038, 0.24, 10),
+    new THREE.MeshStandardMaterial({ color: 0x777c82, roughness: 0.45, metalness: 0.7 })
+  );
+  pipe.rotation.z = Math.PI / 2;
+  const led = new THREE.Mesh(
+    new THREE.SphereGeometry(0.018, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xff2222 })
+  );
+  led.position.y = 0.05;
+  const light = new THREE.PointLight(0xff2222, 0, 5);
+  pipeMesh.add(pipe, led, light);
+
+  group.add(fragMesh, molotovMesh, pipeMesh);
+  scene.add(group);
+
+  grenadePool.push({
+    mesh: group,
+    fragMesh,
+    molotovMesh,
+    pipeMesh,
+    light,
+    type: 'frag',
+    def: THROWABLE_TYPES.frag,
+    vel: new THREE.Vector3(),
+    spin: new THREE.Vector3(),
+    fuse: 0,
+    beepTimer: 0,
+    lightTimer: 0,
+    live: false,
+  });
+}
+
+function setupThrowableVisuals(g, type) {
+  g.fragMesh.visible = type === 'frag';
+  g.molotovMesh.visible = type === 'molotov';
+  g.pipeMesh.visible = type === 'pipeBomb';
+  if (g.light) g.light.intensity = 0;
+}
+
+function cycleThrowable(direction = 1) {
+  const types = ['frag', 'molotov', 'pipeBomb'];
+  const curIdx = types.indexOf(player.activeThrowable || 'frag');
+  const nextIdx = (curIdx + direction + types.length) % types.length;
+  player.activeThrowable = types[nextIdx];
+  player.grenades = player.throwables ? (player.throwables[player.activeThrowable] || 0) : player.grenades;
+  const def = THROWABLE_TYPES[player.activeThrowable];
+  showHint(`${def.name} SELECTED`, 1200);
+  audio.weaponSwap();
+  updateAmmoHud();
+}
+
+function startCookingThrowable() {
   if (!game.running || game.paused || game.over) return;
-  if (player.grenades <= 0) {
-    showHint('NO GRENADES \u2014 SUPPLY DEPOT [B]', 1600);
+  const activeType = player.activeThrowable || 'frag';
+  const count = player.throwables ? (player.throwables[activeType] || 0) : player.grenades;
+  if (count <= 0) {
+    showHint(`NO ${THROWABLE_TYPES[activeType].shortName}S \u2014 SUPPLY DEPOT [B]`, 1600);
     audio.dryFire();
     return;
   }
-  player.grenades--;
-  const g = grenadePool.find((x) => !x.live) || grenadePool[0];
-  const dir = new THREE.Vector3();
-  camera.getWorldPosition(g.mesh.position);
-  camera.getWorldDirection(dir);
-  g.mesh.position.addScaledVector(dir, 0.6);
-  g.vel.copy(dir).multiplyScalar(GRENADE.throwSpeed).addScaledVector(player.vel, 0.35);
-  g.vel.y += 5.4;
-  g.spin.set(Math.random() * 9, Math.random() * 9, Math.random() * 9);
-  g.fuse = GRENADE.fuse;
-  g.live = true;
-  g.mesh.visible = true;
+  if (player.cookingState && player.cookingState.isCooking) return;
+
+  player.cookingState = createCookState(activeType);
   audio.pinPull();
   updateAmmoHud();
 }
 
-function explodeGrenade(at) {
-  audio.explosion(panFor(at), player.pos.distanceTo(at));
-  player.shake = Math.min(1.5, player.shake + 0.85);
+function releaseCookedThrowable() {
+  if (!player.cookingState || !player.cookingState.isCooking) return;
+  const activeType = player.activeThrowable || 'frag';
+  const result = releaseCookState(player.cookingState);
+  player.cookingState = null;
+  hideTrajectoryLine();
+
+  if (result.detonatedInHand) {
+    detonateInHand(activeType);
+    return;
+  }
+
+  doThrowThrowable(activeType, result.fuse);
+}
+
+function throwGrenade(forcedType = null) {
+  if (!game.running || game.paused || game.over) return;
+  const activeType = forcedType || player.activeThrowable || 'frag';
+  const count = player.throwables ? (player.throwables[activeType] || 0) : player.grenades;
+  if (count <= 0) {
+    showHint(`NO ${THROWABLE_TYPES[activeType].shortName}S \u2014 SUPPLY DEPOT [B]`, 1600);
+    audio.dryFire();
+    return;
+  }
+
+  if (player.cookingState && player.cookingState.isCooking) {
+    releaseCookedThrowable();
+  } else {
+    doThrowThrowable(activeType, THROWABLE_TYPES[activeType].fuse);
+  }
+}
+
+function detonateInHand(type) {
+  const at = player.pos.clone();
+  at.y += 1.2;
+  explodeGrenade(at, type);
+  damagePlayer(65, null);
+  player.shake = Math.min(2.0, player.shake + 1.4);
+  audio.explosion(0, 0);
+  if (player.throwables) {
+    player.throwables[type] = Math.max(0, (player.throwables[type] || 0) - 1);
+    player.grenades = player.throwables[player.activeThrowable];
+  } else {
+    player.grenades = Math.max(0, player.grenades - 1);
+  }
+  updateAmmoHud();
+}
+
+function doThrowThrowable(type, fuse) {
+  const def = THROWABLE_TYPES[type] || THROWABLE_TYPES.frag;
+  if (player.throwables) {
+    player.throwables[type] = Math.max(0, (player.throwables[type] || 0) - 1);
+    player.grenades = player.throwables[player.activeThrowable];
+  } else {
+    player.grenades = Math.max(0, player.grenades - 1);
+  }
+
+  const g = grenadePool.find((x) => !x.live) || grenadePool[0];
+  g.type = type;
+  g.def = def;
+  setupThrowableVisuals(g, type);
+
+  const dir = new THREE.Vector3();
+  camera.getWorldPosition(g.mesh.position);
+  camera.getWorldDirection(dir);
+  g.mesh.position.addScaledVector(dir, 0.55);
+
+  g.vel.copy(dir).multiplyScalar(def.throwSpeed).addScaledVector(player.vel, 0.35);
+  g.vel.y += def.upwardVel;
+  g.spin.set(Math.random() * 8, Math.random() * 8, Math.random() * 8);
+  g.fuse = fuse;
+  g.live = true;
+  g.beepTimer = 0;
+  g.lightTimer = 0;
+  g.mesh.visible = true;
+
+  if (type === 'pipeBomb') {
+    audio.pipeBombBeep(0, 0);
+  } else {
+    audio.pinPull();
+  }
+  updateAmmoHud();
+}
+
+function spawnFirePool(at, def) {
+  const pool = createFirePool(at, def);
+
+  const ringGeo = new THREE.RingGeometry(0.2, 1.0, 20);
+  ringGeo.rotateX(-Math.PI / 2);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xff5511,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(ringGeo, ringMat);
+  mesh.position.set(at.x, 0.04, at.z);
+
+  const light = new THREE.PointLight(0xff6611, 45, 9.0);
+  light.position.set(at.x, 0.5, at.z);
+
+  scene.add(mesh);
+  scene.add(light);
+
+  firePools.push({
+    pool,
+    mesh,
+    light,
+    active: true,
+    particleTimer: 0,
+  });
+}
+
+function updateActiveFirePools(dt) {
+  for (let i = firePools.length - 1; i >= 0; i--) {
+    const entry = firePools[i];
+    if (!entry.active) {
+      scene.remove(entry.mesh);
+      scene.remove(entry.light);
+      firePools.splice(i, 1);
+      continue;
+    }
+
+    updateFirePool(
+      entry.pool,
+      dt,
+      zombies,
+      player.pos,
+      (z, dmg, burnDur, burnDps) => {
+        z.takeDamage(dmg, 'body', makeContext());
+        if (z.ignite) z.ignite(burnDur, burnDps);
+        spawnParticles(z.group.position, 1, 'spark', 0.8);
+      },
+      (pDmg) => {
+        damagePlayer(pDmg, null);
+      }
+    );
+
+    const scale = entry.pool.radius;
+    entry.mesh.scale.set(scale, 1, scale);
+    entry.light.intensity = 35 + Math.sin(performance.now() * 0.015) * 12;
+
+    entry.particleTimer -= dt;
+    if (entry.particleTimer <= 0) {
+      entry.particleTimer = 0.09;
+      const rx = (Math.random() - 0.5) * entry.pool.radius * 1.6;
+      const rz = (Math.random() - 0.5) * entry.pool.radius * 1.6;
+      const firePoint = new THREE.Vector3(entry.pool.pos.x + rx, 0.15, entry.pool.pos.z + rz);
+      spawnParticles(firePoint, 2, 'spark', 1.0);
+    }
+
+    if (!entry.pool.active) {
+      entry.active = false;
+    }
+  }
+}
+
+function updateActivePipeBombLures() {
+  pipeBombLures = [];
+  for (const g of grenadePool) {
+    if (g.live && g.type === 'pipeBomb') {
+      pipeBombLures.push({
+        pos: g.mesh.position,
+        lureRadius: g.def.lureRadius || 22.0,
+        active: true,
+      });
+    }
+  }
+}
+
+function explodeGrenade(at, type = 'frag', def = null) {
+  const d = def || THROWABLE_TYPES[type] || THROWABLE_TYPES.frag;
+
+  if (type === 'molotov') {
+    audio.molotovShatter(panFor(at));
+    spawnFirePool(at, d);
+    shakeSystem.addExplosionShake(player.pos.distanceTo(at), d.radius * 2.2, 0.85);
+    player.shake = shakeSystem.trauma;
+    muzzleLight.position.copy(at);
+    muzzleLight.intensity = 80;
+    muzzleLightTimer = 0.25;
+    spawnParticles(at, 25, 'spark', 1.8);
+    return;
+  }
+
+  const blastDist = player.pos.distanceTo(at);
+  audio.explosion(panFor(at), blastDist);
+  shakeSystem.addExplosionShake(blastDist, d.radius * 2.8, type === 'pipeBomb' ? 1.6 : 1.35);
+  player.shake = shakeSystem.trauma;
   muzzleLight.position.copy(at);
-  muzzleLight.intensity = 120;
-  muzzleLightTimer = 0.2;
-  spawnParticles(at, 30, 'spark', 2.1);
+  muzzleLight.intensity = type === 'pipeBomb' ? 160 : 120;
+  muzzleLightTimer = 0.22;
+  spawnParticles(at, type === 'pipeBomb' ? 45 : 30, 'spark', 2.4);
+
+  const radius = d.radius;
+  const baseDmg = d.damage;
+  const minDmg = d.minDamage;
 
   for (const z of zombies) {
     if (!z.alive) continue;
-    const d = z.group.position.distanceTo(at);
-    if (d > GRENADE.radius) continue;
-    const t = 1 - d / GRENADE.radius;
-    const dmg = GRENADE.minDamage + (GRENADE.damage - GRENADE.minDamage) * t;
-    const point = z.group.position.clone();
+    const zPos = z.group.position;
+    const dist = zPos.distanceTo(at);
+    if (dist > radius) continue;
+
+    // Solid concrete barrier occlusion check (Day 6 bug fix)
+    const occluded = isExplosionOccluded(at, zPos, world.colliders);
+    if (occluded) continue; // Direct blast wave absorbed by solid wall!
+
+    const blast = calculateExplosionDamage(at, zPos, baseDmg, minDmg, radius, false);
+    const dmg = blast.damage;
+    const point = zPos.clone();
     point.y = 1.0;
     z.takeDamage(dmg, 'body', makeContext());
     spawnDamageNumber(point, dmg, false);
-    const push = new THREE.Vector3(z.group.position.x - at.x, 0, z.group.position.z - at.z);
+
+    const push = new THREE.Vector3(zPos.x - at.x, 0, zPos.z - at.z);
     if (push.lengthSq() > 1e-4) push.normalize();
-    z.group.position.addScaledVector(push, t * 1.6);
-    z.flinch = 1;
+    z.group.position.addScaledVector(push, blast.falloff * (type === 'pipeBomb' ? 2.4 : 1.6));
+    resolveCircle(world.colliders, z.group.position, z.radius);
+    z.flinch = 1.2;
+    z.staggerTimer = Math.max(z.staggerTimer || 0, 0.6);
+
+    // Explosive close-proximity leg severing / crawler conversion (Day 8)
+    if (!z.isBoss && z.type !== 'brute' && !z.isCrawler && blast.falloff > 0.65) {
+      severZombieLimb(z, Math.random() < 0.5 ? 'legL' : 'legR', point, push, makeContext());
+    }
   }
 
-  // Standing on your own frag still hurts.
-  const self = new THREE.Vector3(player.pos.x, 1, player.pos.z).distanceTo(at);
-  const reach = GRENADE.radius * 0.85;
-  if (self < reach) damagePlayer(Math.round(38 * (1 - self / reach)), null);
+  // Player self-damage with solid barrier occlusion check
+  const playerEye = player.pos.clone();
+  playerEye.y += 1.0;
+  const selfDist = playerEye.distanceTo(at);
+  const reach = radius * 0.85;
+
+  if (selfDist < reach) {
+    const playerOccluded = isExplosionOccluded(at, playerEye, world.colliders);
+    if (!playerOccluded) {
+      const selfDmg = Math.round((type === 'pipeBomb' ? 52 : 38) * (1 - selfDist / reach));
+      damagePlayer(selfDmg, null);
+    }
+  }
 }
 
 function updateGrenades(dt) {
+  // 1. In-hand fuse cooking & trajectory arc
+  if (player.cookingState && player.cookingState.isCooking) {
+    updateCookState(player.cookingState, dt);
+    if (Math.random() < 0.35) audio.fuseSizzle(0);
+
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    const origin = player.pos.clone();
+    origin.y += 1.4;
+    const def = player.cookingState.def;
+    const arcPts = computeTrajectoryArc(origin, dir, def.throwSpeed, def.upwardVel, def.gravity, world.colliders);
+    updateTrajectoryLine(arcPts);
+
+    if (player.cookingState.detonatedInHand) {
+      detonateInHand(player.cookingState.typeId);
+      player.cookingState = null;
+      hideTrajectoryLine();
+    }
+    updateAmmoHud();
+  } else {
+    hideTrajectoryLine();
+  }
+
+  // 2. Airborne & bouncing throwables with Continuous Collision Detection (CCD)
   for (const g of grenadePool) {
     if (!g.live) continue;
-    g.vel.y -= GRENADE.gravity * dt;
-    g.mesh.position.addScaledVector(g.vel, dt);
-    g.mesh.rotation.x += g.spin.x * dt;
-    g.mesh.rotation.y += g.spin.y * dt;
-    g.mesh.rotation.z += g.spin.z * dt;
 
-    if (g.mesh.position.y < 0.1) {
-      g.mesh.position.y = 0.1;
-      if (Math.abs(g.vel.y) > 2.2) audio.grenadeBounce();
-      g.vel.y = Math.abs(g.vel.y) * 0.34;
-      g.vel.x *= 0.68;
-      g.vel.z *= 0.68;
+    const result = stepThrowablePhysics(
+      { pos: g.mesh.position, vel: g.vel, rot: g.mesh.rotation, spin: g.spin, def: g.def, radius: 0.1 },
+      dt,
+      world.colliders,
+      0.08
+    );
+
+    if (g.def.shattersOnImpact && (result.groundHit || result.wallHit)) {
+      g.live = false;
+      g.mesh.visible = false;
+      explodeGrenade(g.mesh.position.clone(), g.type, g.def);
+      continue;
     }
-    resolveCircle(world.colliders, g.mesh.position, 0.12);
+
+    if (result.groundHit && (result.impactSpeed > 1.8 || Math.abs(g.vel.y) > 0.6)) {
+      audio.grenadeBounce();
+    }
+
+    // Pipe bomb lure beacon pulse
+    if (g.type === 'pipeBomb') {
+      g.beepTimer = (g.beepTimer || 0) - dt;
+      if (g.beepTimer <= 0) {
+        g.beepTimer = g.def.beepInterval || 0.26;
+        const pan = panFor(g.mesh.position);
+        audio.pipeBombBeep(pan, g.def.fuse - g.fuse);
+        if (g.light) {
+          g.light.intensity = 35;
+          g.lightTimer = 0.08;
+        }
+      }
+      if (g.light && g.lightTimer > 0) {
+        g.lightTimer -= dt;
+        if (g.lightTimer <= 0) g.light.intensity = 0;
+      }
+    }
 
     g.fuse -= dt;
     if (g.fuse <= 0) {
       g.live = false;
       g.mesh.visible = false;
-      explodeGrenade(g.mesh.position.clone());
+      if (g.light) g.light.intensity = 0;
+      explodeGrenade(g.mesh.position.clone(), g.type, g.def);
     }
   }
+
+  // 3. Active fire pools & lures
+  updateActiveFirePools(dt);
+  updateActivePipeBombLures();
 }
 
 const tmpRight = new THREE.Vector3();
@@ -2255,7 +2691,8 @@ function damagePlayer(amount, from) {
   }
   player.health -= incoming;
   player.lastDamage = game.elapsed;
-  player.shake = Math.min(1.1, player.shake + 0.4);
+  shakeSystem.addDamageShake(Math.min(0.55, 0.38 + incoming * 0.005));
+  player.shake = shakeSystem.trauma;
   audio.hurt();
 
   // Tell the player where it came from: an arc that points at the attacker and
@@ -2294,7 +2731,7 @@ function damagePlayer(amount, from) {
   }
 }
 
-function makeContext() {
+function makeContext(forZombiePos = null) {
   return {
     audio,
     scene,
@@ -2302,6 +2739,9 @@ function makeContext() {
     colliders: world.colliders,
     zombies,
     nav,
+    debrisPool,
+    arterialPool,
+    spawnBlood: (pos, count, kind = 'blood') => spawnParticles(pos, count, kind),
     // Nightfall changes how lurkers close; the flag lives on the world.
     blackout: world.blackout,
     damage: (dmg, from) => damagePlayer(dmg, from),
@@ -2310,6 +2750,7 @@ function makeContext() {
     abilityCry: (z, kind) => bossCry(z, kind),
     panOf: (worldPos) => panFor(worldPos),
     onDeath: (z, part) => onZombieKilled(z, part === 'head'),
+    lurePos: forZombiePos ? findActiveLureTarget(pipeBombLures, forZombiePos) : null,
   };
 }
 
@@ -2426,19 +2867,18 @@ function updateCamera(dt, planarSpeed) {
   const bobY = Math.sin(player.bob * 2) * bobAmp;
   const bobX = Math.cos(player.bob) * bobAmp * 0.7;
 
-  player.shake = Math.max(0, player.shake - dt * 2.6);
-  const shake = player.shake * player.shake * Math.max(0, settings.shake);
+  const shake = shakeSystem.update(dt, settings.shake);
+  player.shake = shakeSystem.trauma;
 
   camera.position.set(
     player.pos.x + bobX * 0.5 + (Math.random() - 0.5) * shake * 0.09,
     player.pos.y + player.height + bobY + (Math.random() - 0.5) * shake * 0.09,
     player.pos.z
   );
-  // Recover most of the kick quickly, then settle the last of it slowly.
-  recoil.pitch *= Math.exp(-dt * 11);
-  recoil.yaw *= Math.exp(-dt * 11);
-  if (Math.abs(recoil.pitch) < 1e-4) recoil.pitch = 0;
-  if (Math.abs(recoil.yaw) < 1e-4) recoil.yaw = 0;
+  // Recover camera recoil via per-weapon harmonic spring simulation (Day 7)
+  const springRecoil = recoilSpring.update(dt);
+  recoil.pitch = springRecoil.pitch;
+  recoil.yaw = springRecoil.yaw;
 
   camera.rotation.set(
     player.pitch + recoil.pitch + (Math.random() - 0.5) * shake * 0.05,
@@ -2473,7 +2913,21 @@ function updateAmmoHud() {
   hud.ammoMag.textContent = String(totalLoaded(ammo, ammo.weapon));
   hud.ammoReserve.textContent = def.reserveMax === Infinity ? '\u221e' : String(ammo.reserve[ammo.weapon]);
   hud.ammoPanel.classList.toggle('reloading', ammo.reloading);
-  if (hud.grenadeCount) hud.grenadeCount.textContent = String(player.grenades);
+  const activeTh = player.activeThrowable || 'frag';
+  const thCount = player.throwables ? (player.throwables[activeTh] || 0) : player.grenades;
+  player.grenades = thCount;
+  if (hud.grenadeCount) hud.grenadeCount.textContent = String(thCount);
+  if (hud.throwableLabel) {
+    const tDef = THROWABLE_TYPES[activeTh];
+    hud.throwableLabel.textContent = tDef ? tDef.shortName : 'FRAG';
+  }
+  if (player.cookingState && player.cookingState.isCooking) {
+    if (hud.cookBar) hud.cookBar.style.display = 'block';
+    const pct = Math.max(0, Math.min(100, (player.cookingState.fuseRemaining / player.cookingState.totalFuse) * 100));
+    if (hud.cookFill) hud.cookFill.style.width = `${pct}%`;
+  } else {
+    if (hud.cookBar) hud.cookBar.style.display = 'none';
+  }
   const alt = ALT_FIRE[def.id];
   if (hud.altName) hud.altName.textContent = alt ? alt.name : '';
   if (hud.altState) {
@@ -2569,6 +3023,8 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   for (const d of decals) { d.life = 0; d.mesh.visible = false; }
   for (const t of tracers) { t.life = 0; t.line.visible = false; }
   for (const c of casings) { c.life = 0; c.mesh.visible = false; }
+  debrisPool.reset();
+  arterialPool.reset();
   // Grenades and acid in flight belong to the old run; without this a live
   // grenade from a run you just lost detonates in the new one.
   for (const s of acidShots) { s.life = 0; s.mesh.visible = false; }
@@ -2590,6 +3046,17 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   player.maxStamina = 100;
   player.stamina = 100;
   player.grenades = GRENADE.startCount;
+  player.throwables = { frag: 2, molotov: 1, pipeBomb: 1 };
+  player.activeThrowable = 'frag';
+  player.cookingState = null;
+  pipeBombLures = [];
+  for (const entry of firePools) {
+    scene.remove(entry.mesh);
+    scene.remove(entry.light);
+  }
+  firePools.length = 0;
+  recoilSpring.reset();
+  shakeSystem.reset();
   player.shake = 0;
   player.grounded = true;
   player.ads = false;
@@ -2993,6 +3460,10 @@ function buyItem(item) {
       break;
     case 'grenade':
       player.grenades = Math.min(GRENADE.maxCount, player.grenades + 1);
+      if (player.throwables) {
+        const curType = player.activeThrowable || 'frag';
+        player.throwables[curType] = Math.min(GRENADE.maxCount, (player.throwables[curType] || 0) + 1);
+      }
       break;
     case 'rifle':
     case 'ripper': {
@@ -3221,7 +3692,7 @@ function stepSimulation(dt) {
   // Zombies.
   for (let i = zombies.length - 1; i >= 0; i--) {
     const z = zombies[i];
-    z.update(dt, makeContext());
+    z.update(dt, makeContext(z.group ? z.group.position : null));
     if (z.removed) {
       zombies.splice(i, 1);
       hitMeshesDirty = true;
@@ -3737,5 +4208,25 @@ window.__tryFire = tryFire;
 window.__audio = audio;
 window.__swingMelee = swingMelee;
 window.__defensiveShove = defensiveShove;
+window.__throwGrenade = throwGrenade;
+window.__startCookingThrowable = startCookingThrowable;
+window.__releaseCookedThrowable = releaseCookedThrowable;
+window.__cycleThrowable = cycleThrowable;
+window.__firePools = firePools;
+window.__pipeBombLures = pipeBombLures;
+window.__grenadePool = grenadePool;
+window.__THREE = THREE;
+window.__makeContext = makeContext;
+window.__recoilSpring = recoilSpring;
+window.__shakeSystem = shakeSystem;
+window.__recoilProfiles = WEAPON_RECOIL_PROFILES;
+window.__damagePlayer = damagePlayer;
+window.__explodeGrenade = explodeGrenade;
+window.__debrisPool = debrisPool;
+window.__arterialPool = arterialPool;
+window.__severZombieLimb = severZombieLimb;
+window.__convertToCrawler = convertToCrawler;
+window.__nav = nav;
+window.__computeHordeSteering = computeHordeSteering;
 
 requestAnimationFrame(frame);

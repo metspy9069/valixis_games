@@ -24,6 +24,8 @@ export const MONSTER_MODELS={
  mimic:{kind:'mimic',primary:0x6e5037,secondary:0x34261c,scale:1.05},
  spitter:{kind:'spitter',primary:0x5d7045,secondary:0x283322,scale:1.04},
  wraith:{kind:'wraith',primary:0x648c8e,secondary:0x243c3e,scale:1.04},
+ siren:{kind:'humanoid',primary:0x336b69,secondary:0x1d3d3c,head:'drowned',weapon:'lantern',cape:true,scale:1.05},
+ hulk:{kind:'humanoid',primary:0x3d5a57,secondary:0x223635,head:'scarred',weapon:'anchor',armor:true,bone:true,scale:1.42},
  thornling:{kind:'humanoid',primary:0x697046,secondary:0x2f3425,head:'thorns',weapon:'claws',scale:.83},
  root:{kind:'humanoid',primary:0x5a6042,secondary:0x2c3023,head:'antlers',weapon:'rootClub',armor:true,scale:1.38},
  stalker:{kind:'winged',primary:0x5e584e,secondary:0x282521,head:'beak',scale:1.03},

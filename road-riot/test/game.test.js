@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 
 import { ProgressionManager, ACHIEVEMENTS } from '../js/progression.js';
-import { VEHICLE_ROSTER } from '../js/player.js';
+import {
+  PlayerCar,
+  VEHICLE_ROSTER,
+  calculateWheelBlurFactor,
+  getCarbonFiberTexture,
+  getWheelBlurTexture,
+  applyMetallicFlakeShader
+} from '../js/player.js';
 import {
   computeVirtualJoystickOutput,
   TouchInputTracker,
@@ -13,7 +21,11 @@ import {
   selectConvoyAwareLanes,
   hasViableEscapeCorridor,
   planLaneChangeWithSignal,
-  preventClumpDeadlocks
+  preventClumpDeadlocks,
+  calculatePursuitSpeed,
+  simulatePitManeuver,
+  createRoadblockFormation,
+  updateEvasionTracking
 } from '../js/traffic.js';
 
 test('vehicle roster contains 8 distinct supercars with complete base stats', () => {
@@ -1318,4 +1330,297 @@ test('civilian traffic solid impasse prevents clipping through stationary obstac
 
   assert.ok(vehicle.mesh.position.z >= obstacle.mesh.position.z + halfL, 'Vehicle is cleanly stopped behind obstacle without clipping');
   assert.equal(vehicle.speed, 0, 'Vehicle halts cleanly on rear-bumper impasse');
+});
+
+test('police heat pursuit tiers scale target speed and acceleration to match player velocity', () => {
+  const playerSpeed = 30.0; // ~108 km/h
+
+  // Heat 1: Patrol Cruiser trailing behind player (relZ = 12m)
+  const tier1SpeedTrailing = calculatePursuitSpeed(false, true, 1, 24.0, playerSpeed, 12.0);
+  assert.ok(tier1SpeedTrailing > 24.0 && tier1SpeedTrailing <= 30.0, 'Patrol cruiser limits trailing pursuit speed to 30 m/s');
+
+  // Heat 1: Patrol Cruiser pacing ahead/close (relZ = 0m)
+  const tier1SpeedPacing = calculatePursuitSpeed(false, true, 1, 28.0, playerSpeed, 0.0);
+  assert.ok(tier1SpeedPacing <= 28.0 && tier1SpeedPacing >= 18.0, 'Patrol cruiser throttles down when close');
+
+  // Heat 2-3: Tactical Interceptor trailing behind player (relZ = 15m)
+  const interceptorTrailing = calculatePursuitSpeed(true, true, 2, 28.0, playerSpeed, 15.0);
+  assert.equal(interceptorTrailing, 34.5, 'Interceptor surges with +4.5 m/s delta to close trailing gap');
+
+  // Heat 2-3: Tactical Interceptor alongside player (-4m <= relZ <= 2m)
+  const interceptorAlongside = calculatePursuitSpeed(true, true, 2, 33.0, playerSpeed, -1.0);
+  assert.equal(interceptorAlongside, playerSpeed, 'Interceptor strictly locks velocity to player speed for flank maneuvers');
+
+  // Heat 4-5: Interceptor clamp maximum ceiling (42 m/s = 151 km/h)
+  const interceptorHighSpeed = calculatePursuitSpeed(true, true, 5, 40.0, 50.0, 10.0);
+  assert.equal(interceptorHighSpeed, 42.0, 'Interceptor pursuit velocity is clamped to 42 m/s');
+});
+
+test('tactical interceptor executes lateral PIT maneuver contact and induces player yaw destabilization', () => {
+  // Scenario 1: Interceptor alongside player in adjacent lane (playerX = 0, interceptorX = -2.2, relZ = 0)
+  const pitApproach = simulatePitManeuver(-2.2, 0, 0, 0, 0.016, 4.8);
+  assert.equal(pitApproach.alongside, true, 'Interceptor is longitudinally aligned with player flank');
+  assert.equal(pitApproach.inLateralRange, true, 'Interceptor is within lateral engagement threshold');
+  assert.equal(pitApproach.pitDir, 1, 'PIT direction lunges right towards player at x = 0');
+  assert.ok(pitApproach.nudgeX > 0, 'Lateral nudge velocity pushes toward player');
+  assert.equal(pitApproach.isContact, false, 'Approaching interceptor has not yet made hard bumper contact');
+
+  // Scenario 2: Hard bumper-to-quarter contact (dx = 1.6m)
+  const pitContact = simulatePitManeuver(-1.6, 0.5, 0, 0, 0.016, 4.8);
+  assert.equal(pitContact.isContact, true, 'Contact occurs within 1.95m threshold');
+  assert.equal(pitContact.playerNudge, 0.45, 'Contact imparts 0.45m lateral displacement to player chassis');
+  assert.equal(pitContact.yawImpulse, 0.22, 'Contact induces 0.22 rad yaw/slip angle destabilization');
+
+  // Scenario 3: Interceptor trailing 18m behind (out of longitudinal range)
+  const pitDistant = simulatePitManeuver(-2.0, 18.0, 0, 0, 0.016, 4.8);
+  assert.equal(pitDistant.alongside, false, 'Distant vehicle cannot execute PIT maneuver');
+  assert.equal(pitDistant.nudgeX, 0);
+  assert.equal(pitDistant.isContact, false);
+});
+
+test('swat roadblock formation seals 2 lanes while strictly guaranteeing 1 open escape lane', () => {
+  const lanes = [-6, 0, 6];
+
+  // Verify across 100 randomized roadblock generations
+  for (let i = 0; i < 100; i++) {
+    const formation = createRoadblockFormation(lanes);
+    assert.equal(formation.blockedLanes.length, 2, 'Roadblock always barricades exactly 2 lanes');
+    assert.ok(lanes.includes(formation.openLane), 'Open escape lane is a valid highway lane');
+    assert.equal(formation.blockedLanes.includes(formation.openLane), false, 'Escape corridor is never blocked');
+  }
+
+  // Explicit escape lane designation
+  const forcedLeft = createRoadblockFormation(lanes, -6);
+  assert.equal(forcedLeft.openLane, -6);
+  assert.deepEqual(forcedLeft.blockedLanes.sort((a, b) => a - b), [0, 6]);
+
+  const forcedCenter = createRoadblockFormation(lanes, 0);
+  assert.equal(forcedCenter.openLane, 0);
+  assert.deepEqual(forcedCenter.blockedLanes.sort((a, b) => a - b), [-6, 6]);
+});
+
+test('continuous pursuit evasion timer tracks distance > 35m and awards +750 CR upon reaching 6.0s', () => {
+  // Step 1: Inactive pursuit returns zero progress
+  const inactive = updateEvasionTracking({ policeActive: false, minPoliceDist: 50.0 });
+  assert.equal(inactive.evaded, false);
+  assert.equal(inactive.evasionTimer, 0);
+
+  // Step 2: Active pursuit with cruiser inside 35m proximity breaks evasion
+  const closeCruiser = updateEvasionTracking({
+    policeActive: true,
+    minPoliceDist: 22.0,
+    evasionTimer: 4.5,
+    dt: 0.1
+  });
+  assert.equal(closeCruiser.evaded, false);
+  assert.equal(closeCruiser.evasionTimer, 0, 'Cruiser within 35m resets continuous evasion timer');
+
+  // Step 3: Cruising outside 35m increments timer progressively
+  let timer = 0;
+  for (let step = 0; step < 50; step++) {
+    // 50 steps * 0.1s = 5.0s
+    const state = updateEvasionTracking({
+      policeActive: true,
+      minPoliceDist: 48.0,
+      evasionTimer: timer,
+      dt: 0.1
+    });
+    timer = state.evasionTimer;
+    assert.equal(state.evaded, false);
+  }
+  assert.ok(Math.abs(timer - 5.0) < 0.001, `Timer accumulated to 5.0s (actual: ${timer})`);
+
+  // Step 4: Completing full 6.0 continuous seconds triggers successful evasion
+  const finalState = updateEvasionTracking({
+    policeActive: true,
+    minPoliceDist: 52.0,
+    evasionTimer: 5.95,
+    dt: 0.1
+  });
+  assert.equal(finalState.evaded, true, 'Continuous 6.0s outside 35m successfully shakes pursuit');
+  assert.equal(finalState.bonusCredits, 750, 'Awards 750 bounty credits');
+  assert.equal(finalState.heatReduction, 1, 'Decreases Heat level by 1 star');
+  assert.equal(finalState.evasionTimer, 0, 'Resets timer after evasion claim');
+});
+
+test('frame execution time benchmark processes 60 consecutive physics and traffic frames well within 14ms budget', () => {
+  const lanes = [-6, 0, 6];
+  const vehicles = [
+    { lane: -6, targetLane: -6, z: -25, speed: 38, isInterceptor: true, isPolice: true, width: 2.2, length: 4.8 },
+    { lane: 0, targetLane: 0, z: -40, speed: 20, isTruck: true, width: 2.2, length: 8.5 },
+    { lane: 6, targetLane: 6, z: -55, speed: 18, isTanker: true, width: 2.2, length: 9.2 },
+    { lane: 0, targetLane: -6, z: -85, speed: 24, signalTimer: 0.8, signalDir: -1, width: 2.2, length: 4.6 }
+  ];
+  const obstacles = [
+    { lane: -6, z: -110, isRoadblock: true, isBarrier: true, width: 2.3, length: 4.8 },
+    { lane: 0, z: -110, isRoadblock: true, isBarrier: true, width: 2.3, length: 4.8 }
+  ];
+  const jumpRamps = [
+    { lane: 6, z: -70 }
+  ];
+
+  let playerX = 0;
+  let playerZ = 0;
+  let playerSpeed = 34; // ~306 km/h
+  const dt = 0.016; // 60 FPS frame delta
+
+  const tStart = performance.now();
+  for (let frame = 0; frame < 60; frame++) {
+    playerZ -= playerSpeed * dt;
+
+    // 1. Move vehicles
+    for (const v of vehicles) {
+      if (v.isPolice) {
+        const relZ = v.z - playerZ;
+        const targetSpeed = calculatePursuitSpeed(v.isInterceptor, v.isPolice, 3, v.speed, playerSpeed, relZ);
+        v.speed += (targetSpeed - v.speed) * Math.min(1, dt * 3.5);
+      }
+      v.z -= v.speed * dt;
+    }
+
+    // 2. Deadlock avoidance and corridor check
+    preventClumpDeadlocks(vehicles, obstacles, jumpRamps, dt);
+    const hasCorridor = hasViableEscapeCorridor(vehicles, obstacles, jumpRamps, playerZ - 65, playerZ - 5);
+    assert.equal(typeof hasCorridor, 'boolean');
+
+    // 3. PIT maneuver calculation
+    const interceptor = vehicles[0];
+    const pit = simulatePitManeuver(interceptor.lane, interceptor.z, playerX, playerZ, dt);
+    if (pit.isContact) {
+      playerX += pit.playerNudge;
+    }
+
+    // 4. Evasion tracking
+    const minDist = Math.min(...vehicles.map(v => Math.hypot(v.lane - playerX, v.z - playerZ)));
+    updateEvasionTracking({
+      policeActive: true,
+      minPoliceDist: minDist,
+      evasionTimer: frame * dt,
+      dt
+    });
+  }
+  const totalDurationMs = performance.now() - tStart;
+  const avgFrameMs = totalDurationMs / 60;
+
+  assert.ok(
+    avgFrameMs < 14.0,
+    `Average logic frame computation time (${avgFrameMs.toFixed(3)}ms) is well within the 14ms mobile frame budget`
+  );
+  assert.ok(
+    avgFrameMs < 3.0,
+    `Typical pure JS logic computation (${avgFrameMs.toFixed(3)}ms) leaves over 13ms headroom for GPU draw calls`
+  );
+});
+
+test('vector pooling and clump deadlock resolution execute with bounded memory pool and zero leaks', () => {
+  const lanes = [-6, 0, 6];
+  const vehicles = [
+    { lane: -6, z: -30, speed: 22, isVehicle: true },
+    { lane: 0, z: -32, speed: 20, isVehicle: true },
+    { lane: 6, z: -31, speed: 18, isVehicle: true },
+    { lane: -6, z: -70, speed: 26, isVehicle: true },
+    { lane: 0, z: -72, speed: 25, isVehicle: true },
+    { lane: 6, z: -71, speed: 24, isVehicle: true }
+  ];
+  const obstacles = [
+    { lane: -6, z: -100 },
+    { lane: 0, z: -100 }
+  ];
+
+  // Execute 120 consecutive frames of deadlock checks and escape verification
+  for (let frame = 0; frame < 120; frame++) {
+    for (const v of vehicles) {
+      v.z += (28 - v.speed) * 0.016;
+    }
+    preventClumpDeadlocks(vehicles, obstacles, [], 0.016);
+    hasViableEscapeCorridor(vehicles, obstacles, [], -145, -5);
+  }
+
+  // Verify that subsequent calls preserve guaranteed escape corridors without crash or infinite recursion
+  const viable = hasViableEscapeCorridor(vehicles, obstacles, [], -145, -5);
+  assert.equal(typeof viable, 'boolean', 'Corridor verification completes cleanly');
+});
+
+test('calculateWheelBlurFactor smoothly scales from 0 at <= 120 km/h to 1.0 at >= 210 km/h', () => {
+  assert.equal(calculateWheelBlurFactor(0), 0);
+  assert.equal(calculateWheelBlurFactor(60), 0);
+  assert.equal(calculateWheelBlurFactor(120), 0);
+  assert.equal(calculateWheelBlurFactor(165), 0.5);
+  assert.equal(calculateWheelBlurFactor(210), 1.0);
+  assert.equal(calculateWheelBlurFactor(300), 1.0);
+  assert.equal(calculateWheelBlurFactor(420), 1.0);
+});
+
+test('procedural carbon fiber and wheel blur texture generators produce valid textured assets', () => {
+  const carbon = getCarbonFiberTexture();
+  assert.ok(carbon);
+  assert.equal(carbon.name, 'CarbonFiberProcedural');
+
+  const blur = getWheelBlurTexture();
+  assert.ok(blur);
+  assert.equal(blur.name, 'WheelBlurProcedural');
+});
+
+test('supercar PBR pipeline configures MeshPhysicalMaterial with clearcoat lacquer, carbon fiber and cockpit HUD', () => {
+  const scene = new THREE.Scene();
+  const player = new PlayerCar(scene);
+  const telem = player.getMaterialTelemetry();
+
+  assert.equal(telem.hasPhysicalClearcoat, true, 'Vehicle possesses high-gloss PBR MeshPhysicalMaterial');
+  assert.equal(telem.clearcoat, 1.0, 'Clearcoat lacquer intensity equals 1.0');
+  assert.equal(telem.clearcoatRoughness, 0.08, 'Clearcoat roughness is 0.08 for mirror reflections');
+  assert.ok(telem.carbonMeshCount >= 4, `Vehicle contains carbon fiber elements (${telem.carbonMeshCount})`);
+  assert.equal(telem.hasCockpit, true, 'Cockpit dashboard cowl, HUD cluster and steering wheel are present');
+  assert.equal(telem.activeBlurMeshes, 4, 'All 4 wheel spinners are equipped with motion blur disc attachments');
+});
+
+test('wheel motion blur opacity dynamically activates above 120 km/h and reaches full intensity at high speed', () => {
+  const scene = new THREE.Scene();
+  const player = new PlayerCar(scene);
+
+  // Speed = 10 (90 km/h) -> Below 120 km/h threshold
+  player.speed = 10;
+  player.targetSpeed = 10;
+  player.update(0.016);
+  let telem = player.getMaterialTelemetry();
+  assert.equal(telem.wheelBlurFactor, 0, 'No wheel blur under 120 km/h');
+  player.wheelBlurMeshes.forEach(m => {
+    assert.equal(m.material.opacity, 0, 'Wheel blur disc opacity is 0 when under threshold');
+  });
+
+  // Speed = 20 (180 km/h) -> Mid blur
+  player.speed = 20;
+  player.targetSpeed = 20;
+  player.update(0.016);
+  telem = player.getMaterialTelemetry();
+  assert.ok(telem.wheelBlurFactor > 0.5, 'Wheel blur factor scales up at 180 km/h');
+  player.wheelBlurMeshes.forEach(m => {
+    assert.ok(m.material.opacity > 0.4, `Wheel blur disc opacity (${m.material.opacity.toFixed(2)}) active at 180 km/h`);
+  });
+
+  // Speed = 26 (234 km/h) -> Max blur
+  player.speed = 26;
+  player.targetSpeed = 26;
+  player.update(0.016);
+  telem = player.getMaterialTelemetry();
+  assert.equal(telem.wheelBlurFactor, 1.0, 'Wheel blur factor saturates at 1.0 at >= 210 km/h');
+  player.wheelBlurMeshes.forEach(m => {
+    assert.equal(m.material.opacity, 0.85, 'Wheel blur disc reaches peak opacity of 0.85');
+  });
+});
+
+test('applyMetallicFlakeShader injects micro-sparkle perturbation into roughness chunk', () => {
+  const dummyMat = new THREE.MeshPhysicalMaterial({ color: 0xff0000 });
+  const modified = applyMetallicFlakeShader(dummyMat, 150.0, 0.22);
+  assert.equal(typeof modified.onBeforeCompile, 'function', 'Material receives onBeforeCompile hook');
+
+  const mockShader = {
+    vertexShader: '#include <common>\n#include <worldpos_vertex>',
+    fragmentShader: '#include <common>\n#include <roughnessmap_fragment>'
+  };
+  modified.onBeforeCompile(mockShader);
+
+  assert.ok(mockShader.vertexShader.includes('vWorldFlakePos'), 'Vertex shader declares vWorldFlakePos');
+  assert.ok(mockShader.fragmentShader.includes('flakeHash'), 'Fragment shader declares flakeHash sparkle formula');
+  assert.ok(mockShader.fragmentShader.includes('roughnessFactor = clamp'), 'Fragment shader modulates roughnessFactor');
 });

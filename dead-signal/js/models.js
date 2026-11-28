@@ -517,11 +517,21 @@ export function buildZombieModel(typeKey, def) {
   // overlapping jacket/torso geometry never produces phantom duplicate hits.
   if (typeKey !== 'lurker') {
     head.userData.part = 'head';
+    head.userData.limbId = 'head';
     neckMesh.userData.part = 'upperTorso';
     chest.userData.part = 'upperTorso';
     belly.userData.part = 'lowerTorso';
     pelvis.userData.part = 'lowerTorso';
   }
+  armL.upper.userData.limbId = 'armL';
+  armL.fore.userData.limbId = 'armL';
+  armR.upper.userData.limbId = 'armR';
+  armR.fore.userData.limbId = 'armR';
+  legL.thigh.userData.limbId = 'legL';
+  legL.shin.userData.limbId = 'legL';
+  legR.thigh.userData.limbId = 'legR';
+  legR.shin.userData.limbId = 'legR';
+
   const limbHits = [
     armL.upper, armL.fore, armR.upper, armR.fore,
     legL.thigh, legL.shin, legR.thigh, legR.shin,
@@ -536,12 +546,14 @@ export function buildZombieModel(typeKey, def) {
       hips,
       torso: belly,
       neck,
+      neckMesh,
       head,
       jaw,
-      armL: { shoulder: armL.shoulder, elbow: armL.elbow, hand: armL.hand },
-      armR: { shoulder: armR.shoulder, elbow: armR.elbow, hand: armR.hand },
-      legL: { hip: legL.hip, knee: legL.knee, foot: legL.foot },
-      legR: { hip: legR.hip, knee: legR.knee, foot: legR.foot },
+      armL: { shoulder: armL.shoulder, elbow: armL.elbow, hand: armL.hand, upper: armL.upper, fore: armL.fore },
+      armR: { shoulder: armR.shoulder, elbow: armR.elbow, hand: armR.hand, upper: armR.upper, fore: armR.fore },
+      legL: { hip: legL.hip, knee: legL.knee, foot: legL.foot, thigh: legL.thigh, shin: legL.shin },
+      legR: { hip: legR.hip, knee: legR.knee, foot: legR.foot, thigh: legR.thigh, shin: legR.shin },
+      facialDetail: [brow, nose, jaw, socketL, socketR, tongue],
     },
     hitMeshes: [head, neckMesh, chest, belly, pelvis, ...limbHits, ...extraHits],
     detail: [brow, nose, jaw, socketL, socketR, ...detail, armL.hand, armR.hand],

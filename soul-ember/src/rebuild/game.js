@@ -26,7 +26,7 @@ export class Game{
   spawn(type,position,options={}){const def=MONSTERS[type];if(!def)throw new Error('Unknown monster');let x=0,z=0;for(let i=0;i<100;i++){const a=this.rng()*Math.PI*2,r=13+this.rng()*8;x=this.player.x+Math.sin(a)*r;z=this.player.z+Math.cos(a)*r;if(!solid(x,z,def.boss?1.1:.5))break;}if(solid(x,z,1.1)){x=0;z=0;}if(position){x=position.x;z=position.z;}
   const mutator=ASCENSIONS[this.ascensionModifier]||{},defaultElite=!def.boss&&(this.time>20)&&this.rng()<Math.min(.42,.06+(this.time/70)*.18+this.director.tier*.035+(mutator.elite||0)),elite=options?.elite!==undefined?options.elite:defaultElite,cycleScale=1+this.cycle*.28,timeScale=1+(this.time/140)*0.85,hp=def.hp*(elite?2.4:1)*(1+this.biome*.35)*timeScale*cycleScale*(mutator.hp||1),spd=def.speed*1.25*(1+this.director.tier*.04)*Math.min(1.55,1+(this.time/180)*0.35);
   const affix=elite?(options?.affix||AFFIX_KEYS[Math.floor(this.rng()*AFFIX_KEYS.length)]):null;
-  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:type==='golem'?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
+  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,growth:0,teleportCooldown:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:['golem','hulk'].includes(type)?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
  }
  damage(e,amount,source='weapon'){if(e.hp<=0)return 0;const p=this.player;
  if(e.type==='golem'&&source==='weapon'){
@@ -36,6 +36,20 @@ export class Game{
    this.effect(e.x+Math.sin(attackAngle)*.6,e.z+Math.cos(attackAngle)*.6,0xff5511,1.2,'impact',.25);
    this.emit('golemDeflect',{x:e.x,z:e.z});
    amount*=.08;
+  }
+ }
+ if(e.type==='hulk'){
+  if(source==='finisher'||source==='signature'||source==='skill'||source==='defense'){
+   amount*=1.5;
+   e.growth=0;
+   e.freeze=1.2;
+   this.effect(e.x,e.z,0x22eedd,2.4,'impact',.4);
+   this.emit('hulkRupture',{x:e.x,z:e.z});
+  }else{
+   amount*=.55;
+   e.growth=Math.min(8,(e.growth||0)+1);
+   this.effect(e.x,e.z,0x79a6a3,1.2,'pulse',.25);
+   this.emit('hulkAbsorb',{x:e.x,z:e.z,growth:e.growth});
   }
  }
  if(e.elite&&e.affix==='shielded'){
@@ -143,6 +157,31 @@ export class Game{
   else if(id==='spitter-shot'){this.shoot(a,18,11,1,true,e,{kind:'spit'});}
   else if(id==='spitter-pool'){this.enemyZone(x,z,2.5,4,.55,'poison');}
   else if(id==='wraith-phase'){e.x=x-Math.sin(a)*5;e.z=z-Math.cos(a)*5;collide(e,e.radius);for(let i=-1;i<=1;i++)this.shoot(a+i*.2,18,11,1,true,e,{kind:'spirit'});this.effect(e.x,e.z,0x789aa4,2,'phase',.7);}
+  else if(id==='siren-scream'){
+   this.effect(e.x,e.z,0x22eedd,7.5,'wave',.6);
+   if(dist(e,p)<7.5&&clearLine(e,p)){
+    this.hurt(18*(this.threat||1));
+    if(!p.screamImmune||p.screamImmune<=0){
+     p.disorient=1.2;
+     p.chill=Math.max(p.chill||0,2.0);
+     p.screamImmune=4.0;
+     this.emit('sirenScreamHit',{disorient:1.2});
+    }
+   }
+   e.recover=.75;
+  }
+  else if(id==='siren-bolt'){
+   this.shoot(a-.12,17,12,1,true,e,{kind:'tide'});
+   this.shoot(a+.12,17,12,1,true,e,{kind:'tide'});
+   e.recover=.55;
+  }
+  else if(id==='hulk-slam'){
+   const growthMult=1+(e.growth||0)*0.1;
+   this.enemyMelee(e,4.2,Math.round(28*growthMult),'impact');
+   this.enemyZone(e.x,e.z,3.8,3.2,.25,'whirlpool');
+   this.trauma=Math.min(1.2,(this.trauma||0)+.22*growthMult);
+   e.recover=.8;
+  }
   else if(id==='root-slam'){this.enemyMelee(e,4,30,'impact');}
   else if(id==='root-line'){for(let i=-1;i<=1;i++)this.shoot(a+i*.14,22,9,1,true,e,{kind:'root'});}
   else if(id==='brood-eggs'){for(let i=0;i<2+e.phase;i++)this.enemyZone(x+Math.sin(i*3)*2,z+Math.cos(i*3)*2,1.25,4,1.4,'egg');if(this.enemies.length<75)this.spawn('thornling',{x:e.x+1,z:e.z});}

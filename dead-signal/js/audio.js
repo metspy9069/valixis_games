@@ -957,6 +957,32 @@ export class AudioEngine {
 
   grenadeBounce() { this._tone({ freq: 420, to: 260, dur: 0.05, gain: 0.07, type: 'triangle' }); }
 
+  /** Molotov shatter & ignition: glass bottle impact and immediate chemical fire roar. */
+  molotovShatter(pan = 0) {
+    if (!this.ctx) return;
+    // Glass shatter crack & high shards
+    this._noise({ dur: 0.09, gain: 0.32, type: 'bandpass', freq: 3800, q: 3.2, sweepTo: 1400, pan, priority: 2 });
+    this._tone({ freq: 2400, to: 820, dur: 0.07, gain: 0.16, type: 'triangle', pan, priority: 2 });
+    this._tone({ freq: 3200, to: 1600, dur: 0.05, gain: 0.12, type: 'sine', pan, priority: 2 });
+    // Ignition whoosh
+    this._noise({ dur: 0.52, gain: 0.42, type: 'lowpass', freq: 950, sweepTo: 180, q: 1.2, attack: 0.005, send: 0.7, pan, priority: 2 });
+    this._tone({ freq: 140, to: 42, dur: 0.45, gain: 0.28, type: 'sine', attack: 0.01, pan, priority: 2 });
+  }
+
+  /** Pipe bomb lure alarm: urgent piercing electronic beacon that escalates in frequency. */
+  pipeBombBeep(pan = 0, elapsed = 0) {
+    if (!this.ctx) return;
+    const baseFreq = Math.min(3800, 2400 + elapsed * 380);
+    this._tone({ freq: baseFreq, to: baseFreq * 1.08, dur: 0.038, gain: 0.22, type: 'square', pan, priority: 2 });
+    this._tone({ freq: baseFreq * 0.5, to: baseFreq * 0.52, dur: 0.04, gain: 0.12, type: 'sine', pan, priority: 1 });
+  }
+
+  /** Sparking fuse hiss during cooking / countdown. */
+  fuseSizzle(pan = 0) {
+    if (!this.ctx) return;
+    this._noise({ dur: 0.04, gain: 0.06, type: 'highpass', freq: 4800, q: 1.5, pan, priority: 0 });
+  }
+
   /** A bloater coming apart: wet tearing over a low, gassy thump. */
   bloaterBurst() {
     this._noise({ dur: 0.58, gain: 0.46, type: 'lowpass', freq: 1200, sweepTo: 100, q: 1.1, attack: 0.003, send: 0.8, drive: 5 });
@@ -970,6 +996,17 @@ export class AudioEngine {
         send: 0.4, when: 0.05 + i * 0.07,
       });
     }
+  }
+
+  /** Caustic acid eating through armor and flesh: high sizzling noise. */
+  acidSizzle() {
+    this._noise({ dur: 0.32, gain: 0.18, type: 'bandpass', freq: 3200, sweepTo: 1800, q: 3.2, attack: 0.01 });
+  }
+
+  /** Player coughing/choking when inhaling toxic bloater gas. */
+  cough() {
+    this._noise({ dur: 0.26, gain: 0.28, type: 'bandpass', freq: 480, sweepTo: 220, q: 2.2, attack: 0.02 });
+    this._voice({ f0: 110, dur: 0.22, vowel: 'u', gain: 0.12, rasp: 0.9, syllables: 1 });
   }
 
   hit(head) {

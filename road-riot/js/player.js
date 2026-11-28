@@ -21,6 +21,143 @@ const SHARED_SMOKE_MAT = new THREE.MeshBasicMaterial({
   depthWrite: false
 });
 
+// Cached Procedural Textures & PBR Materials for Day 08
+let _carbonFiberTexture = null;
+export function getCarbonFiberTexture() {
+  if (_carbonFiberTexture) return _carbonFiberTexture;
+  if (typeof document === 'undefined' || !document.createElement) {
+    _carbonFiberTexture = new THREE.Texture();
+    _carbonFiberTexture.name = 'CarbonFiberProcedural';
+    return _carbonFiberTexture;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+
+  // Draw authentic 2x2 carbon fiber twill weave
+  ctx.fillStyle = '#111317';
+  ctx.fillRect(0, 0, 64, 64);
+
+  const cellSize = 16;
+  for (let y = 0; y < 64; y += cellSize) {
+    for (let x = 0; x < 64; x += cellSize) {
+      const isAlt = ((x + y) / cellSize) % 2 === 0;
+      const grad = ctx.createLinearGradient(x, y, x + cellSize, y + cellSize);
+      if (isAlt) {
+        grad.addColorStop(0, '#1c1f26');
+        grad.addColorStop(0.5, '#353945');
+        grad.addColorStop(1, '#15171c');
+      } else {
+        grad.addColorStop(0, '#14161b');
+        grad.addColorStop(0.5, '#282c36');
+        grad.addColorStop(1, '#0e1014');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+    }
+  }
+
+  _carbonFiberTexture = new THREE.CanvasTexture(canvas);
+  _carbonFiberTexture.name = 'CarbonFiberProcedural';
+  _carbonFiberTexture.wrapS = THREE.RepeatWrapping;
+  _carbonFiberTexture.wrapT = THREE.RepeatWrapping;
+  _carbonFiberTexture.repeat.set(6, 6);
+  _carbonFiberTexture.colorSpace = THREE.SRGBColorSpace;
+  return _carbonFiberTexture;
+}
+
+let _wheelBlurTexture = null;
+export function getWheelBlurTexture() {
+  if (_wheelBlurTexture) return _wheelBlurTexture;
+  if (typeof document === 'undefined' || !document.createElement) {
+    _wheelBlurTexture = new THREE.Texture();
+    _wheelBlurTexture.name = 'WheelBlurProcedural';
+    return _wheelBlurTexture;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const cx = 64, cy = 64, r = 58;
+
+  ctx.clearRect(0, 0, 128, 128);
+
+  // Concentric motion blur rings representing high-RPM spinning spokes
+  const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, r);
+  grad.addColorStop(0, 'rgba(235, 245, 255, 0.95)');
+  grad.addColorStop(0.3, 'rgba(180, 200, 220, 0.8)');
+  grad.addColorStop(0.65, 'rgba(100, 120, 140, 0.65)');
+  grad.addColorStop(0.85, 'rgba(40, 50, 65, 0.4)');
+  grad.addColorStop(1.0, 'rgba(10, 15, 20, 0.1)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 1.5;
+  for (let rad = 18; rad < r; rad += 6) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  _wheelBlurTexture = new THREE.CanvasTexture(canvas);
+  _wheelBlurTexture.colorSpace = THREE.SRGBColorSpace;
+  return _wheelBlurTexture;
+}
+
+/**
+ * Injects metallic micro-flake sparkle into Three.js MeshPhysicalMaterial via shader chunk hook.
+ */
+export function applyMetallicFlakeShader(material, flakeScale = 150.0, flakeSparkle = 0.22) {
+  if (!material) return material;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying vec3 vWorldFlakePos;
+      `
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <worldpos_vertex>',
+      `#include <worldpos_vertex>
+       vWorldFlakePos = worldPosition.xyz;
+      `
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying vec3 vWorldFlakePos;
+       float flakeHash(vec3 p) {
+         p = fract(p * 0.3183099 + 0.1);
+         p *= 17.0;
+         return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+       }
+      `
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <roughnessmap_fragment>',
+      `#include <roughnessmap_fragment>
+       float flake = flakeHash(floor(vWorldFlakePos * ${flakeScale.toFixed(1)}));
+       roughnessFactor = clamp(roughnessFactor + (flake - 0.5) * ${flakeSparkle.toFixed(2)}, 0.04, 0.96);
+      `
+    );
+  };
+  return material;
+}
+
+/**
+ * Calculates progressive wheel motion blur factor from road speed in km/h:
+ * 0.0 at <= 120 km/h, smoothly scaling to 1.0 at >= 210 km/h.
+ */
+export function calculateWheelBlurFactor(speedKmh, thresholdKmh = 120, maxKmh = 210) {
+  if (speedKmh <= thresholdKmh) return 0;
+  return Math.min(1.0, Math.max(0, (speedKmh - thresholdKmh) / (maxKmh - thresholdKmh)));
+}
+
 export const VEHICLE_ROSTER = {
   apex: {
     id: 'apex',
@@ -145,6 +282,9 @@ export class PlayerCar {
     // Physical State
     this.x = 0;
     this.speed = 0;
+    this.topSpeed = VEHICLE_ROSTER.apex.baseStats.topSpeed;
+    this.accel = VEHICLE_ROSTER.apex.baseStats.accel;
+    this.handling = VEHICLE_ROSTER.apex.baseStats.handling;
     this.targetSpeed = 22;
     this.hull = 100;
     this.maxHull = 100;
@@ -215,6 +355,8 @@ export class PlayerCar {
     this.exhaustFlames = [];
     this.shieldMesh = null;
     this.wheels = { fl: null, fr: null, rl: null, rr: null };
+    this.wheelBlurMeshes = [];
+    this.currentWheelBlurFactor = 0;
 
     // Skid marks & smoke
     this.skidMarks = [];
@@ -224,6 +366,11 @@ export class PlayerCar {
   }
 
   buildContactShadowTexture() {
+    if (typeof document === 'undefined' || !document.createElement) {
+      const tex = new THREE.Texture();
+      tex.name = 'ContactShadowNodeFallback';
+      return tex;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -468,6 +615,7 @@ export class PlayerCar {
   }
 
   rebuildCarModel() {
+    this.wheelBlurMeshes = [];
     if (this.carModel) {
       this.chassis.remove(this.carModel);
       this.carModel = null;
@@ -488,14 +636,19 @@ export class PlayerCar {
           const newMats = mats.map(m => {
             const combined = `${node.name || ''} ${m.name || ''}`.toUpperCase();
 
-            // 1. Cockpit Windshield & Windows
+            // 1. Cockpit Windshield & Tinted Refractive Glass (PBR Physical Transmission)
             if (/GLASS|WINDOW/i.test(combined)) {
-              return new THREE.MeshStandardMaterial({
-                color: /BLACK/i.test(combined) ? 0x05080e : 0x0a1c2e,
-                metalness: 0.95,
+              return new THREE.MeshPhysicalMaterial({
+                color: /BLACK/i.test(combined) ? 0x05080e : 0x081828,
+                metalness: 0.15,
                 roughness: 0.05,
                 transparent: true,
-                opacity: /BLACK/i.test(combined) ? 0.85 : 0.65,
+                opacity: /BLACK/i.test(combined) ? 0.78 : 0.62,
+                transmission: 0.65,
+                ior: 1.52,
+                thickness: 0.5,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.04,
                 depthWrite: false
               });
             }
@@ -519,12 +672,15 @@ export class PlayerCar {
               });
             }
 
-            // 4. Carbon Fiber Aerodynamics (Splitter, Diffuser, Spoiler)
+            // 4. Carbon Fiber Aerodynamics (Splitter, Diffuser, Spoiler - 2x2 Twill Weave PBR)
             if (/CARBON/i.test(combined)) {
-              return new THREE.MeshStandardMaterial({
-                color: 0x16181d,
-                roughness: 0.38,
-                metalness: 0.45
+              return new THREE.MeshPhysicalMaterial({
+                color: 0x1c1e24,
+                map: getCarbonFiberTexture(),
+                roughness: 0.32,
+                metalness: 0.5,
+                clearcoat: 0.45,
+                clearcoatRoughness: 0.12
               });
             }
 
@@ -540,23 +696,34 @@ export class PlayerCar {
               });
             }
 
-            // 6. Primary High-Gloss Metallic Car Body Paint
+            // 6. Primary High-Gloss Metallic Car Body Paint with PBR Clearcoat & Metallic Flake
             if (/CHASSIS|BODY|HOOD|DOOR|BOOT|BUMPER|PHONG4|COLORMAP/i.test(combined) || isApexModel) {
-              // If material has an existing texture map (e.g., Kenney colormap), preserve map!
               if (m.map) {
-                const cloned = m.clone();
+                const cloned = new THREE.MeshPhysicalMaterial({
+                  map: m.map,
+                  color: m.color || 0xffffff,
+                  roughness: 0.22,
+                  metalness: 0.65,
+                  clearcoat: 1.0,
+                  clearcoatRoughness: 0.08,
+                  reflectivity: 0.95
+                });
                 cloned.map.colorSpace = THREE.SRGBColorSpace;
                 cloned.map.anisotropy = 16;
                 cloned.map.flipY = false;
-                cloned.roughness = 0.28;
-                cloned.metalness = 0.65;
+                applyMetallicFlakeShader(cloned, 160.0, 0.18);
                 return cloned;
               }
-              return new THREE.MeshStandardMaterial({
+              const paintMat = new THREE.MeshPhysicalMaterial({
                 color: this.paintColor,
                 metalness: 0.88,
-                roughness: 0.18
+                roughness: 0.16,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.08,
+                reflectivity: 0.95
               });
+              applyMetallicFlakeShader(paintMat, 150.0, 0.22);
+              return paintMat;
             }
 
             const cloned = m.clone();
@@ -598,6 +765,33 @@ export class PlayerCar {
       const wrapper = new THREE.Group();
       wrapper.add(inner);
 
+      // Cockpit Interior Sub-Cluster (Dashboard & F1 Steering Wheel visible through windshield)
+      const cockpitGroup = new THREE.Group();
+      cockpitGroup.name = 'CockpitInterior';
+      const dash = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.22, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0x0b0d12, roughness: 0.9, metalness: 0.1 })
+      );
+      dash.position.set(0, 0.82, -0.4);
+      cockpitGroup.add(dash);
+
+      const hudCluster = new THREE.Mesh(
+        new THREE.BoxGeometry(0.48, 0.12, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0x00d9ff })
+      );
+      hudCluster.position.set(-0.2, 0.90, -0.18);
+      hudCluster.rotation.x = -0.3;
+      cockpitGroup.add(hudCluster);
+
+      const steerWheel = new THREE.Mesh(
+        new THREE.TorusGeometry(0.14, 0.022, 8, 16),
+        new THREE.MeshStandardMaterial({ color: 0x181a20, roughness: 0.75, metalness: 0.25 })
+      );
+      steerWheel.position.set(-0.2, 0.92, -0.08);
+      steerWheel.rotation.x = 0.35;
+      cockpitGroup.add(steerWheel);
+      wrapper.add(cockpitGroup);
+
       // Add Brilliant Headlights & Taillights in world coordinates
       this.attachVehicleLamps(wrapper);
 
@@ -638,6 +832,7 @@ export class PlayerCar {
             spinner.add(p);
           });
 
+          this.attachWheelBlurDisc(spinner);
           model.add(pivot);
           this.wheels[prefix.toLowerCase()] = pivot;
           this.wheelSpinners.push(spinner);
@@ -658,6 +853,7 @@ export class PlayerCar {
       this.wheels.rr = apexRR;
       [apexFL, apexFR, apexRL, apexRR].filter(Boolean).forEach(w => {
         this.wheelSpinners.push(w);
+        this.attachWheelBlurDisc(w);
       });
       return;
     }
@@ -678,6 +874,7 @@ export class PlayerCar {
       this.wheels.rr = hyperionRR;
       [hyperionFL, hyperionFR, hyperionRL, hyperionRR].filter(Boolean).forEach(w => {
         this.wheelSpinners.push(w);
+        this.attachWheelBlurDisc(w);
       });
       return;
     }
@@ -700,9 +897,31 @@ export class PlayerCar {
         this.wheels.fr = fr;
         this.wheels.rl = rl;
         this.wheels.rr = rr;
-        [fl, fr, rl, rr].filter(Boolean).forEach(w => this.wheelSpinners.push(w));
+        [fl, fr, rl, rr].filter(Boolean).forEach(w => {
+          this.wheelSpinners.push(w);
+          this.attachWheelBlurDisc(w);
+        });
       }
     }
+  }
+
+  attachWheelBlurDisc(targetGroup, radius = 0.44) {
+    if (!targetGroup) return null;
+    const discGeo = new THREE.CircleGeometry(radius * 0.96, 24);
+    discGeo.rotateY(Math.PI / 2);
+    const discMat = new THREE.MeshBasicMaterial({
+      map: getWheelBlurTexture(),
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const discMesh = new THREE.Mesh(discGeo, discMat);
+    discMesh.name = 'WheelBlurDisc';
+    targetGroup.add(discMesh);
+    if (!this.wheelBlurMeshes) this.wheelBlurMeshes = [];
+    this.wheelBlurMeshes.push(discMesh);
+    return discMesh;
   }
 
   attachVehicleLamps(parentGroup) {
@@ -739,18 +958,37 @@ export class PlayerCar {
 
   buildProceduralSupercar() {
     const group = new THREE.Group();
-    const bodyMat = new THREE.MeshStandardMaterial({
+    const bodyMat = new THREE.MeshPhysicalMaterial({
       color: this.paintColor,
-      metalness: 0.9,
-      roughness: 0.16
+      metalness: 0.88,
+      roughness: 0.16,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.08,
+      reflectivity: 0.95
     });
-    const carbonMat = new THREE.MeshStandardMaterial({ color: 0x14161b, metalness: 0.5, roughness: 0.38 });
-    const glassMat = new THREE.MeshStandardMaterial({
+    applyMetallicFlakeShader(bodyMat, 150.0, 0.22);
+
+    const carbonMat = new THREE.MeshPhysicalMaterial({
+      color: 0x1c1e24,
+      map: getCarbonFiberTexture(),
+      roughness: 0.32,
+      metalness: 0.5,
+      clearcoat: 0.45,
+      clearcoatRoughness: 0.12
+    });
+
+    const glassMat = new THREE.MeshPhysicalMaterial({
       color: 0x081828,
-      metalness: 0.95,
+      metalness: 0.15,
       roughness: 0.05,
       transparent: true,
-      opacity: 0.72
+      opacity: 0.65,
+      transmission: 0.65,
+      ior: 1.52,
+      thickness: 0.5,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      depthWrite: false
     });
     const chromeMat = new THREE.MeshStandardMaterial({ color: 0xebf2f8, metalness: 0.96, roughness: 0.12 });
     const rubberMat = new THREE.MeshStandardMaterial({ color: 0x131518, roughness: 0.86, metalness: 0.05 });
@@ -775,6 +1013,33 @@ export class PlayerCar {
     const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.58, 2.2), glassMat);
     canopy.position.set(0, 0.95, 0.1);
     group.add(canopy);
+
+    // Cockpit Interior Sub-Cluster (Dashboard, glowing HUD & F1 steering wheel visible through glass)
+    const cockpitGroup = new THREE.Group();
+    cockpitGroup.name = 'CockpitInterior';
+    const dash = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.22, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x0b0d12, roughness: 0.9, metalness: 0.1 })
+    );
+    dash.position.set(0, 0.82, -0.4);
+    cockpitGroup.add(dash);
+
+    const hudCluster = new THREE.Mesh(
+      new THREE.BoxGeometry(0.48, 0.12, 0.04),
+      new THREE.MeshBasicMaterial({ color: 0x00d9ff })
+    );
+    hudCluster.position.set(-0.2, 0.90, -0.18);
+    hudCluster.rotation.x = -0.3;
+    cockpitGroup.add(hudCluster);
+
+    const steerWheel = new THREE.Mesh(
+      new THREE.TorusGeometry(0.14, 0.022, 8, 16),
+      new THREE.MeshStandardMaterial({ color: 0x181a20, roughness: 0.75, metalness: 0.25 })
+    );
+    steerWheel.position.set(-0.2, 0.92, -0.08);
+    steerWheel.rotation.x = 0.35;
+    cockpitGroup.add(steerWheel);
+    group.add(cockpitGroup);
 
     // 4. Side Skirts & Rear Carbon Diffuser
     [-1.15, 1.15].forEach(x => {
@@ -801,7 +1066,7 @@ export class PlayerCar {
     // 6. Headlights & Taillights
     this.attachVehicleLamps(group);
 
-    // 7. 4 Independent High-Detail Wheels (Rubber Tire + Chrome Alloy Rim + Hub)
+    // 7. 4 Independent High-Detail Wheels (Rubber Tire + Chrome Alloy Rim + Hub + Motion Blur Disc)
     const createWheel = () => {
       const wheelGroup = new THREE.Group();
       // Outer Tire
@@ -816,6 +1081,8 @@ export class PlayerCar {
       const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 8), bodyMat);
       cap.rotation.z = Math.PI / 2;
       wheelGroup.add(cap);
+
+      this.attachWheelBlurDisc(wheelGroup, 0.44);
       return wheelGroup;
     };
 
@@ -1245,7 +1512,7 @@ export class PlayerCar {
       this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * (this.isBoosting ? 5.5 : 3.2) * torqueFactor);
     }
 
-    // 2. Wheel Spinning Animation
+    // 2. Wheel Spinning Animation & High-Speed Motion Blur
     this.wheelRotation += (this.speed * dt) * 2.8;
     if (this.wheelSpinners && this.wheelSpinners.length > 0) {
       this.wheelSpinners.forEach(s => {
@@ -1257,6 +1524,18 @@ export class PlayerCar {
         w.children[0].rotation.x = this.wheelRotation;
       }
     });
+
+    // Real-time Wheel Motion Blur opacity scaling (> 120 km/h)
+    const kmh = this.speed * 9;
+    this.currentWheelBlurFactor = calculateWheelBlurFactor(kmh);
+    if (this.wheelBlurMeshes && this.wheelBlurMeshes.length > 0) {
+      const targetOpacity = this.currentWheelBlurFactor * 0.85;
+      this.wheelBlurMeshes.forEach(m => {
+        if (m && m.material) {
+          m.material.opacity = targetOpacity;
+        }
+      });
+    }
 
     // 3. Stunt Jump & Airtime Physics
     if (this.isAirborne) {
@@ -1392,5 +1671,46 @@ export class PlayerCar {
       this.magnetTime -= dt;
       if (this.magnetTime <= 0) this.magnetActive = false;
     }
+  }
+
+  getMaterialTelemetry() {
+    let hasPhysicalClearcoat = false;
+    let clearcoatVal = 0;
+    let clearcoatRoughnessVal = 0;
+    let carbonCount = 0;
+    let hasCockpit = false;
+    const blurMeshCount = this.wheelBlurMeshes ? this.wheelBlurMeshes.length : 0;
+
+    if (this.carModel) {
+      this.carModel.traverse(node => {
+        if (node.name === 'CockpitInterior') {
+          hasCockpit = true;
+        }
+        if (node.isMesh && node.material) {
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          mats.forEach(m => {
+            if (m.clearcoat !== undefined && m.clearcoat > 0) {
+              hasPhysicalClearcoat = true;
+              clearcoatVal = Math.max(clearcoatVal, m.clearcoat);
+              clearcoatRoughnessVal = m.clearcoatRoughness;
+            }
+            if (m.map && m.map.name === 'CarbonFiberProcedural') {
+              carbonCount++;
+            }
+          });
+        }
+      });
+    }
+
+    return {
+      hasPhysicalClearcoat,
+      clearcoat: clearcoatVal,
+      clearcoatRoughness: clearcoatRoughnessVal,
+      carbonMeshCount: carbonCount,
+      hasCockpit,
+      wheelBlurFactor: parseFloat((this.currentWheelBlurFactor || 0).toFixed(3)),
+      activeBlurMeshes: blurMeshCount,
+      vehicleId: this.currentVehicleId
+    };
   }
 }

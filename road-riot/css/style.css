@@ -2876,6 +2876,35 @@ html, body {
   box-shadow: 0 0 6px #00ff88;
 }
 
+.radar-blip.blip-police {
+  width: 9px;
+  height: 16px;
+  background: linear-gradient(180deg, #ff0044 50%, #0088ff 50%);
+  border: 1px solid #ffffff;
+  box-shadow: 0 0 10px #ff0044, 0 0 14px #0088ff;
+  animation: policeBlipStrobe 0.25s infinite alternate;
+}
+
+.radar-blip.blip-interceptor {
+  width: 10px;
+  height: 18px;
+  border: 1.5px solid #00f0ff;
+  box-shadow: 0 0 14px #ff0044, 0 0 18px #00f0ff;
+}
+
+.radar-blip.blip-roadblock {
+  width: 16px;
+  height: 9px;
+  background: repeating-linear-gradient(45deg, #ff0044, #ff0044 4px, #ffffff 4px, #ffffff 8px);
+  border: 1px solid #ff0044;
+  box-shadow: 0 0 12px rgba(255, 0, 68, 0.95);
+}
+
+@keyframes policeBlipStrobe {
+  0% { filter: brightness(1.0); }
+  100% { filter: brightness(1.7); }
+}
+
 .spatial-player-marker {
   position: absolute;
   bottom: 6px;
@@ -3408,6 +3437,45 @@ html, body {
 @keyframes heatStarPulse {
   0% { transform: scale(1); filter: brightness(1); }
   100% { transform: scale(1.15); filter: brightness(1.3); }
+}
+
+.evasion-bar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 95px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid #ffd900;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-left: 6px;
+  box-shadow: 0 0 8px rgba(255, 217, 0, 0.4);
+}
+
+.evasion-bar.hidden {
+  display: none !important;
+}
+
+.evasion-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffd900, #ffea00);
+  box-shadow: 0 0 8px #ffd900;
+  transition: width 0.08s linear;
+}
+
+.evasion-text {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 2px #000;
+  letter-spacing: 0.5px;
+  pointer-events: none;
 }
 
 /* 2. Aerodynamic Slipstream Drafting & Slingshot Gauge */

@@ -171,11 +171,12 @@ export function resolveZombieRayHits(rawHits, overlapWindow = 0.14) {
     if (!zombie || !zombie.alive) continue;
 
     const part = hit.part || (obj && obj.userData && obj.userData.part) || 'body';
+    const limbId = hit.limbId || (obj && obj.userData && obj.userData.limbId) || (part === 'head' ? 'head' : null);
     const zone = hitZoneFor(part);
     const existing = perZombie.get(zombie);
 
     if (!existing) {
-      const entry = { zombie, mesh: obj, point: hit.point, distance: hit.distance, part, zone };
+      const entry = { zombie, mesh: obj, point: hit.point, distance: hit.distance, part, zone, limbId };
       perZombie.set(zombie, entry);
       ordered.push(entry);
     } else if (
@@ -187,6 +188,7 @@ export function resolveZombieRayHits(rawHits, overlapWindow = 0.14) {
       existing.point = hit.point;
       existing.part = part;
       existing.zone = zone;
+      existing.limbId = limbId;
     }
   }
 
@@ -244,6 +246,7 @@ export function resolveBallisticPath(zombieHits, worldHits, opts = {}) {
         zone: zNext.zone,
         damageScale,
         penetrated: willPenetrate,
+        limbId: zNext.limbId || (zNext.mesh && zNext.mesh.userData && zNext.mesh.userData.limbId) || (zNext.part === 'head' ? 'head' : null),
       });
       targetsHit++;
       energy -= cost;

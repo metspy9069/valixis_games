@@ -4,6 +4,8 @@ import { assets } from './loader.js';
 import * as THREE from 'three';
 import { resolveCircle } from './world.js';
 import { buildZombieModel } from './models.js';
+import { initZombieDismemberment, severZombieLimb, settleRagdollDeath } from './dismemberment.js';
+import { computeHordeSteering } from './nav.js';
 
 import { TYPES } from './data.js';
 export { TYPES };
@@ -32,12 +34,17 @@ export class Zombie {
     this.flinch = 0;
     this.hitTimer = 0;
     this.staggerTimer = 0;
+    this.burningTimer = 0;
+    this.burningDps = 0;
     this.deadTimer = 0;
     this.wanderDir = new THREE.Vector3(0, 0, 1);
     this.wanderTimer = 0;
     this.avoidDir = new THREE.Vector3();
     this.avoidTime = 0;
     this.stuckTime = 0;
+    this.flankSign = rng() > 0.5 ? 1 : -1;
+    this.encirclementOffset = (rng() - 0.5) * 1.6;
+    this.moveDir = new THREE.Vector3(0, 0, 1);
     this.lodTimer = 0;
     this.detailOn = true;
     // Per-body asymmetry. No two bodies walk the same way: one leg drags, the
@@ -65,6 +72,7 @@ export class Zombie {
     this.home = position.clone();
     this.build();
     this.group.position.copy(position);
+    initZombieDismemberment(this);
   }
 
   build() {
@@ -97,13 +105,25 @@ export class Zombie {
     if (this.state === 'idle') this.state = 'chase';
   }
 
-  takeDamage(amount, part, ctx) {
+  takeDamage(amount, part, ctx, limbId = null, hitPoint = null, shotDir = null) {
     if (!this.alive) return false;
     this.hp -= amount;
     this.flinch = 1;
     this.hitTimer = 0.12;
     if (this.state === 'idle') this.state = 'chase';
     if (ctx && ctx.audio) ctx.audio.hit(part === 'head');
+
+    // Locational dismemberment evaluation (Day 8)
+    if (part === 'head' && (this.hp <= 0 || amount >= 65)) {
+      severZombieLimb(this, 'head', hitPoint, shotDir, ctx);
+      return true;
+    } else if (limbId && this.limbHealth && this.limbHealth[limbId] !== undefined) {
+      this.limbHealth[limbId] -= amount;
+      if (this.limbHealth[limbId] <= 0 && !this.dismembered[limbId]) {
+        severZombieLimb(this, limbId, hitPoint, shotDir, ctx);
+      }
+    }
+
     if (this.hp <= 0) {
       this.die(ctx, part);
       return true;
@@ -119,13 +139,22 @@ export class Zombie {
     return false;
   }
 
+  ignite(duration = 2.8, dps = 15) {
+    if (!this.alive) return;
+    this.burningTimer = Math.max(this.burningTimer, duration);
+    this.burningDps = Math.max(this.burningDps, dps);
+  }
+
   die(ctx, part = 'body') {
     this.alive = false;
     this.state = 'dead';
     this.deadTimer = 0;
     // Bodies drop the way they were pushed, not always face-first.
-    this.deathRoll = (Math.random() - 0.5) * 1.1;
-    this.deathPitch = -Math.PI / 2 * (0.78 + Math.random() * 0.4);
+    this.deathRoll = (Math.random() - 0.5) * 0.8;
+    this.deathPitch = -Math.PI / 2 * (0.85 + Math.random() * 0.2);
+    if (part === 'head' && (!this.dismembered || !this.dismembered.head)) {
+      severZombieLimb(this, 'head', null, null, ctx);
+    }
     if (ctx && ctx.audio) ctx.audio.zombieDeath();
     if (ctx && ctx.onDeath) ctx.onDeath(this, part);
   }
@@ -145,23 +174,36 @@ export class Zombie {
     if (this.removed) return;
 
     if (!this.alive) {
-      this.deadTimer += dt;
-      // Fall forward, then sink through the road.
-      const fall = Math.min(1, this.deadTimer / 0.55);
-      this.group.rotation.x = this.deathPitch * easeOut(fall);
-      this.group.rotation.z = this.deathRoll * easeOut(fall);
-      this.group.position.y = -Math.max(0, this.deadTimer - 2.4) * 0.45;
+      settleRagdollDeath(this, dt, ctx.colliders || []);
       if (this.deadTimer > 3.6) {
         this.removed = true;
-        ctx.scene.remove(this.group);
+        if (ctx.scene) ctx.scene.remove(this.group);
       }
       return;
     }
 
-    const { playerPos, colliders, zombies, audio } = ctx;
+    const { playerPos, colliders, zombies, audio, lurePos } = ctx;
     const pos = this.group.position;
     const toPlayer = new THREE.Vector3(playerPos.x - pos.x, 0, playerPos.z - pos.z);
-    const dist = toPlayer.length();
+    const playerDist = toPlayer.length();
+
+    // Burning DoT from Molotov fire pool
+    if (this.burningTimer > 0) {
+      this.burningTimer -= dt;
+      this.hp -= this.burningDps * dt;
+      this.flinch = Math.max(this.flinch, 0.35);
+      if (this.hp <= 0) {
+        this.die(ctx, 'body');
+        return;
+      }
+    }
+
+    // Siren / Pipe Bomb lure overrides tracking
+    const isLured = !!lurePos;
+    const toTarget = isLured
+      ? new THREE.Vector3(lurePos.x - pos.x, 0, lurePos.z - pos.z)
+      : toPlayer;
+    const dist = toTarget.length();
 
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.flinch = Math.max(0, this.flinch - dt * 4);
@@ -232,9 +274,20 @@ export class Zombie {
           }
         }
         // Follow the flow field around buildings; close in straight when near.
-        if (ctx.nav && dist > 2.6) {
-          const navDir = ctx.nav.direction(pos.x, pos.z);
-          if (navDir) move.copy(navDir);
+        // Horde steering integration (Day 9):
+        // Combines flowfield navigation, runner/lurker perimeter flanking,
+        // encirclement ring distribution, 2-tier Boids swarm separation (avenue fan-out),
+        // and tactile whisker obstacle avoidance.
+        if (!this.ranged || dist >= 6) {
+          const steer = computeHordeSteering({
+            zombie: this,
+            zombies,
+            playerPos: isLured ? lurePos : playerPos,
+            colliders,
+            nav: ctx.nav,
+            dt
+          });
+          move.copy(steer.move);
         }
 
         // A boss signature move owns the approach while it commits.
@@ -247,29 +300,32 @@ export class Zombie {
         }
       }
 
-      // Separation: zombies shoulder past each other instead of stacking.
-      for (let i = 0; i < zombies.length; i++) {
-        const other = zombies[i];
-        if (other === this || !other.alive) continue;
-        const dx = pos.x - other.group.position.x;
-        const dz = pos.z - other.group.position.z;
-        const d2 = dx * dx + dz * dz;
-        const minD = this.radius + other.radius + 0.15;
-        if (d2 > 1e-5 && d2 < minD * minD) {
-          const d = Math.sqrt(d2);
-          const push = (minD - d) / minD;
-          move.x += (dx / d) * push * 1.4;
-          move.z += (dz / d) * push * 1.4;
+      // If idle, apply basic separation so idle packs don't collapse:
+      if (this.state === 'idle') {
+        for (let i = 0; i < zombies.length; i++) {
+          const other = zombies[i];
+          if (other === this || !other.alive) continue;
+          const dx = pos.x - other.group.position.x;
+          const dz = pos.z - other.group.position.z;
+          const d2 = dx * dx + dz * dz;
+          const minD = this.radius + other.radius + 0.15;
+          if (d2 > 1e-5 && d2 < minD * minD) {
+            const d = Math.sqrt(d2);
+            const push = (minD - d) / minD;
+            move.x += (dx / d) * push * 1.4;
+            move.z += (dz / d) * push * 1.4;
+          }
         }
       }
       if (move.lengthSq() > 1e-4) move.normalize();
+      this.moveDir.copy(move);
 
-      // Attack when in reach.
-      if (dist < this.def.reach && this.attackCooldown <= 0 && this.abilityState === 'idle') {
+      // Attack when in reach of player (unless lured by siren).
+      if (!isLured && playerDist < this.def.reach && this.attackCooldown <= 0 && this.abilityState === 'idle') {
         this.state = 'attack';
         this.windup = 0;
         this.attackTimer = 0;
-        if (audio) audio.snarl(dist, ctx.panOf ? ctx.panOf(pos) : 0);
+        if (audio) audio.snarl(playerDist, ctx.panOf ? ctx.panOf(pos) : 0);
       }
     }
 
@@ -278,7 +334,7 @@ export class Zombie {
       targetSpeed = 0;
       if (this.windup > 0.42 && !this.struck) {
         this.struck = true;
-        if (dist < this.def.reach + 0.55) {
+        if (playerDist < this.def.reach + 0.55) {
           ctx.damage(this.damage, this);
         }
         const cd = this.type === 'brute' ? 1.7 : this.type === 'lurker' ? 0.46 : 1.05;
@@ -332,7 +388,7 @@ export class Zombie {
           this.stuckTime = 0;
           const side = this.rng() > 0.5 ? 1 : -1;
           this.avoidDir.set(-move.z * side, 0, move.x * side).normalize();
-          this.avoidTime = 0.85;
+          this.avoidTime = 0.5;
         }
       } else {
         this.stuckTime = Math.max(0, this.stuckTime - dt * 0.6);
@@ -459,6 +515,42 @@ export class Zombie {
     // Stride cadence & phase
     const stride = walking ? Math.sin(this.phase) : Math.sin(this.phase) * 0.12;
     const strideOpp = walking ? Math.sin(this.phase + Math.PI) : -Math.sin(this.phase) * 0.12;
+
+    // Crawler Animation Override (Day 8)
+    if (this.isCrawler) {
+      this.crawlPhase = (this.crawlPhase || 0) + dt * 4.8;
+      r.hips.position.y = 0.22;
+      r.hips.rotation.x = 1.35; // Dropped flat onto street
+      r.hips.rotation.z = Math.sin(this.crawlPhase) * 0.08;
+      r.hips.rotation.y = Math.sin(this.crawlPhase * 0.5) * 0.12;
+
+      // Neck cranes up to look at player ankles
+      r.neck.rotation.x = -0.72;
+      r.neck.rotation.z = 0;
+
+      // Crawling arm reach / alternate drag pulls forward
+      if (r.armL && r.armL.shoulder && !this.dismembered.armL) {
+        r.armL.shoulder.rotation.x = Math.sin(this.crawlPhase) * 0.85 - 0.5;
+        r.armL.shoulder.rotation.z = 0.35;
+        r.armL.elbow.rotation.x = -0.8;
+      }
+      if (r.armR && r.armR.shoulder && !this.dismembered.armR) {
+        r.armR.shoulder.rotation.x = -Math.sin(this.crawlPhase) * 0.85 - 0.5;
+        r.armR.shoulder.rotation.z = -0.35;
+        r.armR.elbow.rotation.x = -0.8;
+      }
+
+      // Dragging trailing legs along asphalt
+      if (r.legL && r.legL.hip) {
+        r.legL.hip.rotation.x = -0.25 + Math.sin(this.crawlPhase) * 0.08;
+        if (r.legL.knee) r.legL.knee.rotation.x = 0.1;
+      }
+      if (r.legR && r.legR.hip) {
+        r.legR.hip.rotation.x = -0.25 - Math.sin(this.crawlPhase) * 0.08;
+        if (r.legR.knee) r.legR.knee.rotation.x = 0.1;
+      }
+      return;
+    }
 
     // Lean: Forward cant based on archetype and speed
     let baseLean = isRunner ? 0.44 : isBrute ? 0.26 : isLurker ? 0.52 : isBloater ? 0.18 : 0.16;

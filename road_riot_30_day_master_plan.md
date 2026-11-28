@@ -135,14 +135,14 @@ flowchart TD
   - Implemented dynamic exhaust overrun backfire flame particles that ignite on downshifts and nitro ignition with 24 ember sparks (`THREE.InstancedMesh`) and golden-orange exhaust flares.
 * **Verification:** Automated unit tests (66/66 passing in road-riot, 184/184 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day09_weather.py`) capturing `day09_rain_streaks_droplets.png`, `day09_tire_spray_highspeed.png`, and `day09_arctic_blizzard.png` with 0 page errors and 1.20ms logic frame time.
 
-### Day 10: Lighting Pipeline, Post-Processing Bloom & Day/Night Cycle
-* **Focus Area:** Scene lighting & render pipeline in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js).
+### Day 10: Lighting Pipeline, Post-Processing Bloom & Day/Night Cycle [x] COMPLETED
+* **Focus Area:** Scene lighting & render pipeline in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js), [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js), and [road-riot/js/player.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/player.js).
 * **Features & Fixes:**
-  - Add progressive day-to-sunset-to-night lighting cycle with smoothly transitioning directional sunlight and sky colors.
-  - Implement selective UnrealBloomPass post-processing for neon building lights, taillight trails, and nitro exhaust cones.
-  - Add dynamic highway tunnel segments with sequential overhead amber sodium lights casting moving shadows.
-  - Implement headlight projector spotlights illuminating traffic vehicles ahead in Midnight biome.
-* **Verification:** Measure render pass duration with Bloom active; ensure frame time stays under 16.6ms.
+  - Implemented progressive day-to-sunset-to-night diurnal lighting cycle (`LIGHTING_PRESETS`) with non-linear cosine transitions across directional sunlight (color, azimuth, intensity), hemisphere ambient sky/ground tones, moonlight, and sky dome uniforms.
+  - Implemented subterranean concrete highway tunnel segments (segments 18..21) featuring concrete vault enclosures, portal clearance frames, sequential overhead amber sodium luminaires (`THREE.PointLight(0xff9900, 3.8, 24)`), and dynamic ambient sunlight occlusion (`tunnelTransition`).
+  - Implemented dual high-intensity Xenon forward projector headlights (`SpotLight`) with volumetric light cones (`lightCones`), low-beam DRLs (0.8), high-beam illumination (5.8), and dynamic headlight cone detection illuminating lead traffic entities in beam ($Z \in [-55, -2]$, $|X| < 3.8$).
+  - Integrated selective `UnrealBloomPass` post-processing pipeline (`EffectComposer`, `RenderPass`, `UnrealBloomPass`) dynamically pulsing bloom strength on hypersonic nitro boost (0.88), subterranean tunnels (0.65), and midnight expressway (0.58).
+* **Verification:** Automated unit tests (70/70 passing in road-riot, 193/193 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day10_lighting.py`) capturing `day10_bloom_sunset_expressway.png`, `day10_tunnel_sodium_subterranean.png`, and `day10_headlight_midnight_traffic.png` with 0 page errors and stable 60 FPS performance.
 
 ### Day 11: Biome Overhaul — Neo-Tokyo Rain & Midnight Expressway
 * **Focus Area:** Environment meshes and skyline architecture in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js).

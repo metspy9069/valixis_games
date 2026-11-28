@@ -42,6 +42,16 @@ export class ScreenDropletSystem {
 
   update(dt, weatherType, roadSpeedKmh = 0) {
     this.time += dt;
+
+    if (weatherType === 'rain') {
+      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 2.0);
+    } else if (weatherType === 'snow') {
+      const targetFrost = Math.min(0.65, 0.25 + (roadSpeedKmh / 240.0) * 0.4);
+      this.frostAlpha += (targetFrost - this.frostAlpha) * Math.min(1, dt * 2.0);
+    } else {
+      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 3.0);
+    }
+
     if (!this.ctx || !this.canvas) return;
 
     const w = this.canvas.width;
@@ -49,7 +59,6 @@ export class ScreenDropletSystem {
     this.ctx.clearRect(0, 0, w, h);
 
     if (weatherType === 'rain') {
-      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 2.0);
       const speedFactor = 1.0 + Math.min(2.5, roadSpeedKmh / 120.0);
 
       for (let i = 0; i < this.dropletCount; i++) {
@@ -86,9 +95,6 @@ export class ScreenDropletSystem {
       }
     } else if (weatherType === 'snow') {
       // Windshield corner frost accumulation during blizzard
-      const targetFrost = Math.min(0.65, 0.25 + (roadSpeedKmh / 240.0) * 0.4);
-      this.frostAlpha += (targetFrost - this.frostAlpha) * Math.min(1, dt * 2.0);
-
       if (this.frostAlpha > 0.01) {
         const frostGrad = this.ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.68);
         frostGrad.addColorStop(0, 'rgba(200, 235, 255, 0)');
@@ -97,8 +103,6 @@ export class ScreenDropletSystem {
         this.ctx.fillStyle = frostGrad;
         this.ctx.fillRect(0, 0, w, h);
       }
-    } else {
-      this.frostAlpha = Math.max(0, this.frostAlpha - dt * 3.0);
     }
   }
 }
@@ -1349,7 +1353,6 @@ export class WorldManager {
     }
 
     // Dynamic Pedestrian Animation (Smooth Crowd Cheering, Arm Waves & Head Motion)
-    const now = performance.now() * 0.0018;
     for (let i = 0; i < this.pedestrians.length; i++) {
       const p = this.pedestrians[i];
       if (p.userData && p.userData.isCheering) {

@@ -830,10 +830,11 @@ test('bramble shifter stays camouflaged underground, unburrows upon player proxi
   assert(g.player.hp<hpBefore,'Player took unburrow eruption damage');
 
   // Test 15s auto-unburrow timeout when player stays far away
-  const distantShifter=g.spawn('shifter',{x:18,z:18});
-  g.player.x=0;g.player.z=0; // dist ~ 25m > 3.2m
+  const timeoutGame=new Game({seed:501});
+  timeoutGame.player.invuln=999;
+  const distantShifter=timeoutGame.spawn('shifter',{x:18,z:18});
   assert.equal(distantShifter.burrowed,true);
-  for(let i=0;i<15*60+10;i++)g.update(1/60);
+  for(let i=0;i<15*60+10;i++)timeoutGame.update(1/60);
   assert.equal(distantShifter.burrowed,false,'Shifter auto-unburrows at 15s to prevent wave stall');
 });
 
@@ -850,7 +851,8 @@ test('spore weaver casts sticky tripwires that slow player by 50% and clean desp
   assert.equal(tripwire.life,12,'Tripwire zone has 12-second lifespan');
   assert.equal(tripwire.radius,2.4,'Tripwire radius is 2.4m');
 
-  // Player walks through tripwire
+  // Arm tripwire (past 0.35s warning) and walk through
+  tripwire.warn=0;
   g.player.x=tripwire.x;g.player.z=tripwire.z;
   g.player.vx=10;g.player.vz=10;
   tick(g,1);

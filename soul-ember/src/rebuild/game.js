@@ -199,8 +199,8 @@ export class Game{
   else if(id==='shifter-burst'){this.enemyMelee(e,3.6,26,'impact');for(let i=-1;i<=1;i++)this.shoot(a+i*.22,18,9,1,true,e,{kind:'root'});e.recover=.75;}
   else if(id==='weaver-web'){
    this.zones.push({id:++this.id,x:e.x+Math.sin(a)*1.8,z:e.z+Math.cos(a)*1.8,life:12,maxLife:12,warn:.35,radius:2.4,enemy:true,kind:'tripwire'});
-   const tripwires=this.zones.filter(z=>z.kind==='tripwire');
-   if(tripwires.length>6){tripwires.sort((a,b)=>a.life-b.life);tripwires[0].life=0;}
+   const tripwires=this.zones.filter(z=>z.kind==='tripwire'&&z.life>0);
+   if(tripwires.length>6){tripwires.sort((a,b)=>a.life-b.life);tripwires[0].life=0;this.zones=this.zones.filter(z=>z.life>0);}
    this.effect(e.x,e.z,0x365314,2.5,'pulse',.35);
    e.recover=.75;
   }

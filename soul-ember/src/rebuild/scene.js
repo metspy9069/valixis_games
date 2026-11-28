@@ -688,6 +688,55 @@ export class Scene{
     });
    }
   }
+  for(const ev of Object.values(game?.roomEvents||{})){
+   if(Math.hypot(ev.x-p.x,ev.z-p.z)>45)continue;
+   sync(`roomEvent:${ev.room}`,()=>{
+    const g=new T.Group();
+    if(ev.type==='altar'){
+     this.mesh(g,this.geo.cylinder,0x252a26,[1.8,.9,1.8],[0,.45,0],'stone');
+     this.mesh(g,this.geo.decalRing,0xdc2626,[2.2,1,2.2],[0,.03,0],'glass',true);
+     const gem=this.mesh(g,this.geo.gem,0xef4444,[1.4,2.2,1.4],[0,1.3,0],'glass',true);
+     gem.name='gem';
+    }else if(ev.type==='vault'){
+     this.mesh(g,this.geo.cylinder,0x3e453f,[2.6,.3,2.6],[0,.15,0],'stone');
+     const ring=this.mesh(g,this.geo.decalRing,0xfacc15,[3.4,1,3.4],[0,.03,0],'glass',true);
+     ring.name='trialRing';
+     const chest=new T.Group();chest.name='chest';
+     this.mesh(chest,this.geo.box,0x5c3d26,[1.2,.7,.8],[0,.55,0],'wood');
+     this.detailPlate(chest,0xfacc15,[0,.55,.41],[1.22,.12,.04],'metal');
+     g.add(chest);
+    }else if(ev.type==='campfire'){
+     const pit=this.mesh(g,this.geo.torus,0x484e4c,[1.2,.3,1.2],[0,.15,0],'stone');
+     pit.rotation.x=Math.PI/2;
+     const flame=this.mesh(g,this.geo.cone,0xff7722,[.8,1.4,.8],[0,.7,0],'glass',true);
+     flame.name='flame';
+    }
+    return g;
+   },o=>{
+    o.position.set(ev.x,0,ev.z);
+    if(ev.type==='altar'){
+     const gem=o.getObjectByName('gem');
+     if(gem){
+      gem.position.y=1.3+Math.sin(clock*2.5+ev.room)*.12;
+      gem.rotation.y=clock*1.2;
+      if(ev.used)gem.scale.set(.7,.8,.7);
+     }
+    }else if(ev.type==='vault'){
+     const trialRing=o.getObjectByName('trialRing');
+     if(trialRing){
+      trialRing.rotation.y=clock*.5;
+      const pulse=ev.state==='active'?(1+Math.sin(clock*8)*.08):1;
+      trialRing.scale.setScalar(3.4*pulse);
+     }
+    }else if(ev.type==='campfire'){
+     const flame=o.getObjectByName('flame');
+     if(flame){
+      const flicker=1+Math.sin(clock*14+ev.room)*.12+Math.cos(clock*22)*.08;
+      flame.scale.set(.8*(ev.used?.35:flicker),(ev.used?.4:1.4*flicker),.8*(ev.used?.35:flicker));
+     }
+    }
+   });
+  }
   for(const e of game?.corpses||[])sync(e.id,()=>this.character(e.type),o=>this.animate(o,e,clock,low,{dead:true}));
   for(const b of game?.bolts||[])sync(`bolt:${b.id}`,()=>this.projectile(b.kind||'bolt',heroColor,b.enemy),o=>{
    o.position.set(b.x,b.y||.85,b.z);o.rotation.y=Math.atan2(b.vx,b.vz);o.rotation.z=(b.kind==='flask'||b.kind==='volatile')?clock*8:0;

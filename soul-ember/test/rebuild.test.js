@@ -879,6 +879,133 @@ test('thornbound ossuary biome spawns bramble shifter and spore weaver in region
   assert(regional.some(e=>e.id==='weaver'));
 });
 
+test('dynamic room events initialize cursed altar, treasure vault, and campfire shrine in outer rooms',()=>{
+  const g=new Game({seed:601});
+  assert(g.roomEvents,'roomEvents initialized');
+  const eventTypes=Object.values(g.roomEvents).map(e=>e.type).sort();
+  assert.deepEqual(eventTypes,['altar','campfire','vault']);
+  for(const ev of Object.values(g.roomEvents)){
+    assert.notEqual(ev.room,4,'Special room events never override center Cathedral room 4');
+    assert(ev.room>=0&&ev.room<=8,'Room index is in 3x3 grid range 0..8');
+    assert(Number.isFinite(ev.x)&&Number.isFinite(ev.z));
+  }
+});
+
+test('cursed altar blood pacts grant crit and gold while strictly preserving at least 1 HP',()=>{
+  const g=new Game({seed:602});
+  const altar=Object.values(g.roomEvents).find(e=>e.type==='altar');
+  assert(altar,'Altar exists');
+  g.currentRoom=altar.room;
+
+  // Pact 1: Blood of Fury
+  const initialMaxHp=g.player.maxHp;
+  const successFury=g.acceptPact('fury',altar.room);
+  assert(successFury,'Blood of Fury pact accepted');
+  assert.equal(altar.used,true,'Altar marked used');
+  assert.equal(altar.active,false);
+  assert(g.player.maxHp<initialMaxHp,'Max HP sacrificed');
+  assert(g.player.critBonus>=0.35,'Crit bonus applied');
+  assert(g.events.some(e=>e.type==='altarPact'&&e.choice==='fury'));
+
+  // Repeated activation is rejected
+  assert.equal(g.acceptPact('fury',altar.room),false,'Used altar cannot be reused');
+
+  // Hardening: Pact sacrifice cannot reduce HP below 1
+  const gLow=new Game({seed:603});
+  const altar2=Object.values(gLow.roomEvents).find(e=>e.type==='altar');
+  gLow.player.hp=15; // lower than 30 HP sacrifice cost
+  const successGold=gLow.acceptPact('gold',altar2.room);
+  assert(successGold,'Flesh for Cinders pact accepted');
+  assert.equal(gLow.player.hp,1,'Player HP clamped strictly to 1 and player does not die');
+  assert(gLow.gold>=60,'Gold awarded from blood pact');
+  assert.notEqual(gLow.state,'dead','Player survived blood trade');
+});
+
+test('treasure vault activates timed 25s survival trial, spawns elite swarm, and unlocks golden chest upon survival',()=>{
+  const g=new Game({seed:604});
+  g.spawnTimer=9999;
+  const vault=Object.values(g.roomEvents).find(e=>e.type==='vault');
+  assert(vault,'Vault exists');
+  assert.equal(vault.state,'locked');
+
+  // Move player into vault center to trigger trial
+  g.currentRoom=vault.room;
+  g.player.x=vault.x;g.player.z=vault.z;
+  g.player.invuln=999;
+  tick(g,2);
+
+  assert.equal(vault.state,'active','Vault state transitioned to active trial');
+  assert(vault.timer>24.0&&vault.timer<=25.0,'Trial timer initialized to 25.0s');
+  assert(g.events.some(e=>e.type==='trialStart'&&e.room===vault.room),'trialStart event emitted');
+  assert(g.enemies.some(e=>e.elite),'Trial swarm spawned elite champions');
+
+  // Advance time past 25s (1500 frames)
+  for(let i=0;i<25*60+10;i++){
+    if(g.state==='upgrade')g.upgrade(g.choices[0]?.id);
+    g.update(1/60);
+  }
+  assert.equal(vault.state,'cleared','Vault cleared after 25s survival');
+  assert(g.events.some(e=>e.type==='trialComplete'&&e.room===vault.room),'trialComplete event emitted');
+  assert(g.events.some(e=>e.type==='chest')||g.loot.some(l=>l.kind==='chest'),'Golden Relic Chest dropped upon trial completion');
+});
+
+test('campfire shrine provides peaceful sanctuary with zero enemy spawns and mends wounds or tempers weapon',()=>{
+  const g=new Game({seed:605});
+  const campfire=Object.values(g.roomEvents).find(e=>e.type==='campfire');
+  assert(campfire,'Campfire shrine exists');
+
+  // Verify campfire sanctuary immunity: spawn attempts within campfire room are redirected outside
+  for(let i=0;i<30;i++){
+    const e=g.spawn('thrall');
+    const insideCampfire=Math.abs(e.x-campfire.x)<12&&Math.abs(e.z-campfire.z)<12;
+    assert.equal(insideCampfire,false,'Enemies never spawn inside peaceful campfire shrine room');
+  }
+
+  // Option 1: Mend Wounds
+  g.player.hp=20;
+  const healSuccess=g.restCampfire('mend',campfire.room);
+  assert(healSuccess,'Mend wounds accepted');
+  assert.equal(g.player.hp,55,'Restored 35 HP');
+  assert.equal(campfire.used,true,'Campfire used');
+  assert(g.events.some(e=>e.type==='campfireRest'&&e.choice==='mend'));
+
+  // Option 2: Temper Weapon on fresh shrine
+  const g2=new Game({seed:606});
+  const campfire2=Object.values(g2.roomEvents).find(e=>e.type==='campfire');
+  const initialDmg=g2.player.damageMult;
+  const temperSuccess=g2.restCampfire('temper',campfire2.room);
+  assert(temperSuccess,'Temper weapon accepted');
+  assert(g2.player.damageMult>initialDmg,'Damage tempered by +10%');
+  assert(g2.events.some(e=>e.type==='campfireRest'&&e.choice==='temper'));
+});
+
+test('rapid dashing across doorways continuously tracks room visit state without skipping',()=>{
+  const g=new Game({seed:607});
+  g.spawnTimer=9999;
+  assert.equal(g.currentRoom,4,'Starts in center room 4');
+  assert(g.visitedRooms.has(4));
+
+  // High-velocity dash northward through doorway (z = -12) into Room 1 (Hall of Ash, z = -28)
+  g.player.x=0;g.player.z=-10;
+  g.player.dx=0;g.player.dz=-1;
+  g.player.dash=0.55;
+
+  for(let i=0;i<35;i++)g.update(1/60,{x:0,z:-1});
+  assert.equal(g.currentRoom,1,'Current room transitioned to Room 1');
+  assert(g.visitedRooms.has(1),'Room 1 added to visitedRooms during rapid dash');
+  assert(g.events.some(e=>e.type==='roomEnter'&&e.to===1),'roomEnter event emitted');
+
+  // High-velocity dash eastward through doorway (x = 12) into Room 2 (Ossuary, x = 28, z = -28)
+  g.player.x=10;g.player.z=-28;
+  g.player.dx=1;g.player.dz=0;
+  g.player.dash=0.55;
+
+  for(let i=0;i<35;i++)g.update(1/60,{x:1,z:0});
+  assert.equal(g.currentRoom,2,'Current room transitioned to Room 2');
+  assert(g.visitedRooms.has(2),'Room 2 added to visitedRooms during rapid dash');
+  assert(g.events.some(e=>e.type==='roomEnter'&&e.to===2));
+});
+
 
 
 

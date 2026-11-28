@@ -1,4 +1,4 @@
-import {PILLARS,collide,solid,clearLine,Navigation} from './dungeon.js';
+import {ROOMS,PILLARS,collide,solid,clearLine,Navigation} from './dungeon.js';
 import {HEROES,MONSTERS,REGIONS,BOSSES,upgradeOffers} from './roster.js';
 import {HERO_MODELS} from './model-catalog.js';
 import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS,CHAMPION_AFFIXES,AFFIX_KEYS} from './content.js';
@@ -14,16 +14,139 @@ const segmentDistance=(p,a,b)=>{const vx=b.x-a.x,vz=b.z-a.z,wx=p.x-a.x,wz=p.z-a.
 export class Game{
  constructor({hero='cinder',seed=Date.now(),ranked=false,modifier='balanced',meta={}}={}){
   if(!HEROES[hero])throw new Error('Unknown hero');const h=HEROES[hero],armory=ranked?{}:meta.armory||{},mastery=ranked?0:(meta.mastery?.[hero]||0),maxHp=h.hp+(armory.vitality||0)*10,speed=h.speed*(1+(armory.footwork||0)*.04);
-  Object.assign(this,{hero,rng:random(seed),ranked,modifier,state:'playing',time:0,kills:0,gold:0,earned:0,spent:0,elites:0,biome:0,cycle:0,ascension:0,endless:false,ascensionModifier:null,id:0,spawnTimer:1,bossSpawned:false,bossKills:0,regionStart:0,streak:0,maxStreak:0,trauma:0,navClock:0,merchantOffers:[],merchantRerolled:false,merchantBought:false,emberFlash:0,comboScore:0,comboRank:'D',comboDecay:0,threat:1});
+  Object.assign(this,{hero,rng:random(seed),ranked,modifier,state:'playing',time:0,kills:0,gold:0,earned:0,spent:0,elites:0,biome:0,cycle:0,ascension:0,endless:false,ascensionModifier:null,id:0,spawnTimer:1,bossSpawned:false,bossKills:0,regionStart:0,streak:0,maxStreak:0,trauma:0,navClock:0,merchantOffers:[],merchantRerolled:false,merchantBought:false,emberFlash:0,comboScore:0,comboRank:'D',comboDecay:0,threat:1,trialTimer:0,lastX:0,lastZ:0});
   this.director={tier:0,pressure:0,clock:5,lastKills:0,lastHp:maxHp,grace:8};
   this.enemies=[];this.bolts=[];this.loot=[];this.effects=[];this.zones=[];this.corpses=[];this.events=[];this.choices=[];this.damageLog={weapon:0,skill:0,status:0,signature:0,defense:0};this.levelTimes=[];this.navigation=new Navigation();
-  this.player={id:'hero',x:0,z:0,y:0,vx:0,vz:0,hp:maxHp,maxHp,speed,damage:1,damageMult:mastery>=1?1.04:1,attackRate:0.95,comboStep:0,comboTimer:0,ignition:0,tempest:0,magnet:4+(armory.magnetism||0)*.6,stamina:100,staminaRate:23*(1+(armory.footwork||0)*.06),ult:mastery>=3?10:0,level:1,xp:0,need:h.initialXp,fire:0,cooldown:h.cooldown*.82,invuln:0,dash:0,dashCost:34,dx:0,dz:1,attack:0,cast:0,moving:false,ranks:[0,0,0],shared:{},skills:[0,0],skillRate:1+(armory.focus||0)*.05+(mastery>=2?.05:0),signatureRate:1,relics:{},rites:{},shield:0,counter:0,ward:0,trail:0,mastery,revives:0,goldChance:.55+(armory.fortune||0)*.08};
+  this.player={id:'hero',x:0,z:0,y:0,vx:0,vz:0,hp:maxHp,maxHp,speed,damage:1,damageMult:mastery>=1?1.04:1,attackRate:0.95,comboStep:0,comboTimer:0,ignition:0,tempest:0,magnet:4+(armory.magnetism||0)*.6,stamina:100,staminaRate:23*(1+(armory.footwork||0)*.06),ult:mastery>=3?10:0,level:1,xp:0,need:h.initialXp,fire:0,cooldown:h.cooldown*.82,invuln:0,dash:0,dashCost:34,dx:0,dz:1,attack:0,cast:0,moving:false,ranks:[0,0,0],shared:{},skills:[0,0],skillRate:1+(armory.focus||0)*.05+(mastery>=2?.05:0),signatureRate:1,relics:{},rites:{},shield:0,counter:0,ward:0,trail:0,mastery,revives:0,goldChance:.55+(armory.fortune||0)*.08,critBonus:0};
+  this.roomEvents={};this.visitedRooms=new Set([4]);this.currentRoom=4;
+  this.initRoomEvents();
  }
  emit(type,data={}){this.events.push({type,...data});}
  effect(x,z,color=0xd9b97c,radius=1,kind='burst',life=.45,meta={}){this.effects.push({id:++this.id,x,z,color,radius,kind,life,maxLife:life,...meta});}
+ roomFor(x,z){
+  for(let i=0;i<ROOMS.length;i++){
+   const r=ROOMS[i];if(Math.abs(x-r.x)<=12.2&&Math.abs(z-r.z)<=12.2)return i;
+  }
+  let best=4,minDist=Infinity;
+  for(let i=0;i<ROOMS.length;i++){
+   const d=Math.hypot(x-ROOMS[i].x,z-ROOMS[i].z);if(d<minDist){minDist=d;best=i;}
+  }
+  return best;
+ }
+ initRoomEvents(customEvents=null){
+  if(customEvents){this.roomEvents=customEvents;return;}
+  this.roomEvents={};
+  const outer=[0,1,2,3,5,6,7,8];
+  for(let i=outer.length-1;i>0;i--){
+   const j=Math.floor(this.rng()*(i+1));
+   [outer[i],outer[j]]=[outer[j],outer[i]];
+  }
+  const altarRoom=outer[0],vaultRoom=outer[1],campfireRoom=outer[2];
+  this.roomEvents[altarRoom]={
+   room:altarRoom,type:'altar',x:ROOMS[altarRoom].x,z:ROOMS[altarRoom].z,active:true,used:false,
+   pacts:[
+    {id:'fury',name:'Blood of Fury',desc:'Sacrifice 30% Max HP to gain +35% Critical Chance.'},
+    {id:'gold',name:'Flesh for Cinders',desc:'Sacrifice 30 HP to gain +60 Run Gold.'}
+   ]
+  };
+  this.roomEvents[vaultRoom]={
+   room:vaultRoom,type:'vault',x:ROOMS[vaultRoom].x,z:ROOMS[vaultRoom].z,state:'locked',timer:25.0,maxTimer:25.0,spawnedSwarm:false
+  };
+  this.roomEvents[campfireRoom]={
+   room:campfireRoom,type:'campfire',x:ROOMS[campfireRoom].x,z:ROOMS[campfireRoom].z,active:true,used:false,
+   blessings:[
+    {id:'mend',name:'Mend Wounds',desc:'Rest and recover +35 Vitality.'},
+    {id:'temper',name:'Temper Weapon',desc:'Temper weapon at embers for +10% Damage.'}
+   ]
+  };
+ }
+ updateRoomEvents(dt){
+  for(const k in this.roomEvents){
+   const ev=this.roomEvents[k];
+   if(ev.type==='vault'){
+    if(ev.state==='locked'){
+     if(dist(this.player,ev)<=3.8&&this.currentRoom===ev.room){
+      ev.state='active';ev.timer=25.0;
+      this.emit('trialStart',{room:ev.room,duration:25.0});
+      this.effect(ev.x,ev.z,0xeab308,4.0,'pulse',0.8);
+      if(!ev.spawnedSwarm){
+       ev.spawnedSwarm=true;
+       const pool=Object.entries(MONSTERS).filter(([id, m]) => !m.boss && m.region === this.biome).map(([id]) => id);
+       const activePool=pool.length ? pool : ['thrall', 'hound'];
+       for(let i=0;i<2;i++){
+        const a=i*Math.PI+(this.rng()-.5),t=activePool[Math.floor(this.rng()*activePool.length)];
+        this.spawn(t,{x:ev.x+Math.sin(a)*4.5,z:ev.z+Math.cos(a)*4.5},{elite:true});
+       }
+       for(let i=0;i<4;i++){
+        const a=(i*Math.PI/2)+.4,t=activePool[Math.floor(this.rng()*activePool.length)];
+        this.spawn(t,{x:ev.x+Math.sin(a)*5.5,z:ev.z+Math.cos(a)*5.5},{elite:false});
+       }
+      }
+     }
+    }else if(ev.state==='active'){
+     ev.timer=Math.max(0,ev.timer-dt);
+     this.trialTimer=ev.timer;
+     if(ev.timer<=0){
+      ev.state='cleared';this.trialTimer=0;
+      this.emit('trialComplete',{room:ev.room});
+      this.effect(ev.x,ev.z,0xffd700,5.0,'ultimate',1.0);
+      this.drop('chest',ev.x,ev.z,0,'epic');
+      this.drop('gold',ev.x-.8,ev.z,35,'rare');
+      this.drop('gold',ev.x+.8,ev.z,35,'rare');
+      this.drop('crest',ev.x,ev.z+.8,250,'epic');
+     }
+    }
+   }
+  }
+ }
+ acceptPact(choice='fury',roomId=null){
+  const p=this.player;
+  const altar=roomId!==null?this.roomEvents[roomId]:(this.roomEvents[this.currentRoom]?.type==='altar'?this.roomEvents[this.currentRoom]:Object.values(this.roomEvents).find(e=>e.type==='altar'));
+  if(!altar||altar.type!=='altar'||!altar.active||altar.used)return false;
+  if(choice==='fury'){
+   const sacrifice=Math.max(5,Math.round(p.maxHp*0.30));
+   p.maxHp=Math.max(10,p.maxHp-sacrifice);
+   p.hp=Math.max(1,Math.min(p.hp,p.maxHp));
+   p.critBonus=(p.critBonus||0)+0.35;
+   p.damageMult=(p.damageMult||1)*1.15;
+   altar.active=false;altar.used=true;altar.chosen='fury';
+   this.effect(altar.x,altar.z,0xdc2626,3.5,'pulse',.6);
+   this.emit('altarPact',{room:altar.room,choice:'fury',cost:sacrifice,hp:p.hp,maxHp:p.maxHp,critBonus:p.critBonus});
+   return true;
+  }else if(choice==='gold'){
+   const sacrifice=30;
+   p.hp=Math.max(1,p.hp-sacrifice);
+   this.gold+=60;this.earned+=60;
+   altar.active=false;altar.used=true;altar.chosen='gold';
+   this.effect(altar.x,altar.z,0xfacc15,3.5,'burst',.5);
+   this.emit('altarPact',{room:altar.room,choice:'gold',cost:sacrifice,hp:p.hp,gold:this.gold});
+   return true;
+  }
+  return false;
+ }
+ restCampfire(choice='mend',roomId=null){
+  const p=this.player;
+  const campfire=roomId!==null?this.roomEvents[roomId]:(this.roomEvents[this.currentRoom]?.type==='campfire'?this.roomEvents[this.currentRoom]:Object.values(this.roomEvents).find(e=>e.type==='campfire'));
+  if(!campfire||campfire.type!=='campfire'||!campfire.active||campfire.used)return false;
+  if(choice==='mend'){
+   const healed=Math.min(35,p.maxHp-p.hp);
+   p.hp=Math.min(p.maxHp,p.hp+35);
+   campfire.active=false;campfire.used=true;campfire.chosen='mend';
+   this.effect(campfire.x,campfire.z,0x22c55e,3.5,'burst',.6);
+   this.emit('campfireRest',{room:campfire.room,choice:'mend',healed,hp:p.hp});
+   return true;
+  }else if(choice==='temper'){
+   p.damageMult=(p.damageMult||1)*1.10;
+   campfire.active=false;campfire.used=true;campfire.chosen='temper';
+   this.effect(campfire.x,campfire.z,0xf59e0b,3.5,'pulse',.6);
+   this.emit('campfireRest',{room:campfire.room,choice:'temper',damageMult:p.damageMult});
+   return true;
+  }
+  return false;
+ }
   updateComboRank(){const s=this.comboScore;this.comboRank=s>=1800?'SSS':s>=1200?'S':s>=750?'A':s>=400?'B':s>=150?'C':'D';}
   comboMultiplier(){return this.comboRank==='SSS'?2.2:this.comboRank==='S'?1.8:this.comboRank==='A'?1.5:this.comboRank==='B'?1.25:1;}
-  spawn(type,position,options={}){const def=MONSTERS[type];if(!def)throw new Error('Unknown monster');let x=0,z=0;for(let i=0;i<100;i++){const a=this.rng()*Math.PI*2,r=13+this.rng()*8;x=this.player.x+Math.sin(a)*r;z=this.player.z+Math.cos(a)*r;if(!solid(x,z,def.boss?1.1:.5))break;}if(solid(x,z,1.1)){x=0;z=0;}if(position){x=position.x;z=position.z;}
+  spawn(type,position,options={}){const def=MONSTERS[type];if(!def)throw new Error('Unknown monster');let x=0,z=0;for(let i=0;i<100;i++){const a=this.rng()*Math.PI*2,r=13+this.rng()*8;x=this.player.x+Math.sin(a)*r;z=this.player.z+Math.cos(a)*r;if(!solid(x,z,def.boss?1.1:.5)){const crId=Object.values(this.roomEvents||{}).find(e=>e.type==='campfire')?.room;if(crId!==undefined&&!def.boss){const cr=ROOMS[crId];if(Math.abs(x-cr.x)<12&&Math.abs(z-cr.z)<12)continue;}break;}}if(solid(x,z,1.1)){x=0;z=0;}if(position){x=position.x;z=position.z;}
   const mutator=ASCENSIONS[this.ascensionModifier]||{},defaultElite=!def.boss&&(this.time>20)&&this.rng()<Math.min(.42,.06+(this.time/70)*.18+this.director.tier*.035+(mutator.elite||0)),elite=options?.elite!==undefined?options.elite:defaultElite,cycleScale=1+this.cycle*.28,timeScale=1+(this.time/140)*0.85,hp=def.hp*(elite?2.4:1)*(1+this.biome*.35)*timeScale*cycleScale*(mutator.hp||1),spd=def.speed*1.25*(1+this.director.tier*.04)*Math.min(1.55,1+(this.time/180)*0.35);
   const affix=elite?(options?.affix||AFFIX_KEYS[Math.floor(this.rng()*AFFIX_KEYS.length)]):null;
   const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,growth:0,teleportCooldown:0,burrowed:type==='shifter',unburrowTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:['golem','hulk'].includes(type)?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
@@ -66,7 +189,8 @@ export class Game{
    amount*=.12;
   }
  }
- const reduction=e.guarding>0 ? .35 : e.behavior==='guard' ? .72 : 1,hunter=p.relics.hunterSigil&&(e.elite||e.boss)?1.25:1,actual=Math.min(e.hp,amount*reduction*p.damageMult*hunter);e.hp-=actual;this.damageLog[source]=(this.damageLog[source]||0)+actual;this.comboScore+=actual;this.comboDecay=3.5;this.updateComboRank();if(e.guarding>0&&(source==='finisher'||source==='skill'||source==='signature'||source==='defense')){e.guarding=0;e.freeze=1.2;this.trauma=Math.min(1.2,(this.trauma||0)+.22);this.emit('guardBreak',{x:e.x,z:e.z});}if(source==='finisher'||source==='signature'){this.trauma=Math.min(1.2,(this.trauma||0)+(source==='signature'?.32:.18));}const isHeavy=source==='finisher'||source==='signature'||source==='defense';const impulse=isHeavy?(source==='signature'?2.4:source==='finisher'?1.2:0.7)/(e.boss?6.0:e.elite?2.8:1):0;if(impulse>0){const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1;e.vx=(e.vx||0)+(kx/kd)*impulse;e.vz=(e.vz||0)+(kz/kd)*impulse;const kSpd=Math.hypot(e.vx,e.vz);if(kSpd>2.5){e.vx=(e.vx/kSpd)*2.5;e.vz=(e.vz/kSpd)*2.5;}}if(amount>3)e.flash=.14;if(amount>8)this.effect(e.x,e.z,0xd6c8a4,.55,'impact',.3);if(e.hp<=0)this.effects=this.effects.filter(f=>!(f.kind==='warning'&&f.ownerId===e.id));this.emit('damage',{amount:actual,x:e.x,z:e.z,source,crit:actual>=20||source==='finisher'});return actual;}
+ const isCrit=(source==='finisher')||(p.critBonus&&this.rng()<p.critBonus);let dmgAmt=amount;if(isCrit&&source!=='finisher')dmgAmt*=1.4;
+ const reduction=e.guarding>0 ? .35 : e.behavior==='guard' ? .72 : 1,hunter=p.relics.hunterSigil&&(e.elite||e.boss)?1.25:1,actual=Math.min(e.hp,dmgAmt*reduction*p.damageMult*hunter);e.hp-=actual;this.damageLog[source]=(this.damageLog[source]||0)+actual;this.comboScore+=actual;this.comboDecay=3.5;this.updateComboRank();if(e.guarding>0&&(source==='finisher'||source==='skill'||source==='signature'||source==='defense')){e.guarding=0;e.freeze=1.2;this.trauma=Math.min(1.2,(this.trauma||0)+.22);this.emit('guardBreak',{x:e.x,z:e.z});}if(source==='finisher'||source==='signature'){this.trauma=Math.min(1.2,(this.trauma||0)+(source==='signature'?.32:.18));}const isHeavy=source==='finisher'||source==='signature'||source==='defense';const impulse=isHeavy?(source==='signature'?2.4:source==='finisher'?1.2:0.7)/(e.boss?6.0:e.elite?2.8:1):0;if(impulse>0){const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1;e.vx=(e.vx||0)+(kx/kd)*impulse;e.vz=(e.vz||0)+(kz/kd)*impulse;const kSpd=Math.hypot(e.vx,e.vz);if(kSpd>2.5){e.vx=(e.vx/kSpd)*2.5;e.vz=(e.vz/kSpd)*2.5;}}if(amount>3)e.flash=.14;if(amount>8)this.effect(e.x,e.z,0xd6c8a4,.55,'impact',.3);if(e.hp<=0)this.effects=this.effects.filter(f=>!(f.kind==='warning'&&f.ownerId===e.id));this.emit('damage',{amount:actual,x:e.x,z:e.z,source,crit:actual>=20||source==='finisher'||isCrit});return actual;}
  hurt(amount){const p=this.player;if(p.invuln>0||this.state!=='playing')return false;let remaining=amount*(1-p.ranks[2]*.08);if(p.shield>0){const blocked=Math.min(p.shield,remaining);p.shield-=blocked;remaining-=blocked;this.effect(p.x,p.z,0x9fcbd0,1.4,'shield',.35);}if(remaining>0)p.hp=Math.max(0,p.hp-remaining);p.invuln=.32;this.trauma=Math.min(1.2,(this.trauma||0)+(remaining>p.maxHp*.2?.45:.25));this.director.grace=Math.max(this.director.grace,remaining>p.maxHp*.2?3.5:2);this.emit('hurt',{amount:remaining,x:p.x,z:p.z});if(p.counter>0){const target=this.smartTarget(5);if(target){this.damage(target,80,'defense');this.effect(target.x,target.z,0xc8c2a9,1.8,'slash');}p.counter=0;}if(p.ward>0){const target=this.smartTarget(10);if(target)this.shoot(Math.atan2(target.x-p.x,target.z-p.z),42,20,2,false,p,{kind:'spirit',source:'defense'});}if(!p.hp){if(p.relics.graveThread&&p.revives<1){p.revives++;p.hp=Math.max(1,p.maxHp*.35);p.invuln=2;this.effect(p.x,p.z,0xd5c99d,4,'revive',1);this.emit('revive');}else{this.state='dead';this.emit('end',{victory:false});}}return true;}
  nearest(origin,range=Infinity,exclude=new Set()){return this.enemies.filter(e=>e.hp>0&&!exclude.has(e.id)&&dist(e,origin)<range&&clearLine(origin,e)).sort((a,b)=>dist(a,origin)-dist(b,origin))[0];}
  smartTarget(range=16,exclude=new Set()){const p=this.player;return this.enemies.filter(e=>e.hp>0&&!e.burrowed&&!exclude.has(e.id)&&dist(e,p)<range&&clearLine(p,e)).sort((a,b)=>{const score=e=>(e.boss?1000:0)+(e.windup>0?450:0)+(e.elite?180:0)-dist(e,p)*8+(1-e.hp/e.maxHp)*12;return score(b)-score(a);})[0];}
@@ -249,7 +373,7 @@ export class Game{
    }
   }
  }
- update(dt,input={x:0,z:0}){if(this.state!=='playing')return;dt=Math.min(dt,.05)*(this.timeScale||1.0);this.time+=dt;const rx=Math.max(-1,Math.min(1,Math.round(this.player.x/28))),rz=Math.max(-1,Math.min(1,Math.round(this.player.z/28)));this.currentRoom=(rz+1)*3+(rx+1);if(!this.visitedRooms)this.visitedRooms=new Set([4]);this.visitedRooms.add(this.currentRoom);const p=this.player,h=HEROES[this.hero];this.trauma=Math.min(1.2,Math.max(0,this.trauma-dt*1.5));this.navClock-=dt;if(this.navClock<=0){this.navigation.update(p);this.navClock=.2;}
+ update(dt,input={x:0,z:0}){if(this.state!=='playing')return;dt=Math.min(dt,.05)*(this.timeScale||1.0);this.time+=dt;if(!this.visitedRooms)this.visitedRooms=new Set([4]);const p=this.player,h=HEROES[this.hero];const prevX=this.lastX!==undefined?this.lastX:p.x,prevZ=this.lastZ!==undefined?this.lastZ:p.z;for(let step=0;step<=1;step+=0.25){const sx=prevX+(p.x-prevX)*step,sz=prevZ+(p.z-prevZ)*step;this.visitedRooms.add(this.roomFor(sx,sz));}this.lastX=p.x;this.lastZ=p.z;const newRoom=this.roomFor(p.x,p.z);if(newRoom!==this.currentRoom){const oldRoom=this.currentRoom;this.currentRoom=newRoom;this.emit('roomEnter',{from:oldRoom,to:newRoom,name:ROOMS[newRoom]?.name});}this.updateRoomEvents(dt);this.trauma=Math.min(1.2,Math.max(0,this.trauma-dt*1.5));this.navClock-=dt;if(this.navClock<=0){this.navigation.update(p);this.navClock=.2;}
   this.emberFlash=Math.max(0,(this.emberFlash||0)-dt);this.comboDecay=(this.comboDecay||0)-dt;if(this.comboDecay<=0&&this.comboScore>0){this.comboScore=Math.max(0,this.comboScore-dt*220);this.updateComboRank();}
   this.threat=1+(this.time/105)*0.55+this.cycle*0.35;this.updateDirector(dt);
   p.chill=Math.max(0,(p.chill||0)-dt);const chillSlow=p.chill>0?.65:1.0;
@@ -353,7 +477,7 @@ export class Game{
    }
   }
   let advance=false;for(const e of deadEnemies){this.kills++;this.streak++;this.maxStreak=Math.max(this.streak,this.maxStreak);if(e.elite)this.elites++;p.ult=Math.min(100,p.ult+.5);const mult=this.comboMultiplier();this.drop('xp',e.x,e.z,e.xp*(e.elite?2.0:1.0)*h.soulYield*mult,e.elite?'rare':'common');if(e.elite)this.drop('crest',e.x,e.z,250,'epic');else if(this.rng()<.09){if(['censer','abbot','thrall','priest'].includes(e.type))this.drop('mote',e.x,e.z,15,'rare');else if(['hound','wraith','stalker','siren'].includes(e.type))this.drop('spark',e.x,e.z,15,'rare');else if(['shield','sentinel','golem','hulk'].includes(e.type))this.drop('aegis',e.x,e.z,15,'rare');else if(['spitter','brood','leech','shifter','weaver'].includes(e.type))this.drop('toxic',e.x,e.z,15,'rare');}if(this.rng()<p.goldChance){const goldVal=Math.max(2,Math.round((e.elite?18:(2+(this.rng()<.4?1:0)))*(mutator.reward||1)));this.drop('gold',e.x+.3,e.z,goldVal,e.elite?'rare':'common');}if(this.rng()<.02)this.drop('potion',e.x,e.z,18,'rare');if(e.elite)this.drop('chest',e.x,e.z,0,'epic');if(p.relics.emberOil)this.zones.push({id:++this.id,x:e.x,z:e.z,life:2.5,warn:0,radius:1.5,enemy:false,kind:'burn'});const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1,impulse=e.boss?1.2:e.elite?2.2:3.0;this.corpses.push({...e,vx:(kx/kd)*impulse,vz:(kz/kd)*impulse,life:.75,maxLife:.75});const burstCol=['censer','abbot','thrall','hound','priest','golem'].includes(e.type)?0xff5511:['husk','warden','leech','wraith','siren','hulk'].includes(e.type)?0x22eedd:['brood','root','regent','thornling','spitter','shifter','weaver'].includes(e.type)?0x84cc16:0xd4af37;this.effect(e.x,e.z,burstCol,e.boss?3.8:e.elite?2.2:1.2,'impact',.4);this.emit('kill',{type:e.type,elite:e.elite,boss:e.boss,x:e.x,z:e.z});if(e.boss){this.bossKills++;const bounty=Math.round((45+this.cycle*15)*(mutator.reward||1));this.gold+=bounty;this.earned+=bounty;this.drop('bosscore',e.x,e.z,0,'legendary');this.drop('gold',e.x-.6,e.z,15,'rare');this.drop('gold',e.x+.6,e.z,15,'rare');this.drop('potion',e.x+.8,e.z,30,'epic');if(this.biome===2){if(this.ranked){this.state='victory';this.emit('end',{victory:true});}else{this.state='convergence';this.emit('convergence',{cycle:this.cycle});}}else advance=true;}}
-  this.enemies=this.enemies.filter(e=>e.hp>0);if(advance){this.biome++;this.regionStart=this.time;this.bossSpawned=false;this.enemies=[];this.bolts=[];this.zones=[];p.revives=0;this.visitedRooms=new Set([4]);this.emit('region',{name:REGIONS[this.biome].name});this.prepareMerchant();}
+  this.enemies=this.enemies.filter(e=>e.hp>0);if(advance){this.biome++;this.regionStart=this.time;this.bossSpawned=false;this.enemies=[];this.bolts=[];this.zones=[];p.revives=0;this.visitedRooms=new Set([4]);this.currentRoom=4;this.initRoomEvents();this.emit('region',{name:REGIONS[this.biome].name});this.prepareMerchant();}
   for(const l of this.loot){l.age+=dt;if(l.y>0||l.vy>0){l.vy-=12*dt;l.y+=l.vy*dt;l.x+=l.vx*dt;l.z+=l.vz*dt;l.vx*=Math.pow(.08,dt);l.vz*=Math.pow(.08,dt);if(l.y<=0){l.y=0;if(Math.abs(l.vy)>1){l.vy=-l.vy*.32;}else l.vy=0;}}let d=dist(l,p);if(l.age>.28&&l.y<.15&&d<p.magnet)l.magnet=true;if(l.magnet&&clearLine(l,p)){const step=Math.min(d,dt*(9+l.age*1.5));l.x+=(p.x-l.x)/Math.max(.01,d)*step;l.z+=(p.z-l.z)/Math.max(.01,d)*step;l.y=approach(l.y,.55,dt*3);}if(dist(l,p)<.65){l.taken=true;if(l.kind==='xp')p.xp+=l.value;else if(l.kind==='potion')p.hp=Math.min(p.maxHp,p.hp+l.value);else if(l.kind==='mote'){p.xp+=l.value;p.ignition=5;this.effect(p.x,p.z,0xff7034,2.2,'burst',.4);this.emit('motePickup',{kind:'mote'});}else if(l.kind==='spark'){p.xp+=l.value;p.stamina=100;p.tempest=4;this.effect(p.x,p.z,0x6ae2ff,2.2,'pulse',.4);this.emit('motePickup',{kind:'spark'});}else if(l.kind==='aegis'){p.xp+=l.value;p.shield+=25;for(const o of this.loot)o.magnet=true;this.effect(p.x,p.z,0x80ffb0,4,'shield',.5);this.emit('motePickup',{kind:'aegis'});}else if(l.kind==='toxic'){p.xp+=l.value;this.zones.push({id:++this.id,x:p.x,z:p.z,life:3,warn:0,radius:3.5,enemy:false,kind:'miasma'});this.emit('motePickup',{kind:'toxic'});}else if(l.kind==='crest'){p.xp+=l.value;p.skills=[0,0];p.hp=Math.min(p.maxHp,p.hp+30);this.effect(p.x,p.z,0xffd700,5,'ultimate',.7);this.emit('motePickup',{kind:'crest'});}else if(l.kind==='chest'){const value=16+Math.floor(this.rng()*10);this.gold+=value;this.earned+=value;if(this.rng()<.25)p.hp=Math.min(p.maxHp,p.hp+25);this.emit('chest',{value});}else if(l.kind==='gold'){this.gold+=l.value;this.earned+=l.value;}this.effect(l.x,l.z,l.kind==='gold'?0xe0b65b:l.kind==='potion'?0xdc6b62:0xa9dbc8,1.5,'pickup',.35);this.emit('pickup',{kind:l.kind,value:l.value});}}
   this.loot=this.loot.filter(l=>!l.taken);if(p.level===1&&this.time>=50)p.xp=Math.max(p.xp,p.need);if(p.xp>=p.need&&this.state==='playing'){this.choices=upgradeOffers(this);if(this.choices.length){p.xp-=p.need;p.level++;p.need=p.level<=13?Math.round(75+Math.pow(p.level-1,1.35)*32):Math.min(1100,420+(p.level-13)*26);this.levelTimes.push(this.time);this.state='upgrade';this.emit('level');}}
   for(const e of [...this.effects,...this.corpses])e.life-=dt;this.effects=this.effects.filter(e=>e.life>0);this.corpses=this.corpses.filter(e=>e.life>0);

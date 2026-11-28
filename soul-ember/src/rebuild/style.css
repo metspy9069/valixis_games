@@ -246,6 +246,50 @@ body.crit-flash #vignette{box-shadow:inset 0 0 110px rgba(255,215,0,.42)!importa
 .minimap-cell.sanctuary {
  border-color: rgba(255, 110, 40, 0.6);
 }
+.minimap-cell.altar::after {
+ content: '💀';
+ position: absolute;
+ inset: -1px 0 0 0;
+ font-size: 8px;
+ line-height: 14px;
+ text-align: center;
+ color: #f87171;
+ opacity: 0.9;
+}
+.minimap-cell.vault::after {
+ content: '🗝️';
+ position: absolute;
+ inset: -1px 0 0 0;
+ font-size: 7px;
+ line-height: 14px;
+ text-align: center;
+ color: #facc15;
+ opacity: 0.95;
+}
+.minimap-cell.campfire::after {
+ content: '🔥';
+ position: absolute;
+ inset: -1px 0 0 0;
+ font-size: 8px;
+ line-height: 14px;
+ text-align: center;
+ color: #fb923c;
+ opacity: 0.95;
+}
+.minimap-cell.trial-active {
+ background: rgba(234, 179, 8, 0.45) !important;
+ border-color: #facc15 !important;
+ box-shadow: 0 0 8px #facc15;
+ animation: trialPulse 0.6s infinite alternate;
+}
+@keyframes trialPulse {
+ 0% { opacity: 0.7; transform: scale(0.95); }
+ 100% { opacity: 1; transform: scale(1.1); }
+}
+.minimap-cell.cleared::after {
+ opacity: 0.35 !important;
+ filter: grayscale(0.8);
+}
 .minimap-cell.reliquary::after {
  content: '';
  position: absolute;

@@ -279,7 +279,7 @@ const settings = Object.assign({
   sensitivity: 1, fov: 78, invertY: false,
   master: 0.7, effects: 0.85, ambience: 0.75, music: 0.6,
   shake: 1, reduceFlash: false, colorblind: false,
-  keybinds: {}, aimAssist: true,
+  keybinds: {}, aimAssist: true, muted: false,
 }, loadSettings());
 if (!settings.keybinds || typeof settings.keybinds !== 'object') settings.keybinds = {};
 
@@ -2750,9 +2750,13 @@ function addPickup(kind, position) {
   mesh.position.copy(position);
   mesh.position.y = 0.45;
   scene.add(mesh);
-  const light = new THREE.PointLight(style.light, 3.4, 4.5, 2);
-  light.position.copy(mesh.position);
-  scene.add(light);
+  let light = null;
+  const activeLights = pickups.reduce((acc, p) => acc + (p.light ? 1 : 0), 0);
+  if (activeLights < 6) {
+    light = new THREE.PointLight(style.light, 3.4, 4.5, 2);
+    light.position.copy(mesh.position);
+    scene.add(light);
+  }
   pickups.push({ kind, mesh, light, life: 32, spin: Math.random() * 3 });
 }
 
@@ -3025,9 +3029,10 @@ function updatePlayer(dt) {
     player.stepAccum = 0;
   }
 
-  // Health regen after a lull.
-  if (game.elapsed - player.lastDamage > 6.5 && player.health < player.maxHealth && player.health > 0) {
-    player.health = Math.min(player.maxHealth, player.health + 4.2 * dt);
+  // Health regen after a lull (regenerates up to 50% maxHealth so mistakes matter)
+  const regenCap = Math.round(player.maxHealth * 0.5);
+  if (game.elapsed - player.lastDamage > 7.0 && player.health < regenCap && player.health > 0) {
+    player.health = Math.min(regenCap, player.health + 3.2 * dt);
   }
 
   // ADS FOV blend with exponential decay (smooth on 60/120/144/240Hz).
@@ -3192,7 +3197,7 @@ function startRun(atWave = 0, mods = null, challenge = null) {
   const jumpTo = Number.isFinite(atWave) ? Math.max(0, Math.min(99, Math.round(atWave))) : 0;
   audio.init();
   audio.resume();
-  audio.setMuted(audio.muted);
+  audio.setMuted(!!settings.muted);
   audio.setAmbientLevel(1);
   audio.startMusic();
   audio.setMusicIntensity(0.34);
@@ -3808,7 +3813,9 @@ function toggleFlashlight() {
 }
 
 function toggleMute() {
-  audio.setMuted(!audio.muted);
+  settings.muted = !audio.muted;
+  saveSettings();
+  audio.setMuted(settings.muted);
   hud.muteBtn.textContent = audio.muted ? 'SOUND OFF' : 'SOUND ON';
 }
 
@@ -4173,6 +4180,10 @@ function applyAudioVolumes() {
   audio.setVolumes({
     master: settings.master, effects: settings.effects, ambience: settings.ambience, music: settings.music,
   });
+  if (settings.muted) {
+    audio.setMuted(true);
+    if (hud.muteBtn) hud.muteBtn.textContent = 'SOUND OFF';
+  }
 }
 
 // The score follows the run, not the clock: hush in the menu, tense between

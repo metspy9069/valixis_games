@@ -1,6 +1,73 @@
 // Road Riot 3D - Procedural Highway, Cyber Billboards, Stunt Ramps & Speed Dash Panels
 import * as THREE from 'three';
 
+export const LIGHTING_PRESETS = {
+  day: {
+    sunPos: new THREE.Vector3(-45, 60, -90),
+    sunColor: new THREE.Color(0xfff6ea),
+    sunIntensity: 3.2,
+    hemiSky: new THREE.Color(0x8cd6ff),
+    hemiGround: new THREE.Color(0x18243b),
+    hemiIntensity: 2.2,
+    moonColor: new THREE.Color(0x4095ff),
+    moonIntensity: 0.3,
+    skyTop: new THREE.Color(0x061126),
+    skyMid: new THREE.Color(0x28123a),
+    skyBot: new THREE.Color(0x60b8ff),
+    fogColor: new THREE.Color(0x122036),
+    starsOpacity: 0.0,
+    headlightsRequired: false
+  },
+  sunset: {
+    sunPos: new THREE.Vector3(-75, 18, -120),
+    sunColor: new THREE.Color(0xff6622),
+    sunIntensity: 3.6,
+    hemiSky: new THREE.Color(0xb04470),
+    hemiGround: new THREE.Color(0x281008),
+    hemiIntensity: 1.8,
+    moonColor: new THREE.Color(0x5599ff),
+    moonIntensity: 0.5,
+    skyTop: new THREE.Color(0x120822),
+    skyMid: new THREE.Color(0x882830),
+    skyBot: new THREE.Color(0xff7722),
+    fogColor: new THREE.Color(0x2c0f20),
+    starsOpacity: 0.2,
+    headlightsRequired: true
+  },
+  night: {
+    sunPos: new THREE.Vector3(-45, -35, -90),
+    sunColor: new THREE.Color(0x111c2e),
+    sunIntensity: 0.4,
+    hemiSky: new THREE.Color(0x08152e),
+    hemiGround: new THREE.Color(0x02050e),
+    hemiIntensity: 0.85,
+    moonColor: new THREE.Color(0x4095ff),
+    moonIntensity: 1.25,
+    skyTop: new THREE.Color(0x02040a),
+    skyMid: new THREE.Color(0x070e1c),
+    skyBot: new THREE.Color(0x0c1e38),
+    fogColor: new THREE.Color(0x050a14),
+    starsOpacity: 1.0,
+    headlightsRequired: true
+  },
+  dawn: {
+    sunPos: new THREE.Vector3(60, 20, -100),
+    sunColor: new THREE.Color(0xffa07a),
+    sunIntensity: 2.6,
+    hemiSky: new THREE.Color(0x8070aa),
+    hemiGround: new THREE.Color(0x1c1420),
+    hemiIntensity: 1.6,
+    moonColor: new THREE.Color(0x4095ff),
+    moonIntensity: 0.4,
+    skyTop: new THREE.Color(0x080e22),
+    skyMid: new THREE.Color(0x381a38),
+    skyBot: new THREE.Color(0xffaa88),
+    fogColor: new THREE.Color(0x18182a),
+    starsOpacity: 0.1,
+    headlightsRequired: false
+  }
+};
+
 /**
  * ScreenDropletSystem: Screen-space camera lens / windshield water droplet refraction
  * and Arctic blizzard edge frost vignette. Zero per-frame heap allocations.
@@ -269,6 +336,31 @@ export class WorldManager {
     this.hemiLight = null;
     this.dirLight = null;
 
+    // Day/Night Diurnal Lighting Cycle
+    this.lightingCycleDistance = 3600; // 3.6 km per complete day-sunset-night-dawn cycle
+    this.cycleProgress = 0;
+    this.currentLightingPhase = 'day';
+    this.timeOfDay = 'day';
+    this.headlightsRequired = false;
+    this.baseSunIntensity = 3.2;
+    this.baseHemiIntensity = 2.2;
+    this.baseMoonIntensity = 0.85;
+
+    // Subterranean Concrete Highway Tunnel System
+    this.tunnelSegments = [];
+    this.tunnelLights = [];
+    this.isInsideTunnel = false;
+    this.tunnelTransition = 0;
+
+    // Scratch color objects for zero-allocation lighting lerp
+    this._targetSunColor = new THREE.Color();
+    this._targetHemiSky = new THREE.Color();
+    this._targetHemiGround = new THREE.Color();
+    this._targetSkyTop = new THREE.Color();
+    this._targetSkyMid = new THREE.Color();
+    this._targetSkyBot = new THREE.Color();
+    this._targetFogColor = new THREE.Color();
+
     // Challenge Marker
     this.challengeDistance = null;
     this.challengeMarker = null;
@@ -304,8 +396,15 @@ export class WorldManager {
         new THREE.MeshStandardMaterial({ color: 0x0a101d, roughness: 0.35, metalness: 0.65 }),
         new THREE.MeshStandardMaterial({ color: 0x0f1523, roughness: 0.35, metalness: 0.65 })
       ];
+      this.tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x121822, roughness: 0.85, metalness: 0.2 });
+      this.tunnelRoofMat = new THREE.MeshStandardMaterial({ color: 0x0e131c, roughness: 0.90, metalness: 0.15 });
+      this.tunnelPortalMat = new THREE.MeshStandardMaterial({ color: 0x222a36, roughness: 0.70, metalness: 0.4 });
       return;
     }
+
+    this.tunnelWallMat = new THREE.MeshStandardMaterial({ color: 0x121822, roughness: 0.85, metalness: 0.2 });
+    this.tunnelRoofMat = new THREE.MeshStandardMaterial({ color: 0x0e131c, roughness: 0.90, metalness: 0.15 });
+    this.tunnelPortalMat = new THREE.MeshStandardMaterial({ color: 0x222a36, roughness: 0.70, metalness: 0.4 });
 
     // 1. Ultra High-Res Anti-Aliased Highway Surface Texture (2048x1024)
     // Eliminates geometric line aliasing and pixel crawling down the road
@@ -932,46 +1031,143 @@ export class WorldManager {
       group.add(walk);
     });
 
-    // Street Lights (every 3 segments)
-    if (index % 3 === 0) {
-      this.createStreetLight(group, -10.2, 1);
-      this.createStreetLight(group, 10.2, -1);
-    }
+    const isTunnel = (index >= 18 && index <= 21);
+    if (isTunnel) {
+      this.createTunnelSegment(group, index, index === 18, index === 21);
+    } else {
+      // Street Lights (every 3 segments)
+      if (index % 3 === 0) {
+        this.createStreetLight(group, -10.2, 1);
+        this.createStreetLight(group, 10.2, -1);
+      }
 
-    // Neon Cyber Billboard (every 5 segments)
-    if (index % 5 === 2) {
-      const side = (index % 10 === 2) ? -1 : 1;
-      this.createCyberBillboard(group, side * 15.5, (index / 5) % this.billboardTextures.length);
-    }
+      // Neon Cyber Billboard (every 5 segments)
+      if (index % 5 === 2) {
+        const side = (index % 10 === 2) ? -1 : 1;
+        this.createCyberBillboard(group, side * 15.5, (index / 5) % this.billboardTextures.length);
+      }
 
-    // Roadside Buildings
-    this.createRoadsideBuildings(group, index);
+      // Roadside Buildings
+      this.createRoadsideBuildings(group, index);
 
-    // Pedestrian Sidewalk Spectators & Cheerers (every 3 segments)
-    if (index % 3 === 1) {
-      this.createSidewalkPedestrians(group, index);
-    }
+      // Pedestrian Sidewalk Spectators & Cheerers (every 3 segments)
+      if (index % 3 === 1) {
+        this.createSidewalkPedestrians(group, index);
+      }
 
-    // Modern Elevated Glass Pedestrian Skywalk (every 14 segments)
-    if (index % 14 === 7) {
-      this.createPedestrianSkywalk(group, index);
+      // Modern Elevated Glass Pedestrian Skywalk (every 14 segments)
+      if (index % 14 === 7) {
+        this.createPedestrianSkywalk(group, index);
+      }
     }
 
     // Interactive Highway Objects:
     // Stunt Jump Ramp (every 11 segments, in one lane)
-    if (index % 11 === 4) {
+    if (index % 11 === 4 && !isTunnel) {
       const rampLane = [-6, 0, 6][(index * 2) % 3];
       this.createJumpRamp(group, rampLane);
     }
 
     // Highway Speed Booster Panel (every 7 segments, in one lane)
-    if (index % 7 === 3) {
+    if (index % 7 === 3 && !isTunnel) {
       const boostLane = [-6, 0, 6][(index * 3) % 3];
       this.createSpeedPanel(group, boostLane);
     }
 
     this.scene.add(group);
     this.segments.push(group);
+  }
+
+  createTunnelSegment(parent, index, isEntrance = false, isExit = false) {
+    parent.userData.isTunnel = true;
+    this.tunnelSegments.push(parent);
+
+    // 1. Reinforced Concrete Side Vault Walls
+    const wallGeo = new THREE.BoxGeometry(0.9, 5.8, this.segmentLength);
+    const leftWall = new THREE.Mesh(wallGeo, this.tunnelWallMat);
+    leftWall.position.set(-10.2, 2.75, 0);
+    leftWall.receiveShadow = true;
+    parent.add(leftWall);
+
+    const rightWall = new THREE.Mesh(wallGeo, this.tunnelWallMat);
+    rightWall.position.set(10.2, 2.75, 0);
+    rightWall.receiveShadow = true;
+    parent.add(rightWall);
+
+    // 2. Concrete Ceiling Vault Slab & Angled Chamfers
+    const roofGeo = new THREE.BoxGeometry(16.0, 0.45, this.segmentLength);
+    const roof = new THREE.Mesh(roofGeo, this.tunnelRoofMat);
+    roof.position.set(0, 5.65, 0);
+    roof.receiveShadow = true;
+    parent.add(roof);
+
+    const chamferGeo = new THREE.BoxGeometry(4.2, 0.45, this.segmentLength);
+    const leftChamfer = new THREE.Mesh(chamferGeo, this.tunnelRoofMat);
+    leftChamfer.position.set(-8.8, 5.1, 0);
+    leftChamfer.rotation.z = -0.38;
+    leftChamfer.receiveShadow = true;
+    parent.add(leftChamfer);
+
+    const rightChamfer = new THREE.Mesh(chamferGeo, this.tunnelRoofMat);
+    rightChamfer.position.set(8.8, 5.1, 0);
+    rightChamfer.rotation.z = 0.38;
+    rightChamfer.receiveShadow = true;
+    parent.add(rightChamfer);
+
+    // 3. Structural Heavy Rib Beams along Segment Center and Edges
+    [-this.segmentLength / 2.2, 0, this.segmentLength / 2.2].forEach(z => {
+      const ribArch = new THREE.Group();
+      ribArch.position.z = z;
+
+      const topRib = new THREE.Mesh(new THREE.BoxGeometry(17.2, 0.5, 0.9), this.tunnelPortalMat);
+      topRib.position.y = 5.4;
+      ribArch.add(topRib);
+
+      [-9.8, 9.8].forEach(x => {
+        const sideRib = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.4, 0.9), this.tunnelPortalMat);
+        sideRib.position.set(x, 2.7, 0);
+        ribArch.add(sideRib);
+      });
+      parent.add(ribArch);
+    });
+
+    // 4. Overhead Amber Sodium Luminaire Strip & Dynamic Point Light
+    const luminaireGeo = new THREE.BoxGeometry(0.7, 0.18, 6.5);
+    const luminaireMat = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
+    const luminaire = new THREE.Mesh(luminaireGeo, luminaireMat);
+    luminaire.position.set(0, 5.4, 0);
+    parent.add(luminaire);
+
+    const sodiumLight = new THREE.PointLight(0xff9900, 3.8, 24);
+    sodiumLight.position.set(0, 5.0, 0);
+    parent.add(sodiumLight);
+    this.tunnelLights.push(sodiumLight);
+
+    // 5. Monumental Portal Collar for Entrance & Exit
+    if (isEntrance || isExit) {
+      const portalZ = isEntrance ? -this.segmentLength / 2 : this.segmentLength / 2;
+      const portalGroup = new THREE.Group();
+      portalGroup.position.z = portalZ;
+
+      const collarTop = new THREE.Mesh(new THREE.BoxGeometry(24.0, 1.8, 2.2), this.tunnelPortalMat);
+      collarTop.position.y = 6.4;
+      portalGroup.add(collarTop);
+
+      [-11.2, 11.2].forEach(x => {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(2.4, 6.4, 2.2), this.tunnelPortalMat);
+        pillar.position.set(x, 3.2, 0);
+        portalGroup.add(pillar);
+      });
+
+      const signMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(12.0, 0.8, 0.2),
+        new THREE.MeshBasicMaterial({ color: 0xffb800 })
+      );
+      signMesh.position.set(0, 5.8, isEntrance ? -1.15 : 1.15);
+      portalGroup.add(signMesh);
+
+      parent.add(portalGroup);
+    }
   }
 
   createJumpRamp(parent, lane) {
@@ -1285,6 +1481,22 @@ export class WorldManager {
     const playerZ = callbacks.playerZ !== undefined ? callbacks.playerZ : -8;
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.0018;
 
+    // 0. Subterranean Highway Tunnel Detection & Ambient Occlusion
+    let inTunnelNow = false;
+    for (let i = 0; i < this.tunnelSegments.length; i++) {
+      const seg = this.tunnelSegments[i];
+      if (Math.abs(seg.position.z - playerZ) < this.segmentLength * 0.55) {
+        inTunnelNow = true;
+        break;
+      }
+    }
+    this.isInsideTunnel = inTunnelNow;
+    const targetTransition = this.isInsideTunnel ? 1.0 : 0.0;
+    this.tunnelTransition += (targetTransition - this.tunnelTransition) * Math.min(1, dt * 8.0);
+
+    // 0.1 Progressive Day-to-Sunset-to-Night Lighting Cycle
+    this.updateLightingCycle(currentDistance, dt);
+
     // 1. Dynamic Weather Particle Physics & Recycling (High-Speed Rain Streaks with Slant)
     if (this.weatherType === 'rain' && this.rainMesh && this.rainPositions) {
       const pos = this.rainPositions;
@@ -1542,6 +1754,127 @@ export class WorldManager {
       screenDropletsCount: this.screenDroplets ? this.screenDroplets.dropletCount : 0,
       windshieldFrostAlpha: parseFloat((this.screenDroplets ? this.screenDroplets.frostAlpha : 0).toFixed(3)),
       hasZeroAllocationPool: true
+    };
+  }
+
+  updateLightingCycle(distance = 0, dt = 0.016) {
+    if (!this.dirLight || !this.hemiLight) return;
+
+    // Continuous distance-driven diurnal cycle (3600m full loop)
+    const cycleDist = this.lightingCycleDistance || 3600;
+    this.cycleProgress = ((distance % cycleDist) + cycleDist) % cycleDist / cycleDist;
+    const p = this.cycleProgress;
+
+    let phaseName = 'day';
+    let blendT = 0;
+    let fromState = LIGHTING_PRESETS.day;
+    let toState = LIGHTING_PRESETS.day;
+
+    if (p < 0.35) {
+      phaseName = 'day';
+      fromState = LIGHTING_PRESETS.day;
+      toState = (p > 0.22) ? LIGHTING_PRESETS.sunset : LIGHTING_PRESETS.day;
+      blendT = (p > 0.22) ? (p - 0.22) / 0.13 : 0;
+    } else if (p < 0.60) {
+      phaseName = 'sunset';
+      fromState = LIGHTING_PRESETS.sunset;
+      toState = (p > 0.48) ? LIGHTING_PRESETS.night : LIGHTING_PRESETS.sunset;
+      blendT = (p > 0.48) ? (p - 0.48) / 0.12 : 0;
+    } else if (p < 0.88) {
+      phaseName = 'night';
+      fromState = LIGHTING_PRESETS.night;
+      toState = (p > 0.78) ? LIGHTING_PRESETS.dawn : LIGHTING_PRESETS.night;
+      blendT = (p > 0.78) ? (p - 0.78) / 0.10 : 0;
+    } else {
+      phaseName = 'dawn';
+      fromState = LIGHTING_PRESETS.dawn;
+      toState = LIGHTING_PRESETS.day;
+      blendT = (p - 0.88) / 0.12;
+    }
+
+    this.currentLightingPhase = phaseName;
+    this.timeOfDay = phaseName;
+    this.headlightsRequired = (phaseName === 'sunset' || phaseName === 'night' || this.isInsideTunnel);
+
+    // Smooth cosine non-linear blending
+    const smoothT = (1.0 - Math.cos(blendT * Math.PI)) * 0.5;
+
+    // Directional Sunlight / Moonlight
+    this._targetSunColor.copy(fromState.sunColor).lerp(toState.sunColor, smoothT);
+    this.dirLight.color.copy(this._targetSunColor);
+    this.dirLight.position.lerpVectors(fromState.sunPos, toState.sunPos, smoothT);
+
+    let targetSunIntensity = THREE.MathUtils.lerp(fromState.sunIntensity, toState.sunIntensity, smoothT);
+    let targetHemiIntensity = THREE.MathUtils.lerp(fromState.hemiIntensity, toState.hemiIntensity, smoothT);
+    let targetMoonIntensity = THREE.MathUtils.lerp(fromState.moonIntensity, toState.moonIntensity, smoothT);
+
+    // Subterranean tunnel occlusion dims direct sunlight & skylight
+    if (this.tunnelTransition > 0.01) {
+      targetSunIntensity = THREE.MathUtils.lerp(targetSunIntensity, 0.25, this.tunnelTransition);
+      targetHemiIntensity = THREE.MathUtils.lerp(targetHemiIntensity, 0.45, this.tunnelTransition);
+      targetMoonIntensity = THREE.MathUtils.lerp(targetMoonIntensity, 0.15, this.tunnelTransition);
+    }
+
+    this.dirLight.intensity = targetSunIntensity;
+    this.hemiLight.intensity = targetHemiIntensity;
+    if (this.ambientMoon) this.ambientMoon.intensity = targetMoonIntensity;
+
+    // Hemisphere sky and ground colors
+    this._targetHemiSky.copy(fromState.hemiSky).lerp(toState.hemiSky, smoothT);
+    this._targetHemiGround.copy(fromState.hemiGround).lerp(toState.hemiGround, smoothT);
+    this.hemiLight.color.copy(this._targetHemiSky);
+    this.hemiLight.groundColor.copy(this._targetHemiGround);
+
+    // Sky shader gradient uniforms
+    if (this.skyMat && this.skyMat.uniforms) {
+      this._targetSkyTop.copy(fromState.skyTop).lerp(toState.skyTop, smoothT);
+      this._targetSkyMid.copy(fromState.skyMid).lerp(toState.skyMid, smoothT);
+      this._targetSkyBot.copy(fromState.skyBot).lerp(toState.skyBot, smoothT);
+      this.skyMat.uniforms.topColor.value.copy(this._targetSkyTop);
+      this.skyMat.uniforms.midColor.value.copy(this._targetSkyMid);
+      this.skyMat.uniforms.botColor.value.copy(this._targetSkyBot);
+    }
+
+    // Fog
+    if (this.scene.fog) {
+      this._targetFogColor.copy(fromState.fogColor).lerp(toState.fogColor, smoothT);
+      if (this.tunnelTransition > 0.01) {
+        this._targetFogColor.lerp(new THREE.Color(0x120c08), this.tunnelTransition * 0.85);
+      }
+      this.scene.fog.color.copy(this._targetFogColor);
+    }
+
+    // Celestial Sun Disc
+    if (this.sunMesh) {
+      const sunP = this.dirLight.position;
+      this.sunMesh.position.set(sunP.x * 1.5, Math.max(-20, sunP.y * 1.2), -220);
+      this.sunMesh.material.color.copy(this._targetSunColor);
+      this.sunMesh.visible = (sunP.y > -10 && this.tunnelTransition < 0.9);
+    }
+
+    // Stars particle field
+    if (this.stars) {
+      this.stars.visible = (phaseName === 'night' || phaseName === 'sunset' || phaseName === 'dawn') && (this.tunnelTransition < 0.9);
+      if (this.stars.material) {
+        this.stars.material.opacity = THREE.MathUtils.lerp(fromState.starsOpacity, toState.starsOpacity, smoothT);
+      }
+    }
+  }
+
+  getLightingTelemetry() {
+    return {
+      timeOfDay: this.timeOfDay || 'day',
+      cycleProgress: parseFloat((this.cycleProgress || 0).toFixed(3)),
+      currentPhase: this.currentLightingPhase || 'day',
+      sunIntensity: this.dirLight ? parseFloat(this.dirLight.intensity.toFixed(2)) : 0,
+      sunColorHex: this.dirLight ? '#' + this.dirLight.color.getHexString() : '#000000',
+      hemiIntensity: this.hemiLight ? parseFloat(this.hemiLight.intensity.toFixed(2)) : 0,
+      moonIntensity: this.ambientMoon ? parseFloat(this.ambientMoon.intensity.toFixed(2)) : 0,
+      isInsideTunnel: Boolean(this.isInsideTunnel),
+      tunnelTransition: parseFloat((this.tunnelTransition || 0).toFixed(3)),
+      tunnelSegmentCount: this.tunnelSegments ? this.tunnelSegments.length : 0,
+      tunnelLightCount: this.tunnelLights ? this.tunnelLights.length : 0,
+      headlightsRequired: Boolean(this.headlightsRequired)
     };
   }
 }

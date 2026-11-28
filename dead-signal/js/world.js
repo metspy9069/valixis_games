@@ -883,12 +883,19 @@ export function buildWorld(scene) {
   // ---------- blood decals ----------
   const decalGeo = new THREE.CircleGeometry(1, 10);
   const decalMat = new THREE.MeshBasicMaterial({ color: 0x30060a, transparent: true, opacity: 0.5, depthWrite: false });
+  const decalPool = [];
+  const MAX_DECALS = 48;
   function addDecal(x, z, size) {
+    if (decalPool.length >= MAX_DECALS) {
+      const oldest = decalPool.shift();
+      scene.remove(oldest);
+    }
     const d = new THREE.Mesh(decalGeo, decalMat);
     d.rotation.x = -Math.PI / 2;
     d.scale.setScalar(size);
     d.position.set(x, 0.021 + Math.random() * 0.004, z);
     scene.add(d);
+    decalPool.push(d);
   }
 
   // ---------- updaters ----------

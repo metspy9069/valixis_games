@@ -819,5 +819,17 @@
   </script>
   <script type="module" src="./js/shop.js"></script>
   <script type="module" src="./js/game.js"></script>
+  <!-- VALIXIS Unified Telemetry -->
+  <script src="../assets/js/valixis-telemetry.js"></script>
+  <script>
+    if (window.ValixisTelemetry) {
+      window.ValixisTelemetry.init({ gameId: 'road-riot', gameName: 'Road Riot 3D' });
+    }
+    document.getElementById('play-btn')?.addEventListener('click', () => {
+      if (window.ValixisTelemetry) {
+        window.ValixisTelemetry.startGame('road-riot', 'Road Riot 3D');
+      }
+    });
+  </script>
 </body>
 </html>

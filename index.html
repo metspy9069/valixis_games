@@ -1928,11 +1928,22 @@
     document.querySelectorAll('[data-game-id]').forEach((link) => {
       link.addEventListener('click', () => {
         const id = link.dataset.gameId;
+        if (window.ValixisTelemetry) {
+          window.ValixisTelemetry.startGame(id, link.getAttribute('aria-label') || id);
+        }
         if (typeof window.gtag === 'function') {
           window.gtag('event', 'game_launch', { game_id: id, event_category: 'arcade' });
         }
       });
     });
+  </script>
+
+  <!-- VALIXIS Unified Telemetry & Realtime Live Presence -->
+  <script src="assets/js/valixis-telemetry.js"></script>
+  <script>
+    if (window.ValixisTelemetry) {
+      window.ValixisTelemetry.init({ gameId: 'portal', gameName: 'VALIXIS Games Arcade' });
+    }
   </script>
 
 </body>

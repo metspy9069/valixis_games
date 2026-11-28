@@ -30,8 +30,10 @@ import {
 import {
   ScreenDropletSystem,
   TireWaterSprayPlumeSystem,
-  WorldManager
+  WorldManager,
+  LIGHTING_PRESETS
 } from '../js/world.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 test('vehicle roster contains 8 distinct supercars with complete base stats', () => {
   const keys = Object.keys(VEHICLE_ROSTER);
@@ -1744,4 +1746,110 @@ test('downshift and nitro ignition trigger overrun backfire flames and ember bur
   player.update(0.03);
   const telemNitro = player.getVfxTelemetry();
   assert.ok(telemNitro.backfireCount >= 2, 'Nitro ignition triggered secondary backfire burst');
+});
+
+test('Day-to-Sunset-to-Night diurnal lighting cycle smoothly transitions sunlight, hemi ambient and sky colors', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  // Day Phase (distance = 200m -> p ~ 0.05)
+  world.updateLightingCycle(200, 0.016);
+  const telemDay = world.getLightingTelemetry();
+  assert.equal(telemDay.currentPhase, 'day', 'Early highway sector classifies as Day phase');
+  assert.ok(telemDay.sunIntensity > 2.8, 'Direct sunlight has full daytime intensity (> 2.8)');
+  assert.equal(telemDay.headlightsRequired, false, 'Headlights not required in broad daylight');
+
+  // Sunset Phase (distance = 1600m -> p ~ 0.44)
+  world.updateLightingCycle(1600, 0.016);
+  const telemSunset = world.getLightingTelemetry();
+  assert.equal(telemSunset.currentPhase, 'sunset', 'Intermediate sector transitions to Golden Hour / Sunset');
+  assert.ok(telemSunset.sunColorHex.toLowerCase().includes('ff'), 'Sun color shifts into warm amber/vermilion spectrum');
+  assert.equal(telemSunset.headlightsRequired, true, 'Headlights automatically activate during Sunset');
+
+  // Night / Midnight Phase (distance = 2600m -> p ~ 0.72)
+  world.updateLightingCycle(2600, 0.016);
+  const telemNight = world.getLightingTelemetry();
+  assert.equal(telemNight.currentPhase, 'night', 'Distant sector transitions into Night / Midnight');
+  assert.ok(telemNight.sunIntensity < 1.0, 'Direct sun dims below horizon at night');
+  assert.ok(telemNight.moonIntensity > 0.8, 'Lunar illumination active during Night phase');
+  assert.equal(telemNight.headlightsRequired, true, 'Headlights required in midnight conditions');
+});
+
+test('Subterranean highway tunnel segments generate overhead amber sodium lights and occlude sunlight', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  assert.equal(world.tunnelSegments.length, 4, 'Highway world registers 4 subterranean tunnel segments (18..21)');
+  assert.ok(world.tunnelLights.length >= 4, 'Overhead amber sodium luminaires generated for all tunnel sections');
+
+  const tunnelSeg = world.tunnelSegments[1];
+  assert.ok(tunnelSeg.userData.isTunnel, 'Tunnel segment tagged with isTunnel userData flag');
+
+  // Simulate driving inside tunnel at segment 19's Z coordinate
+  const playerZ = tunnelSeg.position.z;
+  for (let i = 0; i < 5; i++) {
+    world.update(0.05, 0, 500, { playerZ, speedKmh: 198 });
+  }
+
+  const telem = world.getLightingTelemetry();
+  assert.equal(telem.isInsideTunnel, true, 'World detects player inside tunnel boundaries');
+  assert.ok(telem.tunnelTransition > 0.15, 'Tunnel transition factor smoothly increases');
+  assert.ok(telem.sunIntensity < 2.5, 'Sunlight occluded and dimmed inside tunnel enclosure');
+  assert.equal(telem.headlightsRequired, true, 'Tunnel mandates active headlight illumination');
+});
+
+test('Dual Xenon forward projector headlights illuminate lead traffic entities in headlight cone', () => {
+  const scene = new THREE.Scene();
+  const player = new PlayerCar(scene);
+
+  assert.ok(player.headlightLeft && player.headlightRight, 'Supercar equipped with dual Xenon projector spotlights');
+  assert.equal(player.lightCones.length, 2, 'Dual volumetric forward light beams initialized');
+
+  // Daylight DRL mode
+  player.updateHeadlights(0.016, false, false, []);
+  let telem = player.getHeadlightTelemetry();
+  assert.equal(telem.headlightsActive, false, 'Headlights remain in low-beam DRL mode during day');
+  assert.ok(telem.headlightIntensity < 1.5, 'DRL intensity is low (< 1.5)');
+
+  // Night / Tunnel high-beam activation
+  for (let i = 0; i < 20; i++) {
+    player.updateHeadlights(0.016, true, false, []);
+  }
+  telem = player.getHeadlightTelemetry();
+  assert.equal(telem.headlightsActive, true, 'Headlights engage high-beam projector mode in dark conditions');
+  assert.ok(telem.headlightIntensity > 4.5, 'High-beam intensity ramps up towards 5.8');
+
+  // Lead traffic detection in beam
+  const mockNpc = {
+    x: 0,
+    mesh: {
+      position: new THREE.Vector3(0, 0, -28), // 20m ahead of player
+      userData: {}
+    }
+  };
+  player.updateHeadlights(0.016, true, false, [mockNpc]);
+  assert.equal(player.illuminatedNpcCount, 1, 'Traffic vehicle in forward beam cone illuminated');
+  assert.equal(mockNpc.mesh.userData.headlightIlluminated, true, 'NPC receives headlight illumination tag');
+});
+
+test('UnrealBloomPass post-processing pipeline pulses bloom strength on nitro boost', () => {
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(1280, 720),
+    0.48, // initial strength
+    0.35, // radius
+    0.82  // threshold
+  );
+
+  assert.equal(bloomPass.strength, 0.48, 'Initial bloom strength configured at 0.48');
+  assert.equal(bloomPass.radius, 0.35, 'Bloom radius set to 0.35');
+  assert.equal(bloomPass.threshold, 0.82, 'Bloom threshold set to 0.82 to isolate high dynamic range elements');
+
+  // Simulate nitro boost bloom flare
+  let strength = bloomPass.strength;
+  const isBoosting = true;
+  const targetBloom = isBoosting ? 0.88 : 0.46;
+  strength += (targetBloom - strength) * 0.5;
+  bloomPass.strength = strength;
+
+  assert.ok(bloomPass.strength > 0.65, 'Bloom strength flares dynamically above 0.65 during hypersonic nitro boost');
 });

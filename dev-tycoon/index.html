@@ -53,5 +53,12 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <!-- VALIXIS Unified Telemetry -->
+  <script src="../assets/js/valixis-telemetry.js"></script>
+  <script>
+    if (window.ValixisTelemetry) {
+      window.ValixisTelemetry.init({ gameId: 'dev-tycoon', gameName: 'Dev Tycoon' });
+    }
+  </script>
 </body>
 </html>

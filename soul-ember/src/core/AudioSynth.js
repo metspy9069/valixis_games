@@ -64,6 +64,21 @@ class SoulAudio{
    this.tone(55,.45,{type:'sawtooth',gain:.34,slide:.35,pan});
    this.noise(.35,{gain:.28,frequency:320,pan});
   }
+  else if(event==='altarPact'){
+   [110,82,55].forEach((f,i)=>this.tone(f,.45,{type:'sawtooth',gain:.24,delay:i*.08,slide:.65,pan}));
+   this.noise(.3,{gain:.15,frequency:180,pan});
+  }
+  else if(event==='trialStart'){
+   this.tone(180,.5,{type:'sawtooth',gain:.28,slide:1.2,pan});
+   this.tone(216,.5,{type:'triangle',gain:.22,delay:.1,slide:1.1,pan});
+  }
+  else if(event==='trialComplete'){
+   [523,659,784,1046].forEach((f,i)=>this.tone(f,.48,{type:'triangle',gain:.2,delay:i*.07,pan}));
+  }
+  else if(event==='campfireRest'){
+   this.tone(440,.35,{type:'sine',gain:.2,slide:1.15,pan});
+   this.noise(.25,{gain:.12,frequency:850,pan});
+  }
    else if(event==='comboRank'){
     const r=params.rank||'C';
     if(r==='C'||r==='B')this.tone(660,.12,{type:'triangle',gain:.16,slide:1.3});

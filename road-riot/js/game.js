@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 import { audio } from './audio.js';
 import { WorldManager } from './world.js';
@@ -87,6 +90,7 @@ class RoadRiotGame {
     this.world = new WorldManager(this.scene, this.renderer);
     this.traffic = new TrafficManager(this.scene, this.assetPrototypes);
     this.player = new PlayerCar(this.scene, this.assetPrototypes);
+    this.initPostProcessing();
 
     // Wandering Pedestrian Manager on Sidewalks
     this.pedestrianManager = new PedestrianManager(this.scene);
@@ -423,6 +427,38 @@ class RoadRiotGame {
     this.applyGraphicsQuality(s.graphicsQuality || 'high');
   }
 
+  initPostProcessing() {
+    this.bloomEnabled = false;
+    this.composer = null;
+    this.bloomPass = null;
+    this.renderPass = null;
+
+    if (typeof window === 'undefined' || !this.renderer) return;
+
+    try {
+      const w = window.innerWidth || 1280;
+      const h = window.innerHeight || 720;
+      this.renderPass = new RenderPass(this.scene, this.camera);
+      this.bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(w, h),
+        0.48, // bloom strength
+        0.35, // bloom radius
+        0.82  // bloom threshold
+      );
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(this.renderPass);
+      this.composer.addPass(this.bloomPass);
+
+      const q = (progression && progression.data && progression.data.settings && progression.data.settings.graphicsQuality) || 'high';
+      this.bloomEnabled = (q !== 'low');
+    } catch (e) {
+      console.warn('EffectComposer post-processing init skipped or unsupported in environment:', e);
+      this.composer = null;
+      this.bloomPass = null;
+      this.bloomEnabled = false;
+    }
+  }
+
   applyGraphicsQuality(quality) {
     progression.data.settings.graphicsQuality = quality;
     progression.save();
@@ -434,14 +470,19 @@ class RoadRiotGame {
     if (quality === 'low') {
       this.renderer.shadowMap.enabled = false;
       this.renderer.setPixelRatio(1.0);
+      this.bloomEnabled = false;
     } else if (quality === 'med') {
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.BasicShadowMap;
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.3));
+      this.bloomEnabled = true;
+      if (this.bloomPass) this.bloomPass.strength = 0.38;
     } else {
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+      this.bloomEnabled = true;
+      if (this.bloomPass) this.bloomPass.strength = 0.48;
     }
   }
 
@@ -492,6 +533,12 @@ class RoadRiotGame {
       const newDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, maxDpr));
       this.renderer.setPixelRatio(newDpr);
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      if (this.composer) {
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+      }
+      if (this.bloomPass && this.bloomPass.resolution) {
+        this.bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+      }
     });
 
     // Mobile Virtual Floating Steering Joystick
@@ -1908,6 +1955,29 @@ class RoadRiotGame {
       }
     });
 
+    // 5.1 Headlight Projectors & Lead Traffic Illumination
+    if (this.player && this.player.updateHeadlights) {
+      this.player.updateHeadlights(
+        dt,
+        Boolean(this.world && this.world.headlightsRequired),
+        Boolean(this.world && this.world.isInsideTunnel),
+        this.traffic ? this.traffic.cars : []
+      );
+    }
+
+    // 5.2 Dynamic Selective Bloom Modulation (Hypersonic boost flare & tunnel glow)
+    if (this.bloomPass && this.bloomEnabled) {
+      let targetBloom = 0.46;
+      if (this.player && this.player.isBoosting) {
+        targetBloom = 0.88;
+      } else if (this.world && this.world.isInsideTunnel) {
+        targetBloom = 0.65;
+      } else if (this.world && this.world.currentLightingPhase === 'night') {
+        targetBloom = 0.58;
+      }
+      this.bloomPass.strength += (targetBloom - this.bloomPass.strength) * Math.min(1, dt * 6.0);
+    }
+
     // 100% Solid Stunt Jump Ramps Physics (Incline deck ride, solid rails, smooth launch)
     for (const ramp of this.world.jumpRamps) {
       const rampWorldZ = ramp.parent.position.z + ramp.mesh.position.z;
@@ -3050,7 +3120,11 @@ class RoadRiotGame {
     const updateMs = performance.now() - tUpdate0;
 
     const tRender0 = performance.now();
-    this.renderer.render(this.scene, this.camera);
+    if (this.bloomEnabled && this.composer) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
     const renderMs = performance.now() - tRender0;
 
     this.lastLogicUpdateMs = updateMs;
@@ -3117,6 +3191,41 @@ class RoadRiotGame {
     return {
       world: worldTelemetry,
       playerVfx: playerVfx
+    };
+  }
+
+  loopStep(dt = 0.016) {
+    const tUpdate0 = performance.now();
+    this.update(dt);
+    const updateMs = performance.now() - tUpdate0;
+
+    const tRender0 = performance.now();
+    if (this.bloomEnabled && this.composer) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
+    const renderMs = performance.now() - tRender0;
+
+    this.lastLogicUpdateMs = updateMs;
+    this.lastRenderMs = renderMs;
+    this.lastFrameComputeMs = updateMs + renderMs;
+  }
+
+  getLightingTelemetry() {
+    const worldTelem = this.world && this.world.getLightingTelemetry ? this.world.getLightingTelemetry() : null;
+    const playerTelem = this.player && this.player.getHeadlightTelemetry ? this.player.getHeadlightTelemetry() : null;
+    const bloomTelem = {
+      bloomEnabled: Boolean(this.bloomEnabled),
+      bloomStrength: this.bloomPass ? parseFloat(this.bloomPass.strength.toFixed(3)) : 0,
+      bloomThreshold: this.bloomPass ? parseFloat(this.bloomPass.threshold.toFixed(3)) : 0,
+      bloomRadius: this.bloomPass ? parseFloat(this.bloomPass.radius.toFixed(3)) : 0,
+      hasComposer: Boolean(this.composer)
+    };
+    return {
+      world: worldTelem,
+      player: playerTelem,
+      postProcessing: bloomTelem
     };
   }
 }

@@ -298,9 +298,9 @@ export class Zombie {
             targetSpeed = LURKER_CONFIG.shadowSpeed;
           }
         }
-        // Keep a body's width of space: they claw at you, they do not stand
-        // inside the camera.
-        if (dist < 1.55) targetSpeed = 0;
+        // Keep a body's width of space: they claw at you, they do not stand inside the camera.
+        const stopDist = Math.max(0.65, this.radius + 0.35);
+        if (dist < stopDist) targetSpeed = 0;
 
         // Spitters work the middle distance. They stop, rear back and lob acid
         // rather than closing to bite, and shuffle backwards if you rush them.
@@ -374,10 +374,12 @@ export class Zombie {
 
     if (this.state === 'attack') {
       this.windup += dt;
-      targetSpeed = 0;
+      // Maintain forward lunge momentum during early windup so backpedaling players cannot trivially evade all melee strikes
+      targetSpeed = this.windup < 0.42 ? this.speed * 0.65 : 0;
       if (this.windup > 0.42 && !this.struck) {
         this.struck = true;
-        if (playerDist < this.def.reach + 0.55) {
+        // Connect if player is within reach + lunge margin
+        if (playerDist < this.def.reach + 0.95) {
           ctx.damage(this.damage, this);
         }
         const cd = this.type === 'brute' ? 1.7 : this.type === 'lurker' ? 0.46 : 1.05;

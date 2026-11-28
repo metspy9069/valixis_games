@@ -498,15 +498,46 @@ export class PlayerCar {
       this.exhaustFlames.push({ cone: coneMesh, core: coreMesh, light: flareLight });
     });
 
-    // 4. High-Detail Xenon Forward Projector Headlights
+    // 4. Dual High-Intensity Xenon Forward Projector Headlights
     this.headlightTarget = new THREE.Object3D();
-    this.headlightTarget.position.set(0, 0.1, -40);
+    this.headlightTarget.position.set(0, 0.2, -55);
     this.mesh.add(this.headlightTarget);
 
-    this.headlight = new THREE.SpotLight(0xdcf2ff, 5.0, 55, Math.PI / 4.2, 0.45, 1.2);
-    this.headlight.position.set(0, 0.85, -2.4);
-    this.headlight.target = this.headlightTarget;
-    this.mesh.add(this.headlight);
+    this.headlightLeft = new THREE.SpotLight(0xdcf2ff, 0.8, 65, Math.PI / 4.4, 0.38, 1.2);
+    this.headlightLeft.position.set(-0.75, 0.72, -2.35);
+    this.headlightLeft.target = this.headlightTarget;
+    this.mesh.add(this.headlightLeft);
+
+    this.headlightRight = new THREE.SpotLight(0xdcf2ff, 0.8, 65, Math.PI / 4.4, 0.38, 1.2);
+    this.headlightRight.position.set(0.75, 0.72, -2.35);
+    this.headlightRight.target = this.headlightTarget;
+    this.mesh.add(this.headlightRight);
+
+    // Backward compatibility alias
+    this.headlight = this.headlightLeft;
+
+    // Dual Forward Light Cones (Volumetric Xenon Beams)
+    this.lightCones = [];
+    [-0.75, 0.75].forEach(x => {
+      const coneGeo = new THREE.CylinderGeometry(0.10, 1.8, 22, 12, 1, true);
+      coneGeo.rotateX(-Math.PI / 2);
+      const coneMat = new THREE.MeshBasicMaterial({
+        color: 0xdcf2ff,
+        transparent: true,
+        opacity: 0.04,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      });
+      const coneMesh = new THREE.Mesh(coneGeo, coneMat);
+      coneMesh.position.set(x, 0.72, -13.35);
+      this.mesh.add(coneMesh);
+      this.lightCones.push(coneMesh);
+    });
+
+    this.headlightsActive = false;
+    this.headlightIntensity = 0.8;
+    this.illuminatedNpcCount = 0;
 
     // Shield Forcefield Bubble (Pulsing Hexagonal Energy)
     const shieldGeo = new THREE.IcosahedronGeometry(2.5, 2);
@@ -1868,6 +1899,61 @@ export class PlayerCar {
       backfireCount: this.backfireCount || 0,
       activeEmbers,
       maxEmbers: this.maxEmbers || 24
+    };
+  }
+
+  updateHeadlights(dt = 0.016, headlightsRequired = false, isTunnel = false, trafficList = []) {
+    const needsHighBeam = Boolean(headlightsRequired || isTunnel || this.forceHeadlights);
+    this.headlightsActive = needsHighBeam;
+    const targetIntensity = needsHighBeam ? 5.8 : 0.8;
+    const targetConeOpacity = needsHighBeam ? 0.22 : 0.04;
+
+    this.headlightIntensity += (targetIntensity - this.headlightIntensity) * Math.min(1, dt * 7.5);
+
+    if (this.headlightLeft) this.headlightLeft.intensity = this.headlightIntensity;
+    if (this.headlightRight) this.headlightRight.intensity = this.headlightIntensity;
+
+    if (this.lightCones) {
+      this.lightCones.forEach(c => {
+        if (c.material) {
+          c.material.opacity = (this.headlightIntensity / 5.8) * targetConeOpacity;
+        }
+      });
+    }
+
+    // Dynamic illumination of traffic vehicles ahead in forward beam
+    this.illuminatedNpcCount = 0;
+    if (needsHighBeam && Array.isArray(trafficList) && trafficList.length > 0) {
+      const playerZ = this.mesh ? this.mesh.position.z : -8;
+      const playerX = this.x;
+
+      for (let i = 0; i < trafficList.length; i++) {
+        const npc = trafficList[i];
+        if (!npc || !npc.mesh) continue;
+        const relZ = npc.mesh.position.z - playerZ;
+        const relX = Math.abs((npc.x !== undefined ? npc.x : npc.mesh.position.x) - playerX);
+
+        // Within forward projector cone: distance -55m to -2m, lateral angle < 3.8m
+        if (relZ < -2 && relZ > -55 && relX < 3.8) {
+          this.illuminatedNpcCount++;
+          const factor = 1.0 - (Math.abs(relZ) / 55);
+          if (npc.mesh.userData) {
+            npc.mesh.userData.headlightIlluminated = true;
+            npc.mesh.userData.illuminationFactor = factor;
+          }
+        }
+      }
+    }
+  }
+
+  getHeadlightTelemetry() {
+    return {
+      headlightsActive: Boolean(this.headlightsActive),
+      headlightIntensity: parseFloat((this.headlightIntensity || 0).toFixed(2)),
+      beamDistance: 65,
+      beamAngleDeg: Math.round((Math.PI / 4.4) * (180 / Math.PI)),
+      dualProjectors: true,
+      illuminatedNpcCount: this.illuminatedNpcCount || 0
     };
   }
 }

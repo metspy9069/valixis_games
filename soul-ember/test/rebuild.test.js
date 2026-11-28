@@ -8,7 +8,7 @@ import {HERO_MODELS,MONSTER_MODELS,modelFor,actorPhase} from '../src/rebuild/mod
 import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS,CHAMPION_AFFIXES,AFFIX_KEYS} from '../src/rebuild/content.js';
 import {ENEMY_ATTACKS,BOSS_ATTACKS,attacksFor,TELEGRAPHS,telegraphFor} from '../src/rebuild/combat-content.js';
 const tick=(g,n=1)=>{for(let i=0;i<n;i++)g.update(1/60);};
-test('complete roster contains eight heroes, eighteen monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,18);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
+test('complete roster contains eight heroes, twenty monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,20);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
 test('every roster entry owns a real 3D model specification',()=>{assert.deepEqual(Object.keys(HERO_MODELS).sort(),Object.keys(HEROES).sort());assert.deepEqual(Object.keys(MONSTER_MODELS).sort(),Object.keys(MONSTERS).sort());for(const id of [...Object.keys(HEROES),...Object.keys(MONSTERS)]){const model=modelFor(id);assert(model,id);assert(['humanoid','winged','hound','swarm','mimic','spitter','wraith','spider'].includes(model.kind),id);assert(Number.isFinite(model.primary),id);assert(Number.isFinite(model.secondary),id);assert(model.scale>0,id);}});
 test('string actor ids produce finite deterministic animation phases',()=>{assert(Number.isFinite(actorPhase('hero')));assert.equal(actorPhase('hero'),actorPhase('hero'));assert.notEqual(actorPhase('hero'),actorPhase('enemy'));});
 test('hero projectiles leave from their weapon side instead of the body center',()=>{for(const hero of Object.keys(HEROES)){const g=new Game({hero});g.shoot(0,1);const bolt=g.bolts[0],side=HERO_MODELS[hero].shotSide||0;assert.equal(bolt.x,side,hero);assert.equal(bolt.z,.55,hero);}});
@@ -20,7 +20,7 @@ test('no passive level damage; only an offered upgrade can mutate ranks',()=>{co
 test('the first meaningful build choice cannot be delayed beyond 50 seconds',()=>{for(const hero of Object.keys(HEROES)){const g=new Game({hero});g.spawnTimer=999;tick(g,50*60+1);assert.equal(g.state,'upgrade',hero);assert(g.levelTimes[0]>=49&&g.levelTimes[0]<=51,hero);}});
 test('dodge costs stamina, respects pause, and defensive evolution pulses',()=>{const g=new Game();g.player.ranks[2]=3;const e=g.spawn('thrall',{x:0,z:2});assert(g.dash(1,0));assert.equal(g.player.stamina,66);assert(e.hp<e.maxHp);assert(!g.dash());g.state='paused';g.player.dash=0;assert(!g.dash());});
 test('stationary dodge follows facing instead of smart-targeting danger',()=>{const g=new Game();g.spawnTimer=999;g.spawn('thrall',{x:-3,z:0});g.player.dx=1;g.player.dz=0;assert(g.dash());assert(g.player.vx>0);assert.equal(g.player.vz,0);});
-test('all eighteen enemies own distinct readable attack profiles',()=>{assert.equal(Object.keys(ENEMY_ATTACKS).length,18);assert.equal(new Set(Object.values(ENEMY_ATTACKS).map(list=>list[0].id)).size,18);for(const id of Object.keys(ENEMY_ATTACKS)){const g=new Game({seed:1});g.spawnTimer=999;const e=g.spawn(id,{x:0,z:3}),profile=attacksFor(e)[0];assert(!solid(e.x,e.z,e.radius));assert(profile.windup>=.45,id);assert(profile.cooldown>=1.6,id);g.beginEnemyAttack(e,profile);assert.equal(e.attackId,profile.id);assert(g.events.some(event=>event.type==='enemyCue'));const before=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;g.enemyAttack(e);const after=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;assert(after>=before||e.charge>0||e.guarding>0,id);}});
+test('all twenty enemies own distinct readable attack profiles',()=>{assert.equal(Object.keys(ENEMY_ATTACKS).length,20);assert.equal(new Set(Object.values(ENEMY_ATTACKS).map(list=>list[0].id)).size,20);for(const id of Object.keys(ENEMY_ATTACKS)){const g=new Game({seed:1});g.spawnTimer=999;const e=g.spawn(id,{x:0,z:3}),profile=attacksFor(e)[0];assert(!solid(e.x,e.z,e.radius));assert(profile.windup>=.45,id);assert(profile.cooldown>=1.6,id);g.beginEnemyAttack(e,profile);assert.equal(e.attackId,profile.id);assert(g.events.some(event=>event.type==='enemyCue'));const before=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;g.enemyAttack(e);const after=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;assert(after>=before||e.charge>0||e.guarding>0,id);}});
 test('each guardian has a different multi-pattern three-phase script',()=>{for(const id of BOSSES){const phases=BOSS_ATTACKS[id];assert.deepEqual(Object.keys(phases),['1','2','3']);assert(phases[1].length>=2);assert(phases[2].length>=3);assert(phases[3].length>=3);assert(new Set(Object.values(phases).flat().map(a=>a.id)).size>=4,id);}});
 test('ranked guardians advance through merchants and finish after the third guardian',()=>{const g=new Game({ranked:true});g.player.level=2;for(let i=0;i<3;i++){g.time=g.regionStart+155;g.spawnTimer=999;tick(g);const e=g.enemies.find(e=>e.boss);assert.equal(e.type,BOSSES[i]);e.hp=e.maxHp*.2;tick(g);assert.equal(e.phase,3);e.hp=0;tick(g);assert.equal(g.bossKills,i+1);assert.equal(g.biome,Math.min(i+1,2));if(i<2){assert.equal(g.state,'merchant');assert.equal(g.merchantOffers.length,3);assert(g.skipMerchant());}}assert.equal(g.state,'victory');});
 test('solo victory offers an endless ascension with rotating modifiers',()=>{const g=new Game({seed:10});g.biome=2;g.bossSpawned=true;const boss=g.spawn('regent',{x:0,z:2});boss.hp=0;tick(g);assert.equal(g.state,'convergence');assert(g.events.some(e=>e.type==='convergence'));assert(g.continueEndless());assert.equal(g.cycle,1);assert.equal(g.ascension,1);assert.equal(g.biome,0);assert(ASCENSIONS[g.ascensionModifier]);assert.equal(g.state,'merchant');assert(g.skipMerchant());const scaled=g.spawn('thrall',{x:0,z:3});assert(scaled.maxHp>MONSTERS.thrall.hp);});
@@ -173,7 +173,7 @@ test('hurt events contain position coordinates for directional feedback',()=>{
   assert.equal(hurtEv.amount,12);
 });
 
-test('all 18 enemy and 3 boss attacks emit accurate shape-matched telegraph warnings',()=>{
+test('all 20 enemy and 3 boss attacks emit accurate shape-matched telegraph warnings',()=>{
   for(const [type,list] of Object.entries(ENEMY_ATTACKS)){
     for(const atk of list){
       const spec=TELEGRAPHS[atk.id];
@@ -675,6 +675,74 @@ test('avenger elite champion enrages on nearby minion deaths gaining stacking sp
   distantMinion.hp=0;
   tick(g);
   assert.equal(avenger.affixStacks,3,'Distant minion death does not exceed stack cap or trigger outside radius');
+});
+
+test('obsidian golem deflects frontal auto-attacks and executes earthquake ground pound',()=>{
+  const g=new Game({seed:301});
+  g.spawnTimer=999;
+  const golem=g.spawn('golem',{x:0,z:3});
+  assert.equal(golem.type,'golem');
+  assert.equal(golem.hp,380);
+  assert.equal(golem.radius,0.65);
+
+  // Golem is at (0, 3) facing -Z (toward player at 0, 0)
+  golem.dx=0;golem.dz=-1;g.player.x=0;g.player.z=0;
+  // Frontal weapon auto-attack is deflected
+  const frontalDmg=g.damage(golem,100,'weapon');
+  assert(frontalDmg<15,`Frontal auto-attack must be heavily deflected, got ${frontalDmg}`);
+  assert(g.events.some(e=>e.type==='golemDeflect'));
+
+  // Attack from rear: player moves to (0, 6) behind golem
+  g.player.x=0;g.player.z=6;
+  const rearDmg=g.damage(golem,100,'weapon');
+  assert(rearDmg>50,`Rear attack from behind golem deals full unmitigated damage, got ${rearDmg}`);
+
+  // Skill/finisher attacks bypass frontal deflection
+  g.player.x=0;g.player.z=0;
+  const skillDmg=g.damage(golem,100,'skill');
+  assert(skillDmg>50,`Skill attacks bypass frontal armor, got ${skillDmg}`);
+
+  // Execute earthquake ground pound (golem-slam)
+  const attack=attacksFor(golem)[0];
+  assert.equal(attack.id,'golem-slam');
+  g.beginEnemyAttack(golem,attack);
+  assert.equal(golem.attackId,'golem-slam');
+  g.enemyAttack(golem);
+  assert(g.trauma>0,'Golem slam injects screen trauma');
+  assert(g.zones.some(z=>z.kind==='collapse'),'Golem slam creates ground collapse zone');
+  assert(g.bolts.some(b=>b.enemy),'Golem slam emits radial seismic bolts');
+});
+
+test('pyre priest heals nearby wounded allies with golden channel and lobs homing flame wisps',()=>{
+  const g=new Game({seed:302});
+  g.spawnTimer=999;
+  const priest=g.spawn('priest',{x:0,z:0});
+  assert.equal(priest.type,'priest');
+  assert.equal(priest.hp,110);
+
+  // Spawn wounded ally
+  const wounded=g.spawn('thrall',{x:2,z:1});
+  wounded.hp=10;wounded.maxHp=42;
+  priest.attackId='priest-heal';
+  g.enemyAttack(priest);
+  assert(wounded.hp>10,'Priest heal restores HP to lowest ally');
+  assert(g.events.some(e=>e.type==='priestHeal'&&e.target===wounded.id));
+
+  // Priest lobs homing fire wisps
+  priest.attackId='priest-wisp';
+  g.player.x=0;g.player.z=5;
+  g.enemyAttack(priest);
+  assert(g.bolts.some(b=>b.kind==='flame'),'Priest shoots flame wisp projectiles');
+  assert(g.zones.some(z=>z.kind==='burn'),'Priest creates burn zone');
+});
+
+test('ashen cathedral biome spawns obsidian golem and pyre priest in regional pool',()=>{
+  assert.equal(MONSTERS.golem.region,0);
+  assert.equal(MONSTERS.priest.region,0);
+  const regional=Object.values(MONSTERS).filter(e=>!e.boss&&e.region===0);
+  assert.equal(regional.length,8);
+  assert(regional.some(e=>e.id==='golem'));
+  assert(regional.some(e=>e.id==='priest'));
 });
 
 

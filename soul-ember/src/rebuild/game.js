@@ -26,9 +26,18 @@ export class Game{
   spawn(type,position,options={}){const def=MONSTERS[type];if(!def)throw new Error('Unknown monster');let x=0,z=0;for(let i=0;i<100;i++){const a=this.rng()*Math.PI*2,r=13+this.rng()*8;x=this.player.x+Math.sin(a)*r;z=this.player.z+Math.cos(a)*r;if(!solid(x,z,def.boss?1.1:.5))break;}if(solid(x,z,1.1)){x=0;z=0;}if(position){x=position.x;z=position.z;}
   const mutator=ASCENSIONS[this.ascensionModifier]||{},defaultElite=!def.boss&&(this.time>20)&&this.rng()<Math.min(.42,.06+(this.time/70)*.18+this.director.tier*.035+(mutator.elite||0)),elite=options?.elite!==undefined?options.elite:defaultElite,cycleScale=1+this.cycle*.28,timeScale=1+(this.time/140)*0.85,hp=def.hp*(elite?2.4:1)*(1+this.biome*.35)*timeScale*cycleScale*(mutator.hp||1),spd=def.speed*1.25*(1+this.director.tier*.04)*Math.min(1.55,1+(this.time/180)*0.35);
   const affix=elite?(options?.affix||AFFIX_KEYS[Math.floor(this.rng()*AFFIX_KEYS.length)]):null;
-  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
+  const e={id:++this.id,type,x,z,vx:0,vz:0,hp,maxHp:hp,speed:spd,xp:def.xp*(1+this.cycle*.12),elite,affix,affixTimer:0,affixStacks:0,barrierAngle:0,trailTimer:0,boss:def.boss,behavior:def.behavior,radius:def.boss?1.1:type==='golem'?0.65:.48,age:0,cool:1.0+this.rng()*.5,windup:0,recover:0,attack:0,attackId:null,attackIndex:0,flash:0,freeze:0,poison:0,phase:1,lastPhase:1,dx:0,dz:1};collide(e,e.radius);this.enemies.push(e);return e;
  }
  damage(e,amount,source='weapon'){if(e.hp<=0)return 0;const p=this.player;
+ if(e.type==='golem'&&source==='weapon'){
+  const attackAngle=Math.atan2(p.x-e.x,p.z-e.z);let diff=Math.abs(attackAngle-(e.dz!==undefined?Math.atan2(e.dx,e.dz):0));
+  while(diff>Math.PI)diff=Math.abs(diff-Math.PI*2);
+  if(diff<Math.PI*0.42){
+   this.effect(e.x+Math.sin(attackAngle)*.6,e.z+Math.cos(attackAngle)*.6,0xff5511,1.2,'impact',.25);
+   this.emit('golemDeflect',{x:e.x,z:e.z});
+   amount*=.08;
+  }
+ }
  if(e.elite&&e.affix==='shielded'){
   const attackAngle=Math.atan2(p.x-e.x,p.z-e.z);let diff=Math.abs(attackAngle-(e.barrierAngle||0));
   while(diff>Math.PI)diff=Math.abs(diff-Math.PI*2);
@@ -98,6 +107,34 @@ export class Game{
   else if(id==='censer-lob'){this.enemyZone(x,z,2.2,4,.65,'burn');}
   else if(id==='bell-ring'){this.radial(e,12,17,7.5,e.age);this.enemyMelee(e,3.2,17,'wave');}
   else if(id==='gargoyle-dive'){e.x=x-Math.sin(a)*1.1;e.z=z-Math.cos(a)*1.1;collide(e,e.radius);this.enemyMelee(e,2.5,30,'impact');e.recover=.85;}
+  else if(id==='golem-slam'){
+   this.enemyMelee(e,4.5,34,'impact');
+   this.radial(e,8,18,6.5,e.age);
+   this.enemyZone(e.x,e.z,4.2,2.5,0.1,'collapse');
+   this.trauma=Math.min(1.2,(this.trauma||0)+.28);
+   e.recover=.85;
+  }
+  else if(id==='priest-heal'){
+   const allies=this.enemies.filter(other=>other.id!==e.id&&!other.boss&&other.hp>0&&dist(e,other)<8.0&&other.hp<other.maxHp);
+   if(allies.length>0){
+    allies.sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp));
+    const target=allies[0];
+    const healAmt=Math.min(target.maxHp-target.hp,45);
+    target.hp+=healAmt;
+    this.effect(target.x,target.z,0xffd700,2.2,'pulse',.5);
+    this.effect(e.x,e.z,0xffbe33,1.6,'burst',.4);
+    this.emit('priestHeal',{healer:e.id,target:target.id,amount:healAmt});
+   }else{
+    this.effect(e.x,e.z,0xffd700,3.5,'pulse',.45);
+   }
+   e.recover=.65;
+  }
+  else if(id==='priest-wisp'){
+   this.shoot(a-.16,16,9.5,1,true,e,{kind:'flame'});
+   this.shoot(a+.16,16,9.5,1,true,e,{kind:'flame'});
+   this.enemyZone(x,z,1.8,3,.4,'burn');
+   e.recover=.55;
+  }
   else if(id==='husk-grab'){this.enemyMelee(e,2.2,26,'grab');e.recover=.8;}
   else if(id==='husk-sweep'){this.enemyMelee(e,3.7,22,'slash');e.recover=.62;}
   else if(id==='archer-lead'){this.shoot(a,19,13,1,true,e,{kind:'arrow'});}
@@ -258,7 +295,7 @@ export class Game{
     }
    }
   }
-  let advance=false;for(const e of deadEnemies){this.kills++;this.streak++;this.maxStreak=Math.max(this.streak,this.maxStreak);if(e.elite)this.elites++;p.ult=Math.min(100,p.ult+.5);const mult=this.comboMultiplier();this.drop('xp',e.x,e.z,e.xp*(e.elite?2.0:1.0)*h.soulYield*mult,e.elite?'rare':'common');if(e.elite)this.drop('crest',e.x,e.z,250,'epic');else if(this.rng()<.09){if(['censer','abbot','thrall'].includes(e.type))this.drop('mote',e.x,e.z,15,'rare');else if(['hound','wraith','stalker'].includes(e.type))this.drop('spark',e.x,e.z,15,'rare');else if(['shield','sentinel'].includes(e.type))this.drop('aegis',e.x,e.z,15,'rare');else if(['spitter','brood','leech'].includes(e.type))this.drop('toxic',e.x,e.z,15,'rare');}if(this.rng()<p.goldChance){const goldVal=Math.max(2,Math.round((e.elite?18:(2+(this.rng()<.4?1:0)))*(mutator.reward||1)));this.drop('gold',e.x+.3,e.z,goldVal,e.elite?'rare':'common');}if(this.rng()<.02)this.drop('potion',e.x,e.z,18,'rare');if(e.elite)this.drop('chest',e.x,e.z,0,'epic');if(p.relics.emberOil)this.zones.push({id:++this.id,x:e.x,z:e.z,life:2.5,warn:0,radius:1.5,enemy:false,kind:'burn'});const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1,impulse=e.boss?1.2:e.elite?2.2:3.0;this.corpses.push({...e,vx:(kx/kd)*impulse,vz:(kz/kd)*impulse,life:.75,maxLife:.75});const burstCol=['censer','abbot','thrall','hound'].includes(e.type)?0xff5511:['husk','warden','leech','wraith'].includes(e.type)?0x22eedd:['brood','root','regent','thornling','spitter'].includes(e.type)?0x84cc16:0xd4af37;this.effect(e.x,e.z,burstCol,e.boss?3.8:e.elite?2.2:1.2,'impact',.4);this.emit('kill',{type:e.type,elite:e.elite,boss:e.boss,x:e.x,z:e.z});if(e.boss){this.bossKills++;const bounty=Math.round((45+this.cycle*15)*(mutator.reward||1));this.gold+=bounty;this.earned+=bounty;this.drop('bosscore',e.x,e.z,0,'legendary');this.drop('gold',e.x-.6,e.z,15,'rare');this.drop('gold',e.x+.6,e.z,15,'rare');this.drop('potion',e.x+.8,e.z,30,'epic');if(this.biome===2){if(this.ranked){this.state='victory';this.emit('end',{victory:true});}else{this.state='convergence';this.emit('convergence',{cycle:this.cycle});}}else advance=true;}}
+  let advance=false;for(const e of deadEnemies){this.kills++;this.streak++;this.maxStreak=Math.max(this.streak,this.maxStreak);if(e.elite)this.elites++;p.ult=Math.min(100,p.ult+.5);const mult=this.comboMultiplier();this.drop('xp',e.x,e.z,e.xp*(e.elite?2.0:1.0)*h.soulYield*mult,e.elite?'rare':'common');if(e.elite)this.drop('crest',e.x,e.z,250,'epic');else if(this.rng()<.09){if(['censer','abbot','thrall','priest'].includes(e.type))this.drop('mote',e.x,e.z,15,'rare');else if(['hound','wraith','stalker'].includes(e.type))this.drop('spark',e.x,e.z,15,'rare');else if(['shield','sentinel','golem'].includes(e.type))this.drop('aegis',e.x,e.z,15,'rare');else if(['spitter','brood','leech'].includes(e.type))this.drop('toxic',e.x,e.z,15,'rare');}if(this.rng()<p.goldChance){const goldVal=Math.max(2,Math.round((e.elite?18:(2+(this.rng()<.4?1:0)))*(mutator.reward||1)));this.drop('gold',e.x+.3,e.z,goldVal,e.elite?'rare':'common');}if(this.rng()<.02)this.drop('potion',e.x,e.z,18,'rare');if(e.elite)this.drop('chest',e.x,e.z,0,'epic');if(p.relics.emberOil)this.zones.push({id:++this.id,x:e.x,z:e.z,life:2.5,warn:0,radius:1.5,enemy:false,kind:'burn'});const kx=e.x-p.x,kz=e.z-p.z,kd=Math.hypot(kx,kz)||1,impulse=e.boss?1.2:e.elite?2.2:3.0;this.corpses.push({...e,vx:(kx/kd)*impulse,vz:(kz/kd)*impulse,life:.75,maxLife:.75});const burstCol=['censer','abbot','thrall','hound','priest','golem'].includes(e.type)?0xff5511:['husk','warden','leech','wraith'].includes(e.type)?0x22eedd:['brood','root','regent','thornling','spitter'].includes(e.type)?0x84cc16:0xd4af37;this.effect(e.x,e.z,burstCol,e.boss?3.8:e.elite?2.2:1.2,'impact',.4);this.emit('kill',{type:e.type,elite:e.elite,boss:e.boss,x:e.x,z:e.z});if(e.boss){this.bossKills++;const bounty=Math.round((45+this.cycle*15)*(mutator.reward||1));this.gold+=bounty;this.earned+=bounty;this.drop('bosscore',e.x,e.z,0,'legendary');this.drop('gold',e.x-.6,e.z,15,'rare');this.drop('gold',e.x+.6,e.z,15,'rare');this.drop('potion',e.x+.8,e.z,30,'epic');if(this.biome===2){if(this.ranked){this.state='victory';this.emit('end',{victory:true});}else{this.state='convergence';this.emit('convergence',{cycle:this.cycle});}}else advance=true;}}
   this.enemies=this.enemies.filter(e=>e.hp>0);if(advance){this.biome++;this.regionStart=this.time;this.bossSpawned=false;this.enemies=[];this.bolts=[];this.zones=[];p.revives=0;this.visitedRooms=new Set([4]);this.emit('region',{name:REGIONS[this.biome].name});this.prepareMerchant();}
   for(const l of this.loot){l.age+=dt;if(l.y>0||l.vy>0){l.vy-=12*dt;l.y+=l.vy*dt;l.x+=l.vx*dt;l.z+=l.vz*dt;l.vx*=Math.pow(.08,dt);l.vz*=Math.pow(.08,dt);if(l.y<=0){l.y=0;if(Math.abs(l.vy)>1){l.vy=-l.vy*.32;}else l.vy=0;}}let d=dist(l,p);if(l.age>.28&&l.y<.15&&d<p.magnet)l.magnet=true;if(l.magnet&&clearLine(l,p)){const step=Math.min(d,dt*(9+l.age*1.5));l.x+=(p.x-l.x)/Math.max(.01,d)*step;l.z+=(p.z-l.z)/Math.max(.01,d)*step;l.y=approach(l.y,.55,dt*3);}if(dist(l,p)<.65){l.taken=true;if(l.kind==='xp')p.xp+=l.value;else if(l.kind==='potion')p.hp=Math.min(p.maxHp,p.hp+l.value);else if(l.kind==='mote'){p.xp+=l.value;p.ignition=5;this.effect(p.x,p.z,0xff7034,2.2,'burst',.4);this.emit('motePickup',{kind:'mote'});}else if(l.kind==='spark'){p.xp+=l.value;p.stamina=100;p.tempest=4;this.effect(p.x,p.z,0x6ae2ff,2.2,'pulse',.4);this.emit('motePickup',{kind:'spark'});}else if(l.kind==='aegis'){p.xp+=l.value;p.shield+=25;for(const o of this.loot)o.magnet=true;this.effect(p.x,p.z,0x80ffb0,4,'shield',.5);this.emit('motePickup',{kind:'aegis'});}else if(l.kind==='toxic'){p.xp+=l.value;this.zones.push({id:++this.id,x:p.x,z:p.z,life:3,warn:0,radius:3.5,enemy:false,kind:'miasma'});this.emit('motePickup',{kind:'toxic'});}else if(l.kind==='crest'){p.xp+=l.value;p.skills=[0,0];p.hp=Math.min(p.maxHp,p.hp+30);this.effect(p.x,p.z,0xffd700,5,'ultimate',.7);this.emit('motePickup',{kind:'crest'});}else if(l.kind==='chest'){const value=16+Math.floor(this.rng()*10);this.gold+=value;this.earned+=value;if(this.rng()<.25)p.hp=Math.min(p.maxHp,p.hp+25);this.emit('chest',{value});}else if(l.kind==='gold'){this.gold+=l.value;this.earned+=l.value;}this.effect(l.x,l.z,l.kind==='gold'?0xe0b65b:l.kind==='potion'?0xdc6b62:0xa9dbc8,1.5,'pickup',.35);this.emit('pickup',{kind:l.kind,value:l.value});}}
   this.loot=this.loot.filter(l=>!l.taken);if(p.level===1&&this.time>=50)p.xp=Math.max(p.xp,p.need);if(p.xp>=p.need&&this.state==='playing'){this.choices=upgradeOffers(this);if(this.choices.length){p.xp-=p.need;p.level++;p.need=p.level<=13?Math.round(75+Math.pow(p.level-1,1.35)*32):Math.min(1100,420+(p.level-13)*26);this.levelTimes.push(this.time);this.state='upgrade';this.emit('level');}}

@@ -179,6 +179,15 @@ export class Scene{
     this.mesh(g,this.geo.cylinder,vialColor,[.06,.22,.06],[(i-1)*.18,1.08,.38],'glass',true);
    }
   }
+  if(id==='golem'){
+   for(const side of[-1,1]){
+    this.mesh(g,this.geo.gem,0xff3b11,[.35,.45,.35],[side*.32,1.15,.35],'glass',true);
+    this.mesh(g,this.geo.ring,0xff5511,[.32,.32,.32],[side*.48,1.45,0],'metal',true);
+   }
+  }
+  if(id==='priest'){
+   this.mesh(g,this.geo.ring,0xffd700,[.45,.45,.45],[0,2.32,-.06],'metal',true);
+  }
   if(spec.bone){
    for(let i=0;i<3;i++)this.detailPlate(g,bone,[0,.96+i*.17,.38],[.65,.065,.12],'bone');
    this.detailPlate(g,bone,[0,1.43,.28],[.28,.1,.24],'bone');
@@ -290,6 +299,11 @@ export class Scene{
   }else if(spec.weapon==='rootClub'){
    this.mesh(w,this.geo.cylinder,0x4d5134,[.22,1.35,.22],[0,0,0],'wood');
    for(let i=0;i<3;i++)this.mesh(w,this.geo.cone,0x7f774e,[.12,.35,.12],[(i-1)*.17,.5+i*.12,0],'wood');
+  }else if(spec.weapon==='golemFists'){
+   for(const side of[-1,1]){
+    this.mesh(g,this.geo.box,0x222226,[.48,.48,.48],[side*.55,.62,.38],'stone');
+    this.mesh(g,this.geo.gem,0xff4411,[.22,.22,.22],[side*.55,.62,.56],'glass',true);
+   }
   }
   if(spec.weapon==='claws')for(const side of[-1,1])for(let i=0;i<3;i++){
    const claw=this.mesh(g,this.geo.cone,bone,[.08,.35,.08],[side*.5+i*.05,.64,.5],'bone');claw.rotation.x=Math.PI/2;

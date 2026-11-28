@@ -16,6 +16,8 @@ export const MONSTER_MODELS={
  ringer:{kind:'humanoid',primary:0x735f42,secondary:0x302a23,head:'bellHelm',weapon:'handBell',armor:true,scale:1.08},
  hound:{kind:'hound',primary:0x542a24,secondary:0x251b19,scale:.92},
  gargoyle:{kind:'winged',primary:0x66716d,secondary:0x303735,head:'horns',scale:1.16,armor:true},
+ golem:{kind:'humanoid',primary:0x222226,secondary:0x18181b,head:'horns',weapon:'golemFists',armor:true,bone:true,scale:1.48},
+ priest:{kind:'humanoid',primary:0x9e3822,secondary:0xd4af37,head:'mitre',weapon:'censer',cape:true,scale:1.06},
  husk:{kind:'humanoid',primary:0x4f6864,secondary:0x243534,head:'drowned',weapon:'claws',cape:true,scale:1.02},
  archer:{kind:'humanoid',primary:0xb0a78d,secondary:0x34332e,head:'skull',weapon:'longbow',quiver:true,bone:true,scale:1},
  leech:{kind:'swarm',primary:0x4e2526,secondary:0x1f1718,scale:.9},

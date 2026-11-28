@@ -22,7 +22,19 @@ class SoulAudio{
   else if(event==='perfectDodge'){this.tone(1320,.35,{type:'sine',gain:.22,slide:.5,pan});this.noise(.25,{gain:.15,frequency:2400,pan});}
   else if(event==='guardBreak'){this.tone(880,.2,{type:'sawtooth',gain:.25,slide:1.5,pan});this.tone(1760,.15,{type:'triangle',gain:.2,slide:.6,pan});this.noise(.12,{gain:.18,frequency:800,pan});}
   else if(event==='motePickup'){const f=params.kind==='crest'?1320:params.kind==='spark'?1180:params.kind==='aegis'?940:840;this.tone(f,.25,{type:'triangle',gain:.2,slide:1.4,pan});}
-  else if(event==='enemyCue'){const boss=params.boss,base=boss?62:params.attack?.includes('ring')?280:params.attack?.includes('charge')?95:170;this.tone(base,(boss ? .65 : .24),{type:boss?'sawtooth':'triangle',gain:(boss ? .3 : .12),slide:(boss ? .55 : 1.4),pan});}
+  else if(event==='enemyCue'){
+   const boss=params.boss,attack=params.attack||'';
+   if(attack.includes('golem-slam')){
+    this.tone(45,.72,{type:'sawtooth',gain:.35,slide:.42,pan});
+    this.noise(.38,{gain:.26,frequency:150,pan});
+   }else if(attack.includes('priest')){
+    this.tone(523,.42,{type:'triangle',gain:.22,slide:1.25,pan});
+    this.tone(784,.32,{type:'sine',gain:.18,delay:.08,slide:.95,pan});
+   }else{
+    const base=boss?62:attack.includes('ring')?280:attack.includes('charge')?95:170;
+    this.tone(base,(boss ? .65 : .24),{type:boss?'sawtooth':'triangle',gain:(boss ? .3 : .12),slide:(boss ? .55 : 1.4),pan});
+   }
+  }
   else if(event==='bossPhase'){
    [73.4,98,130.8,164.8,220].forEach((f,i)=>this.tone(f,1.1,{type:'sawtooth',gain:.28,delay:i*.06,slide:.62}));
    [261.6,329.6,392].forEach((f,i)=>this.tone(f,.9,{type:'triangle',gain:.18,delay:.1+i*.05,slide:1.05}));

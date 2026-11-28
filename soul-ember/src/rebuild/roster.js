@@ -12,12 +12,12 @@ const heroRows = [
 export const HEROES=Object.fromEntries(heroRows.map(([id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches],index)=>[id,{id,name,color,weapon,trait,ultName,pattern,damage,cooldown,hp,speed,branches,unlockRuns:index,initialXp:[75,90,75,80,85,90,85,90][index],soulYield:id==='plague'?1.25:1}]));
 export const REGIONS=[{name:'Ashen Cathedral',color:0xc78c5f,ground:0x282422},{name:'Drowned Catacombs',color:0x79a6a3,ground:0x1c2b2c},{name:'Thornbound Ossuary',color:0x9faa75,ground:0x282c22}];
 const rows=[
- ['thrall','Ash Thrall','chase',42,2.7,2],['shield','Shieldbearer','guard',105,1.85,4],['censer','Censer Acolyte','ranged',65,2.25,4],['ringer','Bell Ringer','pulse',90,2.2,5],['hound','Ember Hound','charge',48,4.45,3],['gargoyle','Gargoyle','ambush',140,2.55,6],
- ['husk','Drowned Husk','chase',78,2.5,3],['archer','Bone Archer','ranged',62,2.7,4],['leech','Leech Swarm','swarm',30,4.7,2],['mimic','Coffin Mimic','ambush',135,4.05,6],['spitter','Mire Spitter','pool',90,2.2,5],['wraith','Lantern Wraith','ranged',70,3.3,5],
- ['thornling','Thornling','swarm',62,4.15,3],['root','Root Brute','pulse',210,1.95,7],['stalker','Carrion Stalker','charge',95,4.4,5],['brood','Brood Mother','summon',165,1.95,7],['hex','Hex Weaver','pool',105,2.55,6],['sentinel','Ossuary Sentinel','guard',240,2.15,8],
- ['abbot','Cinder Abbot','boss',2200,1.8,40],['warden','Drowned Warden','boss',3400,1.7,55],['regent','Thorn Regent','boss',4800,1.6,70]
+ ['thrall','Ash Thrall','chase',42,2.7,2,0],['shield','Shieldbearer','guard',105,1.85,4,0],['censer','Censer Acolyte','ranged',65,2.25,4,0],['ringer','Bell Ringer','pulse',90,2.2,5,0],['hound','Ember Hound','charge',48,4.45,3,0],['gargoyle','Gargoyle','ambush',140,2.55,6,0],['golem','Obsidian Golem','guard',380,1.55,9,0],['priest','Pyre Priest','summon',110,2.3,6,0],
+ ['husk','Drowned Husk','chase',78,2.5,3,1],['archer','Bone Archer','ranged',62,2.7,4,1],['leech','Leech Swarm','swarm',30,4.7,2,1],['mimic','Coffin Mimic','ambush',135,4.05,6,1],['spitter','Mire Spitter','pool',90,2.2,5,1],['wraith','Lantern Wraith','ranged',70,3.3,5,1],
+ ['thornling','Thornling','swarm',62,4.15,3,2],['root','Root Brute','pulse',210,1.95,7,2],['stalker','Carrion Stalker','charge',95,4.4,5,2],['brood','Brood Mother','summon',165,1.95,7,2],['hex','Hex Weaver','pool',105,2.55,6,2],['sentinel','Ossuary Sentinel','guard',240,2.15,8,2],
+ ['abbot','Cinder Abbot','boss',2200,1.8,40,0],['warden','Drowned Warden','boss',3400,1.7,55,1],['regent','Thorn Regent','boss',4800,1.6,70,2]
 ];
-export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp],i)=>[id,{id,name,behavior,hp,speed,xp,region:i<18?Math.floor(i/6):i-18,boss:i>=18}]));
+export const MONSTERS=Object.fromEntries(rows.map(([id,name,behavior,hp,speed,xp,region])=>[id,{id,name,behavior,hp,speed,xp,region,boss:behavior==='boss'}]));
 export const BOSSES=['abbot','warden','regent'];
 export const ANIMATION_MANIFEST={version:5,source:'Articulated procedural 3D actors with batched geometry and weapon-specific equipment',collisionRadius:.45,states:{idle:{duration:1.6},run:{duration:.48},attack:{duration:.28},cast:{duration:.42},dodge:{duration:.24},hit:{duration:.18},death:{duration:.65}},directions:['north','south','east','west']};
 export function branchEffect(hero,branch,rank){

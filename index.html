@@ -1419,7 +1419,7 @@
       init() {
         try {
           this.scene = new THREE.Scene();
-          this.scene.fog = new THREE.FogExp2(0x03060c, 0.018);
+          this.scene.fog = new THREE.FogExp2(0x03060c, 0.016);
 
           this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
           this.camera.position.set(0, 4, 30);
@@ -1433,28 +1433,29 @@
           this.renderer.setSize(window.innerWidth, window.innerHeight);
           this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 
-          // Lights
-          this.ambientLight = new THREE.AmbientLight(0x0b1528, 1.3);
+          // Ambient & Dynamic Studio Lights
+          this.ambientLight = new THREE.AmbientLight(0x0f172a, 1.6);
           this.scene.add(this.ambientLight);
 
-          this.dirLight = new THREE.DirectionalLight(0x00e5ff, 1.1);
-          this.dirLight.position.set(15, 25, 20);
-          this.scene.add(this.dirLight);
+          this.dirLight1 = new THREE.DirectionalLight(0x00e5ff, 1.2);
+          this.dirLight1.position.set(20, 30, 25);
+          this.scene.add(this.dirLight1);
 
-          this.auraLight = new THREE.PointLight(0x7c3aed, 2.8, 90);
-          this.auraLight.position.set(0, 10, 10);
+          this.dirLight2 = new THREE.DirectionalLight(0xd946ef, 0.85);
+          this.dirLight2.position.set(-20, -10, -15);
+          this.scene.add(this.dirLight2);
+
+          this.auraLight = new THREE.PointLight(0x7c3aed, 3.2, 100);
+          this.auraLight.position.set(0, 8, 12);
           this.scene.add(this.auraLight);
 
-          // 1. Perspective Cyber Grid
+          // 1. Static Ambient Perspective Grid Floor (Zero moving lines)
           this.createCyberGrid();
 
-          // 2. Procedural 3D Gaming Artifacts (Controllers, Joysticks, D-Pads, Tokens)
+          // 2. Comprehensive 3D Gaming Hardware Fleet (Zero abstract particles/shapes)
           this.createGamingAssets();
 
-          // 3. Cyber Dust / Energy Particles
-          this.createDustParticles();
-
-          // Events
+          // Event Listeners
           window.addEventListener('resize', () => this.onResize(), { passive: true });
           window.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: true });
 
@@ -1465,280 +1466,409 @@
       }
 
       createCyberGrid() {
+        // Completely stationary perspective floor grid (zero animated translation)
         const size = 160;
         const divisions = 40;
         this.gridHelper = new THREE.GridHelper(size, divisions, 0x00e5ff, 0x1e293b);
-        this.gridHelper.position.y = -10;
-        this.gridHelper.material.opacity = 0.28;
+        this.gridHelper.position.y = -14;
+        this.gridHelper.material.opacity = 0.12;
         this.gridHelper.material.transparent = true;
         this.scene.add(this.gridHelper);
       }
 
       /* ========================================================================
-         PROCEDURAL 3D GAMING ASSET GENERATOR
+         GENUINE 3D GAMING HARDWARE GENERATORS (NO ABSTRACT SQUARES/CIRCLES)
          ======================================================================== */
       createGamingAssets() {
         this.gamingAssets = [];
 
-        // Common Materials
+        // Reusable Premium Materials
         const darkChassisMat = new THREE.MeshStandardMaterial({
           color: 0x0a101d,
           roughness: 0.35,
           metalness: 0.85
         });
 
+        const whiteChassisMat = new THREE.MeshStandardMaterial({
+          color: 0xe2e8f0,
+          roughness: 0.3,
+          metalness: 0.4
+        });
+
         const neonCyanMat = new THREE.MeshStandardMaterial({
           color: 0x00e5ff,
           emissive: 0x00e5ff,
-          emissiveIntensity: 0.6,
+          emissiveIntensity: 0.65,
+          roughness: 0.2
+        });
+
+        const neonVioletMat = new THREE.MeshStandardMaterial({
+          color: 0x8b5cf6,
+          emissive: 0x7c3aed,
+          emissiveIntensity: 0.65,
           roughness: 0.2
         });
 
         const neonMagentaMat = new THREE.MeshStandardMaterial({
           color: 0xd946ef,
           emissive: 0xd946ef,
-          emissiveIntensity: 0.6,
+          emissiveIntensity: 0.65,
           roughness: 0.2
-        });
-
-        const chromeMat = new THREE.MeshStandardMaterial({
-          color: 0xe2e8f0,
-          roughness: 0.1,
-          metalness: 0.95
         });
 
         const goldMat = new THREE.MeshStandardMaterial({
           color: 0xffb74d,
           emissive: 0xff9d42,
-          emissiveIntensity: 0.3,
+          emissiveIntensity: 0.35,
           roughness: 0.2,
           metalness: 0.85
         });
 
-        // 1. CONSOLE GAMEPAD CONTROLLER
-        const gamepad = new THREE.Group();
-        // Central body
-        const gpBody = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.8, 0.6), darkChassisMat);
-        gamepad.add(gpBody);
-        // Left & Right Grips (angled cylinders)
-        const leftGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), darkChassisMat);
-        leftGrip.position.set(-1.8, -0.5, 0);
-        leftGrip.rotation.z = 0.35;
-        gamepad.add(leftGrip);
-
-        const rightGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), darkChassisMat);
-        rightGrip.position.set(1.8, -0.5, 0);
-        rightGrip.rotation.z = -0.35;
-        gamepad.add(rightGrip);
-
-        // D-Pad Cross
-        const dpadH = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.24, 0.15), neonCyanMat);
-        dpadH.position.set(-0.9, 0.25, 0.35);
-        const dpadV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.15), neonCyanMat);
-        dpadV.position.set(-0.9, 0.25, 0.35);
-        gamepad.add(dpadH, dpadV);
-
-        // 4 Action Buttons (Diamond arrangement)
-        const btnGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12);
-        const btnY = new THREE.Mesh(btnGeo, goldMat);
-        btnY.position.set(0.9, 0.5, 0.35);
-        btnY.rotation.x = Math.PI / 2;
-        const btnX = new THREE.Mesh(btnGeo, neonCyanMat);
-        btnX.position.set(0.68, 0.28, 0.35);
-        btnX.rotation.x = Math.PI / 2;
-        const btnB = new THREE.Mesh(btnGeo, neonMagentaMat);
-        btnB.position.set(1.12, 0.28, 0.35);
-        btnB.rotation.x = Math.PI / 2;
-        const btnA = new THREE.Mesh(btnGeo, neonCyanMat);
-        btnA.position.set(0.9, 0.06, 0.35);
-        btnA.rotation.x = Math.PI / 2;
-        gamepad.add(btnY, btnX, btnB, btnA);
-
-        // Dual Analog Thumbsticks
-        const stickGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.18, 16);
-        const leftStick = new THREE.Mesh(stickGeo, chromeMat);
-        leftStick.position.set(-0.45, -0.25, 0.35);
-        leftStick.rotation.x = Math.PI / 2;
-        const rightStick = new THREE.Mesh(stickGeo, chromeMat);
-        rightStick.position.set(0.45, -0.25, 0.35);
-        rightStick.rotation.x = Math.PI / 2;
-        gamepad.add(leftStick, rightStick);
-
-        // Shoulder Bumpers
-        const leftBumper = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), neonCyanMat);
-        leftBumper.position.set(-1.0, 0.95, 0);
-        const rightBumper = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), neonMagentaMat);
-        rightBumper.position.set(1.0, 0.95, 0);
-        gamepad.add(leftBumper, rightBumper);
-
-        gamepad.position.set(-20, 5, -10);
-        gamepad.scale.set(0.9, 0.9, 0.9);
-        this.addAsset(gamepad, [-20, 5, -10], 0.005, 0.007);
-
-        // 2. RETRO ARCADE JOYSTICK & BUTTON CONSOLE
-        const arcadeUnit = new THREE.Group();
-        const baseDeck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 2.4), darkChassisMat);
-        baseDeck.rotation.x = -0.25;
-        arcadeUnit.add(baseDeck);
-
-        // Steel Shaft & Luminous Ball Knob
-        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.3, 12), chromeMat);
-        shaft.position.set(-0.9, 0.7, 0.2);
-        arcadeUnit.add(shaft);
-
-        const ballKnob = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 20), neonMagentaMat);
-        ballKnob.position.set(-0.9, 1.35, 0.2);
-        arcadeUnit.add(ballKnob);
-
-        // Arcade Push Buttons
-        const buttonGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.15, 16);
-        const btnPositions = [
-          [0.4, 0.48, 0.35, neonCyanMat],
-          [0.95, 0.48, 0.32, neonMagentaMat],
-          [1.5, 0.48, 0.28, neonCyanMat],
-          [0.4, 0.38, -0.25, neonMagentaMat],
-          [0.95, 0.38, -0.28, neonCyanMat],
-          [1.5, 0.38, -0.32, goldMat]
-        ];
-        btnPositions.forEach(([bx, by, bz, bmat]) => {
-          const btn = new THREE.Mesh(buttonGeo, bmat);
-          btn.position.set(bx, by, bz);
-          btn.rotation.x = -0.25;
-          arcadeUnit.add(btn);
+        const chromeMat = new THREE.MeshStandardMaterial({
+          color: 0xf8fafc,
+          roughness: 0.1,
+          metalness: 0.95
         });
 
-        arcadeUnit.position.set(22, 6, -12);
-        arcadeUnit.scale.set(0.85, 0.85, 0.85);
-        this.addAsset(arcadeUnit, [22, 6, -12], -0.006, 0.005);
+        const screenEmberMat = new THREE.MeshStandardMaterial({
+          color: 0xff8533,
+          emissive: 0xff6600,
+          emissiveIntensity: 0.7,
+          roughness: 0.3
+        });
 
-        // 3. 8-WAY DIRECTIONAL D-PAD CROSS
-        const dpadCross = new THREE.Group();
-        const crossH = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.95, 0.4), darkChassisMat);
-        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.95, 3.0, 0.4), darkChassisMat);
-        const centerDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.45, 20), neonCyanMat);
-        centerDisc.rotation.x = Math.PI / 2;
+        const screenCyanMat = new THREE.MeshStandardMaterial({
+          color: 0x00e5ff,
+          emissive: 0x00e5ff,
+          emissiveIntensity: 0.75,
+          roughness: 0.3
+        });
 
-        const crossHBorder = new THREE.Mesh(new THREE.BoxGeometry(3.06, 1.01, 0.38), neonCyanMat);
-        const crossVBorder = new THREE.Mesh(new THREE.BoxGeometry(1.01, 3.06, 0.38), neonCyanMat);
+        // 1. HELPER: CONSOLE GAMEPAD CONTROLLER
+        const buildGamepad = (bodyMat, trimMat, buttonMat, stickMat) => {
+          const group = new THREE.Group();
+          // Central body
+          const gpBody = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.8, 0.6), bodyMat);
+          group.add(gpBody);
+          // Grips
+          const leftGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), bodyMat);
+          leftGrip.position.set(-1.8, -0.5, 0);
+          leftGrip.rotation.z = 0.35;
+          const rightGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.4, 16), bodyMat);
+          rightGrip.position.set(1.8, -0.5, 0);
+          rightGrip.rotation.z = -0.35;
+          group.add(leftGrip, rightGrip);
+          // D-Pad Cross
+          const dH = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.24, 0.15), trimMat);
+          dH.position.set(-0.9, 0.25, 0.35);
+          const dV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.7, 0.15), trimMat);
+          dV.position.set(-0.9, 0.25, 0.35);
+          group.add(dH, dV);
+          // 4 Action Buttons
+          const btnGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12);
+          const bY = new THREE.Mesh(btnGeo, buttonMat);
+          bY.position.set(0.9, 0.5, 0.35); bY.rotation.x = Math.PI / 2;
+          const bX = new THREE.Mesh(btnGeo, trimMat);
+          bX.position.set(0.68, 0.28, 0.35); bX.rotation.x = Math.PI / 2;
+          const bB = new THREE.Mesh(btnGeo, buttonMat);
+          bB.position.set(1.12, 0.28, 0.35); bB.rotation.x = Math.PI / 2;
+          const bA = new THREE.Mesh(btnGeo, trimMat);
+          bA.position.set(0.9, 0.06, 0.35); bA.rotation.x = Math.PI / 2;
+          group.add(bY, bX, bB, bA);
+          // Dual Analog Thumbsticks
+          const stickGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.18, 16);
+          const sL = new THREE.Mesh(stickGeo, stickMat);
+          sL.position.set(-0.45, -0.25, 0.35); sL.rotation.x = Math.PI / 2;
+          const sR = new THREE.Mesh(stickGeo, stickMat);
+          sR.position.set(0.45, -0.25, 0.35); sR.rotation.x = Math.PI / 2;
+          group.add(sL, sR);
+          // Shoulder Bumpers
+          const bL = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), trimMat);
+          bL.position.set(-1.0, 0.95, 0);
+          const bR = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.25, 0.4), buttonMat);
+          bR.position.set(1.0, 0.95, 0);
+          group.add(bL, bR);
+          return group;
+        };
 
-        dpadCross.add(crossH, crossV, centerDisc);
-        dpadCross.position.set(-16, -5, -8);
-        dpadCross.scale.set(0.8, 0.8, 0.8);
-        this.addAsset(dpadCross, [-16, -5, -8], 0.007, -0.005);
+        // 2. HELPER: RETRO HANDHELD CONSOLE
+        const buildHandheld = (bodyMat, screenMat, dpadMat, btnMat) => {
+          const group = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 4.4, 0.55), bodyMat);
+          group.add(body);
+          // Screen glass & display
+          const screenBezel = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.8, 0.08), darkChassisMat);
+          screenBezel.position.set(0, 0.85, 0.27);
+          const display = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.3, 0.06), screenMat);
+          display.position.set(0, 0.85, 0.32);
+          group.add(screenBezel, display);
+          // D-Pad
+          const dH = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.22, 0.12), dpadMat);
+          dH.position.set(-0.6, -0.65, 0.32);
+          const dV = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.12), dpadMat);
+          dV.position.set(-0.6, -0.65, 0.32);
+          group.add(dH, dV);
+          // Action Buttons A/B
+          const btnGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.12, 16);
+          const btnB = new THREE.Mesh(btnGeo, btnMat);
+          btnB.position.set(0.45, -0.75, 0.32); btnB.rotation.x = Math.PI / 2;
+          const btnA = new THREE.Mesh(btnGeo, btnMat);
+          btnA.position.set(0.8, -0.55, 0.32); btnA.rotation.x = Math.PI / 2;
+          group.add(btnB, btnA);
+          // Select & Start
+          const pillGeo = new THREE.BoxGeometry(0.3, 0.08, 0.08);
+          const sel = new THREE.Mesh(pillGeo, dpadMat);
+          sel.position.set(-0.25, -1.4, 0.32); sel.rotation.z = -0.4;
+          const st = new THREE.Mesh(pillGeo, dpadMat);
+          st.position.set(0.25, -1.4, 0.32); st.rotation.z = -0.4;
+          group.add(sel, st);
+          return group;
+        };
 
-        // 4. RETRO GAME CARTRIDGE
-        const cartridge = new THREE.Group();
-        const cartBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.2, 0.45), darkChassisMat);
-        cartridge.add(cartBody);
+        // 3. HELPER: ARCADE JOYSTICK & PUSH BUTTON UNIT
+        const buildArcadeStick = (baseMat, ballMat, btn1Mat, btn2Mat) => {
+          const group = new THREE.Group();
+          const baseDeck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 2.4), baseMat);
+          baseDeck.rotation.x = -0.25;
+          group.add(baseDeck);
+          // Joystick Shaft & Ball Knob
+          const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.3, 12), chromeMat);
+          shaft.position.set(-0.9, 0.7, 0.2);
+          const ballKnob = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 20), ballMat);
+          ballKnob.position.set(-0.9, 1.35, 0.2);
+          group.add(shaft, ballKnob);
+          // Push buttons
+          const bGeo = new THREE.CylinderGeometry(0.2, 0.22, 0.15, 16);
+          const positions = [
+            [0.4, 0.48, 0.35, btn1Mat], [0.95, 0.48, 0.32, btn2Mat], [1.5, 0.48, 0.28, btn1Mat],
+            [0.4, 0.38, -0.25, btn2Mat], [0.95, 0.38, -0.28, btn1Mat], [1.5, 0.38, -0.32, goldMat]
+          ];
+          positions.forEach(([bx, by, bz, m]) => {
+            const btn = new THREE.Mesh(bGeo, m);
+            btn.position.set(bx, by, bz);
+            btn.rotation.x = -0.25;
+            group.add(btn);
+          });
+          return group;
+        };
 
-        // Holographic label inset
-        const labelFrame = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 0.05), neonMagentaMat);
-        labelFrame.position.set(0, -0.2, 0.24);
-        cartridge.add(labelFrame);
+        // 4. HELPER: RETRO GAME CARTRIDGE
+        const buildCartridge = (bodyMat, labelMat, accentMat) => {
+          const group = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.2, 0.45), bodyMat);
+          group.add(body);
+          // Label inset
+          const label = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 0.05), labelMat);
+          label.position.set(0, -0.2, 0.24);
+          group.add(label);
+          // Grip Ridges
+          for (let r = 0; r < 4; r++) {
+            const ridge = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 0.06), accentMat);
+            ridge.position.set(0, 1.0 + r * 0.16, 0.23);
+            group.add(ridge);
+          }
+          // Gold Connector Pins
+          const pins = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 0.15), goldMat);
+          pins.position.set(0, -1.55, 0);
+          group.add(pins);
+          return group;
+        };
 
-        // Top Grip Ridges
-        for (let r = 0; r < 4; r++) {
-          const ridge = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 0.06), neonCyanMat);
-          ridge.position.set(0, 1.0 + r * 0.16, 0.23);
-          cartridge.add(ridge);
-        }
+        // 5. HELPER: ARCADE GOLD TOKEN / COIN
+        const buildToken = () => {
+          const group = new THREE.Group();
+          const coin = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.24, 36), goldMat);
+          coin.rotation.x = Math.PI / 2;
+          const rim = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 12, 36), chromeMat);
+          group.add(coin, rim);
+          // Star emblem
+          const starShape = new THREE.Shape();
+          const pts = 5;
+          for (let i = 0; i < pts * 2; i++) {
+            const r = i % 2 === 0 ? 0.8 : 0.38;
+            const a = (i / (pts * 2)) * Math.PI * 2 - Math.PI / 2;
+            const x = Math.cos(a) * r;
+            const y = Math.sin(a) * r;
+            if (i === 0) starShape.moveTo(x, y);
+            else starShape.lineTo(x, y);
+          }
+          starShape.closePath();
+          const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.12, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.03, bevelThickness: 0.03 });
+          const frontStar = new THREE.Mesh(starGeo, neonCyanMat);
+          frontStar.position.set(0, 0, 0.08);
+          const backStar = new THREE.Mesh(starGeo, neonCyanMat);
+          backStar.position.set(0, 0, -0.20);
+          group.add(frontStar, backStar);
+          return group;
+        };
 
-        // Connector Pins (Gold)
-        const pins = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 0.15), goldMat);
-        pins.position.set(0, -1.55, 0);
-        cartridge.add(pins);
+        // 6. HELPER: PRO GAMING HEADSET
+        const buildHeadset = (frameMat, ledMat) => {
+          const group = new THREE.Group();
+          // Headband arch
+          const arch = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.16, 12, 32, Math.PI), frameMat);
+          arch.rotation.z = Math.PI;
+          arch.position.set(0, 0.8, 0);
+          group.add(arch);
+          // Earcups
+          const cupGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.5, 24);
+          const ringGeo = new THREE.TorusGeometry(0.68, 0.06, 12, 24);
+          // Left Cup
+          const cupL = new THREE.Mesh(cupGeo, darkChassisMat);
+          cupL.position.set(-1.6, 0.8, 0); cupL.rotation.z = Math.PI / 2;
+          const ringL = new THREE.Mesh(ringGeo, ledMat);
+          ringL.position.set(-1.85, 0.8, 0); ringL.rotation.y = Math.PI / 2;
+          // Right Cup
+          const cupR = new THREE.Mesh(cupGeo, darkChassisMat);
+          cupR.position.set(1.6, 0.8, 0); cupR.rotation.z = Math.PI / 2;
+          const ringR = new THREE.Mesh(ringGeo, ledMat);
+          ringR.position.set(1.85, 0.8, 0); ringR.rotation.y = Math.PI / 2;
+          group.add(cupL, ringL, cupR, ringR);
+          // Mic boom
+          const micArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 8), chromeMat);
+          micArm.position.set(-1.6, 0.3, 0.5); micArm.rotation.x = -0.8;
+          const micTip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), ledMat);
+          micTip.position.set(-1.6, -0.2, 0.9);
+          group.add(micArm, micTip);
+          return group;
+        };
 
-        cartridge.position.set(18, -4, -8);
-        cartridge.scale.set(0.8, 0.8, 0.8);
-        this.addAsset(cartridge, [18, -4, -8], -0.005, -0.006);
+        // 7. HELPER: MECHANICAL KEYCAP WITH SWITCH STEM
+        const buildKeycap = (bodyMat, legendMat) => {
+          const group = new THREE.Group();
+          // Tapered keycap pyramid
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.8, 1.3), bodyMat);
+          // Concave dish on top
+          const dish = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.9), legendMat);
+          dish.position.set(0, 0.41, 0);
+          // Stem underneath
+          const stem = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.3), chromeMat);
+          stem.position.set(0, -0.45, 0);
+          group.add(cap, dish, stem);
+          return group;
+        };
 
-        // 5. ARCADE TOKEN / COIN
-        const token = new THREE.Group();
-        const coinDisc = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.24, 36), goldMat);
-        coinDisc.rotation.x = Math.PI / 2;
-        token.add(coinDisc);
+        // 8. HELPER: ESPORTS CHAMPIONSHIP TROPHY
+        const buildTrophy = () => {
+          const group = new THREE.Group();
+          // Stepped Base
+          const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.6), darkChassisMat);
+          const b2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.3, 1.2), chromeMat);
+          b2.position.set(0, 0.35, 0);
+          // Stem
+          const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 0.8, 16), goldMat);
+          stem.position.set(0, 0.8, 0);
+          // Cup
+          const cup = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.5, 1.8, 24), goldMat);
+          cup.position.set(0, 2.0, 0);
+          // Handles
+          const handleGeo = new THREE.TorusGeometry(0.65, 0.08, 12, 24);
+          const hL = new THREE.Mesh(handleGeo, goldMat);
+          hL.position.set(-1.0, 2.2, 0);
+          const hR = new THREE.Mesh(handleGeo, goldMat);
+          hR.position.set(1.0, 2.2, 0);
+          group.add(b1, b2, stem, cup, hL, hR);
+          return group;
+        };
 
-        // Outer Ring Ridge
-        const coinRim = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 12, 36), chromeMat);
-        token.add(coinRim);
+        // ========================================================================
+        // INSTANTIATE & POSITION 14 REALISTIC GAMING ARTIFACTS IN 3D SPACE
+        // ========================================================================
+        // Asset 1: Midnight Gamepad (Left Upper)
+        const gp1 = buildGamepad(darkChassisMat, neonCyanMat, neonMagentaMat, chromeMat);
+        gp1.position.set(-20, 6, -10);
+        gp1.scale.set(0.9, 0.9, 0.9);
+        this.addAsset(gp1, [-20, 6, -10], 0.005, 0.007, 0.002);
 
-        // Embossed Star Shape
-        const starShape = new THREE.Shape();
-        const pts = 5;
-        const outerR = 0.8;
-        const innerR = 0.38;
-        for (let i = 0; i < pts * 2; i++) {
-          const r = i % 2 === 0 ? outerR : innerR;
-          const a = (i / (pts * 2)) * Math.PI * 2 - Math.PI / 2;
-          const x = Math.cos(a) * r;
-          const y = Math.sin(a) * r;
-          if (i === 0) starShape.moveTo(x, y);
-          else starShape.lineTo(x, y);
-        }
-        starShape.closePath();
+        // Asset 2: Arctic White Gamepad (Right Mid)
+        const gp2 = buildGamepad(whiteChassisMat, neonVioletMat, neonCyanMat, darkChassisMat);
+        gp2.position.set(22, 5, -12);
+        gp2.scale.set(0.85, 0.85, 0.85);
+        this.addAsset(gp2, [22, 5, -12], -0.006, 0.005, 0.003);
 
-        const extrudeSettings = { depth: 0.12, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.03, bevelThickness: 0.03 };
-        const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
-        const starMeshFront = new THREE.Mesh(starGeo, neonCyanMat);
-        starMeshFront.position.set(0, 0, 0.08);
-        const starMeshBack = new THREE.Mesh(starGeo, neonCyanMat);
-        starMeshBack.position.set(0, 0, -0.20);
-        token.add(starMeshFront, starMeshBack);
+        // Asset 3: Retro Handheld (Left Mid)
+        const hh1 = buildHandheld(darkChassisMat, screenCyanMat, neonCyanMat, neonMagentaMat);
+        hh1.position.set(-23, -3, -12);
+        hh1.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(hh1, [-23, -3, -12], 0.004, -0.006, -0.002);
 
-        token.position.set(0, 15, -18);
-        token.scale.set(0.9, 0.9, 0.9);
-        this.addAsset(token, [0, 15, -18], 0.008, 0.006);
+        // Asset 4: Retro Handheld (Right Lower)
+        const hh2 = buildHandheld(whiteChassisMat, screenEmberMat, neonVioletMat, neonCyanMat);
+        hh2.position.set(20, -7, -10);
+        hh2.scale.set(0.78, 0.78, 0.78);
+        this.addAsset(hh2, [20, -7, -10], -0.005, 0.006, 0.003);
+
+        // Asset 5: Arcade Fight Stick (Left Lower)
+        const arc1 = buildArcadeStick(darkChassisMat, neonMagentaMat, neonCyanMat, neonVioletMat);
+        arc1.position.set(-17, -9, -8);
+        arc1.scale.set(0.85, 0.85, 0.85);
+        this.addAsset(arc1, [-17, -9, -8], 0.006, -0.005, 0.002);
+
+        // Asset 6: Arcade Fight Stick (Right Upper)
+        const arc2 = buildArcadeStick(darkChassisMat, neonCyanMat, neonMagentaMat, goldMat);
+        arc2.position.set(18, 12, -14);
+        arc2.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(arc2, [18, 12, -14], -0.004, 0.006, -0.003);
+
+        // Asset 7: Pro Gaming Headset (Right Mid)
+        const hs1 = buildHeadset(darkChassisMat, neonCyanMat);
+        hs1.position.set(24, -1, -14);
+        hs1.scale.set(0.9, 0.9, 0.9);
+        this.addAsset(hs1, [24, -1, -14], 0.005, 0.004, -0.004);
+
+        // Asset 8: Esports Championship Trophy (Left Upper)
+        const tr1 = buildTrophy();
+        tr1.position.set(-14, 12, -14);
+        tr1.scale.set(0.75, 0.75, 0.75);
+        this.addAsset(tr1, [-14, 12, -14], 0.003, 0.007, 0.001);
+
+        // Asset 9: Retro Game Cartridge (Left Low-Mid)
+        const cart1 = buildCartridge(darkChassisMat, neonMagentaMat, neonCyanMat);
+        cart1.position.set(-18, 0, -6);
+        cart1.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(cart1, [-18, 0, -6], -0.005, -0.006, 0.003);
+
+        // Asset 10: Retro Game Cartridge (Right Low-Mid)
+        const cart2 = buildCartridge(darkChassisMat, neonCyanMat, neonVioletMat);
+        cart2.position.set(16, -2, -6);
+        cart2.scale.set(0.8, 0.8, 0.8);
+        this.addAsset(cart2, [16, -2, -6], 0.006, 0.004, -0.002);
+
+        // Asset 11: Giant Arcade Gold Token (Center Deep Horizon)
+        const tok1 = buildToken();
+        tok1.position.set(0, 16, -20);
+        tok1.scale.set(1.0, 1.0, 1.0);
+        this.addAsset(tok1, [0, 16, -20], 0.007, 0.005, 0.003);
+
+        // Asset 12: Mechanical Keycap 'W' (Center-Left High)
+        const keyW = buildKeycap(darkChassisMat, neonCyanMat);
+        keyW.position.set(-8, 14, -16);
+        keyW.scale.set(1.1, 1.1, 1.1);
+        this.addAsset(keyW, [-8, 14, -16], 0.008, 0.006, -0.005);
+
+        // Asset 13: Mechanical Keycap 'Esc' (Center-Right High)
+        const keyEsc = buildKeycap(darkChassisMat, neonMagentaMat);
+        keyEsc.position.set(8, 15, -16);
+        keyEsc.scale.set(1.1, 1.1, 1.1);
+        this.addAsset(keyEsc, [8, 15, -16], -0.007, 0.006, 0.004);
+
+        // Asset 14: Arcade Token (Deep Center Bottom)
+        const tok2 = buildToken();
+        tok2.position.set(2, -12, -16);
+        tok2.scale.set(0.85, 0.85, 0.85);
+        this.addAsset(tok2, [2, -12, -16], -0.006, -0.006, 0.002);
       }
 
-      addAsset(group, pos, rotX, rotY) {
+      addAsset(group, pos, rotX, rotY, rotZ = 0) {
         group.userData = {
           rotX,
           rotY,
+          rotZ,
           baseY: pos[1],
           floatOffset: Math.random() * Math.PI * 2
         };
         this.gamingAssets.push(group);
         this.scene.add(group);
-      }
-
-      createDustParticles() {
-        const count = 180;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-
-        const palette = [
-          new THREE.Color(0x00e5ff),
-          new THREE.Color(0x2563ff),
-          new THREE.Color(0x7c3aed),
-          new THREE.Color(0xd946ef),
-          new THREE.Color(0xffffff)
-        ];
-
-        for (let i = 0; i < count; i++) {
-          positions[i * 3] = (Math.random() - 0.5) * 80;
-          positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
-          positions[i * 3 + 2] = (Math.random() - 0.5) * 60;
-
-          const col = palette[Math.floor(Math.random() * palette.length)];
-          colors[i * 3] = col.r;
-          colors[i * 3 + 1] = col.g;
-          colors[i * 3 + 2] = col.b;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.PointsMaterial({
-          size: 0.6,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.75,
-          blending: THREE.AdditiveBlending
-        });
-
-        this.particles = new THREE.Points(geometry, material);
-        this.scene.add(this.particles);
       }
 
       onPointerMove(e) {
@@ -1766,30 +1896,20 @@
 
         const time = performance.now() * 0.001;
 
-        // Smooth camera parallax
+        // Smooth camera parallax based on mouse position
         this.mouse.x += (this.mouse.targetX - this.mouse.x) * 0.04;
         this.mouse.y += (this.mouse.targetY - this.mouse.y) * 0.04;
         this.camera.position.x = this.mouse.x * 3.5;
         this.camera.position.y = 4 + this.mouse.y * 2.0;
         this.camera.lookAt(0, 0, 0);
 
-        // Grid rolling animation
-        if (this.gridHelper) {
-          this.gridHelper.position.z = (time * 6) % (160 / 40);
-        }
-
-        // Gaming assets gentle rotation and floating oscillation
+        // Gaming hardware assets gentle multi-axis rotation and floating oscillation
         this.gamingAssets.forEach((asset) => {
           asset.rotation.x += asset.userData.rotX;
           asset.rotation.y += asset.userData.rotY;
-          asset.position.y = asset.userData.baseY + Math.sin(time * 1.4 + asset.userData.floatOffset) * 0.7;
+          asset.rotation.z += asset.userData.rotZ || 0;
+          asset.position.y = asset.userData.baseY + Math.sin(time * 1.3 + asset.userData.floatOffset) * 0.7;
         });
-
-        // Dust drift
-        if (this.particles) {
-          this.particles.rotation.y = time * 0.02;
-          this.particles.rotation.x = time * 0.01;
-        }
 
         // Dynamic aura lighting
         this.currentAuraColor.lerp(this.targetAuraColor, 0.05);

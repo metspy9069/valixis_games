@@ -27,6 +27,11 @@ import {
   createRoadblockFormation,
   updateEvasionTracking
 } from '../js/traffic.js';
+import {
+  ScreenDropletSystem,
+  TireWaterSprayPlumeSystem,
+  WorldManager
+} from '../js/world.js';
 
 test('vehicle roster contains 8 distinct supercars with complete base stats', () => {
   const keys = Object.keys(VEHICLE_ROSTER);
@@ -1623,4 +1628,120 @@ test('applyMetallicFlakeShader injects micro-sparkle perturbation into roughness
   assert.ok(mockShader.vertexShader.includes('vWorldFlakePos'), 'Vertex shader declares vWorldFlakePos');
   assert.ok(mockShader.fragmentShader.includes('flakeHash'), 'Fragment shader declares flakeHash sparkle formula');
   assert.ok(mockShader.fragmentShader.includes('roughnessFactor = clamp'), 'Fragment shader modulates roughnessFactor');
+});
+
+test('TireWaterSprayPlumeSystem activates above 140 km/h on wet roads with zero heap allocations', () => {
+  const scene = new THREE.Scene();
+  const spraySystem = new TireWaterSprayPlumeSystem(scene);
+
+  assert.equal(spraySystem.maxInstances, 120, 'Pre-allocated instance pool contains 120 spray particles');
+  assert.ok(spraySystem._dummyMatrix && spraySystem._dummyPos, 'Scratch objects pre-allocated for zero-allocation loop');
+
+  // Dry road, high speed: no spray
+  spraySystem.update(0.016, 0, -8, 180, false);
+  assert.equal(spraySystem.sprayIntensity, 0, 'Spray intensity remains 0 on dry roads');
+
+  // Wet road, sub-140 km/h speed: no spray
+  spraySystem.update(0.016, 0, -8, 126, true);
+  assert.equal(spraySystem.sprayIntensity, 0, 'Spray intensity remains 0 below 140 km/h threshold');
+
+  // Wet road, high speed (180 km/h): active spray plume
+  spraySystem.update(0.016, 0, -8, 180, true);
+  assert.ok(spraySystem.sprayIntensity > 0.4, 'Spray intensity scales smoothly above 140 km/h');
+
+  // Wet road, top speed (230 km/h): peak plume saturation
+  spraySystem.update(0.016, 0, -8, 234, true);
+  assert.equal(spraySystem.sprayIntensity, 1.0, 'Spray intensity saturates at 1.0 above 220 km/h');
+
+  const activeCount = spraySystem.instances.filter(p => p.active).length;
+  assert.ok(activeCount > 0, `Active spray instances spawned: ${activeCount}`);
+  assert.ok(activeCount <= spraySystem.maxInstances, 'Active particles remain within fixed instance boundary');
+});
+
+test('ScreenDropletSystem updates raindrop coordinates and recycles offscreen droplets', () => {
+  const mockCtx = {
+    clearRect: () => {},
+    beginPath: () => {},
+    arc: () => {},
+    ellipse: () => {},
+    fill: () => {},
+    stroke: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    fillRect: () => {},
+    createRadialGradient: () => ({ addColorStop: () => {} }),
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1
+  };
+  const mockCanvas = {
+    width: 1280,
+    height: 720,
+    getContext: () => mockCtx
+  };
+
+  const sys = new ScreenDropletSystem(mockCanvas);
+  assert.equal(sys.dropletCount, 55, 'Pre-allocated screen droplet count is 55');
+
+  // In rain, droplets move downward with speed
+  const initialY = sys.droplets[0].y;
+  sys.update(0.05, 'rain', 160);
+  assert.notEqual(sys.droplets[0].y, initialY, 'Droplet Y position advances downward');
+
+  // Droplet recycles when exceeding canvas height
+  sys.droplets[0].y = 800;
+  sys.update(0.05, 'rain', 160);
+  assert.ok(sys.droplets[0].y < 100, 'Offscreen droplet recycled back to top viewport');
+
+  // In arctic blizzard / snow, frost alpha builds up smoothly
+  sys.update(0.05, 'snow', 120);
+  assert.ok(sys.frostAlpha > 0, 'Frost vignette alpha builds up during snow storms');
+
+  // In clear weather, frost fades out
+  sys.frostAlpha = 0.5;
+  sys.update(0.1, 'clear', 120);
+  assert.ok(sys.frostAlpha < 0.5, 'Frost vignette fades out during clear weather');
+});
+
+test('Arctic blizzard crosswind deflects snow particles with turbulent drift', () => {
+  const scene = new THREE.Scene();
+  const world = new WorldManager(scene);
+
+  world.setWeatherType('snow');
+  const telem = world.getWeatherTelemetry();
+  assert.equal(telem.weatherType, 'snow', 'World telemetry reports active snow weather');
+  assert.equal(telem.snowParticleCount, 800, 'Snow particle system initializes 800 particles');
+  assert.equal(telem.hasZeroAllocationPool, true, 'Telemetry verifies zero-allocation memory pool');
+
+  // Simulate world update with arctic blizzard crosswind
+  world.update(0.016, 20, 200, { playerX: 0, playerZ: -8, speedKmh: 180 });
+  const telem2 = world.getWeatherTelemetry();
+  assert.ok(telem2.windshieldFrostAlpha > 0, 'Windshield edge frost activates in arctic biome');
+});
+
+test('downshift and nitro ignition trigger overrun backfire flames and ember bursts', () => {
+  const scene = new THREE.Scene();
+  const player = new PlayerCar(scene);
+
+  const initialTelem = player.getVfxTelemetry();
+  assert.equal(initialTelem.backfireActive, false, 'Backfire is initially inactive');
+  assert.equal(initialTelem.backfireCount, 0, 'Initial backfire count is 0');
+  assert.equal(initialTelem.maxEmbers, 24, 'Exhaust ember particle pool holds 24 instances');
+
+  // Downshift overrun backfire trigger
+  player.triggerBackfire('downshift');
+  const telemAfterShift = player.getVfxTelemetry();
+  assert.equal(telemAfterShift.backfireActive, true, 'Backfire timer is active after downshift');
+  assert.equal(telemAfterShift.backfireCount, 1, 'Backfire count incremented');
+  assert.ok(telemAfterShift.activeEmbers > 0, 'Active backfire ember particles spawned');
+
+  // Advance simulation
+  player.update(0.03);
+  assert.ok(player.backfireTimer > 0, 'Backfire flash persists for 140ms duration');
+
+  // Nitro ignition backfire trigger
+  player.isBoosting = true;
+  player.update(0.03);
+  const telemNitro = player.getVfxTelemetry();
+  assert.ok(telemNitro.backfireCount >= 2, 'Nitro ignition triggered secondary backfire burst');
 });

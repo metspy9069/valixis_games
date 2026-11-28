@@ -126,14 +126,14 @@ flowchart TD
   - Showroom 2.0 turntable lighting enhanced with specular rim spotlight to accentuate clearcoat reflections.
 * **Verification:** Automated unit tests (62/62 passing) and live WebGL CDP verification (`scripts/verify_day08_shaders.py`) capturing `day08_pbr_clearcoat_showroom.png` and `day08_wheel_blur_highway.png` with 0 errors and 1.21ms logic frame time.
 
-### Day 09: Dynamic Weather System & Atmospheric Particle VFX
+### Day 09: Dynamic Weather System & Atmospheric Particle VFX [x] COMPLETED
 * **Focus Area:** Particle systems in [road-riot/js/world.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/world.js).
 * **Features & Fixes:**
-  - Implement high-speed rain streak system with screen-space raindrop refraction droplets running down camera viewport.
-  - Add asphalt water spray plumes trailing behind vehicle tires at speeds > 140 km/h.
-  - Implement Arctic blizzard particle snow accumulation on road shoulders and windshield.
-  - Add dynamic exhaust overrun backfire flame particles that ignite on downshifts and nitro ignition.
-* **Verification:** Verify particle pool reusing `THREE.InstancedMesh` with 0 per-frame garbage collector pauses.
+  - Implemented high-speed rain streak line segment mesh system with forward speed slant/stretch and screen-space raindrop refraction droplets running down camera viewport (`ScreenDropletSystem` with 55 pre-allocated droplets, specular highlights, and bead trails).
+  - Implemented asphalt water spray plumes trailing behind vehicle tires at speeds > 140 km/h using pre-allocated `THREE.InstancedMesh` with 120 particle instances, scratch matrices, dynamic velocity expansion, and zero per-frame heap allocations.
+  - Implemented Arctic blizzard particle snow accumulation with diagonal turbulent crosswind gusting on road shoulders and windshield corner frost accumulation vignette.
+  - Implemented dynamic exhaust overrun backfire flame particles that ignite on downshifts and nitro ignition with 24 ember sparks (`THREE.InstancedMesh`) and golden-orange exhaust flares.
+* **Verification:** Automated unit tests (66/66 passing in road-riot, 184/184 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day09_weather.py`) capturing `day09_rain_streaks_droplets.png`, `day09_tire_spray_highspeed.png`, and `day09_arctic_blizzard.png` with 0 page errors and 1.20ms logic frame time.
 
 ### Day 10: Lighting Pipeline, Post-Processing Bloom & Day/Night Cycle
 * **Focus Area:** Scene lighting & render pipeline in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js).

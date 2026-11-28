@@ -3,718 +3,1416 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VALIXIS Live Ops &bull; Proprietary Player Telemetry Center</title>
+  <title>VALIXIS Analytics · Home</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
+    /* ==========================================================================
+       GOOGLE ANALYTICS 4 (GA4) DESIGN SYSTEM FOR VALIXIS
+       ========================================================================== */
     :root {
-      --bg: #03060c;
-      --card-bg: rgba(10, 16, 28, 0.94);
-      --card-border: rgba(0, 229, 255, 0.2);
-      --cyan: #00e5ff;
-      --violet: #8b5cf6;
-      --magenta: #d946ef;
-      --green: #10b981;
-      --amber: #f59e0b;
-      --red: #ef4444;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-head: 'Orbitron', 'Cinzel', sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      --ga-bg: #f8f9fa;
+      --ga-surface: #ffffff;
+      --ga-border: #dadce0;
+      --ga-border-subtle: #f1f3f4;
+      --ga-text: #202124;
+      --ga-text-secondary: #5f6368;
+      --ga-text-muted: #80868b;
+      --ga-blue: #1a73e8;
+      --ga-blue-hover: #174ea6;
+      --ga-blue-subtle: #e8f0fe;
+      --ga-blue-line: #1a73e8;
+      --ga-blue-dashed: #8ab4f8;
+      --ga-green: #188038;
+      --ga-green-subtle: #e6f4ea;
+      --ga-orange: #e37400;
+      --ga-sidebar-w: 68px;
+      --ga-sidebar-expanded-w: 240px;
+      --ga-header-h: 60px;
+      --ga-font: 'Google Sans', 'Roboto', -apple-system, sans-serif;
+      --ga-mono: 'JetBrains Mono', monospace;
+      --ga-card-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --ga-card-radius: 8px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
+      background-color: var(--ga-bg);
+      color: var(--ga-text);
+      font-family: var(--ga-font);
+      font-size: 13px;
+      line-height: 1.4;
       min-height: 100vh;
       overflow-x: hidden;
-      line-height: 1.5;
     }
 
-    /* Ambient Spatial Grid */
-    .bg-grid {
-      position: fixed;
-      inset: 0;
-      background-image: 
-        radial-gradient(circle at 50% 15%, rgba(0, 229, 255, 0.08) 0%, transparent 65%),
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-      background-size: 100% 100%, 48px 48px, 48px 48px;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    /* Security Gate Modal */
+    /* ===== AUTH GATE (GA4 ADMIN VERIFICATION) ===== */
     #auth-gate {
       position: fixed;
       inset: 0;
-      background: rgba(3, 6, 12, 0.96);
-      backdrop-filter: blur(16px);
+      background: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
-      padding: 20px;
+      z-index: 99999;
+      padding: 24px;
     }
 
     .auth-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 36px 32px;
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: 8px;
+      padding: 44px 40px;
       max-width: 440px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 229, 255, 0.15);
+      box-shadow: 0 4px 12px rgba(60,64,67,.15);
     }
 
-    .auth-logo {
-      width: 68px;
-      height: auto;
-      margin-bottom: 20px;
-      filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.7));
+    .auth-logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .auth-logo-row img {
+      width: 36px;
+      height: 36px;
+    }
+
+    .auth-logo-text {
+      font-size: 22px;
+      color: var(--ga-text-secondary);
+      font-weight: 400;
+    }
+
+    .auth-logo-text span {
+      color: var(--ga-text);
+      font-weight: 500;
     }
 
     .auth-title {
-      font-family: var(--font-head);
-      font-size: 18px;
-      letter-spacing: 2px;
-      color: #fff;
+      font-size: 24px;
+      font-weight: 400;
+      color: var(--ga-text);
       margin-bottom: 8px;
     }
 
     .auth-subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
+      font-size: 14px;
+      color: var(--ga-text-secondary);
+      margin-bottom: 28px;
+    }
+
+    .auth-field {
+      position: relative;
       margin-bottom: 24px;
+      text-align: left;
     }
 
     .auth-input {
       width: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(0, 229, 255, 0.3);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-family: var(--font-mono);
+      padding: 14px 16px;
+      border: 1px solid var(--ga-border);
+      border-radius: 4px;
       font-size: 16px;
-      color: #fff;
       letter-spacing: 4px;
       text-align: center;
-      margin-bottom: 16px;
+      font-family: var(--ga-mono);
       outline: none;
-      transition: all 0.2s;
+      transition: border-color .2s, box-shadow .2s;
     }
 
     .auth-input:focus {
-      border-color: var(--cyan);
-      box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+      border-color: var(--ga-blue);
+      box-shadow: 0 0 0 2px rgba(26,115,232,.2);
     }
 
-    .auth-btn {
+    .auth-submit-btn {
       width: 100%;
-      background: linear-gradient(135deg, var(--cyan), #2563eb);
+      background: var(--ga-blue);
       color: #fff;
-      font-family: var(--font-head);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      border: none;
-      border-radius: 8px;
+      font-family: var(--ga-font);
+      font-size: 14px;
+      font-weight: 500;
       padding: 12px;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background .2s, box-shadow .2s;
     }
 
-    .auth-btn:hover {
-      filter: brightness(1.15);
-      box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+    .auth-submit-btn:hover {
+      background: var(--ga-blue-hover);
+      box-shadow: 0 1px 3px rgba(60,64,67,.3);
     }
 
     .auth-error {
-      color: var(--red);
-      font-size: 12px;
-      margin-top: 12px;
+      color: #d93025;
+      font-size: 13px;
+      margin-top: 14px;
       display: none;
     }
 
-    /* Dashboard Layout */
-    .dashboard-container {
-      max-width: 1380px;
-      margin: 0 auto;
-      padding: 24px;
+    /* ===== GA4 TOP NAVIGATION BAR ===== */
+    .ga-top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--ga-header-h);
+      background: #ffffff;
+      border-bottom: 1px solid var(--ga-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
     }
 
-    .dash-header {
+    .ga-top-left {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 18px 24px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
       gap: 16px;
     }
 
-    .dash-brand {
+    .ga-brand-button {
       display: flex;
       align-items: center;
-      gap: 14px;
-    }
-
-    .dash-brand img {
-      width: 38px;
-      height: auto;
-      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));
-    }
-
-    .dash-brand-title {
-      font-family: var(--font-head);
-      font-size: 16px;
-      letter-spacing: 1.5px;
-      font-weight: 800;
-    }
-
-    .dash-brand-badge {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--cyan);
-      background: rgba(0, 229, 255, 0.1);
-      border: 1px solid rgba(0, 229, 255, 0.3);
-      padding: 2px 8px;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--ga-text);
+      cursor: pointer;
+      padding: 4px 8px;
       border-radius: 4px;
     }
 
-    .dash-actions {
+    .ga-brand-button:hover {
+      background: var(--ga-border-subtle);
+    }
+
+    .ga-logo-icon {
+      width: 28px;
+      height: 28px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      justify-content: center;
     }
 
-    .live-indicator {
-      display: inline-flex;
+    .ga-brand-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--ga-text-secondary);
+      letter-spacing: -0.2px;
+    }
+
+    .ga-search-container {
+      flex: 1;
+      max-width: 680px;
+      margin: 0 24px;
+      position: relative;
+    }
+
+    .ga-search-bar {
+      width: 100%;
+      height: 40px;
+      background: #f1f3f4;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 12px;
+      transition: background .2s, border-color .2s, box-shadow .2s;
+    }
+
+    .ga-search-bar:focus-within {
+      background: #ffffff;
+      border-color: var(--ga-border);
+      box-shadow: 0 1px 3px rgba(60,64,67,.2);
+    }
+
+    .ga-search-bar input {
+      border: none;
+      outline: none;
+      background: transparent;
+      width: 100%;
+      font-size: 14px;
+      color: var(--ga-text);
+      font-family: var(--ga-font);
+    }
+
+    .ga-search-bar input::placeholder {
+      color: var(--ga-text-muted);
+    }
+
+    .ga-top-right {
+      display: flex;
       align-items: center;
       gap: 8px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--green);
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 6px 12px;
-      border-radius: 20px;
     }
 
-    .live-dot {
-      width: 8px;
-      height: 8px;
+    .ga-icon-btn {
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 10px var(--green);
-      animation: livePulse 1.6s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--ga-text-secondary);
+      cursor: pointer;
+      font-size: 18px;
+      transition: background .15s;
     }
 
-    @keyframes livePulse {
-      0%, 100% { transform: scale(0.9); opacity: 0.6; }
-      50% { transform: scale(1.3); opacity: 1; }
+    .ga-icon-btn:hover {
+      background: #f1f3f4;
     }
 
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: var(--text);
-      font-family: var(--font-body);
-      font-size: 13px;
+    .ga-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #1a73e8;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-weight: 600;
-      padding: 7px 14px;
-      border-radius: 8px;
+      font-size: 14px;
+      margin-left: 8px;
+      cursor: pointer;
+    }
+
+    /* ===== GA4 LEFT SIDEBAR ICON NAVIGATION ===== */
+    .ga-sidebar {
+      position: fixed;
+      top: var(--ga-header-h);
+      left: 0;
+      bottom: 0;
+      width: var(--ga-sidebar-w);
+      background: #ffffff;
+      border-right: 1px solid var(--ga-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 0 16px;
+      z-index: 90;
+    }
+
+    .ga-nav-items {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ga-nav-item {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--ga-text-secondary);
       cursor: pointer;
       text-decoration: none;
-      display: inline-flex;
+      position: relative;
+      transition: background .15s, color .15s;
+    }
+
+    .ga-nav-item:hover {
+      background: #f1f3f4;
+      color: var(--ga-text);
+    }
+
+    .ga-nav-item.active {
+      background: #e8f0fe;
+      color: var(--ga-blue);
+    }
+
+    .ga-nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      background: var(--ga-blue);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .ga-nav-icon {
+      font-size: 20px;
+    }
+
+    .ga-nav-label {
+      font-size: 9px;
+      font-weight: 500;
+      margin-top: 2px;
+      display: none;
+    }
+
+    .ga-sidebar-bottom {
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--ga-border-subtle);
     }
 
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.3);
+    /* ===== MAIN CONTENT AREA ===== */
+    .ga-main-container {
+      margin-top: var(--ga-header-h);
+      margin-left: var(--ga-sidebar-w);
+      padding: 24px 32px 64px;
+      max-width: 1600px;
     }
 
-    /* Proprietary Engine Banner */
-    .telemetry-banner {
-      background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(139, 92, 246, 0.08));
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 20px 24px;
-      margin-bottom: 24px;
+    /* Page Header */
+    .ga-page-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 16px;
+      margin-bottom: 24px;
     }
 
-    .telemetry-banner h3 {
-      font-family: var(--font-head);
-      font-size: 14px;
-      letter-spacing: 1.2px;
-      color: #fff;
-      margin-bottom: 4px;
+    .ga-page-title {
+      font-size: 24px;
+      font-weight: 400;
+      color: var(--ga-text);
     }
 
-    .telemetry-banner p {
+    .ga-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ga-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: 4px;
+      padding: 6px 14px;
       font-size: 13px;
-      color: var(--text-muted);
-      max-width: 650px;
+      font-weight: 500;
+      color: var(--ga-text-secondary);
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s, border-color .15s;
     }
 
-    .endpoint-pill {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--cyan);
-      background: rgba(0, 0, 0, 0.4);
-      padding: 4px 10px;
-      border-radius: 6px;
-      border: 1px solid rgba(0, 229, 255, 0.2);
+    .ga-pill-btn:hover {
+      background: #f8f9fa;
+      border-color: #bdc1c6;
     }
 
-    /* KPI Cards */
-    .kpi-grid {
+    .ga-pill-btn.primary {
+      background: var(--ga-blue);
+      color: #ffffff;
+      border-color: var(--ga-blue);
+    }
+
+    .ga-pill-btn.primary:hover {
+      background: var(--ga-blue-hover);
+    }
+
+    /* ===== GA4 TOP HERO DUAL CARDS (EXACT SCREENSHOT LAYOUT) ===== */
+    .ga-hero-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      grid-template-columns: 1fr 340px;
       gap: 20px;
       margin-bottom: 24px;
     }
 
-    .kpi-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 20px;
+    @media (max-width: 1200px) {
+      .ga-hero-grid { grid-template-columns: 1fr; }
+    }
+
+    /* LEFT MULTI-METRIC + CHART CARD */
+    .ga-main-chart-card {
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: var(--ga-card-radius);
+      box-shadow: var(--ga-card-shadow);
+      display: flex;
+      flex-direction: column;
       position: relative;
+    }
+
+    /* Tabs across top of chart card */
+    .ga-metric-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--ga-border-subtle);
+    }
+
+    .ga-metric-tab {
+      padding: 16px 20px;
+      border-right: 1px solid var(--ga-border-subtle);
+      cursor: pointer;
+      position: relative;
+      transition: background .15s;
+    }
+
+    .ga-metric-tab:last-child {
+      border-right: none;
+    }
+
+    .ga-metric-tab:hover {
+      background: #fafafa;
+    }
+
+    .ga-metric-tab.active {
+      background: #ffffff;
+    }
+
+    .ga-metric-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--ga-blue);
+    }
+
+    .ga-tab-title {
+      font-size: 13px;
+      color: var(--ga-text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .ga-tab-val {
+      font-size: 26px;
+      font-weight: 400;
+      color: var(--ga-text);
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+
+    .ga-tab-delta {
+      font-size: 12px;
+      color: var(--ga-green);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .ga-tab-delta.neutral {
+      color: var(--ga-text-muted);
+    }
+
+    /* Chart Body */
+    .ga-chart-body {
+      padding: 24px 24px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ga-chart-canvas-wrap {
+      position: relative;
+      height: 240px;
+      width: 100%;
+    }
+
+    .ga-chart-y-axis {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 24px;
+      width: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 11px;
+      color: var(--ga-text-muted);
+    }
+
+    .ga-chart-svg-container {
+      position: absolute;
+      left: 0;
+      right: 36px;
+      top: 0;
+      bottom: 24px;
+    }
+
+    .ga-chart-svg-container svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .ga-chart-x-axis {
+      position: absolute;
+      left: 0;
+      right: 36px;
+      bottom: 0;
+      height: 20px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--ga-text-muted);
+    }
+
+    .ga-chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--ga-text-secondary);
+    }
+
+    .ga-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ga-legend-line-solid {
+      width: 16px;
+      height: 2px;
+      background: var(--ga-blue);
+    }
+
+    .ga-legend-line-dash {
+      width: 16px;
+      height: 2px;
+      background: var(--ga-blue-dashed);
+      border-bottom: 2px dashed var(--ga-blue-dashed);
+    }
+
+    .ga-card-footer {
+      border-top: 1px solid var(--ga-border-subtle);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .ga-footer-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ga-blue);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .ga-footer-link:hover {
+      text-decoration: underline;
+    }
+
+    /* RIGHT REALTIME CARD (EXACT GA4 REALTIME CARD) */
+    .ga-realtime-card {
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: var(--ga-card-radius);
+      box-shadow: var(--ga-card-shadow);
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
 
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 4px;
-      height: 100%;
-      background: var(--cyan);
+    .ga-realtime-head {
+      padding: 20px 20px 12px;
     }
 
-    .kpi-card.green::before { background: var(--green); }
-    .kpi-card.violet::before { background: var(--violet); }
-    .kpi-card.amber::before { background: var(--amber); }
-
-    .kpi-label {
-      font-family: var(--font-mono);
+    .ga-realtime-label {
       font-size: 11px;
-      letter-spacing: 1.5px;
-      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: .6px;
       text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .kpi-val {
-      font-family: var(--font-head);
-      font-size: 38px;
-      font-weight: 800;
-      color: #fff;
-      line-height: 1.1;
+      color: var(--ga-text-secondary);
       margin-bottom: 6px;
     }
 
-    .kpi-desc {
-      font-size: 12px;
-      color: var(--text-muted);
+    .ga-realtime-big-num {
+      font-size: 48px;
+      font-weight: 400;
+      color: var(--ga-text);
+      line-height: 1;
+      margin-bottom: 8px;
     }
 
-    /* Main Grid */
-    .ops-main-grid {
+    .ga-minute-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+      color: var(--ga-text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* Per-minute vertical bar histogram */
+    .ga-minute-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 48px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--ga-border);
+      margin-bottom: 16px;
+    }
+
+    .ga-minute-bar {
+      flex: 1;
+      background: var(--ga-blue);
+      border-radius: 1px 1px 0 0;
+      min-height: 2px;
+      transition: height .3s ease;
+    }
+
+    .ga-realtime-breakdown {
+      flex: 1;
+      padding: 0 20px 16px;
+    }
+
+    .ga-breakdown-row-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ga-text-muted);
+      text-transform: uppercase;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--ga-border);
+      margin-bottom: 8px;
+    }
+
+    .ga-breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .ga-breakdown-title {
+      color: var(--ga-blue);
+      cursor: pointer;
+    }
+
+    .ga-breakdown-val {
+      color: var(--ga-text);
+      font-weight: 500;
+    }
+
+    /* ===== LOWER SUGGESTED & RECENT CARDS ===== */
+    .ga-section-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--ga-text);
+      margin: 32px 0 16px;
+    }
+
+    .ga-recent-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 24px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
       margin-bottom: 24px;
     }
 
     @media (max-width: 1024px) {
-      .ops-main-grid {
-        grid-template-columns: 1fr;
-      }
+      .ga-recent-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
-    .panel-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 22px;
+    .ga-recent-card {
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: var(--ga-card-radius);
+      box-shadow: var(--ga-card-shadow);
+      padding: 16px;
+      cursor: pointer;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: border-color .15s, box-shadow .15s;
     }
 
-    .panel-head {
+    .ga-recent-card:hover {
+      border-color: #bdc1c6;
+      box-shadow: 0 2px 6px rgba(60,64,67,.2);
+    }
+
+    .ga-recent-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e8f0fe;
+      color: var(--ga-blue);
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .ga-recent-text {
+      flex: 1;
+    }
+
+    .ga-recent-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ga-text);
+      line-height: 1.3;
+      margin-bottom: 2px;
+    }
+
+    .ga-recent-sub {
+      font-size: 11px;
+      color: var(--ga-text-secondary);
+    }
+
+    /* ===== GAME BY GAME & LIVE STREAM TABLES ===== */
+    .ga-tables-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 1100px) {
+      .ga-tables-grid { grid-template-columns: 1fr; }
+    }
+
+    .ga-table-card {
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: var(--ga-card-radius);
+      box-shadow: var(--ga-card-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ga-table-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--ga-border);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 18px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .panel-title {
-      font-family: var(--font-head);
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      color: #fff;
+    .ga-table-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--ga-text);
     }
 
-    /* Game Table */
-    .game-telemetry-table {
+    .ga-data-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
     }
 
-    .game-telemetry-table th {
+    .ga-data-table th {
       text-align: left;
-      padding: 10px 12px;
-      font-family: var(--font-mono);
+      padding: 10px 16px;
       font-size: 11px;
-      color: var(--text-muted);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      letter-spacing: 1px;
+      font-weight: 500;
+      color: var(--ga-text-muted);
+      border-bottom: 1px solid var(--ga-border);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      background: #fafafa;
     }
 
-    .game-telemetry-table td {
-      padding: 14px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    .ga-data-table th.right,
+    .ga-data-table td.right {
+      text-align: right;
     }
 
-    .game-cell-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 600;
-      color: #fff;
+    .ga-data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--ga-border-subtle);
+      color: var(--ga-text);
     }
 
-    .game-icon-tag {
-      font-size: 18px;
+    .ga-data-table tr:hover td {
+      background: #f8f9fa;
     }
 
-    .badge-live {
+    .ga-badge-pill {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.4);
-      color: var(--green);
-      font-family: var(--font-mono);
+      gap: 4px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 500;
       padding: 2px 8px;
       border-radius: 12px;
     }
 
-    /* Real-Time Terminal */
-    .terminal-box {
-      background: #000;
-      border: 1px solid rgba(0, 229, 255, 0.2);
-      border-radius: 10px;
-      padding: 14px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      height: 320px;
+    .ga-badge-active {
+      background: var(--ga-green-subtle);
+      color: var(--ga-green);
+    }
+
+    .ga-terminal-feed {
+      height: 280px;
       overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      font-family: var(--ga-mono);
+      font-size: 12px;
+      padding: 8px 16px;
+      background: #fafafa;
     }
 
-    .terminal-line {
-      display: flex;
-      gap: 10px;
+    .ga-feed-line {
+      display: grid;
+      grid-template-columns: 80px 120px 110px 1fr;
+      padding: 6px 0;
+      border-bottom: 1px solid #f1f3f4;
       line-height: 1.4;
-      animation: fadeInLine 0.3s ease-out;
     }
 
-    @keyframes fadeInLine {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .ga-f-time { color: var(--ga-text-muted); }
+    .ga-f-game { color: var(--ga-blue); font-weight: 500; }
+    .ga-f-device { color: var(--ga-text-secondary); }
+    .ga-f-msg { color: var(--ga-text); }
 
-    .t-time { color: var(--text-muted); min-width: 65px; }
-    .t-game { color: var(--cyan); font-weight: 600; min-width: 100px; }
-    .t-device { color: var(--violet); min-width: 110px; }
-    .t-msg { color: #e2e8f0; }
-
-    /* Settings Box */
-    .settings-drawer {
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 16px;
-      margin-top: 16px;
+    /* Custom API Settings Box */
+    .ga-settings-strip {
+      background: #ffffff;
+      border: 1px solid var(--ga-border);
+      border-radius: var(--ga-card-radius);
+      box-shadow: var(--ga-card-shadow);
+      padding: 16px 20px;
       display: flex;
-      gap: 12px;
       align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
       flex-wrap: wrap;
     }
 
-    .settings-input {
+    .ga-settings-input {
       flex: 1;
-      min-width: 240px;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(0, 229, 255, 0.3);
-      border-radius: 6px;
+      min-width: 280px;
       padding: 8px 12px;
-      color: #fff;
-      font-family: var(--font-mono);
-      font-size: 12px;
+      border: 1px solid var(--ga-border);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: var(--ga-mono);
       outline: none;
     }
 
-    .settings-btn {
-      background: var(--cyan);
-      color: #000;
-      font-weight: 700;
-      font-size: 12px;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 16px;
-      cursor: pointer;
+    .ga-settings-input:focus {
+      border-color: var(--ga-blue);
+    }
+
+    /* Live Pulsing Dot */
+    .live-dot-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ga-green);
+      display: inline-block;
+      box-shadow: 0 0 6px var(--ga-green);
+      animation: pulse-live 1.8s infinite;
+    }
+
+    @keyframes pulse-live {
+      0%, 100% { opacity: 0.6; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
     }
   </style>
 </head>
 <body>
 
-  <div class="bg-grid"></div>
-
-  <!-- SECURITY GATE -->
+  <!-- ========================================================================
+       SECURITY GATE (PIN AUTHENTICATION)
+       ======================================================================== -->
   <div id="auth-gate">
     <div class="auth-card">
-      <img src="valixis-logo-transparent.png" alt="VALIXIS" class="auth-logo">
-      <h1 class="auth-title">STUDIO OPS CENTER</h1>
-      <p class="auth-subtitle">VALIXIS Proprietary Player Telemetry &bull; Restricted Access</p>
-      <input type="password" id="auth-pin" class="auth-input" placeholder="ENTER ACCESS PIN" autofocus maxlength="16">
-      <button id="auth-btn" class="auth-btn">UNLOCK MONITOR</button>
-      <div id="auth-err" class="auth-error">INVALID ACCESS CODE. ACCESS DENIED.</div>
+      <div class="auth-logo-row">
+        <!-- Google Analytics style orange icon + VALIXIS branding -->
+        <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="8" fill="#F9AB00" fill-opacity="0.15"/>
+          <path d="M12 28V20C12 18.9 12.9 18 14 18C15.1 18 16 18.9 16 20V28H12Z" fill="#F9AB00"/>
+          <path d="M18 28V14C18 12.9 18.9 12 20 12C21.1 12 22 12.9 22 14V28H18Z" fill="#E37400"/>
+          <path d="M24 28V22C24 20.9 24.9 20 26 20C27.1 20 28 20.9 28 22V28H24Z" fill="#F9AB00"/>
+        </svg>
+        <div class="auth-logo-text"><span>VALIXIS</span> Analytics</div>
+      </div>
+      <h1 class="auth-title">Sign in</h1>
+      <p class="auth-subtitle">to continue to Studio Operations Center</p>
+      <div class="auth-field">
+        <input type="password" id="auth-pin" class="auth-input" placeholder="ACCESS PIN" autofocus maxlength="16">
+      </div>
+      <button id="auth-btn" class="auth-submit-btn">Continue</button>
+      <div id="auth-err" class="auth-error">Incorrect PIN. Access denied.</div>
     </div>
   </div>
 
-  <!-- DASHBOARD MAIN -->
-  <main class="dashboard-container" id="dash-main" style="display: none;">
-
-    <header class="dash-header">
-      <div class="dash-brand">
-        <img src="valixis-logo-transparent.png" alt="VALIXIS">
-        <div>
-          <span class="dash-brand-title">VALIXIS GAMES OPS</span>
-          <span class="dash-brand-badge">PROPRIETARY TELEMETRY CORE v2.0</span>
+  <!-- ========================================================================
+       GA4 TOP NAVIGATION BAR
+       ======================================================================== -->
+  <header class="ga-top-bar" id="dash-top-bar" style="display:none;">
+    <div class="ga-top-left">
+      <div class="ga-brand-button">
+        <!-- GA4 Style Icon -->
+        <div class="ga-logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M5 19V13C5 12.45 5.45 12 6 12C6.55 12 7 12.45 7 13V19H5Z" fill="#F9AB00"/>
+            <path d="M11 19V7C11 6.45 11.45 6 12 6C12.55 6 13 6.45 13 7V19H11Z" fill="#E37400"/>
+            <path d="M17 19V15C17 14.45 17.45 14 18 14C18.55 14 19 14.45 19 15V19H17Z" fill="#F9AB00"/>
+          </svg>
         </div>
-      </div>
-
-      <div class="dash-actions">
-        <div class="live-indicator">
-          <span class="live-dot"></span>
-          <span>100% OWNED DATA &bull; ZERO 3RD-PARTY</span>
-        </div>
-        <button id="btn-export" class="btn-secondary">📥 Export JSON</button>
-        <a href="./" class="btn-secondary" target="_blank">&larr; Public Arcade</a>
-        <button id="btn-lock" class="btn-secondary">🔒 Lock</button>
-      </div>
-    </header>
-
-    <!-- Proprietary Telemetry Banner -->
-    <div class="telemetry-banner">
-      <div>
-        <h3>VALIXIS INDEPENDENT TELEMETRY ENGINE &bull; 100% PRIVATE</h3>
-        <p>This system runs exclusively on your own code. No Google trackers, no third-party tags, no external data harvesting. All player sessions, real-time presence heartbeats, and gameplay milestones are processed and owned entirely by VALIXIS Technologies.</p>
-      </div>
-      <div>
-        <span class="endpoint-pill" id="endpoint-status-pill">MODE: AUTONOMOUS EDGE PRESENCE</span>
+        <span class="ga-brand-title">Analytics</span>
       </div>
     </div>
 
-    <!-- KPI Grid -->
-    <div class="kpi-grid">
-      <div class="kpi-card green">
-        <div class="kpi-label">Active Live Players</div>
-        <div class="kpi-val" id="val-live-players">0</div>
-        <div class="kpi-desc">Players actively playing right now (live presence)</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-label">Total Visits Tracked</div>
-        <div class="kpi-val" id="val-portal-sessions">0</div>
-        <div class="kpi-desc">Verified unique sessions registered</div>
-      </div>
-
-      <div class="kpi-card violet">
-        <div class="kpi-label">Total Game Starts</div>
-        <div class="kpi-val" id="val-game-starts">0</div>
-        <div class="kpi-desc">Cumulative game deployments across all titles</div>
-      </div>
-
-      <div class="kpi-card amber">
-        <div class="kpi-label">Primary Platform</div>
-        <div class="kpi-val" id="val-top-device">Desktop</div>
-        <div class="kpi-desc" id="val-device-split">Mobile: 0% | Desktop: 100%</div>
+    <!-- GA4 Universal Search -->
+    <div class="ga-search-container">
+      <div class="ga-search-bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="ga-search-input" placeholder='Try searching "Web overview" or "Active players"'>
       </div>
     </div>
 
-    <!-- Main Grid -->
-    <div class="ops-main-grid">
+    <div class="ga-top-right">
+      <button class="ga-icon-btn" title="Help">❔</button>
+      <button class="ga-icon-btn" title="Send feedback">💬</button>
+      <button class="ga-icon-btn" title="Google apps">⋮⋮⋮</button>
+      <div class="ga-avatar" id="avatar-btn" title="VALIXIS Admin (7799)">V</div>
+    </div>
+  </header>
 
-      <!-- Game-by-Game Active Breakdown -->
-      <div class="panel-card">
-        <div class="panel-head">
-          <h2 class="panel-title">GAME-BY-GAME ACTIVE BREAKDOWN</h2>
-          <span class="dash-brand-badge" id="games-active-count">0 ACTIVE NOW</span>
+  <!-- ========================================================================
+       GA4 LEFT SIDEBAR ICON NAVIGATION
+       ======================================================================== -->
+  <aside class="ga-sidebar" id="dash-sidebar" style="display:none;">
+    <div class="ga-nav-items">
+      <!-- Home Icon (Active) -->
+      <a class="ga-nav-item active" title="Home">
+        <span class="ga-nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
+        </span>
+      </a>
+      <!-- Reports Icon -->
+      <a class="ga-nav-item" title="Reports">
+        <span class="ga-nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="8" y1="12" x2="8" y2="17"/>
+            <line x1="12" y1="8" x2="12" y2="17"/>
+            <line x1="16" y1="14" x2="16" y2="17"/>
+          </svg>
+        </span>
+      </a>
+      <!-- Explore Icon -->
+      <a class="ga-nav-item" title="Explore">
+        <span class="ga-nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+          </svg>
+        </span>
+      </a>
+      <!-- Advertising Icon -->
+      <a class="ga-nav-item" title="Advertising">
+        <span class="ga-nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </span>
+      </a>
+    </div>
+
+    <div class="ga-sidebar-bottom">
+      <!-- Admin Gear -->
+      <a class="ga-nav-item" id="btn-lock" title="Sign Out / Lock Admin">
+        <span class="ga-nav-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       GA4 DASHBOARD BODY
+       ======================================================================== -->
+  <main class="ga-main-container" id="dash-main" style="display:none;">
+
+    <!-- PAGE HEADER -->
+    <div class="ga-page-header">
+      <h1 class="ga-page-title">Home</h1>
+      <div class="ga-header-actions">
+        <button class="ga-pill-btn" id="btn-date-range">
+          <span>📅 Last 7 days</span>
+          <span style="font-size:10px;">▾</span>
+        </button>
+        <button class="ga-pill-btn" id="btn-test-ping">⚡ Test Ping</button>
+        <button class="ga-pill-btn primary" id="btn-export">📥 Export JSON</button>
+        <a href="./" target="_blank" class="ga-pill-btn">↗ Arcade</a>
+      </div>
+    </div>
+
+    <!-- ===== GA4 HERO DUAL CARDS (MATCHING USER'S SCREENSHOT) ===== -->
+    <div class="ga-hero-grid">
+
+      <!-- LEFT: MULTI-METRIC + DUAL-LINE TIMELINE CHART -->
+      <div class="ga-main-chart-card">
+        
+        <!-- Top Metric Tabs -->
+        <div class="ga-metric-tabs">
+          <!-- Active users -->
+          <div class="ga-metric-tab active" data-metric="users">
+            <div class="ga-tab-title">
+              <span>Active users</span>
+              <span style="font-size:10px;">▾</span>
+            </div>
+            <div class="ga-tab-val" id="ga-val-active-users">0</div>
+            <div class="ga-tab-delta" id="ga-delta-users">
+              <span>↑ 100.0%</span>
+            </div>
+          </div>
+
+          <!-- Event count -->
+          <div class="ga-metric-tab" data-metric="events">
+            <div class="ga-tab-title">
+              <span>Event count</span>
+              <span style="font-size:10px;">▾</span>
+            </div>
+            <div class="ga-tab-val" id="ga-val-event-count">0</div>
+            <div class="ga-tab-delta" id="ga-delta-events">
+              <span>↑ 43.0%</span>
+            </div>
+          </div>
+
+          <!-- Key events / Game starts -->
+          <div class="ga-metric-tab" data-metric="starts">
+            <div class="ga-tab-title">
+              <span>Game starts</span>
+              <span style="font-size:10px;">▾</span>
+            </div>
+            <div class="ga-tab-val" id="ga-val-game-starts">0</div>
+            <div class="ga-tab-delta" id="ga-delta-starts">
+              <span>↑ 25.0%</span>
+            </div>
+          </div>
+
+          <!-- Views / Sessions -->
+          <div class="ga-metric-tab" data-metric="views">
+            <div class="ga-tab-title">
+              <span>Views</span>
+              <span style="font-size:10px;">▾</span>
+            </div>
+            <div class="ga-tab-val" id="ga-val-views">0</div>
+            <div class="ga-tab-delta" id="ga-delta-views">
+              <span>↑ 33.3%</span>
+            </div>
+          </div>
         </div>
 
-        <table class="game-telemetry-table">
+        <!-- Chart Body -->
+        <div class="ga-chart-body">
+          <div class="ga-chart-canvas-wrap">
+            <!-- Y-Axis Labels -->
+            <div class="ga-chart-y-axis" id="ga-chart-y-axis">
+              <span>15</span>
+              <span>10</span>
+              <span>5</span>
+              <span>0</span>
+            </div>
+
+            <!-- SVG Plot Area -->
+            <div class="ga-chart-svg-container">
+              <svg id="ga-svg-chart" viewBox="0 0 700 216" preserveAspectRatio="none">
+                <!-- Horizontal Grid Lines -->
+                <line x1="0" y1="0" x2="700" y2="0" stroke="#f1f3f4" stroke-width="1"/>
+                <line x1="0" y1="72" x2="700" y2="72" stroke="#f1f3f4" stroke-width="1"/>
+                <line x1="0" y1="144" x2="700" y2="144" stroke="#f1f3f4" stroke-width="1"/>
+                <line x1="0" y1="216" x2="700" y2="216" stroke="#dadce0" stroke-width="1"/>
+
+                <!-- Comparison Period (Light blue dashed curve) -->
+                <path id="ga-chart-dashed-path" d="M0,180 Q100,160 200,120 T400,190 T600,140 T700,110" fill="none" stroke="#8ab4f8" stroke-width="2" stroke-dasharray="4,4"/>
+
+                <!-- Current Period (Solid blue line with subtle fill) -->
+                <path id="ga-chart-solid-area" d="M0,216 L0,140 Q100,120 200,160 T400,200 T600,120 T700,70 L700,216 Z" fill="rgba(26,115,232,0.06)"/>
+                <path id="ga-chart-solid-path" d="M0,140 Q100,120 200,160 T400,200 T600,120 T700,70" fill="none" stroke="#1a73e8" stroke-width="2.5"/>
+
+                <!-- Active Point Dot -->
+                <circle id="ga-chart-active-dot" cx="700" cy="70" r="4.5" fill="#1a73e8" stroke="#ffffff" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <!-- X-Axis Labels (Exact dates like screenshot: 21 Nov, 22, 23, 24, 25, 26, 27) -->
+            <div class="ga-chart-x-axis" id="ga-chart-x-axis">
+              <span>21 Nov</span>
+              <span>22</span>
+              <span>23</span>
+              <span>24</span>
+              <span>25</span>
+              <span>26</span>
+              <span>27</span>
+            </div>
+          </div>
+
+          <!-- Chart Legend -->
+          <div class="ga-chart-legend">
+            <div class="ga-legend-item">
+              <span class="ga-legend-line-solid"></span>
+              <span>Last 7 days</span>
+            </div>
+            <div class="ga-legend-item">
+              <span class="ga-legend-line-dash"></span>
+              <span>Previous period</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Link -->
+        <div class="ga-card-footer">
+          <a class="ga-footer-link" id="btn-reports-snapshot">View reports snapshot →</a>
+        </div>
+      </div>
+
+      <!-- RIGHT: REALTIME ACTIVE USERS CARD (EXACT SCREENSHOT LAYOUT) -->
+      <div class="ga-realtime-card">
+        <div class="ga-realtime-head">
+          <div class="ga-realtime-label">Active users in last 30 minutes</div>
+          <div class="ga-realtime-big-num" id="ga-realtime-num">0</div>
+          <div class="ga-minute-label">Active users per minute</div>
+
+          <!-- Per-minute vertical bar histogram -->
+          <div class="ga-minute-bars" id="ga-minute-bars">
+            <!-- 30 minute bars generated dynamically -->
+          </div>
+        </div>
+
+        <div class="ga-realtime-breakdown">
+          <div class="ga-breakdown-row-head">
+            <span>PLATFORM / DEVICE ▾</span>
+            <span>ACTIVE USERS ▾</span>
+          </div>
+
+          <div class="ga-breakdown-row">
+            <span class="ga-breakdown-title">Desktop (Windows / Mac)</span>
+            <span class="ga-breakdown-val" id="ga-rt-desktop">0</span>
+          </div>
+
+          <div class="ga-breakdown-row">
+            <span class="ga-breakdown-title">Mobile (Android / iOS)</span>
+            <span class="ga-breakdown-val" id="ga-rt-mobile">0</span>
+          </div>
+
+          <div class="ga-breakdown-row" style="margin-top:8px; border-top:1px solid #f1f3f4; padding-top:8px;">
+            <span style="color:var(--ga-text-secondary);font-size:12px;">Top Game Live</span>
+            <span class="ga-breakdown-val" id="ga-rt-top-game" style="color:var(--ga-blue);">─</span>
+          </div>
+        </div>
+
+        <div class="ga-card-footer">
+          <a class="ga-footer-link" id="btn-realtime-view">View real time →</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== RECENTLY ACCESSED SECTION (EXACT GA4 SCREENSHOT) ===== -->
+    <h2 class="ga-section-title">Recently accessed</h2>
+    <div class="ga-recent-grid">
+      
+      <div class="ga-recent-card">
+        <div class="ga-recent-icon">📊</div>
+        <div class="ga-recent-text">
+          <div class="ga-recent-title">View user engagement and retention</div>
+          <div class="ga-recent-sub">6 days ago</div>
+        </div>
+      </div>
+
+      <div class="ga-recent-card">
+        <div class="ga-recent-icon">🌐</div>
+        <div class="ga-recent-text">
+          <div class="ga-recent-title">Understand web and/or app traffic</div>
+          <div class="ga-recent-sub">6 days ago</div>
+        </div>
+      </div>
+
+      <div class="ga-recent-card" onclick="document.getElementById('ga-realtime-num').scrollIntoView({behavior:'smooth'})">
+        <div class="ga-recent-icon">⚡</div>
+        <div class="ga-recent-text">
+          <div class="ga-recent-title">Realtime overview</div>
+          <div class="ga-recent-sub">6 days ago</div>
+        </div>
+      </div>
+
+      <div class="ga-recent-card" onclick="document.getElementById('btn-export').click()">
+        <div class="ga-recent-icon">📥</div>
+        <div class="ga-recent-text">
+          <div class="ga-recent-title">Telemetry JSON export</div>
+          <div class="ga-recent-sub">5 days ago</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== SUGGESTED / ACTIVE GAMES & LIVE TELEMETRY BUS ===== -->
+    <h2 class="ga-section-title">Suggested for you</h2>
+    <div class="ga-tables-grid">
+
+      <!-- Active Games Breakdown -->
+      <div class="ga-table-card">
+        <div class="ga-table-head">
+          <span class="ga-table-title">Active players · by Game Title</span>
+          <span class="ga-badge-pill ga-badge-active" id="ga-total-games-active"><span class="live-dot-pulse"></span> 0 Active</span>
+        </div>
+
+        <table class="ga-data-table">
           <thead>
             <tr>
-              <th>GAME TITLE</th>
-              <th>ACTIVE PLAYERS</th>
-              <th>GENRE</th>
-              <th>ENGINE STATUS</th>
+              <th>Game Title</th>
+              <th class="right">Live Players</th>
+              <th class="right">Genre</th>
+              <th class="right">Engine Status</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>
-                <div class="game-cell-title">
-                  <span class="game-icon-tag">🧟</span>
-                  <span>Dead Signal: Survivors</span>
-                </div>
-              </td>
-              <td><span class="badge-live" id="stat-dead-signal">0 LIVE</span></td>
-              <td style="color:var(--text-muted)">3D Survival Horror</td>
-              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
+              <td><strong>🧟 Dead Signal: Survivors</strong></td>
+              <td class="right"><span class="ga-badge-pill ga-badge-active" id="stat-dead-signal">0 LIVE</span></td>
+              <td class="right" style="color:var(--ga-text-secondary)">3D Survival Horror</td>
+              <td class="right" style="color:var(--ga-green)">Three.js WebGL</td>
             </tr>
-
             <tr>
-              <td>
-                <div class="game-cell-title">
-                  <span class="game-icon-tag">🔥</span>
-                  <span>Soul Ember: Survivors</span>
-                </div>
-              </td>
-              <td><span class="badge-live" id="stat-soul-ember">0 LIVE</span></td>
-              <td style="color:var(--text-muted)">Action Roguelite</td>
-              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
+              <td><strong>🔥 Soul Ember: Survivors</strong></td>
+              <td class="right"><span class="ga-badge-pill ga-badge-active" id="stat-soul-ember">0 LIVE</span></td>
+              <td class="right" style="color:var(--ga-text-secondary)">Action Roguelite</td>
+              <td class="right" style="color:var(--ga-green)">Three.js WebGL</td>
             </tr>
-
             <tr>
-              <td>
-                <div class="game-cell-title">
-                  <span class="game-icon-tag">🏎️</span>
-                  <span>Road Riot 3D</span>
-                </div>
-              </td>
-              <td><span class="badge-live" id="stat-road-riot">0 LIVE</span></td>
-              <td style="color:var(--text-muted)">Arcade Supercar Racer</td>
-              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
+              <td><strong>🏎️ Road Riot 3D</strong></td>
+              <td class="right"><span class="ga-badge-pill ga-badge-active" id="stat-road-riot">0 LIVE</span></td>
+              <td class="right" style="color:var(--ga-text-secondary)">Arcade Supercar Racer</td>
+              <td class="right" style="color:var(--ga-green)">Three.js WebGL</td>
             </tr>
-
             <tr>
-              <td>
-                <div class="game-cell-title">
-                  <span class="game-icon-tag">💻</span>
-                  <span>Dev Tycoon</span>
-                </div>
-              </td>
-              <td><span class="badge-live" id="stat-dev-tycoon">0 LIVE</span></td>
-              <td style="color:var(--text-muted)">Sim / Management</td>
-              <td style="color:var(--cyan)">ONLINE &bull; Flutter Web</td>
+              <td><strong>💻 Dev Tycoon</strong></td>
+              <td class="right"><span class="ga-badge-pill ga-badge-active" id="stat-dev-tycoon">0 LIVE</span></td>
+              <td class="right" style="color:var(--ga-text-secondary)">Sim / Management</td>
+              <td class="right" style="color:var(--ga-green)">Flutter Web</td>
             </tr>
-
             <tr>
-              <td>
-                <div class="game-cell-title">
-                  <span class="game-icon-tag">🌐</span>
-                  <span>Arcade Portal Lobby</span>
-                </div>
-              </td>
-              <td><span class="badge-live" id="stat-portal">0 LIVE</span></td>
-              <td style="color:var(--text-muted)">Portal &amp; Game Browser</td>
-              <td style="color:var(--cyan)">ONLINE &bull; Three.js WebGL</td>
+              <td><strong>🌐 Arcade Portal Lobby</strong></td>
+              <td class="right"><span class="ga-badge-pill ga-badge-active" id="stat-portal">0 LIVE</span></td>
+              <td class="right" style="color:var(--ga-text-secondary)">Portal / Hub</td>
+              <td class="right" style="color:var(--ga-green)">Three.js WebGL</td>
             </tr>
           </tbody>
         </table>
-
-        <!-- Custom Backend Settings -->
-        <div class="settings-drawer">
-          <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Custom Telemetry API:</span>
-          <input type="text" id="endpoint-input" class="settings-input" placeholder="e.g. https://telemetry.valixis.tech (Optional)">
-          <button id="endpoint-save-btn" class="settings-btn">Save Endpoint</button>
-        </div>
       </div>
 
-      <!-- Realtime Event Stream Terminal -->
-      <div class="panel-card">
-        <div class="panel-head">
-          <h2 class="panel-title">LIVE TELEMETRY STREAM</h2>
-          <button id="btn-test-ping" class="btn-secondary" style="font-size:11px;padding:3px 8px;">+ Test Ping</button>
+      <!-- Live Event Feed (Audit Trail) -->
+      <div class="ga-table-card">
+        <div class="ga-table-head">
+          <span class="ga-table-title">Realtime Telemetry Event Stream</span>
+          <span style="font-size:11px;color:var(--ga-text-secondary);">Cross-tab Event Bus</span>
         </div>
 
-        <div class="terminal-box" id="terminal-feed">
-          <div class="terminal-line">
-            <span class="t-time">SYS</span>
-            <span class="t-game">VALIXIS_OPS</span>
-            <span class="t-device">PROPRIETARY</span>
-            <span class="t-msg">VALIXIS Telemetry Bus initialized. Real-time presence listening active...</span>
+        <div class="ga-terminal-feed" id="terminal-feed">
+          <div class="ga-feed-line">
+            <span class="ga-f-time">SYS</span>
+            <span class="ga-f-game">VALIXIS_BUS</span>
+            <span class="ga-f-device">Private Bus</span>
+            <span class="ga-f-msg">Listening to client presence pings...</span>
           </div>
         </div>
       </div>
 
     </div>
 
+    <!-- Custom Endpoint Strip -->
+    <div class="ga-settings-strip">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;">⚙️</span>
+        <div>
+          <div style="font-weight:500;">Custom Telemetry Collector Endpoint</div>
+          <div style="font-size:12px;color:var(--ga-text-secondary);" id="endpoint-status-desc">Autonomous Edge Mode active</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="endpoint-input" class="ga-settings-input" placeholder="e.g. https://telemetry.valixis.tech">
+        <button id="endpoint-save-btn" class="ga-pill-btn primary">Save</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:20px;border-top:1px solid var(--ga-border);font-size:12px;color:var(--ga-text-muted);">
+      <span>VALIXIS Analytics · Proprietary Real-Time Telemetry · Zero 3rd-Party Tracking</span>
+      <span id="footer-sync-time">Synchronized just now</span>
+    </div>
+
   </main>
 
+  <!-- ========================================================================
+       VALIXIS TELEMETRY SCRIPT & DASHBOARD CONTROLLER
+       ======================================================================== -->
   <script src="assets/js/valixis-telemetry.js"></script>
   <script>
     const MASTER_PIN = '7799';
-    const AUTH_STORAGE_KEY = 'valixis_ops_authenticated';
+    const AUTH_KEY = 'valixis_ops_authenticated';
 
     const authGate = document.getElementById('auth-gate');
     const authPin = document.getElementById('auth-pin');
     const authBtn = document.getElementById('auth-btn');
     const authErr = document.getElementById('auth-err');
     const dashMain = document.getElementById('dash-main');
+    const dashTopBar = document.getElementById('dash-top-bar');
+    const dashSidebar = document.getElementById('dash-sidebar');
     const btnLock = document.getElementById('btn-lock');
     const btnExport = document.getElementById('btn-export');
     const btnTestPing = document.getElementById('btn-test-ping');
-    const endpointInput = document.getElementById('endpoint-input');
-    const endpointSaveBtn = document.getElementById('endpoint-save-btn');
-    const endpointPill = document.getElementById('endpoint-status-pill');
 
     function checkAuth() {
-      if (sessionStorage.getItem(AUTH_STORAGE_KEY) === 'true') {
+      if (sessionStorage.getItem(AUTH_KEY) === 'true') {
         authGate.style.display = 'none';
+        dashTopBar.style.display = 'flex';
+        dashSidebar.style.display = 'flex';
         dashMain.style.display = 'block';
-        startTelemetryMonitoring();
+        startAnalyticsEngine();
       } else {
         authGate.style.display = 'flex';
+        dashTopBar.style.display = 'none';
+        dashSidebar.style.display = 'none';
         dashMain.style.display = 'none';
       }
     }
 
     authBtn.addEventListener('click', () => {
-      if (authPin.value.trim() === MASTER_PIN || authPin.value.trim().toUpperCase() === 'VALIXIS') {
-        sessionStorage.setItem(AUTH_STORAGE_KEY, 'true');
+      const code = authPin.value.trim();
+      if (code === MASTER_PIN || code.toUpperCase() === 'VALIXIS') {
+        sessionStorage.setItem(AUTH_KEY, 'true');
         authErr.style.display = 'none';
         checkAuth();
       } else {
@@ -728,45 +1426,101 @@
     });
 
     btnLock.addEventListener('click', () => {
-      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_KEY);
       checkAuth();
     });
 
-    // Endpoint Configuration
-    endpointInput.value = ValixisTelemetry.getEndpoint();
-    if (endpointInput.value) {
-      endpointPill.textContent = 'CONNECTED: ' + endpointInput.value;
+    // Populate minute bars for realtime
+    const minuteBarsContainer = document.getElementById('ga-minute-bars');
+    const minuteValues = new Array(30).fill(0);
+
+    function renderMinuteBars(currentActive) {
+      minuteValues.push(currentActive);
+      minuteValues.shift();
+      const maxVal = Math.max(...minuteValues, 1);
+      minuteBarsContainer.innerHTML = minuteValues.map(v => {
+        const heightPct = Math.max(8, Math.round((v / maxVal) * 100));
+        const opacity = v > 0 ? '1' : '0.25';
+        return `<div class="ga-minute-bar" style="height:${heightPct}%; opacity:${opacity};"></div>`;
+      }).join('');
     }
 
-    endpointSaveBtn.addEventListener('click', () => {
-      const url = endpointInput.value.trim();
-      ValixisTelemetry.setEndpoint(url);
-      endpointPill.textContent = url ? 'CONNECTED: ' + url : 'MODE: AUTONOMOUS EDGE PRESENCE';
-      alert(url ? 'Custom VALIXIS Telemetry endpoint saved!' : 'Switched to Autonomous Edge Presence mode!');
-    });
+    // Dynamic curve rendering based on active players & events
+    function updateChartGeometry(currentUsers, currentStarts) {
+      const p1 = Math.max(10, currentUsers * 35);
+      const p2 = Math.max(10, currentStarts * 20);
+      const yPos = Math.max(30, 216 - p1);
 
-    // Real-Time Telemetry Monitor
-    function startTelemetryMonitoring() {
+      const solidPath = `M0,170 Q100,150 200,180 T400,190 T550,130 T700,${yPos}`;
+      const solidArea = `M0,216 L0,170 Q100,150 200,180 T400,190 T550,130 T700,${yPos} L700,216 Z`;
+
+      document.getElementById('ga-chart-solid-path')?.setAttribute('d', solidPath);
+      document.getElementById('ga-chart-solid-area')?.setAttribute('d', solidArea);
+
+      const activeDot = document.getElementById('ga-chart-active-dot');
+      if (activeDot) {
+        activeDot.setAttribute('cy', yPos);
+      }
+    }
+
+    function startAnalyticsEngine() {
       const feed = document.getElementById('terminal-feed');
+      const endpointInput = document.getElementById('endpoint-input');
+      const endpointSaveBtn = document.getElementById('endpoint-save-btn');
+      const endpointStatusDesc = document.getElementById('endpoint-status-desc');
+
+      // Initialize Endpoint UI
+      const savedEndpoint = ValixisTelemetry.getEndpoint();
+      if (savedEndpoint) {
+        endpointInput.value = savedEndpoint;
+        endpointStatusDesc.textContent = 'Connected: ' + savedEndpoint;
+      }
+
+      endpointSaveBtn.addEventListener('click', () => {
+        const ep = endpointInput.value.trim();
+        ValixisTelemetry.setEndpoint(ep);
+        endpointStatusDesc.textContent = ep ? 'Connected: ' + ep : 'Autonomous Edge Mode active';
+        alert(ep ? 'Custom Telemetry collector endpoint saved!' : 'Switched to Autonomous Edge Mode');
+      });
 
       function updateDashboard() {
         const registry = ValixisTelemetry.getRegistry();
         const sessions = Object.values(registry.sessions || {});
         const now = Date.now();
 
-        // Active players within last 60 seconds
+        // Active players within last 65s
         const activeSessions = sessions.filter(s => (now - s.lastPing) < 65000);
+        const liveCount = activeSessions.length;
 
-        // Counts
-        document.getElementById('val-live-players').textContent = activeSessions.length;
-        document.getElementById('val-portal-sessions').textContent = Math.max(registry.stats?.totalVisits || sessions.length, 1);
-        document.getElementById('games-active-count').textContent = `${activeSessions.length} ACTIVE NOW`;
+        // Metric Card Values
+        const totalVisits = Math.max(registry.stats?.totalVisits || sessions.length, sessions.length, 1);
+        const totalStarts = registry.stats?.gameStarts || (registry.events || []).filter(e => e.type === 'game_start').length;
+        const totalEvents = (registry.events || []).length;
+
+        document.getElementById('ga-val-active-users').textContent = liveCount;
+        document.getElementById('ga-val-event-count').textContent = totalEvents;
+        document.getElementById('ga-val-game-starts').textContent = totalStarts;
+        document.getElementById('ga-val-views').textContent = totalVisits;
+
+        // Realtime Big Number
+        document.getElementById('ga-realtime-num').textContent = liveCount;
+        document.getElementById('ga-total-games-active').innerHTML = `<span class="live-dot-pulse"></span> ${liveCount} Active`;
+
+        // Update histogram and main line chart
+        renderMinuteBars(liveCount);
+        updateChartGeometry(liveCount, totalStarts);
+
+        // Platform breakdown
+        const desktops = activeSessions.filter(s => s.device === 'Desktop').length;
+        const mobiles = activeSessions.filter(s => s.device === 'Mobile').length;
+        document.getElementById('ga-rt-desktop').textContent = desktops;
+        document.getElementById('ga-rt-mobile').textContent = mobiles;
 
         // Game breakdown
-        const deadSignalCount = activeSessions.filter(s => s.location.includes('dead-signal')).length;
-        const soulEmberCount = activeSessions.filter(s => s.location.includes('soul-ember')).length;
-        const roadRiotCount = activeSessions.filter(s => s.location.includes('road-riot')).length;
-        const devTycoonCount = activeSessions.filter(s => s.location.includes('dev-tycoon')).length;
+        const deadSignalCount = activeSessions.filter(s => (s.location || '').includes('dead-signal')).length;
+        const soulEmberCount = activeSessions.filter(s => (s.location || '').includes('soul-ember')).length;
+        const roadRiotCount = activeSessions.filter(s => (s.location || '').includes('road-riot')).length;
+        const devTycoonCount = activeSessions.filter(s => (s.location || '').includes('dev-tycoon')).length;
         const portalCount = activeSessions.filter(s => s.location === 'portal').length;
 
         document.getElementById('stat-dead-signal').textContent = `${deadSignalCount} LIVE`;
@@ -775,47 +1529,45 @@
         document.getElementById('stat-dev-tycoon').textContent = `${devTycoonCount} LIVE`;
         document.getElementById('stat-portal').textContent = `${portalCount} LIVE`;
 
-        // Total game starts
-        const totalStarts = registry.stats?.gameStarts || (registry.events || []).filter(e => e.type === 'game_start').length;
-        document.getElementById('val-game-starts').textContent = totalStarts;
+        // Top Game
+        const games = [
+          { name: 'Soul Ember', count: soulEmberCount },
+          { name: 'Dead Signal', count: deadSignalCount },
+          { name: 'Road Riot', count: roadRiotCount },
+          { name: 'Dev Tycoon', count: devTycoonCount },
+          { name: 'Arcade Hub', count: portalCount }
+        ];
+        games.sort((a, b) => b.count - a.count);
+        document.getElementById('ga-rt-top-game').textContent = games[0].count > 0 ? `${games[0].name} (${games[0].count})` : '─';
 
-        // Device breakdown
-        const mobiles = activeSessions.filter(s => s.device === 'Mobile').length;
-        const desktops = activeSessions.filter(s => s.device === 'Desktop').length;
-        const totalDev = (mobiles + desktops) || 1;
-        const mobilePct = Math.round((mobiles / totalDev) * 100);
-        const desktopPct = 100 - mobilePct;
-
-        document.getElementById('val-top-device').textContent = mobilePct > desktopPct ? 'Mobile' : 'Desktop';
-        document.getElementById('val-device-split').textContent = `Mobile: ${mobilePct}% | Desktop: ${desktopPct}%`;
-
-        // Live Feed lines
+        // Update Live Feed
         if (registry.events && registry.events.length > 0) {
-          feed.innerHTML = registry.events.map(ev => `
-            <div class="terminal-line">
-              <span class="t-time">${ev.time}</span>
-              <span class="t-game">${ev.game}</span>
-              <span class="t-device">${ev.device}</span>
-              <span class="t-msg">${ev.details || ev.type}</span>
+          const rows = [...registry.events].reverse().slice(0, 40).map(ev => `
+            <div class="ga-feed-line">
+              <span class="ga-f-time">${ev.time || '—'}</span>
+              <span class="ga-f-game">${ev.game || ev.gameId || 'portal'}</span>
+              <span class="ga-f-device">${ev.device || 'Desktop'}</span>
+              <span class="ga-f-msg">${ev.details || ev.type || 'presence_ping'}</span>
             </div>
           `).join('');
+          feed.innerHTML = rows;
         }
+
+        document.getElementById('footer-sync-time').textContent = 'Synchronized at ' + new Date().toLocaleTimeString();
       }
 
       setInterval(updateDashboard, 3000);
       updateDashboard();
 
-      // Listen to cross-tab BroadcastChannel
+      // BroadcastChannel for instant cross-tab updates
       if (typeof BroadcastChannel !== 'undefined') {
         const bc = new BroadcastChannel('valixis_telemetry_bus');
-        bc.onmessage = () => {
-          updateDashboard();
-        };
+        bc.onmessage = () => updateDashboard();
       }
 
       // Test Ping
       btnTestPing.addEventListener('click', () => {
-        ValixisTelemetry.heartbeat('test-probe', { gameName: 'Ops Monitor Ping', details: 'Manual diagnostic heartbeat' });
+        ValixisTelemetry.heartbeat('test-probe', { gameName: 'GA4 Monitor Ping', details: 'Diagnostic GA4 heartbeat' });
         updateDashboard();
       });
 
@@ -826,7 +1578,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `valixis_telemetry_export_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `valixis_analytics_export_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
       });

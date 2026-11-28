@@ -11,11 +11,12 @@ class RoadAudioEngine {
     this.engineGain = null;
 
     // Volume Settings (0.0 to 1.0)
-    this.masterVolume = parseFloat(localStorage.getItem('roadriot_vol_master') ?? '0.85');
-    this.engineVolume = parseFloat(localStorage.getItem('roadriot_vol_engine') ?? '0.75');
-    this.sfxVolume = parseFloat(localStorage.getItem('roadriot_vol_sfx') ?? '0.85');
-    this.musicVolume = parseFloat(localStorage.getItem('roadriot_vol_music') ?? '0.50');
-    this.isMuted = localStorage.getItem('roadriot_mute') === 'true';
+    const getStorage = (k, def) => (typeof localStorage !== 'undefined' ? (localStorage.getItem(k) ?? def) : def);
+    this.masterVolume = parseFloat(getStorage('roadriot_vol_master', '0.85'));
+    this.engineVolume = parseFloat(getStorage('roadriot_vol_engine', '0.75'));
+    this.sfxVolume = parseFloat(getStorage('roadriot_vol_sfx', '0.85'));
+    this.musicVolume = parseFloat(getStorage('roadriot_vol_music', '0.50'));
+    this.isMuted = getStorage('roadriot_mute', 'false') === 'true';
 
     // Natural Audio Buffer Cache & High-Fidelity Racing SFX
     this.buffers = {};
@@ -170,7 +171,7 @@ class RoadAudioEngine {
   // --- VOLUME & MIXER CONTROLS ---
   setMasterVolume(val) {
     this.masterVolume = Math.max(0, Math.min(1, val));
-    localStorage.setItem('roadriot_vol_master', this.masterVolume.toString());
+    if (typeof localStorage !== 'undefined') localStorage.setItem('roadriot_vol_master', this.masterVolume.toString());
     if (this.masterGain && this.ctx && !this.isMuted) {
       this.masterGain.gain.setTargetAtTime(this.masterVolume, this.ctx.currentTime, 0.05);
     }
@@ -178,7 +179,7 @@ class RoadAudioEngine {
 
   setEngineVolume(val) {
     this.engineVolume = Math.max(0, Math.min(1, val));
-    localStorage.setItem('roadriot_vol_engine', this.engineVolume.toString());
+    if (typeof localStorage !== 'undefined') localStorage.setItem('roadriot_vol_engine', this.engineVolume.toString());
     if (this.engineGain && this.ctx) {
       this.engineGain.gain.setTargetAtTime(this.engineVolume * 0.45, this.ctx.currentTime, 0.05);
     }
@@ -186,7 +187,7 @@ class RoadAudioEngine {
 
   setSfxVolume(val) {
     this.sfxVolume = Math.max(0, Math.min(1, val));
-    localStorage.setItem('roadriot_vol_sfx', this.sfxVolume.toString());
+    if (typeof localStorage !== 'undefined') localStorage.setItem('roadriot_vol_sfx', this.sfxVolume.toString());
     if (this.sfxGain && this.ctx) {
       this.sfxGain.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.05);
     }
@@ -194,7 +195,7 @@ class RoadAudioEngine {
 
   setMusicVolume(val) {
     this.musicVolume = Math.max(0, Math.min(1, val));
-    localStorage.setItem('roadriot_vol_music', this.musicVolume.toString());
+    if (typeof localStorage !== 'undefined') localStorage.setItem('roadriot_vol_music', this.musicVolume.toString());
     if (this.musicGain && this.ctx) {
       this.musicGain.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
     }
@@ -202,7 +203,7 @@ class RoadAudioEngine {
 
   setMute(muted) {
     this.isMuted = muted;
-    localStorage.setItem('roadriot_mute', muted ? 'true' : 'false');
+    if (typeof localStorage !== 'undefined') localStorage.setItem('roadriot_mute', muted ? 'true' : 'false');
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(muted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
     }

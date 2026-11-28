@@ -489,6 +489,41 @@
       </div>
     </header>
 
+    <!-- 3D Showroom Viewport Floating Controls (Camera Presets & Articulation) -->
+    <div id="garage-viewport-controls" class="garage-viewport-controls">
+      <!-- Camera Angle Presets -->
+      <div class="showroom-control-panel glass-panel">
+        <div class="panel-tag">SHOWROOM CAMERA ANGLE</div>
+        <div class="cam-presets-row" id="cam-presets-dock">
+          <button class="cam-preset-btn active" data-preset="front_three_quarter" title="Front 3/4 Studio View [1]">
+            <span class="cam-icon">📐</span> FRONT 3/4 <span class="hotkey-pill">1</span>
+          </button>
+          <button class="cam-preset-btn" data-preset="side_profile" title="Low Side Profile [2]">
+            <span class="cam-icon">🏎️</span> LOW SIDE <span class="hotkey-pill">2</span>
+          </button>
+          <button class="cam-preset-btn" data-preset="cockpit_interior" title="Cockpit Interior View [3]">
+            <span class="cam-icon">💺</span> COCKPIT <span class="hotkey-pill">3</span>
+          </button>
+          <button class="cam-preset-btn" data-preset="rear_wing" title="Rear Aero Wing & Diffuser [4]">
+            <span class="cam-icon">🏁</span> REAR WING <span class="hotkey-pill">4</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Articulation (Scissor Doors & Engine Cover) -->
+      <div class="showroom-control-panel glass-panel" style="margin-top: 8px;">
+        <div class="panel-tag">INTERACTIVE ARTICULATION</div>
+        <div class="articulation-row">
+          <button id="garage-doors-btn" class="garage-articulate-btn" title="Toggle Scissor Doors (Hotkey: D)">
+            <span class="art-icon">🚪</span> SCISSOR DOORS <span class="hotkey-pill">D</span>
+          </button>
+          <button id="garage-bonnet-btn" class="garage-articulate-btn" title="Toggle Engine Bonnet (Hotkey: B)">
+            <span class="art-icon">🔧</span> ENGINE COVER <span class="hotkey-pill">B</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Bottom Supercar Selector Dock (Forza-Style Visual Roster) -->
     <div id="garage-car-dock" class="garage-car-dock glass-panel">
       <div class="dock-header">
@@ -567,6 +602,38 @@
         <button id="garage-dyno-btn" class="btn-primary dyno-btn" style="margin-top:16px; width:100%; font-size:11px; padding:10px; background:linear-gradient(135deg, #ff8800, #ff2a44); border-color:#ffaa00; font-weight:800;">
           &#9881; REV ENGINE &amp; RUN DYNO BENCHMARK
         </button>
+
+        <!-- Live Dynamometer Telemetry & Power Curves (Day 13) -->
+        <div class="dyno-chart-card glass-panel" id="garage-dyno-card" style="margin-top:14px; padding:12px;">
+          <div class="dyno-chart-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span class="dyno-title" style="font-family:var(--font-hud); font-size:11px; color:#ffb800; font-weight:800; letter-spacing:1px;">
+              LIVE DYNAMOMETER TELEMETRY
+            </span>
+            <span id="dyno-live-rpm" class="dyno-rpm-badge" style="font-family:var(--font-mono); font-size:10px; color:#00ff88; font-weight:700; background:rgba(0,255,136,0.15); padding:2px 8px; border-radius:4px; border:1px solid rgba(0,255,136,0.3);">
+              IDLE &bull; 1,200 RPM
+            </span>
+          </div>
+
+          <div class="dyno-readouts" id="dyno-readouts" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <div class="dyno-stat-pill" style="background:rgba(255,42,68,0.15); border:1px solid rgba(255,42,68,0.35); border-radius:6px; padding:6px; text-align:center;">
+              <div style="font-size:9px; color:#ff7a88; font-family:var(--font-mono); font-weight:700;">PEAK POWER</div>
+              <div id="dyno-val-hp" style="font-size:14px; color:#fff; font-family:var(--font-hud); font-weight:900;">760 BHP</div>
+              <div id="dyno-rpm-hp" style="font-size:8px; color:#ff9999; font-family:var(--font-mono);">@ 7,800 RPM</div>
+            </div>
+            <div class="dyno-stat-pill" style="background:rgba(0,217,255,0.15); border:1px solid rgba(0,217,255,0.35); border-radius:6px; padding:6px; text-align:center;">
+              <div style="font-size:9px; color:#7ddcff; font-family:var(--font-mono); font-weight:700;">PEAK TORQUE</div>
+              <div id="dyno-val-torque" style="font-size:14px; color:#fff; font-family:var(--font-hud); font-weight:900;">680 Nm</div>
+              <div id="dyno-rpm-torque" style="font-size:8px; color:#7ddcff; font-family:var(--font-mono);">@ 5,200 RPM</div>
+            </div>
+          </div>
+
+          <canvas id="garage-dyno-canvas" width="340" height="150" class="dyno-canvas" style="width:100%; height:150px; background:#040912; border-radius:6px; border:1px solid rgba(255,255,255,0.1); display:block;"></canvas>
+
+          <div class="dyno-legend" style="display:flex; justify-content:space-around; align-items:center; margin-top:8px; font-family:var(--font-mono); font-size:9px;">
+            <span style="color:#ff3b30; display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:3px; background:#ff3b30; border-radius:2px;"></span> HORSEPOWER (BHP)</span>
+            <span style="color:#00d9ff; display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:3px; background:#00d9ff; border-radius:2px;"></span> TORQUE (Nm)</span>
+          </div>
+        </div>
       </div>
 
       <!-- View 2: Achievements -->

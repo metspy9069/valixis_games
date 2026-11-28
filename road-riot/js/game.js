@@ -8,7 +8,13 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
 import { audio } from './audio.js';
 import { WorldManager } from './world.js';
-import { PlayerCar, VEHICLE_ROSTER } from './player.js';
+import {
+  PlayerCar,
+  VEHICLE_ROSTER,
+  calculateDynoCurveData,
+  SHOWROOM_CAMERA_PRESETS,
+  buildShowroomTurntableMesh
+} from './player.js';
 import { TrafficManager, updateEvasionTracking } from './traffic.js';
 import { progression, ACHIEVEMENTS } from './progression.js';
 
@@ -17,6 +23,8 @@ import { NPCCar } from './npcCar.js';
 import { PedestrianManager } from './pedestrians.js';
 import { loadJSON } from './utils/loadJSON.js';
 import { TouchInputTracker, normalizeGamepadState, HapticController } from './input.js';
+
+export { SHOWROOM_CAMERA_PRESETS, buildShowroomTurntableMesh };
 
 class RoadRiotGame {
   constructor() {
@@ -90,6 +98,12 @@ class RoadRiotGame {
     this.turntableAngle = 2.45;
     this.isDraggingTurntable = false;
     this.lastDragX = 0;
+
+    // Day 13: 3D Showroom Camera Presets State
+    this.activeCameraPreset = 'front_three_quarter';
+    this.cameraTargetPos = new THREE.Vector3(-1.4 + 2.4, 0.19 + 1.6, -8 + 4.8);
+    this.cameraTargetLook = new THREE.Vector3(-1.4, 0.19 + 0.65, -8);
+    this.cameraCurrentLook = new THREE.Vector3(-1.4, 0.19 + 0.65, -8);
 
     // Assets Prototypes
     this.assetPrototypes = {};
@@ -341,6 +355,17 @@ class RoadRiotGame {
       checkpointBanner: document.querySelector('#hud-checkpoint-banner'),
       garageDynoBtn: document.querySelector('#garage-dyno-btn'),
 
+      // Day 13: 3D Showroom & Interactive Garage UI Elements
+      camPresetBtns: document.querySelectorAll('.cam-preset-btn'),
+      garageDoorsBtn: document.querySelector('#garage-doors-btn'),
+      garageBonnetBtn: document.querySelector('#garage-bonnet-btn'),
+      garageDynoCanvas: document.querySelector('#garage-dyno-canvas'),
+      dynoLiveRpm: document.querySelector('#dyno-live-rpm'),
+      dynoValHp: document.querySelector('#dyno-val-hp'),
+      dynoRpmHp: document.querySelector('#dyno-rpm-hp'),
+      dynoValTorque: document.querySelector('#dyno-val-torque'),
+      dynoRpmTorque: document.querySelector('#dyno-rpm-torque'),
+
       // Network Modal
       networkModal: document.querySelector('#network-modal'),
       networkCloseBtn: document.querySelector('#network-close-btn')
@@ -348,55 +373,7 @@ class RoadRiotGame {
   }
 
   buildTurntableMesh() {
-    const group = new THREE.Group();
-
-    // Beveled dark carbon base
-    const baseGeo = new THREE.CylinderGeometry(4.2, 4.5, 0.16, 48);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x070c14, roughness: 0.6, metalness: 0.7 });
-    const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.y = 0.08;
-    base.receiveShadow = true;
-    group.add(base);
-
-    // Glowing Neon Ring
-    const ringGeo = new THREE.TorusGeometry(4.1, 0.06, 16, 48);
-    ringGeo.rotateX(Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.y = 0.165;
-    group.add(ring);
-
-    // Center circular brushed metal plate
-    const plateGeo = new THREE.CylinderGeometry(3.95, 3.95, 0.04, 48);
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0x111b2b, roughness: 0.35, metalness: 0.85 });
-    const plate = new THREE.Mesh(plateGeo, plateMat);
-    plate.position.y = 0.17;
-    plate.receiveShadow = true;
-    group.add(plate);
-
-    // Studio Spotlights illuminating car
-    const spotKey = new THREE.SpotLight(0xffffff, 5.5, 22, Math.PI / 4, 0.3);
-    spotKey.position.set(-3, 7, -4);
-    spotKey.target = base;
-    spotKey.castShadow = !this.isMobileDevice;
-    spotKey.shadow.bias = -0.0005;
-    spotKey.shadow.mapSize.width = 1024;
-    spotKey.shadow.mapSize.height = 1024;
-    spotKey.shadow.radius = 2.0;
-    group.add(spotKey);
-
-    const spotFill = new THREE.SpotLight(0x00d9ff, 3.5, 20, Math.PI / 3, 0.4);
-    spotFill.position.set(4, 5, -5);
-    spotFill.target = base;
-    group.add(spotFill);
-
-    // Automotive Rim & Glint Specular Light to accentuate PBR clearcoat
-    const spotRim = new THREE.SpotLight(0xfff0dd, 4.8, 22, Math.PI / 4, 0.4);
-    spotRim.position.set(-2, 6, -12);
-    spotRim.target = base;
-    group.add(spotRim);
-
-    return group;
+    return buildShowroomTurntableMesh(this.isMobileDevice);
   }
 
   applySavedSettings() {
@@ -516,6 +493,16 @@ class RoadRiotGame {
       }
       if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         this.togglePause();
+      }
+
+      // Day 13: 3D Showroom Keyboard Controls (Doors, Bonnet, Camera Angle Presets)
+      if (this.state === 'GARAGE') {
+        if (e.code === 'KeyD' || e.key === 'd' || e.key === 'D') this.toggleGarageDoors();
+        if (e.code === 'KeyB' || e.key === 'b' || e.key === 'B') this.toggleGarageBonnet();
+        if (e.code === 'Digit1' || e.key === '1') this.setCameraPreset('front_three_quarter');
+        if (e.code === 'Digit2' || e.key === '2') this.setCameraPreset('side_profile');
+        if (e.code === 'Digit3' || e.key === '3') this.setCameraPreset('cockpit_interior');
+        if (e.code === 'Digit4' || e.key === '4') this.setCameraPreset('rear_wing');
       }
     });
 
@@ -971,8 +958,202 @@ class RoadRiotGame {
       this.isDraggingTurntable = false;
     });
 
-    // Garage Dyno Test Benchmark
+    // Garage Dyno Test Benchmark & Day 13 Showroom Controls
     this.ui.garageDynoBtn?.addEventListener('click', () => this.runDynoBenchmark());
+    this.ui.garageDoorsBtn?.addEventListener('click', () => this.toggleGarageDoors());
+    this.ui.garageBonnetBtn?.addEventListener('click', () => this.toggleGarageBonnet());
+    this.ui.camPresetBtns?.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.preset) this.setCameraPreset(btn.dataset.preset);
+      });
+    });
+  }
+
+  setCameraPreset(presetKey) {
+    if (!SHOWROOM_CAMERA_PRESETS[presetKey]) return;
+    this.activeCameraPreset = presetKey;
+    const preset = SHOWROOM_CAMERA_PRESETS[presetKey];
+
+    const carPos = this.player && this.player.mesh ? this.player.mesh.position : new THREE.Vector3(-1.4, 0.19, -8);
+    this.cameraTargetPos.copy(carPos).add(preset.pos);
+    this.cameraTargetLook.copy(carPos).add(preset.look);
+
+    if (this.ui.camPresetBtns) {
+      this.ui.camPresetBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === presetKey);
+      });
+    }
+    audio.play('gear_shift');
+    this.toast(`SHOWROOM VIEW: ${preset.name.toUpperCase()}`, 'cyan');
+  }
+
+  toggleGarageDoors() {
+    if (!this.player) return;
+    const isOpen = this.player.toggleDoors();
+    if (this.ui.garageDoorsBtn) {
+      this.ui.garageDoorsBtn.classList.toggle('active', isOpen);
+    }
+    audio.play('whoosh');
+    this.toast(isOpen ? 'SCISSOR DOORS: OPEN' : 'SCISSOR DOORS: CLOSED', 'gold');
+  }
+
+  toggleGarageBonnet() {
+    if (!this.player) return;
+    const isOpen = this.player.toggleBonnet();
+    if (this.ui.garageBonnetBtn) {
+      this.ui.garageBonnetBtn.classList.toggle('active', isOpen);
+    }
+    audio.play('whoosh');
+    this.toast(isOpen ? 'ENGINE BONNET: OPEN (EXPOSED MID-ENGINE)' : 'ENGINE BONNET: CLOSED', 'gold');
+  }
+
+  renderDynoCurve(canvas, carId, activeRpm = null) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    const selCarId = carId || (this.garageVehicleList ? this.garageVehicleList[this.garageIndex] : 'apex');
+    const currentUpgrade = progression.data.upgrades[selCarId] || {};
+    const dyno = calculateDynoCurveData(selCarId, currentUpgrade.topSpeed || 0);
+
+    // Update readout badges in tuning sidebar
+    if (this.ui.dynoValHp) this.ui.dynoValHp.textContent = `${dyno.peakHp} BHP`;
+    if (this.ui.dynoRpmHp) this.ui.dynoRpmHp.textContent = `@ ${dyno.peakHpRpm.toLocaleString()} RPM`;
+    if (this.ui.dynoValTorque) this.ui.dynoValTorque.textContent = `${dyno.peakTorque} Nm`;
+    if (this.ui.dynoRpmTorque) this.ui.dynoRpmTorque.textContent = `@ ${dyno.peakTorqueRpm.toLocaleString()} RPM`;
+
+    // Margins for axes
+    const padL = 36;
+    const padR = 14;
+    const padT = 16;
+    const padB = 22;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    const maxRpm = dyno.maxRpm;
+    const maxVal = Math.max(dyno.peakHp, dyno.peakTorque) * 1.15;
+
+    // Draw dark grid lines & labels
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    // 4 horizontal grid lines
+    for (let i = 0; i <= 4; i++) {
+      const val = Math.round((maxVal / 4) * i);
+      const y = padT + plotH - (val / maxVal) * plotH;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(padL + plotW, y);
+      ctx.stroke();
+      if (i > 0) ctx.fillText(`${val}`, padL - 5, y);
+    }
+
+    // Vertical RPM grid lines
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const rpmStep = maxRpm > 10000 ? 4000 : 2000;
+    for (let r = 2000; r <= maxRpm; r += rpmStep) {
+      const x = padL + (r / maxRpm) * plotW;
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT + plotH);
+      ctx.stroke();
+      ctx.fillText(`${(r / 1000).toFixed(0)}k`, x, padT + plotH + 4);
+    }
+
+    const samples = dyno.samples;
+    if (!samples || samples.length === 0) return;
+
+    // 1. Draw Torque Curve (Cyan Glow)
+    ctx.save();
+    ctx.beginPath();
+    samples.forEach((pt, idx) => {
+      const x = padL + (pt.rpm / maxRpm) * plotW;
+      const y = padT + plotH - (pt.torque / maxVal) * plotH;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#00d9ff';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(0, 217, 255, 0.6)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+
+    // Area gradient under torque
+    ctx.lineTo(padL + (samples[samples.length - 1].rpm / maxRpm) * plotW, padT + plotH);
+    ctx.lineTo(padL + (samples[0].rpm / maxRpm) * plotW, padT + plotH);
+    ctx.closePath();
+    const gradTorque = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    gradTorque.addColorStop(0, 'rgba(0, 217, 255, 0.16)');
+    gradTorque.addColorStop(1, 'rgba(0, 217, 255, 0.0)');
+    ctx.fillStyle = gradTorque;
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Draw Horsepower Curve (Flame Red / Orange Glow)
+    ctx.save();
+    ctx.beginPath();
+    samples.forEach((pt, idx) => {
+      const x = padL + (pt.rpm / maxRpm) * plotW;
+      const y = padT + plotH - (pt.hp / maxVal) * plotH;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(255, 59, 48, 0.65)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+
+    // Area gradient under HP
+    ctx.lineTo(padL + (samples[samples.length - 1].rpm / maxRpm) * plotW, padT + plotH);
+    ctx.lineTo(padL + (samples[0].rpm / maxRpm) * plotW, padT + plotH);
+    ctx.closePath();
+    const gradHp = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    gradHp.addColorStop(0, 'rgba(255, 59, 48, 0.20)');
+    gradHp.addColorStop(1, 'rgba(255, 59, 48, 0.0)');
+    ctx.fillStyle = gradHp;
+    ctx.fill();
+    ctx.restore();
+
+    // Peak markers
+    const peakTorqueX = padL + (dyno.peakTorqueRpm / maxRpm) * plotW;
+    const peakTorqueY = padT + plotH - (dyno.peakTorque / maxVal) * plotH;
+    ctx.fillStyle = '#00d9ff';
+    ctx.beginPath();
+    ctx.arc(peakTorqueX, peakTorqueY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const peakHpX = padL + (dyno.peakHpRpm / maxRpm) * plotW;
+    const peakHpY = padT + plotH - (dyno.peakHp / maxVal) * plotH;
+    ctx.fillStyle = '#ff3b30';
+    ctx.beginPath();
+    ctx.arc(peakHpX, peakHpY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Live Active Scanner Line (During dyno testing)
+    if (activeRpm !== null) {
+      const scanX = padL + (Math.min(activeRpm, maxRpm) / maxRpm) * plotW;
+      ctx.save();
+      ctx.strokeStyle = '#ffb800';
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([4, 2]);
+      ctx.shadowColor = '#ffb800';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(scanX, padT);
+      ctx.lineTo(scanX, padT + plotH);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   runDynoBenchmark() {
@@ -982,15 +1163,27 @@ class RoadRiotGame {
     audio.resume();
     audio.startEngine();
 
+    const carId = this.garageVehicleList[this.garageIndex] || 'apex';
+    const currentUpgrade = progression.data.upgrades[carId] || {};
+    const dynoData = calculateDynoCurveData(carId, currentUpgrade.topSpeed || 0);
+
     let timer = 0;
     const interval = setInterval(() => {
       timer += 0.06;
       const progress = Math.min(1, timer / 3.2);
       const simulatedKmh = Math.floor(progress * 340);
+      const simulatedRpm = Math.floor(dynoData.idleRpm + progress * (dynoData.maxRpm - dynoData.idleRpm));
       audio.updateEngine(simulatedKmh, progress > 0.6);
 
-      if (this.player.chassis) this.player.chassis.rotation.y += 0.25;
-      if (this.turntableMesh) this.turntableMesh.rotation.y += 0.25;
+      // Render live sweep line across dyno chart canvas
+      this.renderDynoCurve(this.ui.garageDynoCanvas, carId, simulatedRpm);
+      if (this.ui.dynoLiveRpm) {
+        this.ui.dynoLiveRpm.textContent = `REV: ${simulatedRpm.toLocaleString()} RPM`;
+        this.ui.dynoLiveRpm.style.color = progress > 0.85 ? '#ff2a44' : (progress > 0.6 ? '#ffb800' : '#00ff88');
+      }
+
+      if (this.player.chassis) this.player.chassis.rotation.y += 0.08;
+      if (this.turntableMesh) this.turntableMesh.rotation.y += 0.08;
 
       if (timer >= 3.2) {
         clearInterval(interval);
@@ -999,27 +1192,33 @@ class RoadRiotGame {
         audio.resetTransmission();
         this.lastGear = 1;
 
-    // New Mechanisms State: Heat Level, Slipstream Drafting, Apex Flow, Speed Trap
-    this.heatLevel = 0;
-    this.heatTimer = 0;
-    this.draftCharge = 0;
-    this.isDrafting = false;
-    this.apexFlowTimer = 0;
-    this.nearMissChain = 0;
-    this.nearMissChainTimer = 0;
-    this.nextSpeedTrapDistance = 450;
-    this.policeActive = false;
-    this.evasionTimer = 0;
-    this.minPoliceDist = 999;
-    this.empCooldown = 0;
+        if (this.ui.dynoLiveRpm) {
+          this.ui.dynoLiveRpm.textContent = `IDLE • ${dynoData.idleRpm.toLocaleString()} RPM`;
+          this.ui.dynoLiveRpm.style.color = '#00ff88';
+        }
+        this.renderDynoCurve(this.ui.garageDynoCanvas, carId, null);
+
+        // New Mechanisms State Reset
+        this.heatLevel = 0;
+        this.heatTimer = 0;
+        this.draftCharge = 0;
+        this.isDrafting = false;
+        this.apexFlowTimer = 0;
+        this.nearMissChain = 0;
+        this.nearMissChainTimer = 0;
+        this.nextSpeedTrapDistance = 450;
+        this.policeActive = false;
+        this.evasionTimer = 0;
+        this.minPoliceDist = 999;
+        this.empCooldown = 0;
         const sel = progression.data.selectedVehicle || 'apex';
-    const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
-    audio.setEngineProfile(carDef.engineProfile || 'v8');
-    this.updateHeatHud();
-    if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
-        const zeroToHundred = (2.65 + Math.random() * 0.45).toFixed(2);
-        const horsepower = Math.floor(680 + Math.random() * 140);
-        this.toast(`DYNO TELEMETRY: 0-100 IN ${zeroToHundred}s | ${horsepower} BHP`, 'cyan');
+        const carDef = VEHICLE_ROSTER[sel] || VEHICLE_ROSTER.apex;
+        audio.setEngineProfile(carDef.engineProfile || 'v8');
+        this.updateHeatHud();
+        if (this.ui.gearBadge) this.ui.gearBadge.textContent = 'GEAR 1';
+
+        const zeroToHundred = (2.25 + (10 - (dynoData.peakHp / 120)) * 0.15).toFixed(2);
+        this.toast(`DYNO BENCHMARK: 0-100 IN ${zeroToHundred}s | ${dynoData.peakHp} BHP | ${dynoData.peakTorque} Nm`, 'cyan');
         audio.play('fever');
       }
     }, 60);
@@ -1328,8 +1527,26 @@ class RoadRiotGame {
     }
 
     // Set Showroom Beauty View Camera framed for unobstructed car view
-    this.camera.position.set(-1.4, 1.8, -3.2);
-    this.camera.lookAt(-1.4, 0.75, -8);
+    this.activeCameraPreset = 'front_three_quarter';
+    const preset = SHOWROOM_CAMERA_PRESETS.front_three_quarter;
+    this.cameraTargetPos.copy(this.player.mesh.position).add(preset.pos);
+    this.cameraTargetLook.copy(this.player.mesh.position).add(preset.look);
+    this.cameraCurrentLook.copy(this.cameraTargetLook);
+    this.camera.position.copy(this.cameraTargetPos);
+    this.camera.lookAt(this.cameraCurrentLook);
+
+    if (this.ui.camPresetBtns) {
+      this.ui.camPresetBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === 'front_three_quarter');
+      });
+    }
+
+    if (this.ui.garageDoorsBtn) {
+      this.ui.garageDoorsBtn.classList.toggle('active', Boolean(this.player.doorsOpen));
+    }
+    if (this.ui.garageBonnetBtn) {
+      this.ui.garageBonnetBtn.classList.toggle('active', Boolean(this.player.bonnetOpen));
+    }
 
     this.garageIndex = this.garageVehicleList.indexOf(progression.data.selectedVehicle);
     if (this.garageIndex < 0) this.garageIndex = 0;
@@ -1651,6 +1868,11 @@ class RoadRiotGame {
         }
       });
     });
+
+    // Render Dynamometer Telemetry & Curve (Day 13)
+    if (this.ui.garageDynoCanvas) {
+      this.renderDynoCurve(this.ui.garageDynoCanvas, carId);
+    }
   }
 
   renderAchievementsList() {
@@ -1748,8 +1970,21 @@ class RoadRiotGame {
       if (this.turntableMesh) {
         this.turntableMesh.rotation.y = this.turntableAngle;
       }
-      this.camera.position.set(-1.4, 1.8, -3.2);
-      this.camera.lookAt(-1.4, 0.75, -8);
+
+      // Day 13: Smooth camera preset interpolation & articulation animation
+      const carPos = this.player && this.player.mesh ? this.player.mesh.position : new THREE.Vector3(-1.4, 0.19, -8);
+      const preset = SHOWROOM_CAMERA_PRESETS[this.activeCameraPreset] || SHOWROOM_CAMERA_PRESETS.front_three_quarter;
+      this.cameraTargetPos.copy(carPos).add(preset.pos);
+      this.cameraTargetLook.copy(carPos).add(preset.look);
+
+      const lerpSpeed = Math.min(1.0, dt * 5.5);
+      this.camera.position.lerp(this.cameraTargetPos, lerpSpeed);
+      this.cameraCurrentLook.lerp(this.cameraTargetLook, lerpSpeed);
+      this.camera.lookAt(this.cameraCurrentLook);
+
+      if (this.player && this.player.updateDoorsAndBonnet) {
+        this.player.updateDoorsAndBonnet(dt);
+      }
       return;
     }
 
@@ -3244,7 +3479,32 @@ class RoadRiotGame {
   getBiomeTelemetry() {
     return this.world && this.world.getBiomeTelemetry ? this.world.getBiomeTelemetry() : null;
   }
+
+  getShowroomTelemetry() {
+    const carId = this.garageVehicleList ? this.garageVehicleList[this.garageIndex] : 'apex';
+    const dyno = calculateDynoCurveData(carId, (progression.data.upgrades[carId] || {}).topSpeed || 0);
+    return {
+      state: this.state,
+      turntableAngle: parseFloat(this.turntableAngle.toFixed(3)),
+      activeCameraPreset: this.activeCameraPreset,
+      cameraPosition: {
+        x: parseFloat(this.camera.position.x.toFixed(2)),
+        y: parseFloat(this.camera.position.y.toFixed(2)),
+        z: parseFloat(this.camera.position.z.toFixed(2))
+      },
+      doorsOpen: Boolean(this.player ? this.player.doorsOpen : false),
+      doorAngle: parseFloat((this.player && this.player.doorAngle ? this.player.doorAngle : 0).toFixed(2)),
+      bonnetOpen: Boolean(this.player ? this.player.bonnetOpen : false),
+      bonnetAngle: parseFloat((this.player && this.player.bonnetAngle ? this.player.bonnetAngle : 0).toFixed(2)),
+      carId,
+      peakHp: dyno.peakHp,
+      peakTorque: dyno.peakTorque,
+      samplesCount: dyno.samples ? dyno.samples.length : 0
+    };
+  }
 }
+
+export { RoadRiotGame };
 
 // Boot application
 function bootGame() {

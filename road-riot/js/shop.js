@@ -9,20 +9,21 @@ class Shop {
     this.closeBtn = null;
     this.carsData = [];
 
-    // Initialize or load credits (give generous starter credits if empty so user can buy right away)
-    const storedCredits = localStorage.getItem('credits');
+    // Safe storage access for browser and test environments
+    const hasStorage = typeof localStorage !== 'undefined';
+    const storedCredits = hasStorage ? localStorage.getItem('credits') : null;
     if (storedCredits === null) {
       this.credits = 4500;
-      localStorage.setItem('credits', this.credits.toString());
+      if (hasStorage) localStorage.setItem('credits', this.credits.toString());
     } else {
       this.credits = parseInt(storedCredits, 10) || 0;
     }
 
     // Initialize owned cars list
-    const storedOwned = localStorage.getItem('ownedCars');
+    const storedOwned = hasStorage ? localStorage.getItem('ownedCars') : null;
     if (storedOwned === null) {
       this.ownedCars = ['car001']; // Starter car unlocked
-      localStorage.setItem('ownedCars', JSON.stringify(this.ownedCars));
+      if (hasStorage) localStorage.setItem('ownedCars', JSON.stringify(this.ownedCars));
     } else {
       try {
         this.ownedCars = JSON.parse(storedOwned);
@@ -172,8 +173,10 @@ class Shop {
     if (this.credits >= car.price) {
       this.credits -= car.price;
       this.ownedCars.push(car.id);
-      localStorage.setItem('credits', this.credits.toString());
-      localStorage.setItem('ownedCars', JSON.stringify(this.ownedCars));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('credits', this.credits.toString());
+        localStorage.setItem('ownedCars', JSON.stringify(this.ownedCars));
+      }
 
       this.updateCreditsDisplay();
       this.renderCars();

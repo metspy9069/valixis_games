@@ -9,7 +9,10 @@ import {
   calculateWheelBlurFactor,
   getCarbonFiberTexture,
   getWheelBlurTexture,
-  applyMetallicFlakeShader
+  applyMetallicFlakeShader,
+  calculateDynoCurveData,
+  SHOWROOM_CAMERA_PRESETS,
+  buildShowroomTurntableMesh
 } from '../js/player.js';
 import {
   computeVirtualJoystickOutput,
@@ -2053,4 +2056,153 @@ test('Retro-reflective highway cat\'s eyes dynamically illuminate with distance-
     assert.ok(targetRef.lensMesh.material.emissiveIntensity > 0.5, 'Cat\'s eyes lens emissive retro-reflection intensifies in headlight beam');
     assert.ok(world.activeCatEyesCount > 0, 'Active cat\'s eyes counter detects retro-reflective glints');
   }
+});
+
+// ============================================================================
+// DAY 13 UNIT TESTS: 3D SUPERCAR SHOWROOM & INTERACTIVE GARAGE 2.0
+// ============================================================================
+
+test('High-gloss epoxy showroom floor and turntable studio lighting initialization', () => {
+  const turntable = buildShowroomTurntableMesh(false);
+  assert.ok(turntable, 'Turntable mesh hierarchy created');
+
+  // 1. High-gloss epoxy showroom floor
+  const floor = turntable.getObjectByName('EpoxyShowroomFloor');
+  assert.ok(floor, 'High-gloss epoxy floor plane exists');
+  assert.equal(floor.material.type, 'MeshPhysicalMaterial', 'Epoxy floor uses MeshPhysicalMaterial with clearcoat reflections');
+  assert.ok(floor.material.clearcoat >= 0.9, 'Epoxy floor clearcoat >= 0.9');
+  assert.ok(floor.material.roughness <= 0.12, 'Epoxy floor roughness <= 0.12 for mirror reflections');
+
+  // 2. Dual concentric LED perimeter ground rings
+  const outerLed = turntable.getObjectByName('OuterLedStrip');
+  const innerLed = turntable.getObjectByName('InnerLedStrip');
+  assert.ok(outerLed, 'Outer cyan neon perimeter LED ring exists');
+  assert.ok(innerLed, 'Inner aqua ground accent LED strip exists');
+
+  // 3. Center platter
+  const platter = turntable.getObjectByName('TurntablePlate');
+  assert.ok(platter, 'Center brushed metallic platter exists');
+
+  // 4. Cinematic Multi-Point Studio Lighting Rig
+  const keyLight = turntable.getObjectByName('StudioSpotKey');
+  const fillLight = turntable.getObjectByName('StudioSpotFill');
+  const rimLight = turntable.getObjectByName('StudioSpotRim');
+  const overheadLight = turntable.getObjectByName('StudioOverheadLight');
+  const floorBounce = turntable.getObjectByName('StudioFloorBounceLight');
+
+  assert.ok(keyLight && keyLight.isSpotLight, 'Studio key spotlight installed');
+  assert.ok(fillLight && fillLight.isSpotLight, 'Studio fill spotlight installed');
+  assert.ok(rimLight && rimLight.isSpotLight, 'Specular clearcoat rim spotlight installed');
+  assert.ok(overheadLight && overheadLight.isPointLight, 'Studio overhead point luminaire installed');
+  assert.ok(floorBounce && floorBounce.isPointLight, 'Studio ground bounce uplight installed');
+  assert.ok(keyLight.intensity >= 5.0, 'Key spotlight has high intensity for showroom clarity');
+});
+
+test('Camera angle presets define distinct coordinates and interpolate smoothly', () => {
+  const presets = SHOWROOM_CAMERA_PRESETS;
+  const presetKeys = Object.keys(presets);
+  assert.deepEqual(presetKeys, ['front_three_quarter', 'side_profile', 'cockpit_interior', 'rear_wing']);
+
+  // Check preset coordinates are distinct
+  const coords = presetKeys.map(k => presets[k].pos);
+  for (let i = 0; i < coords.length; i++) {
+    for (let j = i + 1; j < coords.length; j++) {
+      const dist = coords[i].distanceTo(coords[j]);
+      assert.ok(dist > 1.0, `Camera presets ${presetKeys[i]} and ${presetKeys[j]} must have distinct viewing positions (dist: ${dist.toFixed(2)})`);
+    }
+  }
+
+  // Verify driver cockpit close-up is located within vehicle interior boundaries
+  const cockpit = presets.cockpit_interior.pos;
+  assert.ok(Math.abs(cockpit.x) < 0.8, 'Cockpit camera X inside cockpit');
+  assert.ok(cockpit.y > 0.9 && cockpit.y < 1.4, 'Cockpit camera Y at driver eye-level');
+  assert.ok(Math.abs(cockpit.z) < 1.0, 'Cockpit camera Z positioned in cabin');
+
+  // Simulate smooth camera interpolation
+  const currentPos = new THREE.Vector3().copy(presets.front_three_quarter.pos);
+  const targetPos = new THREE.Vector3().copy(presets.side_profile.pos);
+  const initialDist = currentPos.distanceTo(targetPos);
+
+  // Step lerp by dt = 0.016
+  for (let step = 0; step < 20; step++) {
+    currentPos.lerp(targetPos, Math.min(1.0, 0.016 * 5.5));
+  }
+  const remainingDist = currentPos.distanceTo(targetPos);
+  assert.ok(remainingDist < initialDist * 0.4, 'Camera smoothly interpolates towards target preset position');
+});
+
+test('Interactive scissor doors and rear engine bonnet articulation animations', () => {
+  const scene = new THREE.Scene();
+  const player = new PlayerCar(scene);
+
+  // Verify sub-components were instantiated
+  assert.ok(player.leftDoorGroup, 'Left scissor door group created');
+  assert.ok(player.rightDoorGroup, 'Right scissor door group created');
+  assert.ok(player.engineBayGroup, 'Detailed mid-engine bay created');
+  assert.ok(player.engineCoverGroup, 'Rear engine cover/bonnet created');
+
+  // Test closed state initially
+  assert.equal(player.doorsOpen, false, 'Doors closed initially');
+  assert.equal(player.bonnetOpen, false, 'Bonnet closed initially');
+  assert.equal(player.doorAngle, 0, 'Door angle 0 initially');
+  assert.equal(player.bonnetAngle, 0, 'Bonnet angle 0 initially');
+
+  // Toggle doors open
+  player.toggleDoors();
+  assert.equal(player.doorsOpen, true, 'Doors marked open');
+  assert.equal(player.targetDoorAngle, 1.0, 'Target door angle set to 1.0');
+
+  // Step animation
+  for (let i = 0; i < 30; i++) {
+    player.updateDoorsAndBonnet(0.016);
+  }
+  assert.ok(player.doorAngle > 0.9, 'Door angle smoothly animates towards 1.0');
+  assert.ok(player.leftDoorGroup.rotation.z < -0.8, 'Left door rotates upwards in scissor kinematics');
+  assert.ok(player.rightDoorGroup.rotation.z > 0.8, 'Right door rotates upwards symmetrically');
+
+  // Toggle bonnet open
+  player.toggleBonnet();
+  assert.equal(player.bonnetOpen, true, 'Bonnet marked open');
+  assert.equal(player.targetBonnetAngle, 1.0, 'Target bonnet angle set to 1.0');
+
+  for (let i = 0; i < 30; i++) {
+    player.updateDoorsAndBonnet(0.016);
+  }
+  assert.ok(player.bonnetAngle > 0.9, 'Bonnet angle smoothly animates towards 1.0');
+  assert.ok(player.engineCoverGroup.rotation.x > 0.65, 'Engine cover tilts upwards exposing mid-engine bay');
+
+  // Toggle both closed
+  player.toggleDoors(false);
+  player.toggleBonnet(false);
+  for (let i = 0; i < 40; i++) {
+    player.updateDoorsAndBonnet(0.016);
+  }
+  assert.ok(player.doorAngle < 0.05, 'Door angle smoothly returns to 0 on close');
+  assert.ok(player.bonnetAngle < 0.05, 'Bonnet angle smoothly returns to 0 on close');
+});
+
+test('Live dynamometer torque and horsepower curve generation with upgrade scaling', () => {
+  // Test Apex supercar baseline (Stage 0)
+  const dynoApex0 = calculateDynoCurveData('apex', 0);
+  assert.ok(dynoApex0.samples.length >= 25, 'Dyno generates high-resolution RPM samples');
+  assert.ok(dynoApex0.peakHp >= 600, 'Baseline Apex GT has >= 600 BHP');
+  assert.ok(dynoApex0.peakTorque >= 500, 'Baseline Apex GT has >= 500 Nm');
+  assert.ok(dynoApex0.peakTorqueRpm > 4000 && dynoApex0.peakTorqueRpm < 6000, 'Peak torque RPM located in mid-range');
+  assert.ok(dynoApex0.peakHpRpm > 6500, 'Peak horsepower RPM located in high RPM band');
+
+  // Test Apex supercar Stage 5 upgrade scaling
+  const dynoApex5 = calculateDynoCurveData('apex', 5);
+  assert.ok(dynoApex5.peakHp > dynoApex0.peakHp + 100, 'Stage 5 upgrades scale peak horsepower significantly (+100+ BHP)');
+  assert.ok(dynoApex5.peakTorque > dynoApex0.peakTorque + 50, 'Stage 5 upgrades scale peak torque (+50+ Nm)');
+
+  // Test Hyperion Cyber Hypercar
+  const dynoHyperion = calculateDynoCurveData('hyperion', 0);
+  assert.ok(dynoHyperion.peakHp > dynoApex0.peakHp, 'Top-tier Hyperion GTR generates higher power than entry GT');
+
+  // Test physical formula consistency: HP and Torque non-negative across all RPM samples
+  dynoApex5.samples.forEach(pt => {
+    assert.ok(pt.rpm >= 1000, 'Sample RPM >= 1000');
+    assert.ok(pt.torque > 0, 'Torque is positive across usable powerband');
+    assert.ok(pt.hp >= 0, 'Horsepower is non-negative');
+  });
 });

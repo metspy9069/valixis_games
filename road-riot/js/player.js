@@ -260,6 +260,151 @@ export const VEHICLE_ROSTER = {
   }
 };
 
+/**
+ * Day 13: 3D Showroom Camera Angle Presets
+ * Exact cinematic focal positions and lookAt targets framed relative to vehicle center.
+ */
+export const SHOWROOM_CAMERA_PRESETS = {
+  front_three_quarter: {
+    id: 'front_three_quarter',
+    name: 'Front 3/4 Studio View',
+    pos: new THREE.Vector3(2.4, 1.6, 4.8),
+    look: new THREE.Vector3(0, 0.65, 0)
+  },
+  side_profile: {
+    id: 'side_profile',
+    name: 'Low Side Profile',
+    pos: new THREE.Vector3(5.0, 0.85, 0.0),
+    look: new THREE.Vector3(0, 0.55, 0)
+  },
+  cockpit_interior: {
+    id: 'cockpit_interior',
+    name: 'Cockpit Interior View',
+    pos: new THREE.Vector3(-0.22, 1.15, -0.15),
+    look: new THREE.Vector3(-0.20, 0.88, -1.4)
+  },
+  rear_wing: {
+    id: 'rear_wing',
+    name: 'Rear Aero Wing & Diffuser',
+    pos: new THREE.Vector3(-2.8, 1.35, -4.2),
+    look: new THREE.Vector3(0, 0.70, 0.8)
+  }
+};
+
+/**
+ * Day 13: Showroom Floor 2.0 & Studio Turntable Platform
+ * High-gloss epoxy showroom floor plane with clearcoat PBR reflections,
+ * circular metallic turntable rim with dual concentric LED perimeter ground strips,
+ * and 5 cinematic studio multi-point spotlights.
+ */
+export function buildShowroomTurntableMesh(isMobileDevice = false) {
+  const group = new THREE.Group();
+  group.name = 'ShowroomFloor2_0';
+
+  // 1. High-Gloss Epoxy Showroom Floor (Mirror obsidian lacquer with PBR clearcoat reflections)
+  const floorGeo = new THREE.PlaneGeometry(60, 60);
+  floorGeo.rotateX(-Math.PI / 2);
+  const floorMat = new THREE.MeshPhysicalMaterial({
+    color: 0x06080d,
+    roughness: 0.08,
+    metalness: 0.85,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.04,
+    reflectivity: 0.95
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.y = 0.005;
+  floor.receiveShadow = true;
+  floor.name = 'EpoxyShowroomFloor';
+  group.add(floor);
+
+  // 2. Beveled Dark Brushed Titanium Turntable Base
+  const baseGeo = new THREE.CylinderGeometry(4.35, 4.65, 0.18, 64);
+  const baseMat = new THREE.MeshStandardMaterial({
+    color: 0x111622,
+    roughness: 0.35,
+    metalness: 0.92
+  });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = 0.09;
+  base.receiveShadow = true;
+  base.name = 'TurntableBase';
+  group.add(base);
+
+  // 3. Dual Concentric LED Perimeter Ground Strips
+  // Outer LED Ground Strip (Cyan Neon 0x00f0ff)
+  const outerRingGeo = new THREE.TorusGeometry(4.45, 0.05, 16, 64);
+  outerRingGeo.rotateX(Math.PI / 2);
+  const outerRingMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+  const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+  outerRing.position.y = 0.185;
+  outerRing.name = 'OuterLedStrip';
+  group.add(outerRing);
+
+  // Inner LED Ground Accent Strip (Bright Aqua / Ice Blue 0x00d9ff)
+  const innerRingGeo = new THREE.TorusGeometry(3.75, 0.035, 16, 64);
+  innerRingGeo.rotateX(Math.PI / 2);
+  const innerRingMat = new THREE.MeshBasicMaterial({ color: 0x00d9ff });
+  const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+  innerRing.position.y = 0.188;
+  innerRing.name = 'InnerLedStrip';
+  group.add(innerRing);
+
+  // 4. Center Circular Brushed Metal Turntable Platter
+  const plateGeo = new THREE.CylinderGeometry(4.15, 4.15, 0.04, 64);
+  const plateMat = new THREE.MeshStandardMaterial({
+    color: 0x151e2e,
+    roughness: 0.28,
+    metalness: 0.88
+  });
+  const plate = new THREE.Mesh(plateGeo, plateMat);
+  plate.position.y = 0.19;
+  plate.receiveShadow = true;
+  plate.name = 'TurntablePlate';
+  group.add(plate);
+
+  // 5. Cinematic Multi-Point Studio Lighting Rig
+  // Key Spotlight: High-intensity directional warm white
+  const spotKey = new THREE.SpotLight(0xffffff, 6.5, 26, Math.PI / 4, 0.28);
+  spotKey.position.set(-3.2, 7.5, -4.5);
+  spotKey.target = plate;
+  spotKey.castShadow = !isMobileDevice;
+  spotKey.shadow.bias = -0.0005;
+  spotKey.shadow.mapSize.width = 1024;
+  spotKey.shadow.mapSize.height = 1024;
+  spotKey.shadow.radius = 2.0;
+  spotKey.name = 'StudioSpotKey';
+  group.add(spotKey);
+
+  // Fill Spotlight: Cool electric cyan fill
+  const spotFill = new THREE.SpotLight(0x00d9ff, 4.5, 24, Math.PI / 3, 0.42);
+  spotFill.position.set(4.5, 5.8, -5.2);
+  spotFill.target = plate;
+  spotFill.name = 'StudioSpotFill';
+  group.add(spotFill);
+
+  // Specular Rim Spotlight: Accentuates PBR clearcoat curvature
+  const spotRim = new THREE.SpotLight(0xfff0dd, 5.8, 25, Math.PI / 4, 0.35);
+  spotRim.position.set(-2.5, 6.5, -12.5);
+  spotRim.target = plate;
+  spotRim.name = 'StudioSpotRim';
+  group.add(spotRim);
+
+  // Overhead Studio Luminaire
+  const spotOverhead = new THREE.PointLight(0xffffff, 2.8, 16);
+  spotOverhead.position.set(0, 8.0, 0);
+  spotOverhead.name = 'StudioOverheadLight';
+  group.add(spotOverhead);
+
+  // Ground Bounce Uplight
+  const floorBounce = new THREE.PointLight(0x0099ff, 1.8, 8);
+  floorBounce.position.set(0, 0.35, 0);
+  floorBounce.name = 'StudioFloorBounceLight';
+  group.add(floorBounce);
+
+  return group;
+}
+
 export class PlayerCar {
   constructor(scene, assetPrototypes = {}) {
     this.scene = scene;
@@ -366,6 +511,18 @@ export class PlayerCar {
     this.wheels = { fl: null, fr: null, rl: null, rr: null };
     this.wheelBlurMeshes = [];
     this.currentWheelBlurFactor = 0;
+
+    // Day 13: Interactive Articulation (Scissor Doors & Engine Bonnet)
+    this.doorsOpen = false;
+    this.targetDoorAngle = 0;
+    this.doorAngle = 0;
+    this.bonnetOpen = false;
+    this.targetBonnetAngle = 0;
+    this.bonnetAngle = 0;
+    this.leftDoorGroup = null;
+    this.rightDoorGroup = null;
+    this.engineCoverGroup = null;
+    this.engineBayGroup = null;
 
     // Downshift Overrun Backfire & Nitro Ignition VFX
     this.backfireTimer = 0;
@@ -922,6 +1079,7 @@ export class PlayerCar {
 
       // Add Brilliant Headlights & Taillights in world coordinates
       this.attachVehicleLamps(wrapper);
+      this.setupDoorAndBonnetArticulation(wrapper);
 
       this.carModel = wrapper;
       this.chassis.add(this.carModel);
@@ -1191,10 +1349,13 @@ export class PlayerCar {
       group.add(upright);
     });
 
-    // 6. Headlights & Taillights
+    // 6. Day 13: Articulated Scissor Doors, Engine Cover & Exposed Bay
+    this.setupDoorAndBonnetArticulation(group, bodyMat, carbonMat, glassMat);
+
+    // 7. Headlights & Taillights
     this.attachVehicleLamps(group);
 
-    // 7. 4 Independent High-Detail Wheels (Rubber Tire + Chrome Alloy Rim + Hub + Motion Blur Disc)
+    // 8. 4 Independent High-Detail Wheels (Rubber Tire + Chrome Alloy Rim + Hub + Motion Blur Disc)
     const createWheel = () => {
       const wheelGroup = new THREE.Group();
       // Outer Tire
@@ -1244,6 +1405,168 @@ export class PlayerCar {
     });
 
     return group;
+  }
+
+  setupDoorAndBonnetArticulation(group, customBodyMat = null, customCarbonMat = null, customGlassMat = null) {
+    // Purge previous articulation references if re-attaching
+    if (this.leftDoorGroup && this.leftDoorGroup.parent) this.leftDoorGroup.parent.remove(this.leftDoorGroup);
+    if (this.rightDoorGroup && this.rightDoorGroup.parent) this.rightDoorGroup.parent.remove(this.rightDoorGroup);
+    if (this.engineBayGroup && this.engineBayGroup.parent) this.engineBayGroup.parent.remove(this.engineBayGroup);
+    if (this.engineCoverGroup && this.engineCoverGroup.parent) this.engineCoverGroup.parent.remove(this.engineCoverGroup);
+
+    const bodyMat = customBodyMat || new THREE.MeshPhysicalMaterial({
+      color: this.paintColor,
+      metalness: 0.88,
+      roughness: 0.16,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.08
+    });
+    const carbonMat = customCarbonMat || new THREE.MeshPhysicalMaterial({
+      color: 0x1c1e24,
+      roughness: 0.32,
+      metalness: 0.5
+    });
+    const glassMat = customGlassMat || new THREE.MeshPhysicalMaterial({
+      color: 0x081828,
+      transparent: true,
+      opacity: 0.65,
+      roughness: 0.05
+    });
+
+    // 1. Left Scissor / Butterfly Door (Front fender hinge)
+    this.leftDoorGroup = new THREE.Group();
+    this.leftDoorGroup.name = 'LeftDoorGroup';
+    this.leftDoorGroup.position.set(-1.18, 0.52, -0.2);
+
+    const lDoorSkin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 1.45), bodyMat);
+    lDoorSkin.position.set(0, 0.1, 0);
+    this.leftDoorGroup.add(lDoorSkin);
+
+    const lDoorWindow = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 1.1), glassMat);
+    lDoorWindow.position.set(0, 0.44, 0);
+    this.leftDoorGroup.add(lDoorWindow);
+
+    const lDoorMirror = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.14), carbonMat);
+    lDoorMirror.position.set(-0.12, 0.32, -0.48);
+    this.leftDoorGroup.add(lDoorMirror);
+
+    group.add(this.leftDoorGroup);
+
+    // 2. Right Scissor / Butterfly Door (Front fender hinge)
+    this.rightDoorGroup = new THREE.Group();
+    this.rightDoorGroup.name = 'RightDoorGroup';
+    this.rightDoorGroup.position.set(1.18, 0.52, -0.2);
+
+    const rDoorSkin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 1.45), bodyMat);
+    rDoorSkin.position.set(0, 0.1, 0);
+    this.rightDoorGroup.add(rDoorSkin);
+
+    const rDoorWindow = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 1.1), glassMat);
+    rDoorWindow.position.set(0, 0.44, 0);
+    this.rightDoorGroup.add(rDoorWindow);
+
+    const rDoorMirror = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.14), carbonMat);
+    rDoorMirror.position.set(0.12, 0.32, -0.48);
+    this.rightDoorGroup.add(rDoorMirror);
+
+    group.add(this.rightDoorGroup);
+
+    // 3. Exposed Mid-Engine Bay (Visible when bonnet cover is open)
+    this.engineBayGroup = new THREE.Group();
+    this.engineBayGroup.name = 'EngineBayGroup';
+    this.engineBayGroup.position.set(0, 0.55, 0.95);
+
+    const engineBlock = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.3, 1.1),
+      new THREE.MeshStandardMaterial({ color: 0x1f242d, roughness: 0.6, metalness: 0.75 })
+    );
+    this.engineBayGroup.add(engineBlock);
+
+    [-0.32, 0.32].forEach(x => {
+      const camCover = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.12, 0.95),
+        new THREE.MeshStandardMaterial({ color: 0xd71920, roughness: 0.25, metalness: 0.55 })
+      );
+      camCover.position.set(x, 0.18, 0);
+      this.engineBayGroup.add(camCover);
+    });
+
+    [-0.38, 0.38].forEach(x => {
+      const turbo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.14, 0.05, 8, 16),
+        new THREE.MeshStandardMaterial({ color: 0xebf2f8, roughness: 0.1, metalness: 0.96 })
+      );
+      turbo.position.set(x, 0.15, 0.55);
+      turbo.rotation.y = Math.PI / 2;
+      this.engineBayGroup.add(turbo);
+    });
+
+    const intakePlenum = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.14, 0.85, 12),
+      carbonMat
+    );
+    intakePlenum.position.set(0, 0.24, -0.05);
+    intakePlenum.rotation.z = Math.PI / 2;
+    this.engineBayGroup.add(intakePlenum);
+
+    group.add(this.engineBayGroup);
+
+    // 4. Rear Engine Cover / Bonnet Hinge Assembly
+    this.engineCoverGroup = new THREE.Group();
+    this.engineCoverGroup.name = 'EngineCoverGroup';
+    this.engineCoverGroup.position.set(0, 0.72, 0.42);
+
+    const coverLid = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.08, 1.25), bodyMat);
+    coverLid.position.set(0, 0.02, 0.58);
+    this.engineCoverGroup.add(coverLid);
+
+    const coverWindow = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.05, 0.85), glassMat);
+    coverWindow.position.set(0, 0.06, 0.58);
+    this.engineCoverGroup.add(coverWindow);
+
+    const coverVent = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.06, 0.22), carbonMat);
+    coverVent.position.set(0, 0.05, 1.05);
+    this.engineCoverGroup.add(coverVent);
+
+    group.add(this.engineCoverGroup);
+  }
+
+  toggleDoors(forceState = null) {
+    this.doorsOpen = forceState !== null ? Boolean(forceState) : !this.doorsOpen;
+    this.targetDoorAngle = this.doorsOpen ? 1.0 : 0.0;
+    return this.doorsOpen;
+  }
+
+  toggleBonnet(forceState = null) {
+    this.bonnetOpen = forceState !== null ? Boolean(forceState) : !this.bonnetOpen;
+    this.targetBonnetAngle = this.bonnetOpen ? 1.0 : 0.0;
+    return this.bonnetOpen;
+  }
+
+  updateDoorsAndBonnet(dt = 0.016) {
+    const blend = Math.min(1.0, dt * 8.0);
+    this.doorAngle += (this.targetDoorAngle - this.doorAngle) * blend;
+    this.bonnetAngle += (this.targetBonnetAngle - this.bonnetAngle) * blend;
+
+    if (this.leftDoorGroup) {
+      // Scissor / Butterfly door kinematics: upward pitch + outward yaw & roll
+      this.leftDoorGroup.rotation.z = -this.doorAngle * 0.92;
+      this.leftDoorGroup.rotation.y = this.doorAngle * 0.35;
+      this.leftDoorGroup.rotation.x = -this.doorAngle * 0.22;
+    }
+    if (this.rightDoorGroup) {
+      this.rightDoorGroup.rotation.z = this.doorAngle * 0.92;
+      this.rightDoorGroup.rotation.y = -this.doorAngle * 0.35;
+      this.rightDoorGroup.rotation.x = -this.doorAngle * 0.22;
+    }
+    if (this.engineCoverGroup) {
+      // Rear mid-engine cover tilts backward and upwards revealing twin-turbo V8/V10/V12
+      this.engineCoverGroup.rotation.x = this.bonnetAngle * 0.78;
+    }
+  }
+
+  getDynoCurveData(upgradeStage = 0) {
+    return calculateDynoCurveData(this.currentVehicleId, upgradeStage);
   }
 
   calculatePacejkaGrip(slipAngle, isDrifting = false) {
@@ -1530,6 +1853,15 @@ export class PlayerCar {
   update(dt, onLandCallback = null) {
     this.prevX = this.x;
     this.prevZ = this.mesh.position.z;
+
+    // Day 13: High-speed closure of doors/bonnet if open, and continuous articulation update
+    if (this.speed > 5 && (this.doorsOpen || this.bonnetOpen)) {
+      this.doorsOpen = false;
+      this.targetDoorAngle = 0;
+      this.bonnetOpen = false;
+      this.targetBonnetAngle = 0;
+    }
+    this.updateDoorsAndBonnet(dt);
 
     // 1. Acceleration & Nitro Dynamics (Calibrated: 80-120 Stock, 150-160 Boost)
     // Ceramic brake rotor thermal simulation & fade
@@ -1981,4 +2313,71 @@ export class PlayerCar {
       illuminatedNpcCount: this.illuminatedNpcCount || 0
     };
   }
+}
+
+/**
+ * Day 13: Live Dynamometer Power Curve Calculator
+ * Computes realistic internal combustion / electric torque & horsepower curves
+ * dynamically scaled by vehicle tier base stats and performance upgrade levels.
+ */
+export function calculateDynoCurveData(vehicleId = 'apex', upgradeLevel = 0) {
+  const car = VEHICLE_ROSTER[vehicleId] || VEHICLE_ROSTER.apex;
+  const speedBonus = (upgradeLevel || 0) * 15;
+  const accelBonus = (upgradeLevel || 0) * 0.4;
+
+  const isEv = car.engineProfile === 'electric';
+  const isV12 = car.engineProfile === 'v12';
+  const isV10 = car.engineProfile === 'v10';
+  const isTurbo4 = car.engineProfile === 'turbo_i4';
+
+  const maxRpm = isEv ? 16000 : (isV12 ? 9200 : (isV10 ? 8800 : 8200));
+  const idleRpm = isEv ? 0 : 1200;
+  const peakTorqueRpm = isEv ? 2500 : (isV12 ? 6200 : (isTurbo4 ? 3800 : 4900));
+  const peakHpRpm = isEv ? 9500 : (isV12 ? 8500 : (isV10 ? 8100 : 7200));
+
+  const speedKmh = car.baseStats.topSpeed < 100 ? car.baseStats.topSpeed * 10 : car.baseStats.topSpeed;
+  const accelScale = car.baseStats.accel < 15 ? car.baseStats.accel : (car.baseStats.accel / 4.0);
+  const baseHp = 620 + (speedKmh - 260) * 2.8 + speedBonus * 2.5 + accelBonus * 25;
+  const baseTorque = 540 + (accelScale - 8.0) * 45 + speedBonus * 2.2;
+
+  const peakHp = Math.round(baseHp);
+  const peakTorque = Math.round(baseTorque);
+
+  const rawPoints = [];
+  const step = isEv ? 500 : 200;
+  let maxRawHp = 0.001;
+
+  for (let rpm = idleRpm; rpm <= maxRpm; rpm += step) {
+    let torqueNorm;
+    if (isEv) {
+      torqueNorm = rpm <= peakTorqueRpm ? 1.0 : Math.max(0.25, Math.pow(peakTorqueRpm / Math.max(1, rpm), 0.75));
+    } else {
+      const rpmDist = (rpm - peakTorqueRpm) / 3800;
+      torqueNorm = Math.max(0.20, 1.0 - 0.72 * Math.pow(rpmDist, 2));
+    }
+    const torque = Math.round(peakTorque * torqueNorm);
+    const rawHp = (torque * rpm) / 7120.8;
+    if (rawHp > maxRawHp) maxRawHp = rawHp;
+    rawPoints.push({ rpm, torque, rawHp });
+  }
+
+  const samples = rawPoints.map(p => ({
+    rpm: p.rpm,
+    torque: p.torque,
+    hp: Math.round((p.rawHp / maxRawHp) * peakHp)
+  }));
+
+  return {
+    vehicleId,
+    name: car.name,
+    tier: car.tier,
+    engineProfile: car.engineProfile,
+    maxRpm,
+    idleRpm,
+    peakTorqueRpm,
+    peakHpRpm,
+    peakTorque,
+    peakHp,
+    samples
+  };
 }

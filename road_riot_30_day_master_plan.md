@@ -162,14 +162,24 @@ flowchart TD
   - Implemented 240 retro-reflective highway cat's eyes embedded along dashed lane dividers ($X = \pm 3.0\text{m}$) and outer verges ($X = \pm 8.8\text{m}$) with dynamic distance-based headlight glint illumination.
 * **Verification:** Automated unit tests (78/78 passing in road-riot, 219/219 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day12_biomes.py`) capturing `day12_canyon_archway_dustdevils.png`, `day12_arctic_black_ice_drift.png`, and `day12_highway_cats_eyes_night.png` with 0 page errors and stable 60 FPS performance.
 
-### Day 13: 3D Supercar Showroom & Interactive Garage 2.0
-* **Focus Area:** Garage UI and 3D turntable in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js) and [road-riot/css/shop.css](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/css/shop.css).
+### Day 13: 3D Supercar Showroom & Interactive Garage 2.0 [x] COMPLETED
+* **Focus Area:** Garage UI and 3D turntable in [road-riot/js/game.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/game.js), [road-riot/js/player.js](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/js/player.js), and [road-riot/css/shop.css](file:///c:/Users/nagas/Documents/Games/VALIXIS_GAMES/road-riot/css/shop.css).
 * **Features & Fixes:**
-  - Rebuild showroom floor with high-gloss epoxy coating, LED perimeter ground strip, and cinematic studio spotlights.
-  - Add interactive camera angle presets: Front 3/4, Low Side Profile, Cockpit Interior, and Rear Aerodynamic Wing view.
-  - Add interactive door and engine cover toggle buttons triggering smooth rotation animations.
-  - Display live dynamometer power curves: Horsepower vs RPM and Torque vs RPM graphs for each supercar.
-* **Verification:** Verify turntable rotation responsiveness and camera preset transitions.
+  - Rebuilt showroom floor with high-gloss epoxy coating (`MeshPhysicalMaterial`, `clearcoat: 1.0`, `roughness: 0.08`), circular brushed titanium turntable rim, dual concentric LED perimeter ground strips (`OuterLedStrip` cyan neon `0x00f0ff`, `InnerLedStrip` aqua `0x00d9ff`), and 5 cinematic studio multi-point spotlights (key, fill, specular rim, overhead luminaire, and ground bounce uplight).
+  - Implemented 4 interactive camera angle presets with smooth exponential lerp interpolation:
+    * `front_three_quarter`: Front 3/4 Studio View ($X = 1.0, Y = 1.79, Z = -3.2$)
+    * `side_profile`: Low Side Profile silhouette ($X = 3.6, Y = 1.04, Z = -8.0$)
+    * `cockpit_interior`: Cockpit Interior driver POV ($X = -1.62, Y = 1.34, Z = -8.15$)
+    * `rear_wing`: Rear Aerodynamic Wing, Carbon Diffuser & Quad Exhaust View ($X = -4.2, Y = 1.54, Z = -12.2$)
+  - Implemented interactive scissor / butterfly doors and rear engine bonnet cover articulation animations:
+    * `toggleDoors()` triggers smooth upward scissor pitch ($\theta_z = -0.92$) and outward butterfly flare ($\theta_y = 0.35$).
+    * `toggleBonnet()` tilts rear deck lid upwards ($\theta_x = 0.78$), exposing detailed mid-engine bay with twin-turbochargers, vermilion cam covers, and carbon intake plenum.
+    * High-speed race launch auto-closes open doors/bonnet smoothly.
+  - Implemented live dynamometer telemetry and power curves on high-res Canvas:
+    * Calculates realistic torque $\tau(\text{rpm})$ and horsepower $\text{HP}(\text{rpm})$ curves scaled dynamically by vehicle tier base stats and active performance upgrade stages (0 to 5).
+    * Dual glowing gradient plots (Cyan for Torque in Nm, Flame Red for Horsepower in BHP) with peak stat indicators.
+    * Real-time revving needle sweep line and live RPM badge display during dyno benchmark runs.
+* **Verification:** Automated unit tests (82/82 passing in road-riot, 239/239 passing across full monorepo) and live WebGL CDP verification (`scripts/verify_day13_showroom.py`) capturing `day13_showroom_turntable_pbr.png`, `day13_camera_presets_cockpit.png`, and `day13_doors_open_dyno_curve.png` with 0 page errors and 100% test pass rate.
 
 ### Day 14: Asset Optimization, Draco Geometry & KTX2 Texture Streaming
 * **Focus Area:** Asset loading pipeline and bundle optimization in `road-riot/assets/`.

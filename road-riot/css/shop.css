@@ -278,3 +278,136 @@ body {
   from { opacity: 0; transform: translate(-50%, 20px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* ========================================================= */
+/* Day 13: 3D Supercar Showroom 2.0 & Interactive Garage CSS */
+/* ========================================================= */
+
+.garage-viewport-controls {
+  position: absolute;
+  top: 86px;
+  left: 24px;
+  z-index: 90;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 290px;
+}
+
+.showroom-control-panel {
+  background: rgba(8, 16, 28, 0.88);
+  border: 1px solid rgba(0, 217, 255, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.panel-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #7ddcff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.cam-presets-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.cam-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #cbd5e1;
+  font-family: var(--font-hud, sans-serif);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cam-preset-btn:hover {
+  background: rgba(0, 217, 255, 0.18);
+  border-color: #00d9ff;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.cam-preset-btn.active {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.35), rgba(0, 255, 136, 0.25));
+  border-color: #00ff88;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+
+.hotkey-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 8px;
+  font-weight: 900;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  padding: 1px 4px;
+  color: #ffb800;
+}
+
+.articulation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.garage-articulate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 8px 9px;
+  background: rgba(255, 184, 0, 0.1);
+  border: 1px solid rgba(255, 184, 0, 0.35);
+  border-radius: 6px;
+  color: #ffb800;
+  font-family: var(--font-hud, sans-serif);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.garage-articulate-btn:hover {
+  background: rgba(255, 184, 0, 0.22);
+  border-color: #ffcc00;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.garage-articulate-btn.active {
+  background: linear-gradient(135deg, #ff8800, #ff2a44);
+  border-color: #ffaa00;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(255, 136, 0, 0.5);
+}
+
+.dyno-chart-card {
+  background: rgba(6, 12, 22, 0.92);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.dyno-canvas {
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.85);
+}

@@ -67,6 +67,13 @@ import {
   evaluateChainReaction,
   HAZARD_CONFIG,
 } from './hazards.js';
+import {
+  compute3DPounceTrajectory,
+  samplePounceArcPoints,
+  isTargetInFlashlightBeam,
+  stepLurkerAI,
+  LURKER_CONFIG,
+} from './lurker.js';
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('scene');
@@ -2899,10 +2906,17 @@ function damagePlayer(amount, from) {
 }
 
 function makeContext(forZombiePos = null) {
+  const camDir = new THREE.Vector3();
+  if (camera) camera.getWorldDirection(camDir);
   return {
     audio,
     scene,
     playerPos: player.pos,
+    playerVel: player.vel,
+    flashlightActive: !!(flashlight && flashlight.visible),
+    camPos: camera ? camera.position : player.pos,
+    camDir: camDir,
+    damagePlayer: (dmg, from) => damagePlayer(dmg, from),
     colliders: world.colliders,
     zombies,
     nav,
@@ -4405,5 +4419,11 @@ window.__calculateBloaterBurstDamage = calculateBloaterBurstDamage;
 window.__stepAcidProjectileCCD = stepAcidProjectileCCD;
 window.__bloaterBurst = bloaterBurst;
 window.__triggerBarrelChainReaction = triggerBarrelChainReaction;
+window.__stepLurkerAI = stepLurkerAI;
+window.__compute3DPounceTrajectory = compute3DPounceTrajectory;
+window.__samplePounceArcPoints = samplePounceArcPoints;
+window.__isTargetInFlashlightBeam = isTargetInFlashlightBeam;
+window.__LURKER_CONFIG = LURKER_CONFIG;
+window.__flashlight = flashlight;
 
 requestAnimationFrame(frame);

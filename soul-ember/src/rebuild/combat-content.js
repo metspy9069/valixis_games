@@ -23,6 +23,8 @@ export const ENEMY_ATTACKS={
  brood:[attack('brood-eggs',10,1.0,3.8,3.2),attack('brood-web',6,.7,2.6,2.5)],
  hex:[attack('hex-beams',10,1.0,3.1,3.2),attack('hex-mark',12,.78,2.4,3.5)],
  sentinel:[attack('sentinel-counter',3,.6,2.0),attack('sentinel-sweep',4.6,.85,3.0)],
+ shifter:[attack('shifter-lunge',5.5,.55,2.2),attack('shifter-burst',3.6,.8,3.0)],
+ weaver:[attack('weaver-web',8,.75,3.2,3.5),attack('weaver-spore',11,.65,2.4,4.0)],
 };
 
 export const BOSS_ATTACKS={
@@ -76,6 +78,10 @@ export const TELEGRAPHS={
  'hex-mark':{shape:'ring',radius:2.1,anchor:'target'},
  'sentinel-counter':{shape:'cone',radius:2.5,anchor:'self',spread:Math.PI/4},
  'sentinel-sweep':{shape:'cone',radius:4.7,anchor:'self',spread:Math.PI/3},
+ 'shifter-lunge':{shape:'charge',radius:5.5,anchor:'self',width:.85},
+ 'shifter-burst':{shape:'ring',radius:3.6,anchor:'self'},
+ 'weaver-web':{shape:'cone',radius:8,anchor:'self',spread:Math.PI/3},
+ 'weaver-spore':{shape:'ring',radius:2.6,anchor:'target'},
  'abbot-rings':{shape:'ring',radius:5.5,anchor:'self'},
  'abbot-censers':{shape:'ring',radius:3.8,anchor:'target'},
  'abbot-flame-wall':{shape:'cone',radius:5.1,anchor:'target',spread:Math.PI/3},

@@ -127,7 +127,7 @@ export class Zombie {
     }
 
     this.hp -= effAmount;
-    this.flinch = 1;
+    this.flinch = Math.max(this.flinch || 0, 1);
     this.hitTimer = 0.12;
     if (this.state === 'idle') this.state = 'chase';
     if (ctx && ctx.audio) ctx.audio.hit(part === 'head');
@@ -233,10 +233,19 @@ export class Zombie {
     if (this.state === 'idle' && dist < 38) this.state = 'chase';
 
     // Occasional growl, more often when close.
+    // Lurkers emit silent skittering / claw clicks instead of heavy brute growls
     this.growlTimer -= dt;
     if (this.growlTimer <= 0) {
       this.growlTimer = 2.5 + this.rng() * 5;
-      if (dist < 30 && audio) audio.growl(dist, ctx.panOf ? ctx.panOf(pos) : 0);
+      if (dist < 30 && audio) {
+        if (this.type === 'lurker') {
+          if (typeof audio.lurkerSkitter === 'function') {
+            audio.lurkerSkitter(dist, ctx.panOf ? ctx.panOf(pos) : 0);
+          }
+        } else {
+          audio.growl(dist, ctx.panOf ? ctx.panOf(pos) : 0);
+        }
+      }
     }
 
     // A body that is standing still still twitches.
@@ -246,6 +255,17 @@ export class Zombie {
       this.twitch = 0.32;
     }
     this.twitch = Math.max(0, this.twitch - dt);
+
+    // Lurker Predatory AI & Ambush Ballistic Pounces (Day 11)
+    if (this.type === 'lurker') {
+      const lurkerAction = stepLurkerAI(this, dt, ctx);
+      if (lurkerAction && lurkerAction.handled) {
+        if (dist > 0.2) this.faceTowards(playerPos, dt, 8);
+        this.updateLod(dist, dt);
+        this.animate(dt, (this.state === 'pounce_leap' ? 8 : (this.state === 'pounce_recover' ? 0 : 2)), dist);
+        return;
+      }
+    }
 
     const move = new THREE.Vector3();
     let targetSpeed = 0;
@@ -269,10 +289,14 @@ export class Zombie {
       } else {
         move.copy(toPlayer).normalize();
         targetSpeed = this.speed;
-        // Lurkers are the fast low shape: at night they do not just close, they
-        // sprint until they are in reach, which is what makes darkness feel new.
-        if (this.type === 'lurker' && ctx.blackout && dist > this.def.reach) {
-          targetSpeed = this.def.speed * (this.def.nightSpeed / this.def.speed);
+        // Lurkers are the fast low shape: at night or in shadows they sprint at 6.5 m/s.
+        // Direct flashlight beam disorients and slows them.
+        if (this.type === 'lurker') {
+          if (this.blindedTimer > 0) {
+            targetSpeed = this.speed * LURKER_CONFIG.blindedSpeedMul;
+          } else if (ctx.blackout && dist > this.def.reach) {
+            targetSpeed = LURKER_CONFIG.shadowSpeed;
+          }
         }
         // Keep a body's width of space: they claw at you, they do not stand
         // inside the camera.
@@ -609,18 +633,40 @@ export class Zombie {
       attackOverlay = Math.min(1, this.windup / 0.42);
     } else if (this.state === 'spit') {
       attackOverlay = Math.min(1, this.windup / 0.62) * 0.5;
+    } else if (this.state === 'pounce_windup') {
+      attackOverlay = Math.min(1, this.windup / 0.38) * 0.8;
+    } else if (this.state === 'pounce_leap') {
+      attackOverlay = 1.0;
     }
     const attackCurve = attackOverlay * attackOverlay;
 
     if (r.armL && r.armR) {
       if (isLurker) {
-        // Lurker arms reach low to the ground for predatory scuttle
-        r.armL.shoulder.rotation.x = 0.55 + armSwing - attackCurve * 1.6;
-        r.armR.shoulder.rotation.x = 0.55 - armSwing - attackCurve * 1.6;
-        r.armL.shoulder.rotation.z = 0.32;
-        r.armR.shoulder.rotation.z = -0.32;
-        r.armL.elbow.rotation.x = -0.65 + attackCurve * 0.4;
-        r.armR.elbow.rotation.x = -0.65 + attackCurve * 0.4;
+        if (this.state === 'pounce_leap') {
+          // Mid-air ballistic reach with claws extended forward
+          r.armL.shoulder.rotation.x = -1.35;
+          r.armR.shoulder.rotation.x = -1.35;
+          r.armL.shoulder.rotation.z = 0.28;
+          r.armR.shoulder.rotation.z = -0.28;
+          r.armL.elbow.rotation.x = -0.25;
+          r.armR.elbow.rotation.x = -0.25;
+        } else if (this.state === 'pounce_windup') {
+          // Coiled predator ready to spring
+          r.armL.shoulder.rotation.x = 0.85;
+          r.armR.shoulder.rotation.x = 0.85;
+          r.armL.shoulder.rotation.z = 0.45;
+          r.armR.shoulder.rotation.z = -0.45;
+          r.armL.elbow.rotation.x = -1.1;
+          r.armR.elbow.rotation.x = -1.1;
+        } else {
+          // Lurker arms reach low to the ground for predatory scuttle
+          r.armL.shoulder.rotation.x = 0.55 + armSwing - attackCurve * 1.6;
+          r.armR.shoulder.rotation.x = 0.55 - armSwing - attackCurve * 1.6;
+          r.armL.shoulder.rotation.z = 0.32;
+          r.armR.shoulder.rotation.z = -0.32;
+          r.armL.elbow.rotation.x = -0.65 + attackCurve * 0.4;
+          r.armR.elbow.rotation.x = -0.65 + attackCurve * 0.4;
+        }
       } else if (isBloater) {
         // Bloater arms held wide around massive belly
         r.armL.shoulder.rotation.x = armOut + armSwing - attackCurve * 1.2;

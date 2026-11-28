@@ -1895,6 +1895,9 @@ class RoadRiotGame {
 
     // 5. World Scrolling & Jump Ramps / Speed Panels Detection
     this.world.update(dt, currentSpeed, this.distance, {
+      playerX: this.player ? this.player.x : 0,
+      playerZ: this.player && this.player.mesh ? this.player.mesh.position.z : -8,
+      speedKmh: kmh,
       onChallengeDefeated: () => {
         this.toast('RIVAL CHALLENGE OVERTAKEN! +1,000 CREDITS', 'gold');
         audio.play('fever');
@@ -3106,6 +3109,15 @@ class RoadRiotGame {
 
   getMaterialTelemetry() {
     return this.player ? this.player.getMaterialTelemetry() : null;
+  }
+
+  getWeatherTelemetry() {
+    const worldTelemetry = this.world ? this.world.getWeatherTelemetry() : null;
+    const playerVfx = this.player ? this.player.getVfxTelemetry() : null;
+    return {
+      world: worldTelemetry,
+      playerVfx: playerVfx
+    };
   }
 }
 

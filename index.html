@@ -148,7 +148,7 @@
     }
 
     /* ==========================================================================
-       BIG 3D VALIXIS V EMBLEM & REVOLVING GYRO RINGS PRELOADER
+       TRUE ASSET & WEBGL BOOT PRELOADER
        ========================================================================== */
     .portal-loader {
       position: fixed;
@@ -190,53 +190,104 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      max-width: 500px;
+      max-width: 480px;
       width: 90%;
       text-align: center;
     }
 
-    /* 3D Big V Stage with Multi-Axis Gyro Rings */
-    .loader-v-stage {
+    /* Concentric Rings with Official Brand Mark */
+    .cyber-rings-container {
       position: relative;
-      width: 340px;
-      height: 290px;
-      margin-bottom: 24px;
+      width: 220px;
+      height: 220px;
+      margin-bottom: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    #loader-3d-v-canvas {
+    .cyber-ring {
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100%;
       height: 100%;
-      z-index: 2;
       pointer-events: none;
     }
 
-    /* High-Res Transparent V Emblem Fallback */
-    .loader-v-fallback {
+    .ring-outer {
+      animation: ringSpinClockwise 14s linear infinite;
+    }
+
+    .ring-inner {
+      width: 74%;
+      height: 74%;
+      top: 13%;
+      left: 13%;
+      animation: ringSpinCounter 9s linear infinite;
+    }
+
+    .ring-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.06);
+      stroke-width: 1.5;
+    }
+
+    .ring-dash {
+      fill: none;
+      stroke: url(#cyan-blue-grad);
+      stroke-width: 2.5;
+      stroke-dasharray: 80 40 20 50;
+      filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));
+    }
+
+    .ring-dash-inner {
+      fill: none;
+      stroke: url(#magenta-violet-grad);
+      stroke-width: 2;
+      stroke-dasharray: 50 30 15 35;
+      filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.5));
+    }
+
+    @keyframes ringSpinClockwise {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes ringSpinCounter {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .loader-core {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .core-pulse-glow {
       position: absolute;
-      width: 210px;
-      height: auto;
-      max-height: 175px;
-      object-fit: contain;
-      z-index: 1;
-      filter: drop-shadow(0 0 24px rgba(0, 229, 255, 0.75)) drop-shadow(0 0 45px rgba(124, 58, 237, 0.45));
+      inset: -6px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, rgba(124, 58, 237, 0.2) 50%, transparent 70%);
       animation: coreBreathe 2.4s ease-in-out infinite;
-      transition: opacity 0.5s ease;
-    }
-
-    .loader-v-stage.has-webgl .loader-v-fallback {
-      opacity: 0;
-      pointer-events: none;
     }
 
     @keyframes coreBreathe {
-      0%, 100% { transform: scale(0.96); opacity: 0.85; }
-      50% { transform: scale(1.04); opacity: 1; filter: drop-shadow(0 0 32px rgba(0, 229, 255, 0.95)) drop-shadow(0 0 55px rgba(217, 70, 239, 0.6)); }
+      0%, 100% { transform: scale(0.92); opacity: 0.6; }
+      50% { transform: scale(1.25); opacity: 0.95; filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.8)); }
+    }
+
+    /* Official VALIXIS Brand Logo */
+    .loader-brand-icon {
+      width: 52px;
+      height: 52px;
+      position: relative;
+      z-index: 2;
+      object-fit: contain;
+      filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.85));
     }
 
     /* Real Preloader Terminal */
@@ -1053,17 +1104,10 @@
       .pipeline-grid {
         grid-template-columns: 1fr;
       }
-      .loader-v-stage {
-        width: 280px;
-        height: 240px;
-      }
-      .loader-v-fallback {
-        width: 170px;
-      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .portal-loader, .hero-title, .core-pulse-glow {
+      .portal-loader, .hero-title, .ring-outer, .ring-inner, .core-pulse-glow {
         animation: none !important;
       }
       .game-mini-card:hover, .featured-card:hover {
@@ -1080,27 +1124,49 @@
 <body>
 
   <!-- ========================================================================
-       BIG 3D VALIXIS V EMBLEM & REVOLVING GYRO RINGS PRELOADER
+       REAL ASSET & WEBGL BOOT PRELOADER
        ======================================================================== -->
   <div id="portal-loader" class="portal-loader" aria-label="Portal Boot Sequence">
     <div class="loader-bg-grid"></div>
     <div class="loader-center">
-      <!-- Big 3D VALIXIS V Emblem Stage (Three.js WebGL with Revolving Rings) -->
-      <div class="loader-v-stage">
-        <canvas id="loader-3d-v-canvas" width="340" height="290"></canvas>
-        <img src="valixis-logo-transparent.png" alt="VALIXIS" class="loader-v-fallback" width="2048" height="1714">
+      <!-- Concentric Holographic Rings with Official Brand Mark -->
+      <div class="cyber-rings-container">
+        <svg class="cyber-ring ring-outer" viewBox="0 0 280 280">
+          <defs>
+            <linearGradient id="cyan-blue-grad" x1="0" y1="0" x2="280" y2="280" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#00e5ff"/>
+              <stop offset="100%" stop-color="#2563ff"/>
+            </linearGradient>
+            <linearGradient id="magenta-violet-grad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#d946ef"/>
+              <stop offset="100%" stop-color="#7c3aed"/>
+            </linearGradient>
+          </defs>
+          <circle cx="140" cy="140" r="130" class="ring-track" />
+          <circle cx="140" cy="140" r="130" class="ring-dash" />
+        </svg>
+
+        <svg class="cyber-ring ring-inner" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" class="ring-dash-inner" />
+        </svg>
+
+        <!-- Official VALIXIS Logo in Hologram Core -->
+        <div class="loader-core">
+          <div class="core-pulse-glow"></div>
+          <img src="icon-512.png" alt="VALIXIS" class="loader-brand-icon" width="56" height="56">
+        </div>
       </div>
 
       <!-- Real Asset Preloader Terminal -->
       <div class="loader-terminal">
         <div class="terminal-kicker">
-          VALIXIS ARCADE &bull; SYSTEM INITIALIZATION
+          VALIXIS ARCADE &bull; ASSET INITIALIZATION
         </div>
         <div class="terminal-progress-track">
           <div id="loader-bar" class="terminal-progress-fill"></div>
         </div>
         <div class="terminal-status-row">
-          <span id="loader-status-text">INITIALIZING 3D STAGE...</span>
+          <span id="loader-status-text">CONNECTING RUNTIME...</span>
           <span id="loader-pct">0%</span>
         </div>
       </div>
@@ -1121,6 +1187,12 @@
       <img src="valixis-horizontal-lockup.png" alt="VALIXIS" class="brand-logo" width="836" height="120" fetchpriority="high">
       <span class="arcade-badge">GAMES ARCADE</span>
     </a>
+
+    <nav class="nav-links" aria-label="Portal Navigation">
+      <a href="https://valixis.tech" class="nav-btn" target="_blank" rel="noopener">
+        <span>&larr; VALIXIS.TECH</span>
+      </a>
+    </nav>
   </header>
 
   <!-- Main Arcade Container -->
@@ -1321,6 +1393,7 @@
       <p>&copy; 2026 VALIXIS Technologies. All rights reserved.</p>
       <div class="footer-links">
         <a href="https://valixis.tech" target="_blank" rel="noopener">valixis.tech &nearr;</a>
+        <a href="https://valixis.tech/privacy/" target="_blank" rel="noopener">Privacy Policy &nearr;</a>
       </div>
     </div>
   </footer>
@@ -1332,168 +1405,7 @@
     import * as THREE from './node_modules/three/build/three.module.js';
 
     /* ==========================================================================
-       1. BIG 3D VALIXIS V EMBLEM & REVOLVING GYRO RINGS (FROM valixis.tech)
-       ========================================================================== */
-    function initLoader3DValixisV() {
-      const canvas = document.getElementById('loader-3d-v-canvas');
-      const stage = document.querySelector('.loader-v-stage');
-      if (!canvas || !stage || typeof THREE === 'undefined') return null;
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height, 0.1, 100);
-      camera.position.z = 10.2;
-
-      let renderer;
-      try {
-        renderer = new THREE.WebGLRenderer({
-          canvas: canvas,
-          alpha: true,
-          antialias: true,
-          powerPreference: 'high-performance'
-        });
-        renderer.setSize(canvas.width, canvas.height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-      } catch (e) {
-        return null;
-      }
-
-      // Master Center Group
-      const masterGroup = new THREE.Group();
-      scene.add(masterGroup);
-
-      // V Logo Group
-      const vGroup = new THREE.Group();
-      masterGroup.add(vGroup);
-
-      // High-Res Double-Sided 3D VALIXIS V Monolith
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load('valixis-logo-transparent.png', (texture) => {
-        stage.classList.add('has-webgl');
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-
-        const vGeo = new THREE.PlaneGeometry(6.6, 5.52);
-        const vMatFront = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          alphaTest: 0.05,
-          side: THREE.FrontSide,
-          depthWrite: false
-        });
-        const vMeshFront = new THREE.Mesh(vGeo, vMatFront);
-        vMeshFront.position.z = 0.05;
-        vGroup.add(vMeshFront);
-
-        const vMatBack = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          alphaTest: 0.05,
-          side: THREE.FrontSide,
-          depthWrite: false
-        });
-        const vMeshBack = new THREE.Mesh(vGeo, vMatBack);
-        vMeshBack.rotation.y = Math.PI;
-        vMeshBack.position.z = -0.05;
-        vGroup.add(vMeshBack);
-      });
-
-      // Multi-Axis Revolving Gyro Neon Rings (Exact match from valixis.tech)
-      // Ring 1: Electric Cyan Orbit
-      const ring1 = new THREE.Mesh(
-        new THREE.TorusGeometry(3.55, 0.040, 16, 120),
-        new THREE.MeshBasicMaterial({ color: 0x00E5FF, transparent: true, opacity: 0.92 })
-      );
-      ring1.rotation.set(-Math.PI / 3, -Math.PI / 4, 0);
-      masterGroup.add(ring1);
-
-      // Ring 2: Tech Purple Orbit
-      const ring2 = new THREE.Mesh(
-        new THREE.TorusGeometry(4.18, 0.032, 16, 120),
-        new THREE.MeshBasicMaterial({ color: 0x7C3AED, transparent: true, opacity: 0.85 })
-      );
-      ring2.rotation.set(Math.PI / 6, 0, Math.PI / 3);
-      masterGroup.add(ring2);
-
-      // Ring 3: Neon Magenta Orbit
-      const ring3 = new THREE.Mesh(
-        new THREE.TorusGeometry(4.62, 0.020, 12, 110),
-        new THREE.MeshBasicMaterial({ color: 0xD946EF, transparent: true, opacity: 0.65 })
-      );
-      ring3.rotation.set(Math.PI / 2.8, Math.PI / 5, -Math.PI / 7);
-      masterGroup.add(ring3);
-
-      // 6 Luminous Orbiting Satellites
-      const satellites = [];
-      const satColors = [0x00E5FF, 0x2563FF, 0xD946EF];
-      for (let i = 0; i < 6; i++) {
-        const node = new THREE.Mesh(
-          new THREE.OctahedronGeometry(i % 2 ? 0.09 : 0.13),
-          new THREE.MeshBasicMaterial({ color: satColors[i % 3] })
-        );
-        masterGroup.add(node);
-        satellites.push(node);
-      }
-
-      let animFrameId = null;
-      let active = true;
-
-      function animateLoaderV() {
-        if (!active) return;
-        if (document.hidden) {
-          animFrameId = requestAnimationFrame(animateLoaderV);
-          return;
-        }
-
-        const time = performance.now() * 0.001;
-
-        // 3D V Logo organic breathing & gentle floating turn
-        vGroup.rotation.y = Math.sin(time * 0.8) * 0.35;
-        vGroup.rotation.x = Math.cos(time * 0.6) * 0.12;
-        vGroup.position.y = Math.sin(time * 1.5) * 0.09;
-
-        // Revolving outer neon circles
-        ring1.rotation.y = -Math.PI / 4 + time * 0.38;
-        ring1.rotation.x = -Math.PI / 3 + Math.sin(time * 0.5) * 0.22;
-        ring1.rotation.z = -time * 0.18;
-
-        ring2.rotation.y = Math.PI / 4 - time * 0.30;
-        ring2.rotation.x = Math.PI / 6 + Math.cos(time * 0.45) * 0.20;
-        ring2.rotation.z = time * 0.22;
-
-        ring3.rotation.y = -time * 0.14;
-        ring3.rotation.x = Math.PI / 2.8 + Math.sin(time * 0.28) * 0.15;
-
-        // Orbiting satellites
-        satellites.forEach((node, index) => {
-          const angle = time * (index % 2 ? -0.42 : 0.38) + (index * Math.PI) / 3;
-          const radius = index % 2 ? 3.55 : 4.18;
-          node.position.set(
-            Math.cos(angle) * radius,
-            Math.sin(angle) * (index % 2 ? 1.8 : -1.8),
-            Math.sin(angle) * radius
-          );
-        });
-
-        renderer.render(scene, camera);
-        animFrameId = requestAnimationFrame(animateLoaderV);
-      }
-
-      animateLoaderV();
-
-      return {
-        destroy: () => {
-          active = false;
-          if (animFrameId) cancelAnimationFrame(animFrameId);
-          try { renderer.dispose(); } catch (e) {}
-        }
-      };
-    }
-
-    const loader3DV = initLoader3DValixisV();
-
-    /* ==========================================================================
-       2. THREE.JS 3D SPATIAL BACKGROUND WITH PROCEDURAL GAMING ASSETS
+       1. THREE.JS 3D SPATIAL BACKGROUND WITH PROCEDURAL GAMING ASSETS
        ========================================================================== */
     class Arcade3DBackground {
       constructor() {
@@ -1522,7 +1434,7 @@
             powerPreference: 'high-performance'
           });
           this.renderer.setSize(window.innerWidth, window.innerHeight);
-          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 
           // Lights
           this.ambientLight = new THREE.AmbientLight(0x0b1528, 1.3);
@@ -1709,6 +1621,9 @@
         const centerDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.45, 20), neonCyanMat);
         centerDisc.rotation.x = Math.PI / 2;
 
+        const crossHBorder = new THREE.Mesh(new THREE.BoxGeometry(3.06, 1.01, 0.38), neonCyanMat);
+        const crossVBorder = new THREE.Mesh(new THREE.BoxGeometry(1.01, 3.06, 0.38), neonCyanMat);
+
         dpadCross.add(crossH, crossV, centerDisc);
         dpadCross.position.set(-16, -5, -8);
         dpadCross.scale.set(0.8, 0.8, 0.8);
@@ -1890,7 +1805,7 @@
     const bg3D = new Arcade3DBackground();
 
     /* ==========================================================================
-       3. TRUE ASSET & WEBGL SHADER PRELOADER
+       2. TRUE ASSET & WEBGL SHADER PRELOADER
        ========================================================================== */
     const loader = document.getElementById('portal-loader');
     const progressBar = document.getElementById('loader-bar');
@@ -1898,7 +1813,6 @@
     const pctText = document.getElementById('loader-pct');
 
     const coreAssets = [
-      'valixis-logo-transparent.png',
       'valixis-horizontal-lockup.png',
       'icon-512.png',
       'assets/logos/soul-ember-title.jpg',
@@ -1927,9 +1841,6 @@
     function dismissLoader() {
       if (isLoaderClosed) return;
       isLoaderClosed = true;
-      if (loader3DV && typeof loader3DV.destroy === 'function') {
-        loader3DV.destroy();
-      }
       loader.classList.add('warp-exit');
       setTimeout(() => {
         loader.style.display = 'none';
@@ -1972,7 +1883,7 @@
     }
 
     /* ==========================================================================
-       4. INTERACTIVE MOTION & AURA HOVER TRACKING
+       3. INTERACTIVE MOTION & AURA HOVER TRACKING
        ========================================================================== */
     function initPageMotion() {
       document.body.classList.add('portal-motion-ready');

@@ -9,6 +9,9 @@ import * as THREE from 'three';
 // ---------------------------------------------------------------- textures
 
 function canvasTexture(size, paint) {
+  if (typeof document === 'undefined') {
+    return new THREE.Texture();
+  }
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;

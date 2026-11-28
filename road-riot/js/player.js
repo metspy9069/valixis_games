@@ -329,6 +329,9 @@ export class PlayerCar {
     this.dctShiftTimer = 0;
     this.revMatchTimer = 0;
     this.shiftCooldown = 0;
+    this.backfireTimer = 0;
+    this.backfireCount = 0;
+    this.prevBoosting = false;
 
     // Ceramic Brake Rotor Thermals & Fade
     this.brakeRotorTemp = 45; // Ambient 45°C
@@ -357,6 +360,13 @@ export class PlayerCar {
     this.wheels = { fl: null, fr: null, rl: null, rr: null };
     this.wheelBlurMeshes = [];
     this.currentWheelBlurFactor = 0;
+
+    // Downshift Overrun Backfire & Nitro Ignition VFX
+    this.backfireTimer = 0;
+    this.backfireCount = 0;
+    this.prevBoosting = false;
+    this.emberMesh = null;
+    this.emberParticles = [];
 
     // Skid marks & smoke
     this.skidMarks = [];
@@ -512,7 +522,79 @@ export class PlayerCar {
     this.shieldMesh.position.set(0, 0.8, 0);
     this.chassis.add(this.shieldMesh);
 
+    this.initBackfireVfx();
     this.rebuildCarModel();
+  }
+
+  initBackfireVfx() {
+    this.maxEmbers = 24;
+    this.emberParticles = [];
+    this._emberMatrix = new THREE.Matrix4();
+    this._emberPos = new THREE.Vector3();
+    this._emberScale = new THREE.Vector3();
+    this._emberQuat = new THREE.Quaternion();
+
+    const geo = new THREE.PlaneGeometry(0.12, 0.12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffaa22,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide
+    });
+
+    this.emberMesh = new THREE.InstancedMesh(geo, mat, this.maxEmbers);
+    this.emberMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.chassis.add(this.emberMesh);
+
+    for (let i = 0; i < this.maxEmbers; i++) {
+      this.emberParticles.push({
+        active: false,
+        x: 0,
+        y: 0,
+        z: 0,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        life: 0,
+        maxLife: 0.22,
+        scale: 0.1
+      });
+      this._emberMatrix.makeScale(0, 0, 0);
+      this.emberMesh.setMatrixAt(i, this._emberMatrix);
+    }
+    this.emberMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  triggerBackfire(type = 'overrun') {
+    this.backfireTimer = 0.14; // 140ms backfire flash
+    this.backfireCount++;
+
+    const exhaustX = [-0.6, 0.6];
+    let spawned = 0;
+    for (let i = 0; i < this.maxEmbers; i++) {
+      const p = this.emberParticles[i];
+      if (!p.active) {
+        const sideX = exhaustX[spawned % 2];
+        p.active = true;
+        p.x = sideX + (Math.random() - 0.5) * 0.12;
+        p.y = 0.45 + (Math.random() - 0.5) * 0.1;
+        p.z = 2.3 + Math.random() * 0.15;
+        p.vx = (Math.random() - 0.5) * 2.2;
+        p.vy = 0.5 + Math.random() * 1.8;
+        p.vz = 8.0 + Math.random() * 12.0;
+        p.life = 0.18 + Math.random() * 0.12;
+        p.maxLife = p.life;
+        p.scale = type === 'nitro' ? 0.24 : 0.16;
+        spawned++;
+        if (spawned >= 12) break;
+      }
+    }
+
+    if (typeof window !== 'undefined' && window.audio && typeof window.audio.play === 'function') {
+      window.audio.play('blowoff');
+    }
   }
 
   reset() {
@@ -557,6 +639,9 @@ export class PlayerCar {
     this.dctShiftTimer = 0;
     this.revMatchTimer = 0;
     this.shiftCooldown = 0;
+    this.backfireTimer = 0;
+    this.backfireCount = 0;
+    this.prevBoosting = false;
 
     // Ceramic Brake Rotor Thermals & Fade
     this.brakeRotorTemp = 45; // Ambient 45°C
@@ -1445,6 +1530,16 @@ export class PlayerCar {
       this.revMatchTimer = 0.12; // 120ms throttle blip rev match
       this.shiftCooldown = 0.12;
       this.lastShiftType = 'down';
+      this.triggerBackfire('downshift');
+    }
+
+    if (this.isBoosting && !this.prevBoosting) {
+      this.triggerBackfire('nitro');
+    }
+    this.prevBoosting = Boolean(this.isBoosting);
+
+    if (this.backfireTimer > 0) {
+      this.backfireTimer = Math.max(0, this.backfireTimer - dt);
     }
 
     if (this.isDctCut) {
@@ -1631,28 +1726,74 @@ export class PlayerCar {
       }
     }
 
-    // 5. Exhaust Nitro Flames FX & Underglow Modulation
+    // 5. Exhaust Nitro Flames FX, Backfire Flare & Embers
     if (this.underglowLight) {
-      this.underglowLight.intensity = this.isBoosting ? 5.5 : 3.0;
+      this.underglowLight.intensity = this.isBoosting ? 5.5 : (this.backfireTimer > 0 ? 4.2 : 3.0);
     }
+    const isFlaring = this.isBoosting || this.backfireTimer > 0;
+    const isBackfireOnly = !this.isBoosting && this.backfireTimer > 0;
+
     this.exhaustFlames.forEach(f => {
       if (f.light) {
-        f.light.intensity = this.isBoosting ? 5.0 + Math.random() * 2.5 : 0;
+        f.light.intensity = this.isBoosting
+          ? (5.0 + Math.random() * 2.5)
+          : (isBackfireOnly ? 6.5 : 0);
+        if (isBackfireOnly) {
+          f.light.color.setHex(0xff7700);
+        } else {
+          f.light.color.setHex(0x00d9ff);
+        }
       }
       if (f.cone) {
-        f.cone.material.opacity = this.isBoosting ? 0.95 : 0;
-        f.cone.scale.y = this.isBoosting ? 1.0 + Math.random() * 0.55 : 0.1;
+        f.cone.material.opacity = isFlaring ? 0.95 : 0;
+        f.cone.scale.y = this.isBoosting ? (1.0 + Math.random() * 0.55) : (isBackfireOnly ? 0.75 : 0.1);
+        if (f.cone.material.color) {
+          f.cone.material.color.setHex(isBackfireOnly ? 0xff5500 : 0x00f0ff);
+        }
       }
       if (f.core) {
-        f.core.material.opacity = this.isBoosting ? 1.0 : 0;
-        f.core.scale.y = this.isBoosting ? 0.8 + Math.random() * 0.4 : 0.1;
+        f.core.material.opacity = isFlaring ? 1.0 : 0;
+        f.core.scale.y = this.isBoosting ? (0.8 + Math.random() * 0.4) : (isBackfireOnly ? 0.55 : 0.1);
+        if (f.core.material.color) {
+          f.core.material.color.setHex(isBackfireOnly ? 0xffdd44 : 0xffffff);
+        }
       }
-      if (f.intensity !== undefined) f.intensity = this.isBoosting ? 6.5 : 0.8;
+      if (f.intensity !== undefined) f.intensity = this.isBoosting ? 6.5 : (isBackfireOnly ? 5.0 : 0.8);
       if (f.userData && f.userData.cone) {
-        f.userData.cone.material.opacity = this.isBoosting ? 0.92 : 0;
-        f.userData.cone.scale.y = this.isBoosting ? 1.0 + Math.random() * 0.45 : 0.1;
+        f.userData.cone.material.opacity = isFlaring ? 0.92 : 0;
+        f.userData.cone.scale.y = this.isBoosting ? (1.0 + Math.random() * 0.45) : (isBackfireOnly ? 0.7 : 0.1);
       }
     });
+
+    // Update Exhaust Backfire Embers (InstancedMesh with zero heap allocations)
+    if (this.emberMesh && this.emberParticles) {
+      let anyEmberUpdated = false;
+      for (let i = 0; i < this.maxEmbers; i++) {
+        const p = this.emberParticles[i];
+        if (p.active) {
+          anyEmberUpdated = true;
+          p.life -= dt;
+          if (p.life <= 0) {
+            p.active = false;
+            this._emberMatrix.makeScale(0, 0, 0);
+            this.emberMesh.setMatrixAt(i, this._emberMatrix);
+          } else {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.z += p.vz * dt;
+            p.vy -= 5.0 * dt; // gravity
+            const currentScale = (p.life / p.maxLife) * p.scale;
+            this._emberPos.set(p.x, p.y, p.z);
+            this._emberScale.setScalar(Math.max(0.001, currentScale));
+            this._emberMatrix.compose(this._emberPos, this._emberQuat, this._emberScale);
+            this.emberMesh.setMatrixAt(i, this._emberMatrix);
+          }
+        }
+      }
+      if (anyEmberUpdated) {
+        this.emberMesh.instanceMatrix.needsUpdate = true;
+      }
+    }
 
     // 6. Shield & Magnet Timers
     if (this.shieldActive) {
@@ -1711,6 +1852,22 @@ export class PlayerCar {
       wheelBlurFactor: parseFloat((this.currentWheelBlurFactor || 0).toFixed(3)),
       activeBlurMeshes: blurMeshCount,
       vehicleId: this.currentVehicleId
+    };
+  }
+
+  getVfxTelemetry() {
+    let activeEmbers = 0;
+    if (this.emberParticles) {
+      for (let i = 0; i < this.emberParticles.length; i++) {
+        if (this.emberParticles[i].active) activeEmbers++;
+      }
+    }
+    return {
+      backfireActive: Boolean(this.backfireTimer && this.backfireTimer > 0),
+      backfireTimer: parseFloat((this.backfireTimer || 0).toFixed(3)),
+      backfireCount: this.backfireCount || 0,
+      activeEmbers,
+      maxEmbers: this.maxEmbers || 24
     };
   }
 }

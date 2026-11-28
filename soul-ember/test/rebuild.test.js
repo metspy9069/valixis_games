@@ -8,7 +8,7 @@ import {HERO_MODELS,MONSTER_MODELS,modelFor,actorPhase} from '../src/rebuild/mod
 import {ACTIVE_SKILLS,RELICS,RITES,ASCENSIONS,CHAMPION_AFFIXES,AFFIX_KEYS} from '../src/rebuild/content.js';
 import {ENEMY_ATTACKS,BOSS_ATTACKS,attacksFor,TELEGRAPHS,telegraphFor} from '../src/rebuild/combat-content.js';
 const tick=(g,n=1)=>{for(let i=0;i<n;i++)g.update(1/60);};
-test('complete roster contains eight heroes, twenty-two monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,22);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
+test('complete roster contains eight heroes, twenty-four monsters and three guardians',()=>{assert.equal(Object.keys(HEROES).length,8);assert.equal(Object.values(MONSTERS).filter(e=>!e.boss).length,24);assert.equal(BOSSES.length,3);assert.equal(new Set(Object.values(HEROES).map(h=>h.pattern)).size,8);});
 test('every roster entry owns a real 3D model specification',()=>{assert.deepEqual(Object.keys(HERO_MODELS).sort(),Object.keys(HEROES).sort());assert.deepEqual(Object.keys(MONSTER_MODELS).sort(),Object.keys(MONSTERS).sort());for(const id of [...Object.keys(HEROES),...Object.keys(MONSTERS)]){const model=modelFor(id);assert(model,id);assert(['humanoid','winged','hound','swarm','mimic','spitter','wraith','spider'].includes(model.kind),id);assert(Number.isFinite(model.primary),id);assert(Number.isFinite(model.secondary),id);assert(model.scale>0,id);}});
 test('string actor ids produce finite deterministic animation phases',()=>{assert(Number.isFinite(actorPhase('hero')));assert.equal(actorPhase('hero'),actorPhase('hero'));assert.notEqual(actorPhase('hero'),actorPhase('enemy'));});
 test('hero projectiles leave from their weapon side instead of the body center',()=>{for(const hero of Object.keys(HEROES)){const g=new Game({hero});g.shoot(0,1);const bolt=g.bolts[0],side=HERO_MODELS[hero].shotSide||0;assert.equal(bolt.x,side,hero);assert.equal(bolt.z,.55,hero);}});
@@ -20,7 +20,7 @@ test('no passive level damage; only an offered upgrade can mutate ranks',()=>{co
 test('the first meaningful build choice cannot be delayed beyond 50 seconds',()=>{for(const hero of Object.keys(HEROES)){const g=new Game({hero});g.spawnTimer=999;tick(g,50*60+1);assert.equal(g.state,'upgrade',hero);assert(g.levelTimes[0]>=49&&g.levelTimes[0]<=51,hero);}});
 test('dodge costs stamina, respects pause, and defensive evolution pulses',()=>{const g=new Game();g.player.ranks[2]=3;const e=g.spawn('thrall',{x:0,z:2});assert(g.dash(1,0));assert.equal(g.player.stamina,66);assert(e.hp<e.maxHp);assert(!g.dash());g.state='paused';g.player.dash=0;assert(!g.dash());});
 test('stationary dodge follows facing instead of smart-targeting danger',()=>{const g=new Game();g.spawnTimer=999;g.spawn('thrall',{x:-3,z:0});g.player.dx=1;g.player.dz=0;assert(g.dash());assert(g.player.vx>0);assert.equal(g.player.vz,0);});
-test('all twenty-two enemies own distinct readable attack profiles',()=>{assert.equal(Object.keys(ENEMY_ATTACKS).length,22);assert.equal(new Set(Object.values(ENEMY_ATTACKS).map(list=>list[0].id)).size,22);for(const id of Object.keys(ENEMY_ATTACKS)){const g=new Game({seed:1});g.spawnTimer=999;const e=g.spawn(id,{x:0,z:3}),profile=attacksFor(e)[0];assert(!solid(e.x,e.z,e.radius));assert(profile.windup>=.45,id);assert(profile.cooldown>=1.6,id);g.beginEnemyAttack(e,profile);assert.equal(e.attackId,profile.id);assert(g.events.some(event=>event.type==='enemyCue'));const before=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;g.enemyAttack(e);const after=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;assert(after>=before||e.charge>0||e.guarding>0,id);}});
+test('all twenty-four enemies own distinct readable attack profiles',()=>{assert.equal(Object.keys(ENEMY_ATTACKS).length,24);assert.equal(new Set(Object.values(ENEMY_ATTACKS).map(list=>list[0].id)).size,24);for(const id of Object.keys(ENEMY_ATTACKS)){const g=new Game({seed:1});g.spawnTimer=999;const e=g.spawn(id,{x:0,z:3}),profile=attacksFor(e)[0];assert(!solid(e.x,e.z,e.radius));assert(profile.windup>=.45,id);assert(profile.cooldown>=1.6,id);g.beginEnemyAttack(e,profile);assert.equal(e.attackId,profile.id);assert(g.events.some(event=>event.type==='enemyCue'));const before=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;g.enemyAttack(e);const after=g.bolts.length+g.zones.length+g.effects.length+g.enemies.length;assert(after>=before||e.charge>0||e.guarding>0,id);}});
 test('each guardian has a different multi-pattern three-phase script',()=>{for(const id of BOSSES){const phases=BOSS_ATTACKS[id];assert.deepEqual(Object.keys(phases),['1','2','3']);assert(phases[1].length>=2);assert(phases[2].length>=3);assert(phases[3].length>=3);assert(new Set(Object.values(phases).flat().map(a=>a.id)).size>=4,id);}});
 test('ranked guardians advance through merchants and finish after the third guardian',()=>{const g=new Game({ranked:true});g.player.level=2;for(let i=0;i<3;i++){g.time=g.regionStart+155;g.spawnTimer=999;tick(g);const e=g.enemies.find(e=>e.boss);assert.equal(e.type,BOSSES[i]);e.hp=e.maxHp*.2;tick(g);assert.equal(e.phase,3);e.hp=0;tick(g);assert.equal(g.bossKills,i+1);assert.equal(g.biome,Math.min(i+1,2));if(i<2){assert.equal(g.state,'merchant');assert.equal(g.merchantOffers.length,3);assert(g.skipMerchant());}}assert.equal(g.state,'victory');});
 test('solo victory offers an endless ascension with rotating modifiers',()=>{const g=new Game({seed:10});g.biome=2;g.bossSpawned=true;const boss=g.spawn('regent',{x:0,z:2});boss.hp=0;tick(g);assert.equal(g.state,'convergence');assert(g.events.some(e=>e.type==='convergence'));assert(g.continueEndless());assert.equal(g.cycle,1);assert.equal(g.ascension,1);assert.equal(g.biome,0);assert(ASCENSIONS[g.ascensionModifier]);assert.equal(g.state,'merchant');assert(g.skipMerchant());const scaled=g.spawn('thrall',{x:0,z:3});assert(scaled.maxHp>MONSTERS.thrall.hp);});
@@ -812,6 +812,70 @@ test('drowned catacombs biome spawns abyssal siren and barnacle hulk in regional
   assert(regional.some(e=>e.id==='siren'));
   assert(regional.some(e=>e.id==='hulk'));
 });
+
+test('bramble shifter stays camouflaged underground, unburrows upon player proximity or 15s timeout',()=>{
+  const g=new Game({seed:501});
+  g.spawnTimer=999;
+  const shifter=g.spawn('shifter',{x:0,z:5});
+  assert.equal(shifter.type,'shifter');
+  assert.equal(shifter.burrowed,true,'Bramble shifter starts camouflaged underground');
+  assert.notEqual(g.smartTarget(16),shifter,'Burrowed shifter is not targeted by smart targeting');
+
+  // Player approaches within 2.5m <= 3.2m proximity threshold
+  g.player.x=0;g.player.z=3.0; // dist = 2.0 <= 3.2m
+  const hpBefore=g.player.hp;
+  tick(g,1);
+  assert.equal(shifter.burrowed,false,'Shifter unburrowed on player proximity');
+  assert(g.events.some(e=>e.type==='shifterUnburrow'&&e.triggeredByProximity),'Unburrow event emitted with proximity trigger');
+  assert(g.player.hp<hpBefore,'Player took unburrow eruption damage');
+
+  // Test 15s auto-unburrow timeout when player stays far away
+  const distantShifter=g.spawn('shifter',{x:18,z:18});
+  g.player.x=0;g.player.z=0; // dist ~ 25m > 3.2m
+  assert.equal(distantShifter.burrowed,true);
+  for(let i=0;i<15*60+10;i++)g.update(1/60);
+  assert.equal(distantShifter.burrowed,false,'Shifter auto-unburrows at 15s to prevent wave stall');
+});
+
+test('spore weaver casts sticky tripwires that slow player by 50% and clean despawn after 12s with max 6 cap',()=>{
+  const g=new Game({seed:502});
+  g.spawnTimer=999;
+  const weaver=g.spawn('weaver',{x:0,z:3});
+  assert.equal(weaver.type,'weaver');
+
+  weaver.attackId='weaver-web';
+  g.enemyAttack(weaver);
+  const tripwire=g.zones.find(z=>z.kind==='tripwire');
+  assert(tripwire,'Tripwire zone was created');
+  assert.equal(tripwire.life,12,'Tripwire zone has 12-second lifespan');
+  assert.equal(tripwire.radius,2.4,'Tripwire radius is 2.4m');
+
+  // Player walks through tripwire
+  g.player.x=tripwire.x;g.player.z=tripwire.z;
+  g.player.vx=10;g.player.vz=10;
+  tick(g,1);
+  assert(g.events.some(e=>e.type==='tripwireTrigger'),'Tripwire trigger event fired');
+  assert(g.player.vx<6,'Player movement significantly slowed by tripwire');
+  assert(g.player.chill>=1.5,'Tripwire applied toxic chill');
+
+  // Tripwires cap at 6 to prevent corridor congestion
+  for(let i=0;i<10;i++){
+    weaver.attackId='weaver-web';
+    g.enemyAttack(weaver);
+  }
+  const activeTripwires=g.zones.filter(z=>z.kind==='tripwire'&&z.life>0);
+  assert(activeTripwires.length<=6,'Active tripwires strictly capped at 6');
+});
+
+test('thornbound ossuary biome spawns bramble shifter and spore weaver in regional pool',()=>{
+  assert.equal(MONSTERS.shifter.region,2);
+  assert.equal(MONSTERS.weaver.region,2);
+  const regional=Object.values(MONSTERS).filter(e=>!e.boss&&e.region===2);
+  assert.equal(regional.length,8);
+  assert(regional.some(e=>e.id==='shifter'));
+  assert(regional.some(e=>e.id==='weaver'));
+});
+
 
 
 

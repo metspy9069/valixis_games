@@ -36,6 +36,15 @@ class SoulAudio{
    }else if(attack.includes('siren-bolt')){
     this.tone(680,.2,{type:'triangle',gain:.2,slide:.5,pan});
     this.noise(.15,{gain:.14,frequency:1400,pan});
+   }else if(attack.includes('shifter')){
+    this.tone(90,.32,{type:'sawtooth',gain:.28,slide:1.5,pan});
+    this.noise(.24,{gain:.22,frequency:420,pan});
+   }else if(attack.includes('weaver-web')){
+    this.tone(480,.38,{type:'sine',gain:.22,slide:.75,pan});
+    this.noise(.28,{gain:.16,frequency:2200,pan});
+   }else if(attack.includes('weaver-spore')){
+    this.tone(260,.32,{type:'triangle',gain:.2,slide:.45,pan});
+    this.noise(.2,{gain:.18,frequency:850,pan});
    }else if(attack.includes('priest')){
     this.tone(523,.42,{type:'triangle',gain:.22,slide:1.25,pan});
     this.tone(784,.32,{type:'sine',gain:.18,delay:.08,slide:.95,pan});
@@ -51,6 +60,10 @@ class SoulAudio{
   }
   else if(event==='victory')for(const [i,f] of [220,330,440,554,660].entries())this.tone(f,1,{gain:.2,delay:i*.12,bus:this.musicGain});
   else if(event==='defeat'){this.tone(146,1.4,{type:'sawtooth',gain:.22,slide:.3,bus:this.musicGain});}
+  else if(event==='shifterUnburrow'){
+   this.tone(55,.45,{type:'sawtooth',gain:.34,slide:.35,pan});
+   this.noise(.35,{gain:.28,frequency:320,pan});
+  }
    else if(event==='comboRank'){
     const r=params.rank||'C';
     if(r==='C'||r==='B')this.tone(660,.12,{type:'triangle',gain:.16,slide:1.3});

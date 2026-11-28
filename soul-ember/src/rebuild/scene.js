@@ -464,10 +464,11 @@ export class Scene{
   const turnBank=moving?(-(entity.vx||0)*0.025):0;
   const forwardLean=moving?Math.min(0.18,Math.hypot(entity.vx||0,entity.vz||0)*0.02):0;
   const idleY=Math.sin(clock*2+d.seed)*.015;
-  const y=showcase?.08:spec.kind==='wraith'?.55+(reduced?0:Math.sin(clock*3+d.seed)*.12):entity.type==='siren'?.25+(reduced?0:Math.sin(clock*3.5+d.seed)*.12):dead?deathY:moving&&!reduced?Math.abs(walk)*.08:idleY;
+  const y=showcase?.08:entity.type==='shifter'&&entity.burrowed?-0.42:spec.kind==='wraith'?.55+(reduced?0:Math.sin(clock*3+d.seed)*.12):entity.type==='siren'?.25+(reduced?0:Math.sin(clock*3.5+d.seed)*.12):entity.type==='weaver'?.35+(reduced?0:Math.sin(clock*3.2+d.seed)*.08):dead?deathY:moving&&!reduced?Math.abs(walk)*.08:idleY;
 
   const hulkGrowth=entity.type==='hulk'?Math.min(1.8,1.0+(entity.growth||0)*0.1):1.0;
-  model.scale.setScalar((spec.scale||1)*(showcase?(innerWidth<700?1.6:2.65):1)*deathScale*hulkGrowth);
+  const burrowScale=entity.type==='shifter'&&entity.burrowed?0.5:1.0;
+  model.scale.setScalar((spec.scale||1)*(showcase?(innerWidth<700?1.6:2.65):1)*deathScale*hulkGrowth*burrowScale);
   model.position.set(Number.isFinite(entity.x)?entity.x:0,Number.isFinite(y)?y:0,Number.isFinite(entity.z)?entity.z:0);
   model.rotation.set(
    (dead?deathPitch:death*1.25)+forwardLean,

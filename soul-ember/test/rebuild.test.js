@@ -832,6 +832,7 @@ test('bramble shifter stays camouflaged underground, unburrows upon player proxi
   // Test 15s auto-unburrow timeout when player stays far away
   const timeoutGame=new Game({seed:501});
   timeoutGame.player.invuln=999;
+  timeoutGame.spawnTimer=9999;
   const distantShifter=timeoutGame.spawn('shifter',{x:18,z:18});
   assert.equal(distantShifter.burrowed,true);
   for(let i=0;i<15*60+10;i++)timeoutGame.update(1/60);
